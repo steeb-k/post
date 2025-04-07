@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/org/tabos/stamp">
+    <file preprocess="xml-stripblanks">stamp-window.ui</file>
+    <file preprocess="xml-stripblanks">views/mail/folder-list/stamp-mail-folder-row.ui</file>
+    <file preprocess="xml-stripblanks">views/mail/conversation-list/stamp-mail-row.ui</file>
+    <file preprocess="xml-stripblanks">views/mail/message-list/stamp-mail-message-header.ui</file>
+    <file preprocess="xml-stripblanks">views/mail/message-list/stamp-mail-message-list.ui</file>
+    <file preprocess="xml-stripblanks">views/mail/stamp-mail-view.ui</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/archive-symbolic.svg">resources/icons/scalable/actions/archive-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/building-symbolic.svg">resources/icons/scalable/actions/building-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/drafts-symbolic.svg">resources/icons/scalable/actions/drafts-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/inbox-symbolic.svg">resources/icons/scalable/actions/inbox-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/junk-symbolic.svg">resources/icons/scalable/actions/junk-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/labels-symbolic.svg">resources/icons/scalable/actions/labels-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/map-symbolic.svg">resources/icons/scalable/actions/map-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/outbox-symbolic.svg">resources/icons/scalable/actions/outbox-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/sent-symbolic.svg">resources/icons/scalable/actions/sent-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/search-global-symbolic.svg">resources/icons/scalable/actions/search-global-symbolic.svg</file>
+    <file>style.css</file>
+  </gresource>
+</gresources>

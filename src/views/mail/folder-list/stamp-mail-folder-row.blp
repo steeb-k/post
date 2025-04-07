@@ -1,0 +1,19 @@
+using Gtk 4.0;
+
+template $StampMailFolderRow: Gtk.Box {
+  orientation: horizontal;
+  styles ["folder-row"]
+
+  Gtk.Image image {
+  }
+
+  Gtk.Inscription inscription {
+    hexpand: true;
+    xalign: 0;
+    text-overflow: ellipsize_end;
+  }
+
+  Gtk.Label unread {
+    styles ["counter", "long", "numeric", "needs-attention"]
+  }
+}

@@ -1,0 +1,93 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampWindow: Adw.ApplicationWindow {
+  width-request: 360;
+  height-request: 200;
+  default-width: 1200;
+  default-height: 600;
+
+  title: _("Stamp");
+
+  content: Adw.ViewStack app_view_stack {
+    Adw.ViewStackPage {
+      name: "welcome";
+      title: "Welcome";
+      child: Adw.ToolbarView {
+        [top]
+        Adw.HeaderBar {
+          show-title: false;
+          show-end-title-buttons: true;
+        }
+        Adw.StatusPage {
+          title: _("Stamp");
+          icon-name: "org.tabos.stamp";
+          description: _("Stamp uses email accounts configured in System Settings.");
+          child: Gtk.Button {
+            halign: center;
+            use-underline: true;
+            label: _("Online _Accounts…");
+            clicked => $on_open_settings_clicked();
+            styles ["suggested-action", "pill"]
+          };
+        }
+      };
+    }
+    Adw.ViewStackPage {
+      name: "main";
+      title: "Main";
+
+      child: Adw.ViewStack main_view_stack {
+        Adw.ViewStackPage mail_stack_page {
+          name: "mail";
+          title: "Mail";
+          icon-name: "mail-unread-symbolic";
+
+          child: $StampMailView mail_view {
+          };
+        }
+        // Adw.ViewStackPage contact_stack_page {
+        //   name: "contact";
+        //   title: "Contact";
+        //   icon-name: "system-users-symbolic";
+
+        //   child: $StampContactView contact_view {
+        //   };
+        // }
+        // Adw.ViewStackPage calendar_stack_page {
+        //   name: "calendar";
+        //   title: "Calendar";
+        //   icon-name: "x-office-calendar-symbolic";
+
+        //   child: $StampCalendarView calendar_view {
+        //   };
+        // }
+      };
+    }
+  };
+}
+
+menu primary_menu {
+  section {
+    item {
+      label: _('A_ccounts');
+      action: 'app.accounts';
+    }
+  }
+  section {
+    item {
+      label: _('_Preferences');
+      action: 'app.preferences';
+    }
+
+    item {
+      label: _('_Keyboard Shortcuts');
+      action: 'win.show-help-overlay';
+    }
+
+    item {
+      label: _('_About Stamp');
+      action: 'app.about';
+    }
+  }
+}

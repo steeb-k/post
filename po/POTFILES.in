@@ -1,0 +1,8 @@
+# List of source files containing translatable strings.
+# Please keep this file sorted alphabetically.
+data/org.tabos.cameltest.desktop.in
+data/org.tabos.cameltest.metainfo.xml.in
+data/org.tabos.cameltest.gschema.xml
+src/main.c
+src/camel-window.c
+src/camel-window.blp

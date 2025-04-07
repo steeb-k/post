@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Stamp
+Exec=stamp
+Icon=org.tabos.stamp
+Terminal=false
+Type=Application
+Categories=Utility;
+Keywords=GTK;
+StartupNotify=true
+DBusActivatable=true

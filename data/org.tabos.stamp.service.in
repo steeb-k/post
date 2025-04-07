@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=org.tabos.stamp
+Exec=@bindir@/stamp --gapplication-service

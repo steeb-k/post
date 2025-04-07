@@ -1,0 +1,169 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampMailView : Adw.BreakpointBin {
+  width-request: 360;
+  height-request: 200;
+
+  child: Adw.NavigationSplitView outer_view {
+    min-sidebar-width: 470;
+    max-sidebar-width: 780;
+    sidebar-width-fraction: 0.47;
+    sidebar: Adw.NavigationPage inner_view_page {
+      title: _("Inbox");
+      child: Adw.NavigationSplitView inner_view {
+        max-sidebar-width: 360;
+        sidebar-width-fraction: 0.45;
+        sidebar: Adw.NavigationPage {
+          title: _("Stamp");
+          child: Adw.ToolbarView {
+            [top]
+            Adw.HeaderBar {
+              [start]
+              Adw.Spinner spinner {
+                visible: false;
+              }
+
+              [end]
+              Gtk.MenuButton {
+                primary: true;
+                icon-name: "open-menu-symbolic";
+                menu-model: primary_menu;
+              }
+            }
+            content: Gtk.Box {
+              orientation: vertical;
+              Gtk.ScrolledWindow {
+                hscrollbar-policy: never;
+                child: Adw.Bin folders_list_bin {
+                };
+              }
+              Adw.ViewSwitcherBar view_switcher {
+                reveal: true;
+              }
+            };
+          };
+        };
+        content: Adw.NavigationPage mail_page {
+          title: _("Inbox");
+          tag: "inbox";
+          child: Adw.ToolbarView {
+            [top]
+            Adw.HeaderBar {
+              title-widget: Adw.WindowTitle window_title {
+                title: _("Mail");
+              };
+
+              [start]
+              Gtk.ToggleButton start_search_btn {
+                active: bind search_bar.search-mode-enabled bidirectional;
+                icon-name: "edit-find-symbolic";
+              }
+              [end]
+              Gtk.ToggleButton end_search_btn {
+                active: bind search_bar.search-mode-enabled bidirectional;
+                icon-name: "edit-find-symbolic";
+                visible: false;
+              }
+              [end]
+              Gtk.Button {
+                icon-name: "selection-mode-symbolic";
+              }
+            }
+            [top]
+            Gtk.SearchBar search_bar {
+              key-capture-widget: mail_page;
+              child: Adw.Clamp {
+                maximum-size: 400;
+                child: Gtk.SearchEntry search_entry {
+                  search-changed => $on_mail_search_entry_changed();
+                  hexpand: true;
+                };
+              };
+            }
+            content: Gtk.Stack mail_list_stack {
+              Gtk.StackPage {
+                name: "content";
+                child: Gtk.Overlay {
+                  [overlay]
+                  Gtk.Button {
+                    halign: end;
+                    valign: end;
+                    icon-name: "document-edit-symbolic";
+                    styles ["suggested-action", "circular", "fab"]
+                  }
+                  child: Gtk.ScrolledWindow {
+                    hscrollbar-policy: never;
+                    child: Adw.Bin mail_list_bin {
+                    };
+                  };
+                };
+              }
+              Gtk.StackPage {
+                name: "placeholder";
+                child: Adw.StatusPage {
+                  title: "No Folder Selected";
+                };
+              }
+            };
+          };
+        };
+      };
+    };
+    content: Adw.NavigationPage message_page {
+      tag: "message";
+      title: _("Message");
+      child: $StampMailMessageList message_list {
+      };
+      // child: $StampMailMessageList message_list {
+      // };
+    };
+  };
+  Adw.Breakpoint {
+    condition ("max-width: 860sp")
+    apply => $two_pane_apply_cb();
+    unapply => $two_pane_unapply_cb();
+    setters {
+      outer_view.collapsed: true;
+      inner_view.sidebar-width-fraction: 0.33;
+    }
+  }
+  Adw.Breakpoint breakpoint_small {
+    condition ("max-width: 500sp")
+    unapply => $one_pane_unapply_cb();
+    setters {
+      outer_view.collapsed: true;
+      inner_view.sidebar-width-fraction: 0.33;
+
+      inner_view.collapsed: true;
+
+      start_search_btn.visible: false;
+      end_search_btn.visible: true;
+    }
+  }
+}
+
+menu primary_menu {
+  section {
+    item {
+      label: _('A_ccounts');
+      action: 'app.accounts';
+    }
+  }
+  section {
+    item {
+      label: _('_Preferences');
+      action: 'app.preferences';
+    }
+
+    item {
+      label: _('_Keyboard Shortcuts');
+      action: 'win.show-help-overlay';
+    }
+
+    item {
+      label: _('_About Stamp');
+      action: 'app.about';
+    }
+  }
+}

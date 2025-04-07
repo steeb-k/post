@@ -1,0 +1,60 @@
+.counter {
+  background: alpha(currentColor, .15);
+  border-radius: 999px;
+  padding: 2px;
+  font-size: smaller;
+  font-weight: bold;
+  min-width: 1rem;
+}
+
+.counter.long {
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.counter.needs-attention {
+  background: @accent_bg_color;
+  color: @accent_fg_color;
+}
+
+.folder-row {
+  padding: 9px 3px;
+  border-spacing: 12px;
+}
+
+.separator-row {
+  padding: 6px;
+  min-height: 0;
+}
+
+.mail-row {
+  padding: 9px 0;
+  border-spacing: 12px 6px;
+}
+
+.mail-row > box {
+  border-spacing: 6px;
+}
+
+.fab {
+  margin: 18px;
+  padding: 6px;
+}
+
+.conversation {
+  /* margin-top: 12px; */
+  margin: 24px 12px;
+  border-spacing: 24px;
+}
+
+.floating-bar {
+  background: var(--popover-bg-color);
+  color: var(--popover-fg-color);
+  padding: 4px 12px;
+  margin: 4px;
+  border-radius: 8px;
+}
+
+.collapsible-row {
+  padding: 0;
+}

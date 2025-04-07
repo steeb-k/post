@@ -1,0 +1,78 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampMailRow: Gtk.Box {
+  Gtk.Grid {
+    styles [ "mail-row" ]
+
+    // $StampAvatar avatar {
+    Adw.Avatar avatar {
+      layout {
+        row: 0;
+        column: 0;
+        row-span: 3;
+      }
+
+      valign: start;
+      size: 48;
+    }
+
+    Gtk.Box {
+      layout {
+        column: 1;
+        row: 0;
+      }
+
+      Gtk.Inscription participants {
+        hexpand: true;
+        xalign: 0;
+        text-overflow: ellipsize_end;
+        nat-chars: 999;
+      }
+      Gtk.Label date {
+        xalign: 1;
+        ellipsize: end;
+      }
+    }
+
+    Gtk.Inscription topic {
+      layout {
+        column: 1;
+        row: 1;
+      }
+      hexpand: true;
+      xalign: 0;
+      text-overflow: ellipsize_end;
+    }
+
+    Gtk.Box {
+      layout {
+        column: 1;
+        row: 2;
+      }
+
+      Gtk.Inscription body {
+        hexpand: true;
+        xalign: 0;
+        text-overflow: ellipsize_end;
+        min-lines: 2;
+
+        styles [ "caption" ]
+      }
+
+      Gtk.Image attachment_icon {
+        icon-name: "mail-attachment-symbolic";
+        styles [ "dim-label" ]
+      }
+
+      Gtk.Image flagged_icon {
+        icon-name: "non-starred-symbolic";
+      }
+
+      Gtk.Label counter {
+        styles [ "counter", "numeric" ]
+        valign: center;
+      }
+    }
+  }
+}

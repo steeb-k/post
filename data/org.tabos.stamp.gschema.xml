@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="stamp">
+  <schema id="org.tabos.stamp" path="/org/tabos/stamp/">
+    <key name="window-maximized" type="b">
+      <default>false</default>
+      <summary>Whether the window was maximized on last run</summary>
+      <description>Whether the window was maximized on last run</description>
+    </key>
+    <key name="window-width" type="i">
+      <default>1024</default>
+      <summary>Most recent window width</summary>
+      <description>Most recent window width</description>
+    </key>
+    <key name="window-height" type="i">
+      <default>750</default>
+      <summary>Most recent window height</summary>
+      <description>Most recent window height</description>
+    </key>
+  </schema>
+
+  <schema id="org.tabos.stamp.mail" path="/org/tabos/stamp/mail/">
+    <key name="selected-folder" type="(ss)">
+      <default>("", "")</default>
+      <summary>The account name and folder name of the last selected folder</summary>
+      <description>The account name and folder name of the last selected folder</description>
+    </key>
+  </schema>
+
+  <schema id="org.tabos.stamp.mail.accounts">
+    <key name="expanded" type="b">
+      <default>true</default>
+      <summary>Whether the account itself is expanded</summary>
+      <description>Whether the account itself is expanded</description>
+    </key>
+    <key name="expanded-folders" type="as">
+      <default>[]</default>
+      <summary>The list of all the expanded folders</summary>
+      <description>The list of all the expanded folders</description>
+    </key>
+  </schema>
+</schemalist>
