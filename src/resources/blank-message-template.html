@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title></title>
+    <style>
+      :root {
+        --bg-color: white;
+        --fg-color: black;
+      }
+
+      html {
+        height: 100%;
+      }
+      body {
+        margin: 0px !important;
+        padding: 0 !important;
+        background-color: var(--bg-color) !important;
+        color: var(--fg-color);
+        font-size: medium !important;
+        height: 100% !important;
+      }
+      body.plain, body.plain * {
+        font-family: monospace !important;
+        font-weight: normal;
+        font-style: normal;
+        font-size: medium !important;
+        color: var(--fg-color);
+        text-decoration: none;
+      }
+      body.plain a {
+        cursor: text;
+      }
+      #editor {
+        box-sizing: border-box;
+        padding: 6px;
+        outline: 0px solid transparent;
+        min-height: 100%;
+      }
+      blockquote {
+        margin-top: 0px;
+        margin-bottom: 0px;
+        margin-left: 12px;
+        margin-right: 12px;
+        padding-left: 6px;
+        padding-right: 6px;
+        background-color: var(--bg-color);
+        border: 0;
+        border-left: 3px #aaa solid;
+        color: var(--fg-color);
+      }
+      pre {
+        white-space: pre-wrap;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div contenteditable="true" id="editor" dir="auto"><p> </p>%s</div>
+  </body>
+</html>

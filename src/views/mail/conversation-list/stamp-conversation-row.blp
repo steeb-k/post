@@ -1,0 +1,211 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampConversationRow: Box {
+  orientation: vertical;
+
+  Overlay {
+    vexpand: true;
+
+    [overlay]
+    Box left_action {
+      orientation: vertical;
+      halign: start;
+      opacity: 0;
+      valign: center;
+      spacing: 6;
+      margin-start: 6;
+      margin-end: 6;
+
+      styles [
+        "accent",
+      ]
+
+      Image left_action_image {
+        accessibility {
+          label: _("Mark Read");
+        }
+
+        icon-name: 'mark-read-symbolic';
+      }
+
+      Label left_action_label {
+        label: _("Mark Read");
+
+        styles [
+          "heading",
+        ]
+      }
+    }
+
+    [overlay]
+    Box right_action {
+      orientation: vertical;
+      halign: end;
+      opacity: 0;
+      valign: center;
+      spacing: 6;
+      margin-start: 6;
+      margin-end: 6;
+
+      styles [
+        "error",
+      ]
+
+      Image {
+        accessibility {
+          label: _("Move to Trash");
+        }
+
+        icon-name: 'user-trash-symbolic';
+      }
+
+      Label {
+        label: _("Trash");
+
+        styles [
+          "heading",
+        ]
+      }
+    }
+
+    child: Grid row {
+      hexpand: true;
+      vexpand: true;
+      halign: start;
+
+      styles [
+        "conversation-row",
+      ]
+
+      Stack stack {
+        Adw.Avatar avatar {
+          valign: start;
+          size: 32;
+          show-initials: true;
+        }
+
+        CheckButton check_button {
+          valign: start;
+          toggled => $on_check_button_toggled();
+          can-focus: false;
+
+          styles [
+            "selection-mode",
+          ]
+        }
+
+        layout {
+          row: 0;
+          column: 0;
+          row-span: 3;
+        }
+      }
+
+      Box {
+        layout {
+          column: 1;
+          row: 0;
+        }
+
+        Inscription participants {
+          hexpand: true;
+          xalign: 0;
+          text-overflow: ellipsize_end;
+          nat-chars: 999;
+        }
+
+        Label date {
+          xalign: 1;
+          ellipsize: end;
+
+          styles [
+            "caption",
+          ]
+        }
+      }
+
+      Box {
+        layout {
+          column: 1;
+          row: 1;
+        }
+
+        Inscription topic {
+          hexpand: true;
+          xalign: 0;
+          text-overflow: ellipsize_end;
+        }
+
+        Label counter {
+          styles [
+            "counter",
+            "numeric",
+            "long",
+          ]
+
+          valign: center;
+        }
+      }
+
+      Box {
+        layout {
+          column: 1;
+          row: 2;
+        }
+
+        Label labels {
+          styles [
+            "counter",
+            "long",
+            "needs-attention",
+          ]
+
+          visible: false;
+        }
+
+        Inscription body {
+          hexpand: true;
+          xalign: 0;
+          text-overflow: ellipsize_end;
+
+          styles [
+            "caption",
+          ]
+        }
+
+        Image calendar_icon {
+          accessibility {
+            label: _("Move to Trash");
+          }
+
+          icon-name: "x-office-calendar-symbolic";
+          visible: false;
+        }
+
+        Image attachment_icon {
+          accessibility {
+            label: _("Mail Attachment");
+          }
+
+          icon-name: "mail-attachment-symbolic";
+          visible: false;
+        }
+
+        Image flagged_icon {
+          accessibility {
+            label: _("Flagged Mail");
+          }
+
+          icon-name: "non-starred-symbolic";
+        }
+      }
+    };
+
+    GestureDrag {
+      drag-update => $on_drag_update();
+      drag-end => $on_drag_end();
+      propagation-phase: capture;
+    }
+  }
+}

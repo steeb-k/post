@@ -1,6 +1,5 @@
-/* camel-application.h
- *
- * Copyright 2025 Jan-Michael Brummer
+/*
+ * Copyright 2024-2026 Jan-Michael Brummer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,5 +29,8 @@ G_DECLARE_FINAL_TYPE (StampApplication, stamp_application, STAMP, APPLICATION, A
 
 StampApplication *stamp_application_new (const char        *application_id,
                                          GApplicationFlags  flags);
+
+StampApplication *
+stamp_application_get_default (void);
 
 G_END_DECLS

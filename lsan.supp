@@ -1,0 +1,29 @@
+# Fontconfig internal Pattern-Cache
+leak:FcValueSave
+leak:FcPatternObjectAddWithBinding
+leak:FcPatternObjectInsertElt
+leak:FcPatternObjectListAdd
+leak:FcFontRenderPrepare
+leak:pango_fc_font_map_load_fontset
+leak:pango_fc_fontset_get_font_at
+
+# Camel IMAP Message-Cache
+leak:imapx_get_message_cached
+leak:imapx_message_from_stream_sync
+
+# Camel global Singleton
+leak:camel_certdb_init
+leak:camel_init
+
+# WebKit / EGL / Mesa Singletons
+leak:_eglGrowArray
+leak:dri2_add_config
+leak:dri2_initialize_wayland
+leak:WTF::NeverDestroyed
+leak:webkitInitialize
+leak:WebCore::initializeCommonAtomStrings
+leak:WTF::AtomStringImpl::addLiteral
+
+# Hunspell / Enchant
+leak:hunspell_find_dictionary
+leak:hunspell_provider_dictionary_exists

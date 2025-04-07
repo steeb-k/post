@@ -1,0 +1,35 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampBookRow: Box {
+  orientation: horizontal;
+
+  styles [
+    "folder-row",
+  ]
+
+  Image image {
+    accessibility {
+      label: _("Book Type Icon");
+    }
+  }
+
+  Inscription inscription {
+    hexpand: true;
+    xalign: 0;
+    text-overflow: ellipsize_end;
+  }
+
+  Adw.Spinner spinner {
+    visible: false;
+  }
+
+  Image error {
+    accessibility {
+      label: _("Error");
+    }
+
+    icon-name: "dialog-error-symbolic";
+    visible: false;
+  }
+}

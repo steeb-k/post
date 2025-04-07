@@ -1,6 +1,5 @@
-/* stamp-application.c
- *
- * Copyright 2025 Jan-Michael Brummer
+/*
+ * Copyright 2024-2026 Jan-Michael Brummer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,19 +19,21 @@
 
 #include "config.h"
 #include <glib/gi18n.h>
+#include <gio/gdesktopappinfo.h>
+#include <pk11pub.h>
 
 #include "stamp-application.h"
+#include "stamp-composer.h"
+#include "stamp-preferences.h"
+#include "stamp-session.h"
 #include "stamp-window.h"
 
-#include "backend/stamp-session.h"
-
-struct _StampApplication
-{
+struct _StampApplication {
   AdwApplication parent_instance;
 
-  gboolean first_activation;
-  gboolean run_in_background;
+  gboolean start_hidden;
   StampSession *session;
+  char *password;
 };
 
 G_DEFINE_FINAL_TYPE (StampApplication, stamp_application, ADW_TYPE_APPLICATION)
@@ -41,13 +42,17 @@ StampApplication *
 stamp_application_new (const char        *application_id,
                        GApplicationFlags  flags)
 {
-	g_return_val_if_fail (application_id != NULL, NULL);
+  StampApplication *stamp_application;
 
-	return g_object_new (STAMP_TYPE_APPLICATION,
-	                     "application-id", application_id,
-	                     "flags", flags,
-	                     "resource-base-path", "/org/tabos/stamp",
-	                     NULL);
+  g_return_val_if_fail (application_id != NULL, NULL);
+
+  stamp_application = g_object_new (STAMP_TYPE_APPLICATION,
+                                    "application-id", application_id,
+                                    "flags", flags,
+                                    "resource-base-path", "/org/tabos/stamp",
+                                    NULL);
+
+  return stamp_application;
 }
 
 static void
@@ -57,20 +62,6 @@ stamp_application_activate (GApplication *app)
   GtkWindow *main_window = NULL;
   GList *windows = NULL;
 
-  g_print ("%s: ENTER\n", G_STRFUNC);
-
-  if (self->first_activation) {
-    self->first_activation = FALSE;
-    g_application_hold (app);
-  }
-
-  if (self->run_in_background) {
-    /* request_background (app); */
-    self->run_in_background = FALSE;
-    return;
-  }
-
-  /* window = gtk_application_get_active_window (GTK_APPLICATION (app)); */
   windows = gtk_application_get_windows (GTK_APPLICATION (app));
   for (GList *iter = windows; iter; iter = iter->next) {
     GtkWidget *win = iter->data;
@@ -81,12 +72,13 @@ stamp_application_activate (GApplication *app)
     }
   }
 
-  if (!main_window) {
-    main_window = g_object_new (STAMP_TYPE_WINDOW,
-                           "application", app,
-                           NULL);
+  if (!main_window)
+    main_window = g_object_new (STAMP_TYPE_WINDOW, "application", app, NULL);
 
-    // Set size
+  if (self->start_hidden) {
+    gtk_widget_set_visible (GTK_WIDGET (main_window), FALSE);
+    self->start_hidden = FALSE;
+    return;
   }
 
   gtk_window_present (main_window);
@@ -96,34 +88,137 @@ static int
 stamp_application_command_line (GApplication            *app,
                                 GApplicationCommandLine *cmdline)
 {
-  int argc;
-  char **argv = g_application_command_line_get_arguments (cmdline, &argc);
   g_autoptr (GError) error = NULL;
+  g_auto (GStrv) argv = NULL;
+  int argc;
 
-  g_print ("%s: ENTER\n", G_STRFUNC);
+  argv = g_application_command_line_get_arguments (cmdline, &argc);
   stamp_application_activate (app);
 
   for (int i = 1; argv[i]; i++) {
-    char *mailto_uri = argv[i];
-    GUri *mailto = NULL;
+    g_autoptr (GUri) mailto = NULL;
     g_autofree char *to = NULL;
+    GtkWidget *composer;
+    char *mailto_uri = argv[i];
+    const char *uri_query;
 
     mailto = g_uri_parse (mailto_uri, G_URI_FLAGS_NONE, &error);
-    if (!mailto) {
-      g_warning ("Argument is not a URL.");
+    if (error) {
+      g_warning ("%s: Argument is not a URL: %s", G_STRFUNC, error->message);
       return G_OPTION_ERROR_BAD_VALUE;
     }
 
-
     if (g_strcmp0 (g_uri_get_scheme (mailto), "mailto") != 0) {
-      g_warning ("Cannot open non-mailto URL");
-      return -1;
+      g_warning ("%s: Cannot open non-mailto URL", G_STRFUNC);
+      return G_OPTION_ERROR_BAD_VALUE;
     }
 
     to = g_uri_unescape_string (g_uri_get_path (mailto), NULL);
+
+    composer = stamp_composer_new (NULL);
+    stamp_composer_set_to (STAMP_COMPOSER (composer), to);
+    gtk_window_present (GTK_WINDOW (composer));
+
+    uri_query = g_uri_get_query (mailto);
+    if (uri_query) {
+      GUriParamsIter qp;
+      char *name;
+      char *value;
+      g_autoptr (GString) body = g_string_new (NULL);
+      g_autofree char *escaped = NULL;
+      g_autofree char *markup = NULL;
+      g_autoptr (GRegex) regex = NULL;
+
+      g_uri_params_iter_init (&qp, uri_query, -1, "&", G_URI_PARAMS_NONE);
+      while (g_uri_params_iter_next (&qp, &name, &value, &error)) {
+        if (!name || !value || error) {
+          break;
+        }
+
+        if (g_strcmp0 (name, "subject") == 0)
+          stamp_composer_set_subject (STAMP_COMPOSER (composer), value);
+        else if (g_strcmp0 (name, "body") == 0)
+          g_string_append (body, value);
+        else
+          g_string_append_printf (body, "&%s=%s", name, value);
+
+        g_free (name);
+        g_free (value);
+      }
+
+      escaped = g_markup_escape_text (body->str, body->len);
+      regex = g_regex_new ("\n", 0, 0, NULL);
+      markup = g_regex_replace_literal (regex, escaped, -1, 0, "<br/>", 0, NULL);
+
+      stamp_composer_set_body (STAMP_COMPOSER (composer), markup);
+    }
   }
 
   return 0;
+}
+
+static void
+on_password_dialog_response (GtkWidget *dialog,
+                             gchar     *response,
+                             gpointer   user_data)
+{
+  StampApplication *self = STAMP_APPLICATION (user_data);
+  GtkWidget *entry = g_object_get_data (G_OBJECT (dialog), "entry");
+  GMainLoop *loop = g_object_get_data (G_OBJECT (dialog), "loop");
+
+  if (g_strcmp0 (response, "decrypt") == 0)
+    self->password = g_strdup (gtk_editable_get_text (GTK_EDITABLE (entry)));
+
+  g_main_loop_quit (loop);
+}
+
+static void
+on_pk11_password (StampSession  *session,
+                  PK11SlotInfo  *slot,
+                  PRBool         retry,
+                  char         **password,
+                  gpointer       user_data)
+{
+  StampApplication *self = STAMP_APPLICATION (user_data);
+  g_autofree char *prompt = NULL;
+  g_autofree char *slot_name = g_strdup (PK11_GetSlotName (slot));
+  g_autofree char *token_name = g_strdup (PK11_GetTokenName (slot));
+  AdwDialog *dialog;
+  GtkWindow *window = gtk_application_get_active_window (GTK_APPLICATION (self));
+  GtkWidget *entry;
+  GMainLoop *loop;
+
+  g_strchomp (slot_name);
+
+  if (token_name)
+    g_strchomp (token_name);
+
+  if (token_name && *token_name && g_ascii_strcasecmp (slot_name, token_name) != 0)
+    prompt = g_strdup_printf (_("Enter the password for “%s”, token “%s”"), slot_name, token_name);
+  else
+    prompt = g_strdup_printf (_("Enter the password for “%s”"), slot_name);
+
+  dialog = adw_alert_dialog_new (_("Enter Password"), prompt);
+  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "cancel", _("Cancel"));
+  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "decrypt", _("Decrypt"));
+  adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "decrypt");
+  g_signal_connect_object (dialog, "response", G_CALLBACK (on_password_dialog_response), self, 0);
+
+  entry = gtk_entry_new ();
+  gtk_entry_set_activates_default (GTK_ENTRY (entry), TRUE);
+  gtk_entry_set_visibility (GTK_ENTRY (entry), FALSE);
+  adw_alert_dialog_set_extra_child (ADW_ALERT_DIALOG (dialog), entry);
+
+  loop = g_main_loop_new (NULL, FALSE);
+  g_object_set_data_full (G_OBJECT (dialog), "entry", entry, NULL);
+  g_object_set_data_full (G_OBJECT (dialog), "loop", loop, NULL);
+
+  adw_dialog_present (dialog, GTK_WIDGET (window));
+  gtk_widget_grab_focus (entry);
+
+  g_main_loop_run (loop);
+
+  *password = self->password;
 }
 
 static void
@@ -131,26 +226,46 @@ stamp_application_startup (GApplication *app)
 {
   StampApplication *self = STAMP_APPLICATION (app);
 
-  g_print ("%s: ENTER\n", G_STRFUNC);
   G_APPLICATION_CLASS (stamp_application_parent_class)->startup (app);
 
-  adw_init ();
-
-  // Add CSS
-
-  // start monitor
   self->session = stamp_session_get_default ();
-  stamp_session_start (self->session, NULL, NULL, NULL);
+  g_signal_connect_object (self->session, "pk11-password", G_CALLBACK (on_pk11_password), self, 0);
+}
+
+static gint
+stamp_application_handle_local_options (GApplication *application,
+                                        GVariantDict *options)
+{
+  StampApplication *self = STAMP_APPLICATION (application);
+
+  self->start_hidden = g_variant_dict_contains (options, "hidden") && !gtk_application_get_active_window (GTK_APPLICATION (self));
+
+  return -1;
+}
+
+static void
+stamp_application_dispose (GObject *object)
+{
+  StampApplication *self = STAMP_APPLICATION (object);
+
+  g_clear_object (&self->session);
+  g_clear_pointer (&self->password, g_free);
+
+  G_OBJECT_CLASS (stamp_application_parent_class)->dispose (object);
 }
 
 static void
 stamp_application_class_init (StampApplicationClass *klass)
 {
   GApplicationClass *app_class = G_APPLICATION_CLASS (klass);
+  GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
   app_class->activate = stamp_application_activate;
   app_class->command_line = stamp_application_command_line;
   app_class->startup = stamp_application_startup;
+  app_class->handle_local_options = stamp_application_handle_local_options;
+
+  object_class->dispose = stamp_application_dispose;
 }
 
 static void
@@ -158,23 +273,25 @@ stamp_application_about_action (GSimpleAction *action,
                                 GVariant      *parameter,
                                 gpointer       user_data)
 {
-	static const char *developers[] = {"Jan-Michael Brummer", NULL};
-	StampApplication *self = user_data;
-	GtkWindow *window = NULL;
+  static const char *developers[] = {"Jan-Michael Brummer", NULL};
+  static const char *designers[] = {"Tobias Bernard", NULL};
+  StampApplication *self = STAMP_APPLICATION (user_data);
+  GtkWindow *window = NULL;
 
-	g_assert (STAMP_IS_APPLICATION (self));
+  g_assert (STAMP_IS_APPLICATION (self));
 
-	window = gtk_application_get_active_window (GTK_APPLICATION (self));
+  window = gtk_application_get_active_window (GTK_APPLICATION (self));
 
-	adw_show_about_dialog (GTK_WIDGET (window),
-	                       "application-name", "stamp",
-	                       "application-icon", "org.tabos.stamp",
-	                       "developer-name", "Jan-Michael Brummer",
-	                       "translator-credits", _("translator-credits"),
-	                       "version", "0.1.0",
-	                       "developers", developers,
-	                       "copyright", "© 2025 Jan-Michael Brummer",
-	                       NULL);
+  adw_show_about_dialog (GTK_WIDGET (window),
+                         "application-name", "Stamp",
+                         "application-icon", "org.tabos.stamp",
+                         "developer-name", "Jan-Michael Brummer",
+                         "translator-credits", _("translator-credits"),
+                         "version", PACKAGE_VERSION,
+                         "developers", developers,
+                         "designers", designers,
+                         "copyright", "© 2024-2026 Jan-Michael Brummer",
+                         NULL);
 }
 
 static void
@@ -182,26 +299,84 @@ stamp_application_quit_action (GSimpleAction *action,
                                GVariant      *parameter,
                                gpointer       user_data)
 {
-	StampApplication *self = user_data;
+  StampApplication *self = STAMP_APPLICATION (user_data);
+  GList *windows = NULL;
 
-	g_assert (STAMP_IS_APPLICATION (self));
+  g_assert (STAMP_IS_APPLICATION (self));
 
-	g_application_quit (G_APPLICATION (self));
+  windows = gtk_application_get_windows (GTK_APPLICATION (self));
+
+  while (windows && windows->data) {
+    windows = windows->next;
+  }
+
+  windows = gtk_application_get_windows (GTK_APPLICATION (self));
+
+  while (windows && windows->data) {
+    GtkWindow *window = GTK_WINDOW (windows->data);
+
+    windows = windows->next;
+    gtk_window_destroy (GTK_WINDOW (window));
+  }
+
+  g_application_quit (G_APPLICATION (self));
+}
+
+static void
+stamp_application_accounts_action (GSimpleAction *action,
+                                   GVariant      *parameter,
+                                   gpointer       user_data)
+{
+  const char *flatpak_id = getenv ("FLATPAK_ID");
+
+  if (flatpak_id) {
+    system ("flatpak-spawn --host gnome-control-center online-accounts");
+  } else {
+    StampApplication *self = STAMP_APPLICATION (user_data);
+    GtkWindow *window = gtk_application_get_active_window (GTK_APPLICATION (self));
+
+    g_autoptr (GError) error = NULL;
+    GDesktopAppInfo *app_info = g_desktop_app_info_new ("gnome-online-accounts-panel.desktop");
+    GdkAppLaunchContext *context;
+
+    context = gdk_display_get_app_launch_context (gtk_widget_get_display (GTK_WIDGET (window)));
+    g_app_info_launch (G_APP_INFO (app_info), NULL, G_APP_LAUNCH_CONTEXT (context), &error);
+  }
+}
+
+static void
+stamp_application_preferences_action (GSimpleAction *action,
+                                      GVariant      *parameter,
+                                      gpointer       user_data)
+{
+  StampApplication *self = STAMP_APPLICATION (user_data);
+  GtkWindow *window = gtk_application_get_active_window (GTK_APPLICATION (self));
+  GtkWidget *preferences = stamp_preferences_new ();
+
+  adw_dialog_present (ADW_DIALOG (preferences), GTK_WIDGET (window));
 }
 
 static const GActionEntry app_actions[] = {
-	{ "quit", stamp_application_quit_action },
-	{ "about", stamp_application_about_action },
+  { "accounts", stamp_application_accounts_action },
+  { "quit", stamp_application_quit_action },
+  { "about", stamp_application_about_action },
+  { "preferences", stamp_application_preferences_action },
 };
 
 static void
 stamp_application_init (StampApplication *self)
 {
-	g_action_map_add_action_entries (G_ACTION_MAP (self),
-	                                 app_actions,
-	                                 G_N_ELEMENTS (app_actions),
-	                                 self);
-	gtk_application_set_accels_for_action (GTK_APPLICATION (self),
-	                                       "app.quit",
-	                                       (const char *[]) { "<primary>q", NULL });
+  g_action_map_add_action_entries (G_ACTION_MAP (self),
+                                   app_actions,
+                                   G_N_ELEMENTS (app_actions),
+                                   self);
+
+  g_application_add_main_option (G_APPLICATION (self), "hidden", 'h', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE, _("Start window hidden"), NULL);
+
+  gtk_application_set_accels_for_action (GTK_APPLICATION (self),
+                                         "app.quit",
+                                         (const char *[]) { "<primary>q", NULL });
+  gtk_application_set_accels_for_action (GTK_APPLICATION (self),
+                                         "app.preferences",
+                                         (const char *[]) { "<primary>comma", NULL });
 }

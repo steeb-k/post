@@ -1,0 +1,30 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampContactCompletion: Adw.Bin {
+  child: Adw.WrapBox wrap_box {
+    child-spacing: 6;
+    line-spacing: 4;
+    valign: center;
+
+    Entry entry {
+      hexpand: true;
+
+      styles [
+        "flat",
+        "no-focus",
+      ]
+
+      changed => $on_changed();
+      activate => $on_entry_activate();
+
+      EventControllerKey {
+        key-pressed => $on_key_pressed();
+      }
+
+      EventControllerFocus {
+        leave => $on_focus_leave();
+      }
+    }
+  };
+}

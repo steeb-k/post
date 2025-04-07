@@ -1,8 +1,31 @@
+/*
+ * Copyright 2024-2026 Jan-Michael Brummer
+ *
+ * This file is part of Stamp.
+ * Based on ephy-time-helpers.h from Epiphany (Copyright © 2002 Jorn Baayen)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+#include "stamp-time-helpers.h"
+
+#include <gdesktop-enums.h>
 #include <gio/gio.h>
 #include <glib/gi18n.h>
 #include <glib.h>
-
-#include "stamp-time-helpers.h"
 
 /* Legal conversion specifiers, as specified in the C standard. */
 #define C_STANDARD_STRFTIME_CHARACTERS "aAbBcdHIjmMpSUwWxXyYZ"
@@ -14,7 +37,7 @@
  *
  * Cover for standard date-and-time-formatting routine strftime that returns
  * a newly-allocated string of the correct size. The caller is responsible
- * for g_free-ing the returned string.
+ * for g_free-ing the returned string.eel_strdup_strftime
  *
  * Besides the buffer management, there are two differences between this
  * and the library strftime:
@@ -174,7 +197,8 @@ eel_strdup_strftime (const char *format,
 
 
 char *
-stamp_time_helpers_utf_friendly_time (time_t date)
+stamp_time_helpers_utf_friendly_time (time_t   date,
+                                      gboolean short_format)
 {
   time_t nowdate;
   time_t yesdate;
@@ -183,11 +207,11 @@ stamp_time_helpers_utf_friendly_time (time_t date)
   char *str = NULL;
   gboolean done = FALSE;
   gboolean use_24;
+  g_autoptr (GSettings) settings = NULL;
 
-  /* settings = ephy_settings_get ("org.gnome.desktop.interface"); */
+  settings = g_settings_new ("org.gnome.desktop.interface");
 
-  /* use_24 = g_settings_get_enum (settings, "clock-format") == G_DESKTOP_CLOCK_FORMAT_24H; */
-  use_24 = TRUE;
+  use_24 = g_settings_get_enum (settings, "clock-format") == G_DESKTOP_CLOCK_FORMAT_24H;
 
   nowdate = time (NULL);
 
@@ -202,10 +226,10 @@ stamp_time_helpers_utf_friendly_time (time_t date)
       then.tm_year == now.tm_year) {
     if (!use_24) {
       /* Translators: "friendly time" string for the current day, strftime format. like "Today 12∶34 am" */
-      format = _("Today %I∶%M %p");
+      format = _("%I∶%M %p");
     } else {
       /* Translators: "friendly time" string for the current day, strftime format. like "Today 15∶34" */
-      format = _("Today %H∶%M");
+      format = _("%H∶%M");
     }
     done = TRUE;
   }
@@ -213,27 +237,11 @@ stamp_time_helpers_utf_friendly_time (time_t date)
   if (!done) {
     yesdate = nowdate - 60 * 60 * 24;
     localtime_r (&yesdate, &yesterday);
-    if (then.tm_mday == yesterday.tm_mday &&
-        then.tm_mon == yesterday.tm_mon &&
-        then.tm_year == yesterday.tm_year) {
-      if (!use_24) {
-        /* Translators: "friendly time" string for the previous day,
-         * strftime format. e.g. "Yesterday 12∶34 am"
-         */
-        format = _("Yesterday %I∶%M %p");
-      } else {
-        /* Translators: "friendly time" string for the previous day,
-         * strftime format. e.g. "Yesterday 15∶34"
-         */
-        format = _("Yesterday %H∶%M");
-      }
-      done = TRUE;
-    }
   }
 
   if (!done) {
     int i;
-    for (i = 2; i < 7; i++) {
+    for (i = 1; i < 7; i++) {
       yesdate = nowdate - 60 * 60 * 24 * i;
       localtime_r (&yesdate, &yesterday);
       if (then.tm_mday == yesterday.tm_mday &&
@@ -243,12 +251,18 @@ stamp_time_helpers_utf_friendly_time (time_t date)
           /* Translators: "friendly time" string for a day in the current week,
            * strftime format. e.g. "Wed 12∶34 am"
            */
-          format = _("%a %I∶%M %p");
+          if (!short_format)
+            format = _("%a %I∶%M %p");
+          else
+            format = _("%a");
         } else {
           /* Translators: "friendly time" string for a day in the current week,
            * strftime format. e.g. "Wed 15∶34"
            */
-          format = _("%a %H∶%M");
+          if (!short_format)
+            format = _("%a %H∶%M");
+          else
+            format = _("%a");
         }
         done = TRUE;
         break;

@@ -1,0 +1,695 @@
+/*
+ * Copyright 2025-2026 Jan-Michael Brummer
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+/* TODO: Initial expanding no longer works... */
+
+#include "stamp-folder-list.h"
+
+#include "stamp-account-item.h"
+#include "stamp-folder-item.h"
+#include "stamp-folder-row.h"
+#include "stamp-session.h"
+
+struct _StampFolderList {
+  AdwBin parent_instance;
+
+  GtkWidget *sorter;
+  GtkWidget *folders_list;
+  GtkWidget *sort_list_model;
+  GtkSingleSelection *selection;
+  GSettings *settings;
+
+  gboolean already_selected;
+  GListStore *list_store;
+};
+
+G_DEFINE_FINAL_TYPE (StampFolderList, stamp_folder_list, ADW_TYPE_BIN)
+
+enum {
+  FOLDER_SELECTED,
+  LAST_SIGNAL
+};
+
+static gint signals[LAST_SIGNAL] = { 0 };
+
+static void
+on_selection_changed (GtkSelectionModel *selection,
+                      guint              position,
+                      guint              n_items,
+                      gpointer           user_data)
+{
+  gpointer selected_item = gtk_single_selection_get_selected_item (GTK_SINGLE_SELECTION (selection));
+  StampFolderList *self = STAMP_FOLDER_LIST (user_data);
+  GtkTreeListRow *row;
+  StampItem *item;
+
+  if (!selected_item)
+    return;
+
+  row = GTK_TREE_LIST_ROW (selected_item);
+  item = STAMP_ITEM (gtk_tree_list_row_get_item (row));
+
+  if (STAMP_IS_FOLDER_ITEM (item)) {
+    StampAccount *account = stamp_item_get_account (item);
+    const char *full_name = stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item));
+
+    g_settings_set (self->settings, "selected-folder", "(ss)", stamp_account_get_name (account), full_name);
+
+    g_signal_emit (self, signals[FOLDER_SELECTED], 0, account, full_name);
+  }
+}
+
+static void
+insert_item (StampFolderList  *self,
+             StampAccountItem *item)
+{
+  g_autoptr (GSettings) settings = g_settings_new ("org.tabos.stamp");
+  char **saved_order = g_settings_get_strv (settings, "account-order");
+  int pos = -1;
+  int saved_pos = 0;
+  const char *name = stamp_item_get_name (STAMP_ITEM (item));
+
+  while (saved_order[saved_pos]) {
+    if (g_strcmp0 (name, saved_order[saved_pos]) == 0) {
+      pos = saved_pos;
+      break;
+    }
+    saved_pos++;
+  }
+
+  if (pos == -1) {
+    g_list_store_append (self->list_store, item);
+  } else {
+    int insert_index = 0;
+
+    for (int i = 0; i < g_list_model_get_n_items (G_LIST_MODEL (self->list_store)); i++) {
+      StampItem *cur_item = g_list_model_get_item (G_LIST_MODEL (self->list_store), i);
+      const char *cur_name;
+
+      if (!STAMP_IS_ACCOUNT_ITEM (cur_item)) {
+        continue;
+      }
+
+      cur_name = stamp_item_get_name (cur_item);
+
+      for (int j = 0; j < pos; j++) {
+        if (g_strcmp0 (saved_order[j], cur_name) == 0) {
+          insert_index++;
+        }
+      }
+    }
+
+    g_list_store_insert (self->list_store, insert_index, item);
+  }
+}
+
+static void
+on_mail_added (GtkWidget        *object,
+               StampAccount     *account,
+               StampMailService *service,
+               gpointer          user_data)
+{
+  StampFolderList *self = STAMP_FOLDER_LIST (user_data);
+  g_autoptr (StampAccountItem) item = NULL;
+  guint len = g_list_model_get_n_items (G_LIST_MODEL (self->list_store));
+
+  /* Safety: Do not account twice, shouldn't happen at all... */
+  for (guint idx = 0; idx < len; idx++) {
+    g_autoptr (StampAccountItem) check_item = STAMP_ACCOUNT_ITEM (g_list_model_get_item (G_LIST_MODEL (self->list_store), idx));
+
+    if (stamp_item_get_account (STAMP_ITEM (check_item)) == account) {
+      return;
+    }
+  }
+
+  item = stamp_account_item_new (account);
+  stamp_account_item_load (item);
+  insert_item (self, item);
+}
+
+static void
+on_mail_removed (GtkWidget        *object,
+                 StampAccount     *account,
+                 StampMailService *service,
+                 gpointer          user_data)
+{
+  StampFolderList *self = STAMP_FOLDER_LIST (user_data);
+  guint len = g_list_model_get_n_items (G_LIST_MODEL (self->list_store));
+
+  for (guint idx = 0; idx < len; idx++) {
+    g_autoptr (StampAccountItem) item = STAMP_ACCOUNT_ITEM (g_list_model_get_item (G_LIST_MODEL (self->list_store), idx));
+
+    if (stamp_item_get_account (STAMP_ITEM (item)) == account) {
+      g_list_store_remove (self->list_store, idx);
+      return;
+    }
+  }
+}
+
+static void
+on_stamp_folder_list_account_added (GObject      *object,
+                                    StampAccount *account,
+                                    gpointer      user_data)
+{
+  StampFolderList *self = STAMP_FOLDER_LIST (user_data);
+  g_autoptr (StampAccountItem) account_item = NULL;
+  StampMailService *mail_service;
+
+  g_signal_connect_object (account, "mail-added", G_CALLBACK (on_mail_added), self, 0);
+  g_signal_connect_object (account, "mail-removed", G_CALLBACK (on_mail_removed), self, 0);
+
+  mail_service = stamp_account_get_mail_service (account);
+  if (!mail_service || !mail_service->enabled)
+    return;
+
+  account_item = stamp_account_item_new (account);
+  stamp_account_item_load (account_item);
+  insert_item (self, account_item);
+}
+
+static void
+on_stamp_folder_list_account_removed (GObject      *object,
+                                      StampAccount *account,
+                                      gpointer      user_data)
+{
+  StampFolderList *self = STAMP_FOLDER_LIST (user_data);
+  int len = g_list_model_get_n_items (G_LIST_MODEL (self->list_store));
+
+  for (int idx = 0; idx < len; idx++) {
+    g_autoptr (StampItem) item = STAMP_ITEM (g_list_model_get_item (G_LIST_MODEL (self->list_store), idx));
+
+    if (!STAMP_IS_ACCOUNT_ITEM (item))
+      continue;
+
+    if (stamp_item_get_account (item) == account) {
+      g_list_store_remove (self->list_store, idx);
+      break;
+    }
+  }
+}
+
+/* TODO: Move to helper */
+static char **
+g_strv_remove (const char * const *strv,
+               const char         *str)
+{
+  char **new_strv;
+  char **n;
+  const char * const *s;
+  guint len;
+
+  if (!g_strv_contains (strv, str))
+    return g_strdupv ((char **)strv);
+
+  /* Needs room for one fewer string than before, plus one for trailing NULL. */
+  len = g_strv_length ((char **)strv);
+  new_strv = g_malloc ((len - 1 + 1) * sizeof (char *));
+  n = new_strv;
+  s = strv;
+
+  while (*s != NULL) {
+    if (strcmp (*s, str) != 0) {
+      *n = g_strdup (*s);
+      n++;
+    }
+    s++;
+  }
+  new_strv[len - 1] = NULL;
+
+  return new_strv;
+}
+
+/* TODO: Move to helper */
+static char **
+g_strv_append (const char * const *strv,
+               const char         *str)
+{
+  char **new_strv;
+  char **n;
+  const char * const *s;
+  guint len;
+
+  if (g_strv_contains (strv, str))
+    return g_strdupv ((char **)strv);
+
+  /* Needs room for one fewer string than before, plus one for trailing NULL. */
+  len = g_strv_length ((char **)strv) + 2;
+  new_strv = g_malloc (len * sizeof (char *));
+  n = new_strv;
+  s = strv;
+
+  while (*s != NULL) {
+    *n = g_strdup (*s);
+    n++;
+    s++;
+  }
+
+  new_strv[len - 2] = g_strdup (str);
+  new_strv[len - 1] = NULL;
+
+  return new_strv;
+}
+
+static void
+on_row_expanded (GtkTreeListRow *row,
+                 GParamSpec     *pspec,
+                 gpointer        user_data)
+{
+  StampItem *item = STAMP_ITEM (gtk_tree_list_row_get_item (row));
+  StampAccount *account = stamp_item_get_account (STAMP_ITEM (item));
+  g_autofree char *settings_path = NULL;
+  g_autoptr (GSettings) account_settings = NULL;
+  g_auto (GStrv) folders = NULL;
+  g_auto (GStrv) new_folders = NULL;
+  const char *full_name = stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item));
+
+  settings_path = g_strconcat ("/org/tabos/stamp/mail/accounts/", stamp_account_get_name (account), "/", NULL);
+  account_settings = g_settings_new_with_path ("org.tabos.stamp.mail.accounts", settings_path);
+  folders = g_settings_get_strv (account_settings, "expanded-folders");
+
+  if (gtk_tree_list_row_get_expanded (row)) {
+    new_folders = g_strv_append ((const char * const *)folders, full_name);
+  } else {
+    new_folders = g_strv_remove ((const char * const *)folders, full_name);
+  }
+
+  g_settings_set_strv (account_settings, "expanded-folders", (const char * const *)new_folders);
+}
+
+static void
+expand_idle (gpointer user_data)
+{
+  g_autoptr (GtkTreeListRow) row = GTK_TREE_LIST_ROW (user_data);
+
+  gtk_tree_list_row_set_expanded (row, TRUE);
+}
+
+static void
+on_bind_folder (GtkListItemFactory *factory,
+                GtkListItem        *list_item,
+                gpointer            user_data)
+{
+  StampFolderList *self = STAMP_FOLDER_LIST (user_data);
+  StampFolderRow *folder_row;
+  StampItem *item;
+  StampAccount *account;
+  GtkTreeListRow *row;
+  GtkWidget *expander;
+  g_autoptr (GSettings) account_settings = NULL;
+  g_autofree char *settings_path = NULL;
+  GtkWidget *row_widget;
+  int indent_size = 20;
+  guint depth;
+  int margin;
+
+  expander = gtk_list_item_get_child (list_item);
+  row = GTK_TREE_LIST_ROW (gtk_list_item_get_item (list_item));
+  item = STAMP_ITEM (gtk_tree_list_row_get_item (row));
+  row_widget = gtk_widget_get_parent (GTK_WIDGET (expander));
+
+  gtk_tree_expander_set_list_row (GTK_TREE_EXPANDER (expander), row);
+
+  folder_row = STAMP_FOLDER_ROW (gtk_tree_expander_get_child (GTK_TREE_EXPANDER (expander)));
+
+  stamp_folder_row_bind (folder_row, item);
+
+  /* FIXME: Optimize the following code */
+  account = stamp_item_get_account (STAMP_ITEM (item));
+
+  settings_path = g_strconcat ("/org/tabos/stamp/mail/accounts/", stamp_account_get_name (account), "/", NULL);
+  account_settings = g_settings_new_with_path ("org.tabos.stamp.mail.accounts", settings_path);
+
+  if (STAMP_IS_FOLDER_ITEM (item)) {
+    const char *full_name = stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item));
+    g_auto (GStrv) expanded_folders = g_settings_get_strv (account_settings, "expanded-folders");
+
+    if (!self->already_selected) {
+      g_autofree char *account_name = NULL;
+      g_autofree char *folder_name = NULL;
+
+      g_settings_get (self->settings, "selected-folder", "(ss)", &account_name, &folder_name);
+      if (g_strcmp0 (stamp_account_get_name (account), account_name) == 0 && g_strcmp0 (full_name, folder_name) == 0) {
+        gtk_single_selection_set_selected (self->selection, gtk_list_item_get_position (list_item));
+        self->already_selected = TRUE;
+      }
+    }
+
+    if (g_strv_contains ((const char **)expanded_folders, full_name))
+      g_idle_add_once (expand_idle, g_object_ref (row));
+
+    g_signal_connect_object (row, "notify::expanded", G_CALLBACK (on_row_expanded), self, 0);
+  } else {
+    /* Set initial account expanded state */
+    g_settings_bind (account_settings, "expanded", row, "expanded", G_SETTINGS_BIND_DEFAULT | G_SETTINGS_BIND_GET_NO_CHANGES);
+  }
+
+  depth = gtk_tree_list_row_get_depth (row);
+  gtk_tree_expander_set_indent_for_depth (GTK_TREE_EXPANDER (expander), FALSE);
+  gtk_tree_expander_set_indent_for_icon (GTK_TREE_EXPANDER (expander), FALSE);
+
+  margin = (depth > 0) ? (depth - 1) * indent_size : 0;
+  gtk_widget_set_margin_start (GTK_WIDGET (expander), margin);
+
+  gtk_widget_remove_css_class (row_widget, "tree-header");
+  gtk_widget_remove_css_class (row_widget, "tree-child");
+
+  if (depth == 0) {
+    gtk_widget_add_css_class (row_widget, "tree-header");
+  } else {
+    gtk_widget_add_css_class (row_widget, "tree-child");
+  }
+}
+
+static GListModel *
+get_child (void     *item,
+           gpointer  user_data)
+{
+  if (STAMP_IS_ITEM (item)) {
+    GListModel *model = G_LIST_MODEL (stamp_item_get_list_store (STAMP_ITEM (item)));
+
+    return model ? g_object_ref (model) : NULL;
+  }
+
+  return NULL;
+}
+
+static gint
+folders_sorter (gconstpointer a,
+                gconstpointer b,
+                gpointer      user_data)
+{
+  StampItem *item_a = (StampItem *)(a);
+  StampItem *item_b = (StampItem *)(b);
+
+  if (STAMP_IS_FOLDER_ITEM (item_a) && STAMP_IS_FOLDER_ITEM (item_b)) {
+    gint flags_a = stamp_folder_item_get_flags (STAMP_FOLDER_ITEM (item_a));
+    gint flags_b = stamp_folder_item_get_flags (STAMP_FOLDER_ITEM (item_b));
+    gint type_a = flags_a & CAMEL_FOLDER_TYPE_MASK;
+    gint type_b = flags_b & CAMEL_FOLDER_TYPE_MASK;
+
+    if (type_a == type_b) {
+      const char *name_a = stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item_a));
+      const char *name_b = stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item_b));
+
+      return g_strcmp0 (name_a, name_b);
+    }
+
+    if (type_a == CAMEL_FOLDER_TYPE_NORMAL)
+      return 1;
+
+    if (type_b == CAMEL_FOLDER_TYPE_NORMAL)
+      return -1;
+
+    if (type_a < type_b)
+      return -1;
+
+    return 1;
+  } else if (STAMP_IS_ACCOUNT_ITEM (item_a) && STAMP_IS_ACCOUNT_ITEM (item_b)) {
+    /* const char *name_a = stamp_item_get_name (item_a); */
+    /* const char *name_b = stamp_item_get_name (item_b); */
+
+    /* return g_strcmp0 (name_a, name_b); */
+    return 0;
+  } else {
+    g_debug ("%s: Failed to compare unknown combination", G_STRFUNC);
+  }
+
+  return 0;
+}
+
+static void
+on_row_released (GtkGestureClick *gesture,
+                 int              n_press,
+                 double           x,
+                 double           y,
+                 gpointer         user_data)
+{
+  GtkListItem *list_item = GTK_LIST_ITEM (user_data);
+  GtkTreeListRow *row = gtk_list_item_get_item (list_item);
+  StampItem *item;
+
+  if (!row)
+    return;
+
+  item = STAMP_ITEM (gtk_tree_list_row_get_item (row));
+  if (!STAMP_IS_ACCOUNT_ITEM (item))
+    return;
+
+  if (gtk_tree_list_row_is_expandable (row)) {
+    gboolean expanded = gtk_tree_list_row_get_expanded (row);
+    gtk_tree_list_row_set_expanded (row, !expanded);
+  }
+}
+
+static GdkContentProvider *
+on_drag_prepare (GtkDragSource *source,
+                 double         x,
+                 double         y,
+                 gpointer       user_data)
+{
+  GtkListItem *list_item = GTK_LIST_ITEM (user_data);
+  GtkTreeExpander *expander = GTK_TREE_EXPANDER (gtk_list_item_get_child (list_item));
+  StampItem *item = STAMP_ITEM (gtk_tree_expander_get_item (expander));
+
+  g_print ("%s: ENTER\n", G_STRFUNC);
+  if (STAMP_IS_ACCOUNT_ITEM (item)) {
+    g_print ("type: %lu\n", (unsigned long)STAMP_TYPE_ITEM);
+    g_type_ensure (STAMP_TYPE_ITEM);
+    g_print ("type: %lu\n", (unsigned long)STAMP_TYPE_ITEM);
+    return gdk_content_provider_new_typed (STAMP_TYPE_ITEM, item);
+  }
+
+  return NULL;
+}
+
+static guint
+find_position (GListStore *store,
+               gpointer    item)
+{
+  guint n = g_list_model_get_n_items (G_LIST_MODEL (store));
+
+  for (guint i = 0; i < n; i++) {
+    gpointer it = g_list_model_get_item (G_LIST_MODEL (store), i);
+
+    if (it == item) {
+      g_object_unref (it);
+      return i;
+    }
+
+    g_object_unref (it);
+  }
+
+  return GTK_INVALID_LIST_POSITION;
+}
+
+static void
+save_account_order (StampFolderList *self)
+{
+  g_autoptr (GSettings) settings = g_settings_new ("org.tabos.stamp");
+  GListStore *store = self->list_store;
+  guint n = g_list_model_get_n_items (G_LIST_MODEL (store));
+  g_auto (GStrv) arr = g_new (gchar *, n + 1);
+  int array_index = 0;
+
+  for (guint i = 0; i < n; i++) {
+    gpointer it = g_list_model_get_item (G_LIST_MODEL (store), i);
+
+    if (STAMP_IS_ACCOUNT_ITEM (it)) {
+      arr[array_index++] = g_strdup (stamp_item_get_name (STAMP_ITEM (it)));
+    }
+
+    g_object_unref (it);
+  }
+
+  arr[array_index] = NULL;
+  g_settings_set_strv (settings, "account-order", (const gchar * const *)arr);
+}
+
+static gboolean
+on_drop (GtkDropTarget *target,
+         const GValue  *value,
+         double         x,
+         double         y,
+         gpointer       user_data)
+{
+  StampFolderList *self = STAMP_FOLDER_LIST (user_data);
+  GListStore *store = G_LIST_STORE (self->list_store);
+  StampItem *src_item = g_value_get_object (value);
+  StampFolderRow *row = STAMP_FOLDER_ROW (gtk_event_controller_get_widget (GTK_EVENT_CONTROLLER (target)));
+  GtkListItem *list_item = g_object_get_data (G_OBJECT (row), "list-item");
+  GtkTreeExpander *expander = GTK_TREE_EXPANDER (gtk_list_item_get_child (list_item));
+  StampItem *dest_item = STAMP_ITEM (gtk_tree_expander_get_item (expander));
+  guint src_pos;
+  guint dest_pos;
+  gpointer item;
+
+  if (!STAMP_IS_ACCOUNT_ITEM (dest_item))
+    return FALSE;
+
+  src_pos = find_position (store, src_item);
+  dest_pos = find_position (store, dest_item);
+
+  if (src_pos == GTK_INVALID_LIST_POSITION ||
+      dest_pos == GTK_INVALID_LIST_POSITION)
+    return FALSE;
+
+  item = g_list_model_get_item (G_LIST_MODEL (store), src_pos);
+
+  g_list_store_remove (store, src_pos);
+  g_list_store_insert (store, dest_pos, item);
+
+  g_object_unref (item);
+
+  save_account_order (self);
+
+  return TRUE;
+}
+
+static gboolean
+on_accept (GtkDropTarget *self,
+           GdkDrop       *drop,
+           gpointer       user_data)
+{
+  GtkListItem *list_item = GTK_LIST_ITEM (user_data);
+  GtkTreeExpander *expander = GTK_TREE_EXPANDER (gtk_list_item_get_child (list_item));
+  StampItem *item = STAMP_ITEM (gtk_tree_expander_get_item (expander));
+
+  if (STAMP_IS_ACCOUNT_ITEM (item))
+    return TRUE;
+
+  return FALSE;
+}
+
+static void
+on_drag_begin (GtkDragSource  *source,
+               GdkDrag        *drag,
+               StampFolderRow *self)
+{
+  /* Set the widget as the drag icon */
+  GdkPaintable *paintable = gtk_widget_paintable_new (GTK_WIDGET (self));
+  gtk_drag_source_set_icon (source, paintable, 0, 0);
+  g_object_unref (paintable);
+}
+
+static void
+on_setup_folder (GtkListItemFactory *factory,
+                 GtkListItem        *list_item,
+                 gpointer            user_data)
+{
+  StampFolderList *self = STAMP_FOLDER_LIST (user_data);
+  GtkWidget *row;
+  GtkWidget *expander;
+  GtkGesture *click = gtk_gesture_click_new ();
+  GtkDragSource *drag = gtk_drag_source_new ();
+  GtkDropTarget *drop = gtk_drop_target_new (STAMP_TYPE_ITEM, GDK_ACTION_MOVE);
+
+  gtk_list_item_set_activatable (list_item, TRUE);
+
+  expander = gtk_tree_expander_new ();
+  row = stamp_folder_row_new ();
+  gtk_tree_expander_set_child (GTK_TREE_EXPANDER (expander), row);
+
+  gtk_list_item_set_child (list_item, expander);
+
+  gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (click), GDK_BUTTON_PRIMARY);
+  g_signal_connect (click, "released", G_CALLBACK (on_row_released), list_item);
+  gtk_widget_add_controller (expander, GTK_EVENT_CONTROLLER (click));
+
+  gtk_drag_source_set_actions (drag, GDK_ACTION_MOVE);
+  g_signal_connect (drag, "prepare", G_CALLBACK (on_drag_prepare), list_item);
+  g_signal_connect (drag, "drag-begin", G_CALLBACK (on_drag_begin), row);
+  gtk_widget_add_controller (row, GTK_EVENT_CONTROLLER (drag));
+
+  g_object_set_data (G_OBJECT (row), "list-item", list_item);
+  g_signal_connect (drop, "accept", G_CALLBACK (on_accept), list_item);
+  g_signal_connect (drop, "drop", G_CALLBACK (on_drop), self);
+  gtk_widget_add_controller (row, GTK_EVENT_CONTROLLER (drop));
+}
+
+static void
+stamp_folder_list_dispose (GObject *object)
+{
+  StampFolderList *self = STAMP_FOLDER_LIST (object);
+
+  if (self->list_store)
+    g_clear_object (&self->list_store);
+
+  G_OBJECT_CLASS (stamp_folder_list_parent_class)->dispose (object);
+}
+
+static void
+stamp_folder_list_class_init (StampFolderListClass *klass)
+{
+  GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
+  GObjectClass *object_class = G_OBJECT_CLASS (klass);
+
+  gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/views/mail/folder-list/stamp-folder-list.ui");
+
+  object_class->dispose = stamp_folder_list_dispose;
+
+  gtk_widget_class_bind_template_child (widget_class, StampFolderList, folders_list);
+  gtk_widget_class_bind_template_child (widget_class, StampFolderList, selection);
+  gtk_widget_class_bind_template_child (widget_class, StampFolderList, sorter);
+  gtk_widget_class_bind_template_child (widget_class, StampFolderList, sort_list_model);
+
+  gtk_widget_class_bind_template_callback (widget_class, on_selection_changed);
+  gtk_widget_class_bind_template_callback (widget_class, on_setup_folder);
+  gtk_widget_class_bind_template_callback (widget_class, on_bind_folder);
+
+  signals[FOLDER_SELECTED] = g_signal_new ("folder-selected", G_OBJECT_CLASS_TYPE (klass),
+                                           G_SIGNAL_RUN_FIRST | G_SIGNAL_RUN_LAST,
+                                           0, NULL, NULL, NULL,
+                                           G_TYPE_NONE,
+                                           2, G_TYPE_OBJECT, G_TYPE_STRING);
+}
+
+static void
+stamp_folder_list_init (StampFolderList *self)
+{
+  StampSession *session = NULL;
+  GtkTreeListModel *tree;
+
+  gtk_widget_init_template (GTK_WIDGET (self));
+
+  self->settings = g_settings_new ("org.tabos.stamp.mail");
+
+  self->list_store = g_list_store_new (STAMP_TYPE_ITEM);
+  tree = gtk_tree_list_model_new (G_LIST_MODEL (self->list_store), FALSE, FALSE, get_child, g_object_ref (self), g_object_unref);
+
+  gtk_sort_list_model_set_model (GTK_SORT_LIST_MODEL (self->sort_list_model), G_LIST_MODEL (tree));
+  gtk_custom_sorter_set_sort_func (GTK_CUSTOM_SORTER (self->sorter), folders_sorter, NULL, NULL);
+
+  session = stamp_session_get_default ();
+  g_signal_connect_object (session, "account-added", G_CALLBACK (on_stamp_folder_list_account_added), self, 0);
+  g_signal_connect_object (session, "account-removed", G_CALLBACK (on_stamp_folder_list_account_removed), self, 0);
+
+  g_type_ensure (STAMP_TYPE_ITEM);
+}
+
+GtkWidget *
+stamp_folder_list_new (void)
+{
+  return g_object_new (STAMP_TYPE_FOLDER_LIST, NULL);
+}
+
+void
+stamp_folder_list_unselect (StampFolderList *self)
+{
+  gtk_selection_model_unselect_all (GTK_SELECTION_MODEL (self->selection));
+}

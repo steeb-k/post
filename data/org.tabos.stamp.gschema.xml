@@ -16,6 +16,26 @@
       <summary>Most recent window height</summary>
       <description>Most recent window height</description>
     </key>
+    <key type="b" name="background-notifications">
+        <default>false</default>
+        <summary>Background notifications</summary>
+        <description>If enabled, application continues running in the background after closing the window.</description>
+    </key>
+    <key type="b" name="autostart">
+        <default>false</default>
+        <summary>Autostart application</summary>
+        <description>If enabled, application will be autostart during system startup.</description>
+    </key>
+    <key type="s" name="view">
+        <default>'mail'</default>
+        <summary>Current View</summary>
+        <description>Stores current view which will be used during application start to restore view.</description>
+    </key>
+    <key name="account-order" type="as">
+      <default>[]</default>
+      <summary>Order of accounts</summary>
+      <description>Saves account order for sidebars.</description>
+    </key>
   </schema>
 
   <schema id="org.tabos.stamp.mail" path="/org/tabos/stamp/mail/">
@@ -23,6 +43,44 @@
       <default>("", "")</default>
       <summary>The account name and folder name of the last selected folder</summary>
       <description>The account name and folder name of the last selected folder</description>
+    </key>
+    <key type="b" name="always-show-images">
+        <default>false</default>
+        <summary>Always show images</summary>
+        <description>If enabled, all images will be displayed automatically.</description>
+    </key>
+    <key type="b" name="load-bimi-images">
+        <default>false</default>
+        <summary>Load BIMI images</summary>
+        <description>If enabled, all avatar images are loaded from BIMI TXT records.</description>
+    </key>
+    <key type="d" name="mark-read-timeout">
+        <default>1.0</default>
+        <summary>Mark read timeout</summary>
+        <description>How long it should take until a selected mail is marked read.</description>
+    </key>
+    <key type="b" name="play-incoming-sound">
+        <default>false</default>
+        <summary>Play incoming sound</summary>
+        <description>Play an sound for new incoming mails.</description>
+    </key>
+    <key type="b" name="important-first">
+        <default>false</default>
+        <summary>Show important mails first</summary>
+        <description>Whether to move important mails on top.</description>
+    </key>
+    <key type="u" name="refresh-interval">
+        <default>60</default>
+        <summary>Refresh interval in seconds</summary>
+        <description>Defines in which refresh interval mail folders should be checked for changes.</description>
+    </key>
+  </schema>
+
+  <schema id="org.tabos.stamp.contacts" path="/org/tabos/stamp/contacts/">
+    <key name="selected-book" type="(ss)">
+      <default>("", "")</default>
+      <summary>The account name and book name of the last selected book</summary>
+      <description>The account name and book name of the last selected book</description>
     </key>
   </schema>
 

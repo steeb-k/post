@@ -1,0 +1,237 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampMessageList: Adw.BreakpointBin {
+  width-request: 300;
+  height-request: 300;
+
+  child: Adw.Bin message_main {
+    Stack {
+      hexpand: true;
+      name: "placeholder";
+
+      StackPage {
+        name: "content";
+
+        child: Adw.ToolbarView {
+          [top]
+          Adw.HeaderBar {
+            show-title: false;
+
+            [start]
+            Button reply_btn {
+              icon-name: 'mail-reply-sender-symbolic';
+              tooltip-text: _("Reply");
+              action-name: 'mail.reply-current';
+            }
+
+            [start]
+            Button reply_all_btn {
+              icon-name: 'mail-reply-all-symbolic';
+              tooltip-text: _("Reply All");
+              action-name: 'mail.reply-all-current';
+            }
+
+            [start]
+            Button forward_btn {
+              icon-name: 'mail-forward-symbolic';
+              tooltip-text: _("Forward");
+              action-name: 'mail.forward-current';
+            }
+
+            [start]
+            Button edit_button {
+              icon-name: 'document-edit-symbolic';
+              tooltip-text: _("Edit");
+              action-name: 'mail.edit';
+              visible: false;
+            }
+
+            [end]
+            ToggleButton {
+              icon-name: 'edit-find-symbolic';
+              active: bind search_bar.search-mode-enabled bidirectional;
+            }
+
+            [end]
+            Button delete_btn {
+              icon-name: 'user-trash-symbolic';
+              tooltip-text: _("Delete");
+              action-name: 'mail.trash';
+            }
+
+            [end]
+            Button spam_btn {
+              icon-name: 'junk-symbolic';
+              tooltip-text: _("Mark Spam");
+              action-name: 'mail.junk';
+            }
+          }
+
+          [top]
+          SearchBar search_bar {
+            key-capture-widget: message_main;
+
+            child: Adw.Clamp {
+              maximum-size: 400;
+
+              child: SearchEntry search_entry {
+                hexpand: true;
+                search-delay: 500;
+                search-changed => $on_message_search_entry_changed();
+              };
+            };
+          }
+
+          Stack stack {
+            StackPage {
+              name: "empty";
+
+              child: Adw.StatusPage {
+                icon-name: "mail-unread-symbolic";
+                title: _("No Conversation Selected");
+              };
+            }
+
+            StackPage {
+              name: "content";
+
+              child: Overlay overlay {
+                [overlay]
+                Label hover_url {
+                  styles [
+                    "card",
+                    "floating-bar",
+                  ]
+
+                  halign: start;
+                  valign: end;
+                }
+
+                child: ScrolledWindow scrolled_window {
+                  hscrollbar-policy: never;
+                  can-focus: false;
+
+                  child: Adw.Bin {
+                    Adw.Clamp {
+                      maximum-size: 9999;
+
+                      child: Box {
+                        orientation: vertical;
+
+                        styles [
+                          "conversation",
+                        ]
+
+                        Label message_title {
+                          xalign: 0;
+                          wrap: true;
+                          wrap-mode: word_char;
+                          selectable: true;
+
+                          styles [
+                            "title-2",
+                          ]
+                        }
+
+                        ListBox list_box {
+                          selection-mode: none;
+
+                          styles [
+                            "message-list",
+                            "background",
+                          ]
+                        }
+                      };
+                    }
+                  };
+                };
+              };
+            }
+          }
+
+          [bottom]
+          Box toolbar {
+            visible: false;
+            homogeneous: true;
+
+            Button {
+              accessibility {
+                label: _("Reply Current");
+              }
+
+              icon-name: 'mail-reply-sender-symbolic';
+              action-name: 'mail.reply-current';
+            }
+
+            Button {
+              accessibility {
+                label: _("Reply All Current");
+              }
+
+              icon-name: 'mail-reply-all-symbolic';
+              action-name: 'mail.reply-all-current';
+            }
+
+            Button {
+              accessibility {
+                label: _("Forward Current");
+              }
+
+              icon-name: 'mail-forward-symbolic';
+              action-name: 'mail.forward-current';
+            }
+
+            Button {
+              accessibility {
+                label: _("Mark Junk");
+              }
+
+              icon-name: 'junk-symbolic';
+              action-name: 'mail.junk';
+            }
+
+            Button {
+              accessibility {
+                label: _("Move To Trash");
+              }
+
+              icon-name: 'user-trash-symbolic';
+              action-name: 'mail.trash';
+            }
+
+            styles [
+              "toolbar",
+            ]
+          }
+        };
+      }
+
+      StackPage {
+        child: Adw.ToolbarView {
+          [top]
+          Adw.HeaderBar {
+            show-title: false;
+          }
+
+          Adw.StatusPage {
+            title: _("No Mail Selected");
+          }
+        };
+      }
+    }
+  };
+
+  Adw.Breakpoint breakpoint_small {
+    condition ("max-width: 500sp")
+    // unapply => $one_pane_unapply_cb();
+    setters {
+      reply_btn.visible: false;
+      reply_all_btn.visible: false;
+      forward_btn.visible: false;
+      delete_btn.visible: false;
+      spam_btn.visible: false;
+      toolbar.visible: true;
+    }
+  }
+}

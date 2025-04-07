@@ -1,0 +1,380 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampComposer: Adw.ApplicationWindow {
+  default-width: 900;
+  default-height: 700;
+  close-request => $on_close_request();
+
+  Adw.ToolbarView conversation_view {
+    bottom-bar-style: raised;
+
+    [top]
+    Adw.HeaderBar {
+      show-end-title-buttons: false;
+      show-start-title-buttons: false;
+
+      title-widget: Adw.WindowTitle window_title {
+        title: _("New Message");
+      };
+
+      [start]
+      Button close_button {
+        accessibility {
+          label: _("Close Composer");
+        }
+
+        clicked => $on_close_button_clicked();
+        icon-name: "window-close-symbolic";
+      }
+
+      [end]
+      Button send_button {
+        accessibility {
+          label: _("Send Message");
+        }
+
+        icon-name: "sent-symbolic";
+        sensitive: false;
+        action-name: "win.send";
+
+        styles [
+          "suggested-action",
+        ]
+      }
+    }
+
+    content: Box {
+      orientation: vertical;
+
+      Grid {
+        row-spacing: 6;
+        column-spacing: 12;
+
+        Label from_label {
+          label: _("From");
+          margin-start: 12;
+          halign: start;
+
+          styles [
+            "dim-label",
+          ]
+
+          layout {
+            column: 1;
+            row: 1;
+          }
+        }
+
+        DropDown from {
+          halign: start;
+          margin-end: 6;
+
+          styles [
+            "composer-dropdown",
+          ]
+
+          layout {
+            column: 2;
+            row: 1;
+          }
+        }
+
+        Separator {
+          layout {
+            column: 1;
+            column-span: 3;
+            row: 2;
+          }
+        }
+
+        Label to_label {
+          label: _("To");
+          margin-start: 12;
+          halign: start;
+
+          styles [
+            "dim-label",
+          ]
+
+          layout {
+            column: 1;
+            row: 3;
+          }
+        }
+
+        $StampContactCompletion to {
+          valign: center;
+
+          layout {
+            column: 2;
+            row: 3;
+          }
+        }
+
+        ToggleButton toggle {
+          icon-name: "view-more-symbolic";
+
+          styles [
+            "flat",
+          ]
+
+          layout {
+            column: 3;
+            row: 3;
+          }
+        }
+
+        Separator cc_separator {
+          visible: bind toggle.active;
+
+          layout {
+            column: 1;
+            column-span: 3;
+            row: 4;
+          }
+        }
+
+        Label cc_label {
+          label: _("Cc");
+          margin-start: 12;
+          halign: start;
+          visible: bind toggle.active;
+
+          styles [
+            "dim-label",
+          ]
+
+          layout {
+            column: 1;
+            row: 5;
+          }
+        }
+
+        $StampContactCompletion cc {
+          visible: bind toggle.active;
+
+          layout {
+            column: 2;
+            row: 5;
+          }
+        }
+
+        Separator bcc_separator {
+          visible: bind toggle.active;
+
+          layout {
+            column: 1;
+            column-span: 3;
+            row: 6;
+          }
+        }
+
+        Label bcc_label {
+          label: _("Bcc");
+          margin-start: 12;
+          halign: start;
+          visible: bind toggle.active;
+
+          styles [
+            "dim-label",
+          ]
+
+          layout {
+            column: 1;
+            row: 7;
+          }
+        }
+
+        $StampContactCompletion bcc {
+          visible: bind toggle.active;
+
+          layout {
+            column: 2;
+            row: 7;
+          }
+        }
+
+        Separator {
+          layout {
+            column: 1;
+            column-span: 3;
+            row: 8;
+          }
+        }
+
+        Label subject_label {
+          label: _("Subject");
+          margin-start: 12;
+          halign: start;
+
+          styles [
+            "dim-label",
+          ]
+
+          layout {
+            column: 1;
+            row: 9;
+          }
+        }
+
+        Entry subject {
+          hexpand: true;
+          changed => $on_subject_changed();
+
+          styles [
+            "flat",
+            "no-focus",
+          ]
+
+          layout {
+            column: 2;
+            row: 9;
+          }
+        }
+
+        Separator {
+          layout {
+            column: 1;
+            column-span: 3;
+            row: 10;
+          }
+        }
+
+        Revealer attachment_revealer {
+          child: Adw.WrapBox attachment_box {};
+
+          layout {
+            column: 1;
+            column-span: 3;
+            row: 11;
+          }
+        }
+      }
+
+      ScrolledWindow {
+        hscrollbar-policy: never;
+        propagate-natural-height: true;
+
+        child: Adw.Bin webview_bin {
+          hexpand: true;
+          vexpand: true;
+        };
+      }
+    };
+
+    [bottom]
+    Box {
+      orientation: vertical;
+
+      Box button_bar {
+        spacing: 6;
+        margin-start: 6;
+        margin-end: 6;
+        margin-bottom: 6;
+        margin-top: 6;
+
+        ToggleButton {
+          tooltip-text: _("Bold");
+          action-name: "win.bold";
+          action-target: "'bold'";
+          icon-name: "format-text-bold-symbolic";
+
+          styles [
+            "flat",
+          ]
+        }
+
+        ToggleButton {
+          tooltip-text: _("Italic");
+          action-name: "win.italic";
+          action-target: "'italic'";
+          icon-name: "format-text-italic-symbolic";
+
+          styles [
+            "flat",
+          ]
+        }
+
+        ToggleButton {
+          tooltip-text: _("Underline");
+          action-name: "win.underline";
+          action-target: "'underline'";
+          icon-name: "format-text-underline-symbolic";
+
+          styles [
+            "flat",
+          ]
+        }
+
+        ToggleButton {
+          tooltip-text: _("Strike Through");
+          action-name: "win.strikethrough";
+          action-target: "'strikethrough'";
+          icon-name: "format-text-strikethrough-symbolic";
+
+          styles [
+            "flat",
+          ]
+        }
+
+        Separator {
+          styles [
+            "flat",
+          ]
+        }
+
+        Button {
+          action-name: "win.remove-format";
+          tooltip-text: _("Remove format");
+          icon-name: "edit-clear-symbolic";
+
+          styles [
+            "flat",
+          ]
+        }
+
+        Button {
+          action-name: "win.insert-signature";
+          tooltip-text: _("Insert Signature");
+          icon-name: "signature-symbolic";
+
+          styles [
+            "flat",
+          ]
+        }
+
+        Button {
+          action-name: "win.add-attachment";
+          tooltip-text: _("Add Attachment");
+          icon-name: "mail-attachment-symbolic";
+
+          styles [
+            "flat",
+          ]
+        }
+
+        ToggleButton request_disposition {
+          tooltip-text: _("Request Disposition");
+          icon-name: "preferences-system-notifications-symbolic";
+
+          styles [
+            "flat",
+          ]
+        }
+      }
+    }
+  }
+}
+
+SizeGroup {
+  mode: vertical;
+
+  widgets [
+    from,
+    to,
+    cc,
+    bcc,
+    subject,
+  ]
+}

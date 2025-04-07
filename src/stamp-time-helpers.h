@@ -1,7 +1,8 @@
 /*
- * Copyright 2024 Jan-Michael Brummer
+ * Copyright 2024-2026 Jan-Michael Brummer
  *
  * This file is part of Stamp.
+ * Based on ephy-time-helpers.h from Epiphany (Copyright © 2002 Jorn Baayen)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,6 +31,6 @@ char      *eel_strdup_strftime                        (const char *format,
                                                        struct tm *time_pieces);
 
 char *
-stamp_time_helpers_utf_friendly_time (time_t date);
+stamp_time_helpers_utf_friendly_time (time_t date, gboolean short_format);
 
 G_END_DECLS

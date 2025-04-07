@@ -1,6 +1,5 @@
-/* camel-window.h
- *
- * Copyright 2025 Jan-Michael Brummer
+/*
+ * Copyright 2024-2026 Jan-Michael Brummer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,5 +26,19 @@ G_BEGIN_DECLS
 #define STAMP_TYPE_WINDOW (stamp_window_get_type())
 
 G_DECLARE_FINAL_TYPE (StampWindow, stamp_window, STAMP, WINDOW, AdwApplicationWindow)
+
+void
+stamp_window_search_contact (StampWindow *self,
+                             const char  *mail);
+
+void
+stamp_window_show_contact (StampWindow *self,
+                           const char  *mail);
+
+GtkWidget *
+stamp_window_get_mail_view (StampWindow *self);
+
+GtkWindow *
+stamp_get_main_window (void);
 
 G_END_DECLS

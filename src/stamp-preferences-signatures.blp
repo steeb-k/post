@@ -1,0 +1,20 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampPreferencesSignatures: Adw.NavigationPage {
+  title: _("Signatures");
+
+  child: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {
+      [end]
+      Button {
+        use-underline: true;
+        label: _("_Save");
+        clicked => $on_save_clicked();
+      }
+    }
+
+    content: $StampWebView web_view {};
+  };
+}

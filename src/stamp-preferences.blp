@@ -1,0 +1,124 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampPreferences: Adw.PreferencesDialog {
+  content-width: 640;
+  content-height: 580;
+  search-enabled: true;
+
+  Adw.PreferencesPage {
+    title: _("General");
+    icon-name: "applications-system-symbolic";
+
+    Adw.PreferencesGroup general_group {
+      title: _("General");
+
+      Adw.SwitchRow background_notifications {
+        title: _("Background Notifications");
+        subtitle: _("Fetch notifications while the app is closed");
+      }
+
+      Adw.SwitchRow autostart {
+        title: _("Autostart");
+        subtitle: _("Start during system startup in background");
+      }
+    }
+  }
+
+  Adw.PreferencesPage {
+    title: _("Reader");
+    icon-name: "view-paged-symbolic";
+
+    Adw.PreferencesGroup reader_group {
+      title: _("General");
+
+      Adw.SpinRow mark_read {
+        title: _("Mark Read Timeout");
+
+        [suffix]
+        Label {
+          label: _("sec");
+        }
+
+        adjustment: Adjustment {
+          step-increment: 0.5;
+          page-increment: 1.0;
+          lower: 0.0;
+          upper: 10.0;
+          value: 3.0;
+        };
+
+        digits: 1;
+        climb-rate: 0.1;
+      }
+
+      Adw.SpinRow refresh_interval {
+        title: _("Folder Refresh Interfal");
+        subtitle: _("Interval after which folders should be checked for changes");
+
+        [suffix]
+        Label {
+          label: _("sec");
+        }
+
+        adjustment: Adjustment {
+          step-increment: 1.0;
+          page-increment: 5.0;
+          lower: 10.0;
+          upper: 360.0;
+          value: 60.0;
+        };
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: _("Visual");
+
+      Adw.SwitchRow always_show_images {
+        title: _("Always Show Images");
+        subtitle: _("Except for Junk and Trash folders");
+      }
+
+      Adw.SwitchRow bimi_images {
+        title: _("Load Verified Company Logos from BIMI");
+        subtitle: _("Should offer more trust and provide protection against phishing attempts");
+      }
+
+      Adw.SwitchRow important_first {
+        title: _("Show important mails on top");
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: _("Audio");
+
+      Adw.SwitchRow play_incoming_sound {
+        title: _("Play Incoming Sound");
+        subtitle: _("Audio notification for new incoming mails");
+      }
+    }
+  }
+
+  Adw.PreferencesPage {
+    title: _("Composer");
+    icon-name: "document-edit-symbolic";
+
+    Adw.PreferencesGroup composer_group {
+      title: _("General");
+
+      Adw.ActionRow signature {
+        title: _("Signatures");
+        activatable: true;
+        activated => $on_signature_row_activated();
+
+        Image {
+          accessibility {
+            label: _("Go Next");
+          }
+
+          icon-name: "go-next-symbolic";
+        }
+      }
+    }
+  }
+}

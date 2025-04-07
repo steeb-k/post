@@ -1,0 +1,67 @@
+using Gtk 4.0;
+using Adw 1;
+
+Adw.ShortcutsDialog shortcuts_dialog {
+  Adw.ShortcutsSection {
+    title: C_("Shortcut window description", "Application");
+
+    Adw.ShortcutsItem {
+      title: C_("Shortcut window description", "Open Preferences");
+      action-name: "app.preferences";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("Shortcut window description", "Quit");
+      action-name: "app.quit";
+    }
+  }
+
+  Adw.ShortcutsSection {
+    title: C_("", "Mail");
+
+    Adw.ShortcutsItem {
+      title: C_("Shortcut window description", "New Mail");
+      accelerator: "<primary>n";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("Shortcut window description", "Reply Current Mail");
+      accelerator: "<primary>r";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("Shortcut window description", "Reply All Current Mail");
+      accelerator: "<primary><shift>r";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("Shortcut window description", "Forward Current Mail");
+      accelerator: "<primary><shift>f";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("Shortcut window description", "Mark Current Mail Read");
+      accelerator: "<primary><shift>i";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("Shortcut window description", "Mark Current Mail Unread");
+      accelerator: "<primary><shift>u";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("Shortcut window description", "Flag Current Mail");
+      accelerator: "<primary>s";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("Shortcut window description", "Unflag Current Mail");
+      accelerator: "<primary><shift>s";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("Shortcut window description", "Print Current Mail");
+      accelerator: "<primary>p";
+    }
+  }
+}

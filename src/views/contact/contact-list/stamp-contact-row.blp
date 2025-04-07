@@ -1,0 +1,28 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampContactRow: Adw.Bin {
+  child: Box row {
+    hexpand: true;
+    vexpand: true;
+    halign: start;
+    spacing: 6;
+
+    styles [
+      "contact-row",
+    ]
+
+    Adw.Avatar avatar {
+      valign: start;
+      size: 48;
+      show-initials: true;
+    }
+
+    Inscription name {
+      hexpand: true;
+      xalign: 0;
+      text-overflow: ellipsize_end;
+      nat-chars: 999;
+    }
+  };
+}

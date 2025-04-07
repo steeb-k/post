@@ -1,0 +1,117 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampContactDetails: Box {
+  orientation: vertical;
+
+  Stack stack {
+    vexpand: true;
+
+    StackPage {
+      name: "empty";
+
+      child: Adw.ToolbarView {
+        [top]
+        Adw.HeaderBar {
+          show-title: false;
+        }
+
+        Adw.StatusPage {
+          title: _("No Contact Selected");
+          icon-name: "avatar-default-symbolic";
+        }
+      };
+    }
+
+    StackPage {
+      name: "content";
+
+      child: Adw.ToolbarView {
+        [top]
+        Adw.HeaderBar {
+          show-title: false;
+        }
+
+        ScrolledWindow {
+          hscrollbar-policy: never;
+          can-focus: false;
+
+          child: Adw.Bin {
+            child: Adw.Clamp {
+              margin-top: 12;
+              margin-start: 12;
+              margin-end: 12;
+
+              child: Box {
+                orientation: vertical;
+                spacing: 24;
+
+                Adw.Avatar avatar {
+                  show-initials: true;
+                  size: 128;
+
+                  styles [
+                    "icon-dropshadow",
+                  ]
+                }
+
+                Label name {
+                  wrap: true;
+                  wrap-mode: word_char;
+                  justify: center;
+
+                  styles [
+                    "title-1",
+                  ]
+
+                  margin-bottom: 6;
+                  xalign: 0.5;
+                }
+
+                ListBox mail {
+                  selection-mode: none;
+
+                  styles [
+                    "content",
+                  ]
+
+                  visible: false;
+                }
+
+                ListBox phone {
+                  selection-mode: none;
+
+                  styles [
+                    "content",
+                  ]
+
+                  visible: false;
+                }
+
+                ListBox address {
+                  selection-mode: none;
+
+                  styles [
+                    "content",
+                  ]
+
+                  visible: false;
+                }
+
+                ListBox birthday {
+                  selection-mode: none;
+
+                  styles [
+                    "content",
+                  ]
+
+                  visible: false;
+                }
+              };
+            };
+          };
+        }
+      };
+    }
+  }
+}

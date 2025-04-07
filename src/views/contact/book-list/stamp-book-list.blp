@@ -1,0 +1,28 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampBookList: Adw.Bin {
+  ListView book_list {
+    styles [
+      "navigation-sidebar",
+    ]
+
+    model: SingleSelection selection {
+      autoselect: false;
+      can-unselect: true;
+
+      model: SortListModel sort_list_model {
+        sorter: TreeListRowSorter {
+          sorter: CustomSorter sorter {};
+        };
+      };
+
+      selection-changed => $on_selection_changed();
+    };
+
+    factory: SignalListItemFactory {
+      setup => $on_setup_folder();
+      bind => $on_bind_folder();
+    };
+  }
+}

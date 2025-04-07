@@ -3,6 +3,7 @@ stamp_web_process_extension_sources = [
 ]
 
 stamp_web_process_extension_deps = [
+  dependency('webkitgtk-6.0'),
   dependency('webkitgtk-web-process-extension-6.0')
 ]
 

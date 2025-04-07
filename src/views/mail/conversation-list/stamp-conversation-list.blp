@@ -1,0 +1,211 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampConversationList: Adw.Bin {
+  width-request: 300;
+  height-request: 300;
+
+  child: Adw.ToolbarView conversation_view {
+    styles [
+      "secondary-sidebar-pane",
+    ]
+
+    [top]
+    Stack header_stack {
+      Adw.HeaderBar normal_headerbar {
+        title-widget: Adw.WindowTitle window_title {
+          title: _("Mail");
+        };
+
+        [start]
+        ToggleButton sidebar_button {
+          icon-name: "sidebar-show-symbolic";
+          tooltip-text: _("Sidebar Toggle");
+          visible: false;
+
+          styles [
+            "flat",
+          ]
+        }
+
+        [start]
+        ToggleButton start_search_btn {
+          active: bind search_bar.search-mode-enabled bidirectional;
+          icon-name: "edit-find-symbolic";
+          tooltip-text: _("Search");
+        }
+
+        [end]
+        ToggleButton end_search_btn {
+          active: bind search_bar.search-mode-enabled bidirectional;
+          icon-name: "edit-find-symbolic";
+          tooltip-text: _("Search");
+          visible: false;
+        }
+
+        [end]
+        Button selection_button {
+          icon-name: "selection-mode-symbolic";
+          tooltip-text: _("Select Items");
+          clicked => $on_selection_button_clicked();
+        }
+
+        [end]
+        MenuButton sort_button {
+          icon-name: "sort-order-symbolic";
+          tooltip-text: _("Sort Order");
+        }
+      }
+
+      Adw.HeaderBar selection_headerbar {
+        title-widget: Adw.WindowTitle selection_label {
+          title: _("Selection");
+        };
+
+        [start]
+        Button trash_selection_button {
+          accessibility {
+            label: _("Trash");
+          }
+
+          action-name: "mail.trash";
+          tooltip-text: _("Move to Trash");
+          icon-name: "user-trash-symbolic";
+        }
+
+        [start]
+        Button mark_read_selection_button {
+          accessibility {
+            label: _("Mark Read");
+          }
+
+          action-name: "mail.mark-read-current";
+          tooltip-text: _("Mark Read");
+          icon-name: "mark-read-symbolic";
+        }
+
+        [end]
+        Button cancel_selection_button {
+          label: _("Close");
+          tooltip-text: _("Close Selection");
+          clicked => $on_selection_button_clicked();
+        }
+      }
+    }
+
+    [top]
+    SearchBar search_bar {
+      key-capture-widget: conversation_view;
+
+      child: Adw.Clamp {
+        maximum-size: 400;
+
+        child: SearchEntry search_entry {
+          search-changed => $on_mail_search_entry_changed();
+          search-delay: 500;
+          hexpand: true;
+        };
+      };
+    }
+
+    content: Stack mail_list_stack {
+      StackPage {
+        name: "list";
+
+        child: Stack {
+          StackPage {
+            name: "content";
+
+            child: Overlay {
+              [overlay]
+              Button new_message {
+                accessibility {
+                  label: _("New Message");
+                }
+
+                halign: end;
+                valign: end;
+                icon-name: "document-edit-symbolic";
+
+                styles [
+                  "suggested-action",
+                  "circular",
+                  "fab",
+                ]
+
+                action-name: "mail.composer-new";
+              }
+
+              [overlay]
+              Button scroll_to_top {
+                accessibility {
+                  label: _("Scroll To Top");
+                }
+
+                halign: end;
+                valign: end;
+                visible: false;
+                can-focus: false;
+                margin-bottom: 64;
+                icon-name: "top-symbolic";
+
+                styles [
+                  "circular",
+                  "fab",
+                ]
+
+                clicked => $on_scroll_to_top();
+              }
+
+              [overlay]
+              Adw.Spinner spinner {
+                visible: false;
+                halign: center;
+                valign: start;
+                margin-top: 12;
+
+                styles [
+                  "osd",
+                  "circular-spinner",
+                ]
+              }
+
+              child: ScrolledWindow scrolled_window {
+                hscrollbar-policy: never;
+
+                EventControllerScroll {
+                  scroll => $on_scroll();
+                  flags: vertical;
+                }
+
+                child: ListView listview {
+                  tab-behavior: item;
+                  vexpand: true;
+
+                  factory: SignalListItemFactory {
+                    setup => $on_setup_list_item();
+                    bind => $on_bind_list_item();
+                    unbind => $on_unbind_list_item();
+                  };
+
+                  styles [
+                    "navigation-sidebar",
+                  ]
+                };
+              };
+            };
+          }
+        };
+      }
+
+      StackPage {
+        name: "empty";
+
+        child: Adw.StatusPage {
+          icon-name: "system-search-symbolic";
+          title: _("No mails found");
+        };
+      }
+    };
+  };
+}

@@ -1,0 +1,95 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampMessageListItem: ListBoxRow {
+  activatable: false;
+  margin-top: 2;
+  margin-bottom: 2;
+
+  child: Box {
+    orientation: vertical;
+
+    styles [
+      "card",
+    ]
+
+    $StampMessageHeader header {
+      GestureClick {
+        released => $on_header_clicked();
+      }
+    }
+
+    Stack stack {
+      transition-type: crossfade;
+      visible: false;
+
+      StackPage {
+        name: "webview";
+
+        child: Revealer secondary_revealer {
+          child: Box {
+            orientation: vertical;
+
+            Adw.Banner blocked_images_banner {
+              title: _("This message contains remote images.");
+              button-label: _("Show");
+              button-clicked => $on_show_images();
+              revealed: false;
+            }
+
+            Adw.Banner disposition_banner {
+              button-label: _("Send");
+              button-clicked => $on_send_disposition();
+              revealed: false;
+            }
+
+            Adw.Banner signature_banner {
+              button-label: _("Show");
+              button-clicked => $on_show_signatures();
+              revealed: false;
+            }
+
+            Adw.Banner encryption_banner {
+              revealed: false;
+            }
+
+            Adw.Banner vcard_banner {
+              button-label: _("RSVP");
+              button-clicked => $on_rsvp();
+              revealed: false;
+            }
+
+            Adw.Banner external_sender_banner {
+              revealed: false;
+            }
+
+            $StampWebView web_view {
+              margin-bottom: 12;
+              margin-top: 0;
+              margin-start: 1;
+              margin-end: 1;
+              image-load-blocked => $on_image_load_blocked();
+              loaded => $on_loaded();
+              mouse-target-changed => $on_mouse_target_changed();
+            }
+
+            Separator separator {
+              orientation: horizontal;
+              visible: bind attachment_flow_box.visible;
+            }
+
+            Adw.WrapBox attachment_flow_box {
+              visible: false;
+            }
+          };
+        };
+      }
+
+      StackPage {
+        name: "progress";
+
+        child: Adw.Spinner {};
+      }
+    }
+  };
+}

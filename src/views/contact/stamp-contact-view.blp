@@ -1,0 +1,179 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampContactView: Adw.BreakpointBin {
+  width-request: 360;
+  height-request: 200;
+
+  Adw.Breakpoint bp_tablet {
+    condition ("max-width: 860sp")
+
+    setters {
+      contacts_layout.layout-name: "tablet";
+    }
+  }
+
+  Adw.Breakpoint bp_mobile {
+    condition ("max-width: 550sp")
+
+    setters {
+      contacts_layout.layout-name: "mobile";
+    }
+  }
+
+  child: Adw.MultiLayoutView contacts_layout {
+    [sidebar]
+    Adw.ToolbarView {
+      bottom-bar-style: raised;
+
+      [top]
+      $StampHeaderBar {}
+
+      content: ScrolledWindow scrolled_window {
+        hscrollbar-policy: never;
+
+        child: $StampBookList book_list {
+          vexpand: true;
+          book-selected => $on_book_selected();
+        };
+      };
+    }
+
+    [list]
+    $StampContactList contact_list {
+      contact-selected => $on_contact_selected();
+    }
+
+    [content]
+    $StampContactDetails contact_details {}
+
+    Adw.Layout {
+      name: "desktop";
+
+      content: Adw.OverlaySplitView outer_osv {
+        sidebar-width-fraction: 0.28;
+        min-sidebar-width: 300;
+        max-sidebar-width: 360;
+        show-sidebar: true;
+
+        sidebar: Adw.ToolbarView {
+          content: Adw.LayoutSlot {
+            id: "sidebar";
+          };
+
+          [bottom]
+          Adw.LayoutSlot {
+            id: "switcher";
+          }
+        };
+
+        content: Paned desktop_paned {
+          orientation: horizontal;
+          position: 400;
+          shrink-start-child: false;
+          shrink-end-child: false;
+          resize-start-child: false;
+          resize-end-child: true;
+
+          start-child: Adw.LayoutSlot {
+            id: "list";
+          };
+
+          end-child: Adw.LayoutSlot {
+            id: "content";
+          };
+        };
+      };
+    }
+
+    Adw.Layout {
+      name: "tablet";
+
+      content: Adw.OverlaySplitView tablet_osv {
+        sidebar-width-fraction: 0.28;
+        min-sidebar-width: 300;
+        max-sidebar-width: 360;
+        collapsed: true;
+
+        sidebar: Adw.ToolbarView {
+          bottom-bar-style: raised;
+
+          content: Adw.LayoutSlot {
+            id: "sidebar";
+          };
+
+          [bottom]
+          Adw.LayoutSlot {
+            id: "switcher";
+          }
+        };
+
+        content: Paned tablet_paned {
+          orientation: horizontal;
+          position: 400;
+          shrink-start-child: false;
+          shrink-end-child: false;
+          resize-start-child: false;
+          resize-end-child: true;
+
+          start-child: Adw.LayoutSlot {
+            id: "list";
+          };
+
+          end-child: Adw.LayoutSlot {
+            id: "content";
+          };
+        };
+      };
+    }
+
+    Adw.Layout {
+      name: "mobile";
+
+      content: Adw.NavigationView mobile_nav {
+        Adw.NavigationPage {
+          title: _("Contacts");
+          tag: "main";
+
+          child: Adw.OverlaySplitView mobile_osv {
+            collapsed: true;
+            sidebar-position: start;
+            sidebar-width-fraction: 0.75;
+            min-sidebar-width: 300;
+            max-sidebar-width: 320;
+
+            sidebar: Adw.LayoutSlot {
+              id: "sidebar";
+            };
+
+            content: Adw.ToolbarView {
+              content: Adw.LayoutSlot {
+                id: "list";
+              };
+
+              [bottom]
+              Adw.LayoutSlot {
+                id: "switcher";
+              }
+            };
+          };
+        }
+
+        Adw.NavigationPage {
+          title: _("Inhalt");
+          tag: "content";
+
+          child: Adw.LayoutSlot {
+            id: "content";
+          };
+        }
+      };
+    }
+
+    [switcher]
+    Adw.ViewSwitcherBar contacts_switcher {
+      stack: bind template.stack;
+      reveal: true;
+    }
+  };
+}

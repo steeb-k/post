@@ -1,0 +1,75 @@
+using Gtk 4.0;
+
+menu context_menu {
+  item ("Open", "attachmentbutton.open")
+  item ("Save As…", "attachmentbutton.save-as")
+  item ("Remove", "attachmentbutton.remove")
+}
+
+template $StampAttachmentButton: Box {
+  margin-top: 6;
+  margin-bottom: 6;
+  margin-start: 6;
+  margin-end: 6;
+
+  Button {
+    accessibility {
+      label: _("Attachment Button");
+    }
+
+    clicked => $on_attachment_clicked();
+
+    child: Grid {
+      column-spacing: 6;
+      hexpand-set: true;
+
+      Image image {
+        accessibility {
+          label: _("Attachment Type Icon");
+        }
+
+        icon-size: large;
+
+        layout {
+          column: 0;
+          row: 0;
+          row-span: 2;
+        }
+      }
+
+      Label filename {
+        ellipsize: middle;
+        hexpand: true;
+        halign: start;
+
+        layout {
+          column: 1;
+          row: 0;
+        }
+      }
+
+      Label size {
+        hexpand: true;
+        halign: start;
+
+        styles [
+          "dim-label",
+        ]
+
+        layout {
+          column: 1;
+          row: 1;
+        }
+      }
+    };
+  }
+
+  MenuButton {
+    menu-model: context_menu;
+    icon-name: "view-more-symbolic";
+  }
+
+  styles [
+    "linked",
+  ]
+}

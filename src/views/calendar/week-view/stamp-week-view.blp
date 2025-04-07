@@ -1,0 +1,69 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampWeekView: Box {
+  orientation: vertical;
+
+  styles [
+    "week-view",
+  ]
+
+  Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {
+      show-title: false;
+
+      Adw.WindowTitle {
+        title: _("Februar 2026");
+        hexpand: true;
+      }
+    }
+
+    content: Box {
+      orientation: vertical;
+
+      Box {
+        orientation: horizontal;
+
+        Label button {
+          hexpand: false;
+        }
+
+        $StampWeekHeader header {
+          hexpand: true;
+        }
+      }
+
+      ScrolledWindow {
+        hexpand: true;
+        vexpand: true;
+
+        Viewport {
+          Box content {
+            orientation: horizontal;
+
+            $StampWeekHourBar hours_bar {}
+
+            $StampWeekGrid week_grid {
+              hexpand: true;
+              vexpand: true;
+            }
+
+            styles [
+              "week-main-content",
+            ]
+          }
+        }
+      }
+    };
+  }
+}
+
+SizeGroup sizegroup {
+  mode: horizontal;
+
+  widgets [
+    button,
+    hours_bar,
+  ]
+}

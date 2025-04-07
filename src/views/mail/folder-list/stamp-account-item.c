@@ -1,0 +1,595 @@
+/*
+ * Copyright 2025-2026 Jan-Michael Brummer
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+#include "stamp-account.h"
+#include "stamp-account-item.h"
+#include "stamp-folder-item.h"
+#include "stamp-item.h"
+#include "stamp-session.h"
+
+#include <camel/camel.h>
+
+struct _StampAccountItem {
+  StampItem parent_instance;
+
+  GCancellable *cancellable;
+  CamelOfflineStore *offline_store;
+  GThread *refresh_thread;
+
+  GQueue *refresh_queue;
+  gboolean refresh_queue_running;
+};
+
+G_DEFINE_FINAL_TYPE (StampAccountItem, stamp_account_item, STAMP_TYPE_ITEM)
+
+static void
+stamp_account_item_connect_to_account (StampAccountItem *self);
+
+enum {
+  ACCOUNT_ITEM_CHANGED,
+  LAST_SIGNAL
+};
+
+static gint signals[LAST_SIGNAL] = { 0 };
+
+static StampFolderItem *
+stamp_account_item_find_item (GListStore *store,
+                              const char *full_name)
+{
+  for (int idx = 0; idx < g_list_model_get_n_items (G_LIST_MODEL (store)); idx++) {
+    StampFolderItem *item = g_list_model_get_item (G_LIST_MODEL (store), idx);
+    GListStore *child_store;
+
+    if (g_strcmp0 (stamp_folder_item_get_full_name (item), full_name) == 0) {
+      return item;
+    }
+
+    child_store = stamp_item_get_list_store (STAMP_ITEM (item));
+    if (child_store) {
+      item = stamp_account_item_find_item (child_store, full_name);
+      if (item)
+        return item;
+    }
+  }
+  return NULL;
+}
+
+static void
+on_folder_item_changed (GtkWidget *folder,
+                        gpointer   user_data)
+{
+  StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data);
+
+  g_print ("%s: ENTER\n", G_STRFUNC);
+  g_signal_emit (self, signals[ACCOUNT_ITEM_CHANGED], 0);
+}
+
+static void
+show_info (StampAccountItem *self,
+           CamelFolderInfo  *folder_info)
+{
+  GListStore *list_store = stamp_item_get_list_store (STAMP_ITEM (self));
+  g_autoptr (GPtrArray) array = NULL;
+  int old;
+
+  old = g_list_model_get_n_items (G_LIST_MODEL (list_store));
+  g_print ("%s: ENTER %d\n", G_STRFUNC, old);
+
+  for (int idx = 0; idx < g_list_model_get_n_items (G_LIST_MODEL (list_store)); idx++) {
+    StampFolderItem *item = g_list_model_get_item (G_LIST_MODEL (list_store), idx);
+
+    stamp_folder_item_disconnect (item);
+  }
+
+  array = g_ptr_array_new ();
+  while (folder_info) {
+    g_autoptr (StampFolderItem) folder_item = stamp_folder_item_new (stamp_item_get_account (STAMP_ITEM (self)), folder_info);
+
+    g_signal_connect_object (folder_item, "folder-item-added", G_CALLBACK (on_folder_item_changed), self, 0);
+
+    g_ptr_array_add (array, g_steal_pointer (&folder_item));
+    folder_info = folder_info->next;
+  }
+
+  g_list_store_splice (list_store, 0, old, array->pdata, array->len);
+  g_print ("%s: EXIT %d\n", G_STRFUNC, g_list_model_get_n_items (G_LIST_MODEL (list_store)));
+}
+
+void
+on_offline_store_folder_created (CamelOfflineStore *store,
+                                 CamelFolderInfo   *object,
+                                 gpointer           user_data);
+
+static void
+on_get_folder_info (GObject      *source,
+                    GAsyncResult *res,
+                    gpointer      user_data)
+{
+  StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data);
+  CamelStore *store = CAMEL_STORE (source);
+  g_autoptr (CamelFolderInfo) folder_info = NULL;
+  g_autoptr (GError) error = NULL;
+
+  stamp_item_set_loading (STAMP_ITEM (self), FALSE);
+
+  folder_info = camel_store_get_folder_info_finish (CAMEL_STORE (store), res, &error);
+  if (error) {
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+      g_warning ("Error getting folder: %s", error->message);
+      stamp_item_set_error (STAMP_ITEM (self), error);
+    } else
+      stamp_item_set_error (STAMP_ITEM (self), NULL);
+
+    return;
+  }
+
+  if (folder_info) {
+    g_print ("%s: %s\n", G_STRFUNC, folder_info->full_name);
+    show_info (self, folder_info);
+    stamp_account_item_connect_to_account (self);
+  }
+}
+
+void
+stamp_account_item_load (StampAccountItem *self)
+{
+  stamp_item_set_loading (STAMP_ITEM (self), TRUE);
+
+  camel_store_get_folder_info (CAMEL_STORE (self->offline_store),
+                               NULL,
+                               CAMEL_STORE_FOLDER_INFO_RECURSIVE | CAMEL_STORE_FOLDER_INFO_FAST,
+                               G_PRIORITY_DEFAULT,
+                               self->cancellable,
+                               on_get_folder_info,
+                               self);
+}
+
+static void
+on_synchronize (GObject      *source,
+                GAsyncResult *res,
+                gpointer      user_data)
+{
+  StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data);
+  g_autoptr (GError) error = NULL;
+
+  camel_store_synchronize_finish (CAMEL_STORE (self->offline_store), res, &error);
+  if (error) {
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+      g_warning ("%s: Error synchronizing store: %s", G_STRFUNC, error->message);
+
+    g_object_unref (self);
+    return;
+  }
+
+  g_object_unref (self);
+}
+
+static void
+on_service_connect (GObject      *source,
+                    GAsyncResult *res,
+                    gpointer      user_data)
+{
+  StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data);
+  g_autoptr (GError) error = NULL;
+
+  camel_service_connect_finish (CAMEL_SERVICE (self->offline_store), res, &error);
+  if (error) {
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+      g_warning ("Error connecting to service: %s", error->message);
+
+    g_object_unref (self);
+    return;
+  }
+
+  camel_store_synchronize (CAMEL_STORE (self->offline_store), FALSE, G_PRIORITY_DEFAULT, self->cancellable, on_synchronize, self);
+}
+
+static void
+on_offline_store_set_online (GObject      *source,
+                             GAsyncResult *res,
+                             gpointer      user_data)
+{
+  StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data);
+  g_autoptr (GError) error = NULL;
+
+  camel_offline_store_set_online_finish (self->offline_store, res, &error);
+  if (error) {
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+      g_warning ("Error setting offline store to online: %s", error->message);
+
+    g_object_unref (self);
+    return;
+  }
+
+  camel_service_connect (CAMEL_SERVICE (self->offline_store), G_PRIORITY_DEFAULT, self->cancellable, on_service_connect, self);
+}
+
+static void
+stamp_account_item_connect_to_account (StampAccountItem *self)
+{
+  GNetworkMonitor *monitor = g_network_monitor_get_default ();
+
+  if (g_cancellable_is_cancelled (self->cancellable))
+    return;
+
+  if (!g_network_monitor_get_network_available (monitor))
+    return;
+
+  camel_offline_store_set_online (self->offline_store,
+                                  TRUE,
+                                  G_PRIORITY_DEFAULT,
+                                  self->cancellable,
+                                  on_offline_store_set_online,
+                                  g_object_ref (self));
+}
+
+static void
+on_network_changed (GNetworkMonitor *monitor,
+                    gboolean         network_available,
+                    gpointer         user_data)
+{
+  StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data);
+
+  stamp_account_item_connect_to_account (self);
+}
+
+static void
+on_offline_store_folder_changed (CamelOfflineStore *store,
+                                 gpointer           user_data)
+{
+  /* StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data); */
+
+  g_print ("%s: ENTER\n", G_STRFUNC);
+  /* stamp_account_item_load (self); */
+}
+
+static gboolean
+stamp_account_item_find_and_delete_item (StampAccountItem *self,
+                                         GListStore       *store,
+                                         const char       *full_name)
+{
+  for (int idx = 0; idx < g_list_model_get_n_items (G_LIST_MODEL (store)); idx++) {
+    StampFolderItem *item = g_list_model_get_item (G_LIST_MODEL (store), idx);
+    GListStore *child_store;
+
+    if (g_strcmp0 (stamp_folder_item_get_full_name (item), full_name) == 0) {
+      g_list_store_remove (store, idx);
+      g_list_model_items_changed (G_LIST_MODEL (store), idx, 1, 0);
+      return TRUE;
+    }
+
+    child_store = stamp_item_get_list_store (STAMP_ITEM (item));
+    if (child_store) {
+      if (stamp_account_item_find_and_delete_item (self, child_store, full_name))
+        return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+void
+on_offline_store_folder_created (CamelOfflineStore *store,
+                                 CamelFolderInfo   *object,
+                                 gpointer           user_data)
+{
+  g_print ("%s: folder %s\n", G_STRFUNC, object->full_name);
+  /* on_offline_store_folder_changed (store, user_data); */
+}
+
+static void
+on_offline_store_folder_deleted (CamelOfflineStore *store,
+                                 CamelFolderInfo   *object,
+                                 gpointer           user_data)
+{
+  StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data);
+  const char *full_name = object->full_name;
+  GListStore *list_store = stamp_item_get_list_store (STAMP_ITEM (self));
+
+  g_print ("%s: folder %s\n", G_STRFUNC, full_name);
+  stamp_account_item_find_and_delete_item (self, list_store, full_name);
+}
+
+static void
+on_offline_store_folder_info_stale (CamelOfflineStore *store,
+                                    gpointer           user_data)
+{
+  g_print ("%s: ENTER\n", G_STRFUNC);
+  on_offline_store_folder_changed (store, user_data);
+}
+
+static void
+on_offline_store_folder_renamed (CamelOfflineStore *store,
+                                 gchar             *object,
+                                 CamelFolderInfo   *folder_info,
+                                 gpointer           user_data)
+{
+  StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data);
+  StampFolderItem *dest_item = NULL;
+  GListStore *list_store = stamp_item_get_list_store (STAMP_ITEM (self));
+
+  dest_item = stamp_account_item_find_item (list_store, object);
+  if (!dest_item)
+    return;
+
+  stamp_folder_item_set_folder_info (dest_item, folder_info);
+}
+
+static void
+on_account_changed (StampSession *session,
+                    StampAccount *account,
+                    gpointer      user_data)
+{
+  StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data);
+
+  if (stamp_item_get_account (STAMP_ITEM (self)) != account)
+    return;
+
+  g_print ("%s: ENTER %s", G_STRFUNC, stamp_account_get_name (account));
+  stamp_item_set_name (STAMP_ITEM (self), stamp_account_get_name (account));
+}
+
+static StampFolderItem *
+find_folder_item_by_folder (GListStore  *store,
+                            CamelFolder *folder)
+{
+  guint len = g_list_model_get_n_items (G_LIST_MODEL (store));
+  StampFolderItem *ret = NULL;
+
+  for (guint idx = 0; idx < len; idx++) {
+    g_autoptr (StampFolderItem) folder_item = STAMP_FOLDER_ITEM (g_list_model_get_item (G_LIST_MODEL (store), idx));
+    GListStore *child_store = stamp_item_get_list_store (STAMP_ITEM (folder_item));
+
+    if (stamp_folder_item_get_folder (folder_item) == folder) {
+      return g_steal_pointer (&folder_item);
+    }
+
+    if (child_store)
+      ret = find_folder_item_by_folder (child_store, folder);
+
+    if (ret)
+      return ret;
+  }
+
+  return ret;
+}
+
+
+static void
+on_refresh (GObject      *source,
+            GAsyncResult *result,
+            gpointer      user_data)
+{
+  StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data);
+  CamelFolder *folder = CAMEL_FOLDER (source);
+  g_autoptr (GError) error = NULL;
+  GListStore *store = stamp_item_get_list_store (STAMP_ITEM (self));
+  StampFolderItem *folder_item;
+
+  if (!camel_folder_refresh_info_finish (folder, result, &error)) {
+    g_warning ("Could not refresh folder %s: %s", camel_folder_get_display_name (folder), error->message);
+    /* Continue */
+  }
+
+  folder_item = find_folder_item_by_folder (store, folder);
+  if (folder_item)
+    stamp_item_set_loading (STAMP_ITEM (folder_item), FALSE);
+
+  self->refresh_queue_running = FALSE;
+
+  if (!g_queue_is_empty (self->refresh_queue)) {
+    CamelFolder *next;
+
+    folder_item = g_queue_pop_head (self->refresh_queue);
+    next = stamp_folder_item_get_folder (folder_item);
+
+    self->refresh_queue_running = TRUE;
+
+    g_debug ("%s: Refreshing %s\n", G_STRFUNC, camel_folder_get_display_name (next));
+    stamp_item_set_loading (STAMP_ITEM (folder_item), TRUE);
+    camel_folder_refresh_info (next, G_PRIORITY_DEFAULT, self->cancellable, on_refresh, self);
+  }
+}
+
+static void
+create_queue (StampAccountItem *self,
+              GListStore       *store)
+{
+  guint len = g_list_model_get_n_items (G_LIST_MODEL (store));
+
+  for (int idx = 0; idx < len; idx++) {
+    g_autoptr (StampFolderItem) folder_item = STAMP_FOLDER_ITEM (g_list_model_get_item (G_LIST_MODEL (store), idx));
+    GListStore *child_store = stamp_item_get_list_store (STAMP_ITEM (folder_item));
+    CamelFolder *folder = stamp_folder_item_get_folder (folder_item);
+
+    if (!CAMEL_IS_FOLDER (folder)) {
+      continue;
+    }
+
+    if (g_queue_index (self->refresh_queue, folder_item) != -1) {
+      continue;
+    }
+
+    if (child_store) {
+      create_queue (self, child_store);
+    }
+    g_queue_push_tail (self->refresh_queue, g_steal_pointer (&folder_item));
+  }
+}
+
+static gboolean
+refresh_folder_main (gpointer user_data)
+{
+  StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data);
+  GListStore *store;
+
+  if (g_cancellable_is_cancelled (self->cancellable))
+    return G_SOURCE_REMOVE;
+
+  store = stamp_item_get_list_store (STAMP_ITEM (self));
+
+  create_queue (self, store);
+
+  if (!self->refresh_queue_running) {
+    StampFolderItem *folder_item = g_queue_pop_head (self->refresh_queue);
+    CamelFolder *folder;
+
+    if (folder_item) {
+      folder = stamp_folder_item_get_folder (folder_item);
+      self->refresh_queue_running = TRUE;
+      stamp_item_set_loading (STAMP_ITEM (folder_item), TRUE);
+
+      g_debug ("%s: Refreshing %s\n", G_STRFUNC, camel_folder_get_display_name (folder));
+      camel_folder_refresh_info (folder, G_PRIORITY_DEFAULT, self->cancellable, on_refresh, self);
+    }
+  }
+
+  return G_SOURCE_REMOVE;
+}
+
+static gpointer
+refresh_folder (gpointer user_data)
+{
+  StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data);
+  g_autoptr (GSettings) settings = g_settings_new ("org.tabos.stamp.mail");
+
+  while (!g_cancellable_is_cancelled (self->cancellable)) {
+    gint64 end;
+    guint refresh_interval = g_settings_get_uint (settings, "refresh-interval");
+
+    g_main_context_invoke (NULL, refresh_folder_main, self);
+
+    end = g_get_monotonic_time () + refresh_interval * G_USEC_PER_SEC;
+    while (!g_cancellable_is_cancelled (self->cancellable)) {
+      gint64 now = g_get_monotonic_time ();
+      if (now >= end)
+        break;
+
+      g_usleep (100 * 1000);
+    }
+  }
+
+  return NULL;
+}
+
+/* static gboolean */
+/* refresh_timeout (gpointer user_data) */
+/* { */
+/*   StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data); */
+/*   g_autoptr (GSettings) settings = g_settings_new ("org.tabos.stamp.mail"); */
+/*   GListStore *store; */
+
+/*   store = stamp_item_get_list_store (STAMP_ITEM (self)); */
+
+/*   create_queue (self, store); */
+
+/*   if (!self->refresh_queue_running) { */
+/*     StampFolderItem *folder_item = g_queue_pop_head (self->refresh_queue); */
+/*     CamelFolder *folder; */
+
+/*     if (folder_item) { */
+/*       folder = stamp_folder_item_get_folder (folder_item); */
+/*       self->refresh_queue_running = TRUE; */
+/*       stamp_item_set_loading (STAMP_ITEM (folder_item), TRUE); */
+
+/*       g_debug ("%s: Refreshing %s\n", G_STRFUNC, camel_folder_get_display_name (folder)); */
+/*       camel_folder_refresh_info (folder, G_PRIORITY_DEFAULT, self->cancellable, on_refresh, self); */
+/*     } */
+/*   } */
+
+/*   return G_SOURCE_CONTINUE; */
+/* } */
+
+static void
+stamp_account_item_constructed (GObject *object)
+{
+  StampAccountItem *self = STAMP_ACCOUNT_ITEM (object);
+  GNetworkMonitor *network_monitor = g_network_monitor_get_default ();
+  StampMailService *mail_service;
+
+  G_OBJECT_CLASS (stamp_account_item_parent_class)->constructed (object);
+
+  mail_service = stamp_account_get_mail_service (stamp_item_get_account (STAMP_ITEM (self)));
+  g_assert (mail_service);
+
+  g_print ("%s: Set name to %s\n", G_STRFUNC, stamp_account_get_name (stamp_item_get_account (STAMP_ITEM (self))));
+  stamp_item_set_name (STAMP_ITEM (self), stamp_account_get_name (stamp_item_get_account (STAMP_ITEM (self))));
+
+  stamp_item_set_list_store_type (STAMP_ITEM (self), STAMP_TYPE_FOLDER_ITEM);
+
+  self->cancellable = g_cancellable_new ();
+
+  /* Register callbacks for folder changes... */
+  self->offline_store = CAMEL_OFFLINE_STORE (mail_service->service);
+  g_object_ref (self->offline_store);
+
+  g_signal_connect_object (self->offline_store, "folder-created", G_CALLBACK (on_offline_store_folder_created), self, 0);
+  g_signal_connect_object (self->offline_store, "folder-deleted", G_CALLBACK (on_offline_store_folder_deleted), self, 0);
+  g_signal_connect_object (self->offline_store, "folder-info-stale", G_CALLBACK (on_offline_store_folder_info_stale), self, 0);
+  g_signal_connect_object (self->offline_store, "folder-renamed", G_CALLBACK (on_offline_store_folder_renamed), self, 0);
+  g_signal_connect_object (stamp_session_get_default (), "account-changed", G_CALLBACK (on_account_changed), self, 0);
+
+  /* NetworkMonitor */
+  g_signal_connect_object (network_monitor, "network-changed", G_CALLBACK (on_network_changed), self, 0);
+
+  self->refresh_queue = g_queue_new ();
+
+  /* We need to serialize refresh requests per store as it tend to lock up */
+  self->refresh_thread = g_thread_new ("Refresh Folder", refresh_folder, self);
+  /* g_timeout_add_seconds (10, refresh_timeout, self); */
+}
+
+static void
+stamp_account_item_dispose (GObject *object)
+{
+  StampAccountItem *self = STAMP_ACCOUNT_ITEM (object);
+
+  g_cancellable_cancel (self->cancellable);
+  g_clear_object (&self->cancellable);
+
+  g_clear_object (&self->offline_store);
+
+  G_OBJECT_CLASS (stamp_account_item_parent_class)->dispose (object);
+}
+
+void
+stamp_account_item_class_init (StampAccountItemClass *klass)
+{
+  GObjectClass *object_class = G_OBJECT_CLASS (klass);
+
+  object_class->constructed = stamp_account_item_constructed;
+  object_class->dispose = stamp_account_item_dispose;
+
+  signals[ACCOUNT_ITEM_CHANGED] = g_signal_new ("account-item-changed", G_OBJECT_CLASS_TYPE (klass),
+                                                G_SIGNAL_RUN_FIRST | G_SIGNAL_RUN_LAST,
+                                                0, NULL, NULL, NULL,
+                                                G_TYPE_NONE,
+                                                0);
+}
+
+void
+stamp_account_item_init (StampAccountItem *self)
+{
+}
+
+StampAccountItem *
+stamp_account_item_new (StampAccount *account)
+{
+  return g_object_new (STAMP_TYPE_ACCOUNT_ITEM, "account", account, NULL);
+}

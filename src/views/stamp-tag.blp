@@ -1,0 +1,108 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampTag: Box {
+  Box {
+    orientation: vertical;
+    valign: center;
+
+    Label label {
+      xalign: 0;
+      ellipsize: end;
+    }
+
+    Label mail {
+      xalign: 0;
+      ellipsize: end;
+      visible: false;
+
+      styles [
+        "dim-label",
+      ]
+    }
+  }
+
+  Button button {
+    accessibility {
+      label: _("Delete Tag");
+    }
+
+    icon-name: "edit-delete-symbolic";
+    clicked => $on_button_clicked();
+
+    styles [
+      "flat",
+    ]
+  }
+
+  styles [
+    "circular",
+    "contact-tag",
+  ]
+
+  GestureClick {
+    released => $on_released();
+  }
+}
+
+menu menu {
+  section {
+    item {
+      custom: "contact";
+    }
+  }
+
+  section {
+    item {
+      label: _("Copy Address");
+      action: "tag.copy";
+    }
+
+    item {
+      label: _("Search Address");
+      action: "tag.search";
+    }
+
+    item {
+      label: _("Show Contact");
+      action: "tag.show-contact";
+    }
+  }
+}
+
+PopoverMenu popover {
+  menu-model: menu;
+  has-arrow: false;
+
+  [contact]
+  Box {
+    orientation: horizontal;
+    spacing: 12;
+    margin-start: 6;
+    margin-end: 6;
+
+    Adw.Avatar popover_avatar {
+      size: 48;
+      show-initials: true;
+    }
+
+    Box {
+      spacing: 2;
+      orientation: vertical;
+      vexpand: true;
+
+      Label popover_name {
+        halign: start;
+        use-markup: true;
+        valign: end;
+        vexpand: true;
+      }
+
+      Label popover_email {
+        halign: start;
+        valign: start;
+        vexpand: true;
+      }
+    }
+  }
+}

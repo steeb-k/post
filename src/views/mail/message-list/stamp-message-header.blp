@@ -1,0 +1,272 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampMessageHeader: Grid {
+  styles [
+    "message-header",
+  ]
+
+  margin-top: 12;
+  margin-start: 12;
+  margin-end: 12;
+  margin-bottom: 12;
+  column-spacing: 12;
+  row-spacing: 4;
+
+  Adw.Avatar avatar {
+    size: 48;
+    valign: start;
+
+    layout {
+      column: 0;
+      row: 0;
+      row-span: 4;
+    }
+
+    GestureClick {
+      released => $on_released();
+    }
+  }
+
+  Box {
+    baseline-position: top;
+    spacing: 6;
+
+    layout {
+      column: 1;
+      row: 0;
+      column-span: 2;
+    }
+
+    Label from_full {
+      visible: bind template.collapsed inverted;
+      label: _("Unknown Sender");
+      use-markup: true;
+      hexpand: true;
+      ellipsize: end;
+      xalign: 0;
+      valign: baseline_fill;
+    }
+
+    Image attachment_icon {
+      accessibility {
+        label: _("Attachment");
+      }
+
+      valign: baseline_fill;
+      visible: false;
+      icon-name: "mail-attachment-symbolic";
+
+      styles [
+        "dim-label",
+      ]
+    }
+
+    Image starred_icon {
+      accessibility {
+        label: _("Starred");
+      }
+
+      valign: baseline_fill;
+      icon-name: "non-starred-symbolic";
+
+      styles [
+        "dim-label",
+      ]
+    }
+
+    Label date {
+      valign: baseline_fill;
+      xalign: 1;
+
+      styles [
+        "caption",
+        "dim-label",
+      ]
+    }
+  }
+
+  MenuButton menu_button {
+    icon-name: "view-more-horizontal-symbolic";
+    halign: end;
+    valign: start;
+
+    styles [
+      "flat",
+    ]
+
+    layout {
+      column: 2;
+      row: 1;
+      row-span: 3;
+    }
+  }
+
+  Box to_box {
+    Label to {
+      use-markup: true;
+      halign: start;
+      valign: start;
+    }
+
+    layout {
+      column: 1;
+      row: 1;
+    }
+
+    Adw.WrapBox {
+      line-spacing: 4;
+      child-spacing: 6;
+
+      Adw.WrapBox to_wrap {
+        line-spacing: 4;
+        child-spacing: 6;
+        hexpand: true;
+      }
+
+      Adw.WrapBox to_hidden_wrap {
+        line-spacing: 4;
+        child-spacing: 6;
+        visible: false;
+      }
+
+      Button more_button {
+        accessibility {
+          label: _("More Participants");
+        }
+
+        visible: false;
+        valign: start;
+        clicked => $on_more_button_clicked();
+
+        styles [
+          "participant-more",
+          "caption",
+        ]
+      }
+    }
+  }
+
+  Box cc_box {
+    Label cc {
+      use-markup: true;
+      halign: start;
+      valign: start;
+    }
+
+    layout {
+      column: 1;
+      row: 2;
+    }
+
+    Adw.WrapBox {
+      line-spacing: 4;
+      child-spacing: 6;
+
+      Adw.WrapBox cc_wrap {
+        line-spacing: 4;
+        child-spacing: 6;
+        hexpand: true;
+      }
+
+      Adw.WrapBox cc_hidden_wrap {
+        line-spacing: 4;
+        child-spacing: 6;
+        visible: false;
+      }
+
+      Button cc_more_button {
+        accessibility {
+          label: _("More CC Participants");
+        }
+
+        visible: false;
+        valign: start;
+        clicked => $on_cc_more_button_clicked();
+
+        styles [
+          "participant-more",
+          "caption",
+        ]
+      }
+    }
+  }
+
+  Inscription body_preview {
+    styles [
+      "dim-label",
+    ]
+
+    hexpand: true;
+    xalign: 0;
+    yalign: 0;
+    min-lines: 2;
+
+    layout {
+      column: 1;
+      row: 3;
+    }
+  }
+}
+
+menu menu {
+  section {
+    item {
+      custom: "contact";
+    }
+  }
+
+  section {
+    item {
+      label: _("Copy Address");
+      action: "message-header.copy";
+    }
+
+    item {
+      label: _("Search Address");
+      action: "message-header.search";
+    }
+
+    item {
+      label: _("Show Contact");
+      action: "message-header.show-contact";
+    }
+  }
+}
+
+PopoverMenu popover {
+  menu-model: menu;
+  has-arrow: false;
+
+  [contact]
+  Box {
+    orientation: horizontal;
+    spacing: 12;
+    margin-start: 6;
+    margin-end: 6;
+
+    Adw.Avatar popover_avatar {
+      size: 48;
+      show-initials: true;
+    }
+
+    Box {
+      spacing: 2;
+      orientation: vertical;
+      vexpand: true;
+
+      Label popover_name {
+        halign: start;
+        use-markup: true;
+        valign: end;
+        vexpand: true;
+      }
+
+      Label popover_email {
+        halign: start;
+        valign: start;
+        vexpand: true;
+      }
+    }
+  }
+}

@@ -1,24 +1,78 @@
+/*
+ * Copyright 2024-2026 Jan-Michael Brummer
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "stamp-session.h"
 
-#include "stamp-account.h"
-
 #include <libedataserverui4/libedataserverui4.h>
+#include <libebook/libebook.h>
+#include <libedata-book/libedata-book.h>
+#include <pk11pub.h>
+#include <nss.h>
+#include <nssb64.h>
+#include <pk11pub.h>
+#include <secmod.h>
+
+#include "stamp-account.h"
+#include "stamp-signature.h"
 
 static StampSession *_session = NULL;
+static char *cache_dir = NULL;
+static char *data_dir = NULL;
 
-typedef struct {
+struct _StampSession {
+  CamelSession parent_instance;
+
   ESourceRegistry *registry;
-  GList *accounts;
-} StampSessionPrivate;
 
-G_DEFINE_FINAL_TYPE_WITH_PRIVATE (StampSession, stamp_session, CAMEL_TYPE_SESSION)
+  GList *accounts;
+  GList *signatures;
+  GCancellable *cancellable;
+};
+
+typedef struct _TryCredentialsData {
+  CamelService *service;
+  const gchar *mechanism;
+} TryCredentialsData;
+
+G_DEFINE_FINAL_TYPE (StampSession, stamp_session, CAMEL_TYPE_SESSION)
 
 enum {
   ACCOUNT_ADDED,
+  ACCOUNT_REMOVED,
+  ACCOUNT_CHANGED,
+  PK11_PASSWORD,
   LAST_SIGNAL,
 };
 
 static gint signals[LAST_SIGNAL] = { 0 };
+
+static void
+stamp_signature_clear (gpointer user_data)
+{
+  StampSignature *signature = user_data;
+
+  g_clear_pointer (&signature->name, g_free);
+  g_clear_pointer (&signature->mime_type, g_free);
+  g_clear_pointer (&signature->content, g_free);
+
+  g_clear_pointer (&signature, g_free);
+}
 
 static void
 on_user_alert (CamelSession *session,
@@ -36,28 +90,259 @@ on_network_changed (GNetworkMonitor *monitor,
 {
   StampSession *self = STAMP_SESSION (user_data);
 
-  g_print ("%s: State changed to %d\n", G_STRFUNC, state);
   camel_session_set_online (CAMEL_SESSION (self), state);
+}
+
+static gchar *
+stamp_session_pk11_password (PK11SlotInfo *slot,
+                             PRBool        retry,
+                             gpointer      arg)
+{
+  g_autofree char *pwd = NULL;
+  char *nsspwd;
+
+  /* For tokens with CKF_PROTECTED_AUTHENTICATION_PATH we
+   * need to return a non-empty but unused password */
+  if (PK11_ProtectedAuthenticationPath (slot))
+    return PORT_Strdup ("");
+
+  g_signal_emit (G_OBJECT (stamp_session_get_default ()), signals[PK11_PASSWORD], 0, slot, retry, &pwd);
+  if (!pwd)
+    return NULL;
+
+  nsspwd = PORT_Strdup (pwd);
+  memset (pwd, 0, strlen (pwd));
+
+  return nsspwd;
+}
+
+static GPtrArray *
+stamp_accounts_load_finish (GAsyncResult  *res,
+                            GError       **error)
+{
+  return g_task_propagate_pointer (G_TASK (res), error);
+}
+
+static void
+on_account_ready (GObject      *src,
+                  GAsyncResult *res,
+                  gpointer      user_data)
+{
+  StampSession *self = STAMP_SESSION (user_data);
+  StampAccount *account = STAMP_ACCOUNT (src);
+  g_autoptr (GError) error = NULL;
+
+  if (!stamp_account_init_finish (res, &error)) {
+    g_warning ("%s: Account init failed: %s", G_STRFUNC, error ? error->message : "");
+    return;
+  }
+
+  g_debug ("%s: '%s' ready", G_STRFUNC, stamp_account_get_name (account));
+
+  self->accounts = g_list_append (self->accounts, account);
+  g_signal_emit (self, signals[ACCOUNT_ADDED], 0, account, NULL);
+}
+
+static void
+on_accounts_loaded (GObject      *src,
+                    GAsyncResult *res,
+                    gpointer      user_data)
+{
+  StampSession *self = STAMP_SESSION (user_data);
+  g_autoptr (GError) error = NULL;
+  g_autoptr (GPtrArray) accounts = stamp_accounts_load_finish (res, &error);
+
+  if (error) {
+    g_warning ("%s: Error loading accounts: %s\n", G_STRFUNC, error->message);
+    return;
+  }
+
+  g_debug ("%s: %u account(s) found", G_STRFUNC, accounts->len);
+
+  for (guint i = 0; i < accounts->len; i++) {
+    StampAccount *account = g_ptr_array_index (accounts, i);
+
+    g_debug ("%s: Loading account %s", G_STRFUNC, stamp_account_get_name (account));
+    stamp_account_init_async (g_object_ref (account), self->cancellable, on_account_ready, self);
+  }
+}
+
+static GPtrArray *
+stamp_session_load_accounts_from_registry (ESourceRegistry *registry)
+{
+  GPtrArray *accounts = g_ptr_array_new_with_free_func (g_object_unref);
+  GList *collections = e_source_registry_list_sources (registry, E_SOURCE_EXTENSION_COLLECTION);
+
+  for (GList *l = collections; l; l = l->next) {
+    ESource *col = E_SOURCE (l->data);
+    StampAccount *account = stamp_account_new (col, registry);
+    GList *children;
+
+    g_debug ("%s: %s", G_STRFUNC, e_source_get_display_name (col));
+
+    children = e_source_registry_list_sources (registry, NULL);
+    for (GList *child = children; child; child = g_list_next (child)) {
+      ESource *src = E_SOURCE (child->data);
+      const gchar *parent = e_source_get_parent (src);
+
+      if (g_strcmp0 (parent, stamp_account_get_uid (account)) != 0)
+        continue;
+
+      g_debug ("%s: |- %s ", G_STRFUNC, e_source_get_display_name (src));
+
+      if (e_source_has_extension (src, E_SOURCE_EXTENSION_MAIL_ACCOUNT)) {
+        stamp_account_add_mail (account, src);
+      } else if (e_source_has_extension (src, E_SOURCE_EXTENSION_CALENDAR)) {
+        /* stamp_account_add_calendar (account, src); */
+      } else if (e_source_has_extension (src, E_SOURCE_EXTENSION_ADDRESS_BOOK)) {
+        stamp_account_add_address_book (account, src);
+      } else if (e_source_has_extension (src, E_SOURCE_EXTENSION_MAIL_IDENTITY)) {
+        stamp_account_add_mail_identity (account, src);
+      } else if (e_source_has_extension (src, E_SOURCE_EXTENSION_MAIL_TRANSPORT)) {
+        stamp_account_add_mail_transport (account, src);
+      } else if (e_source_has_extension (src, E_SOURCE_EXTENSION_TASK_LIST)) {
+        g_debug ("  (Task List)");
+      }
+    }
+    g_list_free_full (children, g_object_unref);
+
+    g_ptr_array_add (accounts, account);
+  }
+
+  g_list_free_full (collections, g_object_unref);
+  return accounts;
+}
+
+static StampAccount *
+stamp_session_find_account_by_uid (GList      *list,
+                                   const char *uid)
+{
+  for (GList *iter = list; iter && iter->data; iter = g_list_next (iter)) {
+    StampAccount *account = STAMP_ACCOUNT (iter->data);
+
+    if (g_strcmp0 (stamp_account_get_uid (account), uid) == 0)
+      return account;
+  }
+
+  return NULL;
+}
+
+static void
+on_source_changed (ESourceRegistry *registry,
+                   ESource         *source,
+                   gpointer         user_data)
+{
+  StampSession *self = STAMP_SESSION (user_data);
+  const gchar *parent_uid = e_source_get_parent (source);
+  StampAccount *account = stamp_session_find_account_by_uid (self->accounts, parent_uid);
+
+  if (!account) {
+    /* No account, means that it is a change in the collection */
+    account = stamp_session_find_account_by_uid (self->accounts, e_source_get_uid (source));
+
+    if (account) {
+      stamp_account_set_name (account, e_source_get_display_name (source));
+      g_debug ("%s: Account name updated %s", G_STRFUNC, stamp_account_get_name (account));
+      g_signal_emit (self, signals[ACCOUNT_CHANGED], 0, account, NULL);
+    }
+    return;
+  }
+
+  if (e_source_has_extension (source, E_SOURCE_EXTENSION_MAIL_ACCOUNT)) {
+    stamp_account_mail_changed (account, source);
+  } else if (e_source_has_extension (source, E_SOURCE_EXTENSION_ADDRESS_BOOK)) {
+    stamp_account_contacts_changed (account, source);
+  }
+}
+
+static void
+on_signature_loaded (GObject      *source_object,
+                     GAsyncResult *result,
+                     gpointer      user_data)
+{
+  StampSession *self = STAMP_SESSION (user_data);
+  g_autoptr (GError) error = NULL;
+  g_autofree char *contents = NULL;
+  gsize length = 0;
+  ESourceMailSignature *ext;
+  ESource *source = E_SOURCE (source_object);
+  StampSignature *signature;
+
+  if (!e_source_mail_signature_load_finish (source, result, &contents, &length, &error)) {
+    g_warning ("Error loading signature: %s", error->message);
+    return;
+  }
+
+  signature = g_new0 (StampSignature, 1);
+
+  ext = e_source_get_extension (source, E_SOURCE_EXTENSION_MAIL_SIGNATURE);
+  signature->name = g_strdup (e_source_get_display_name (source));
+  signature->mime_type = g_strdup (e_source_mail_signature_get_mime_type (ext));
+  signature->content = g_strdup (contents);
+  signature->source = source;
+
+  self->signatures = g_list_append (self->signatures, signature);
+}
+
+static void
+stamp_session_load_signatures (StampSession *self)
+{
+  g_autolist (ESource) sources = NULL;
+
+  sources = e_source_registry_list_sources (self->registry, E_SOURCE_EXTENSION_MAIL_SIGNATURE);
+  for (GList *iter = sources; iter != NULL; iter = iter->next) {
+    ESource *source = E_SOURCE (iter->data);
+
+    e_source_mail_signature_load (source, G_PRIORITY_DEFAULT, self->cancellable, on_signature_loaded, self);
+  }
+}
+
+static void
+on_registry_ready_for_load (GObject      *src,
+                            GAsyncResult *res,
+                            gpointer      user_data)
+{
+  g_autoptr (GTask) task = G_TASK (user_data);
+  StampSession *self = STAMP_SESSION (g_task_get_source_object (task));
+  g_autoptr (GError) error = NULL;
+  g_autoptr (ESourceRegistry) registry = e_source_registry_new_finish (res, &error);
+  GPtrArray *accounts;
+
+  if (error) {
+    g_task_return_error (task, g_steal_pointer (&error));
+    return;
+  }
+
+  self->registry = g_object_ref (registry);
+  g_signal_connect_object (self->registry, "source-changed", G_CALLBACK (on_source_changed), self, 0);
+
+  stamp_session_load_signatures (self);
+
+  accounts = stamp_session_load_accounts_from_registry (self->registry);
+  g_task_return_pointer (task, accounts, (GDestroyNotify)g_ptr_array_unref);
 }
 
 static void
 stamp_session_init (StampSession *self)
 {
-  StampSessionPrivate *priv = stamp_session_get_instance_private (self);
   GNetworkMonitor *network_monitor = e_network_monitor_get_default ();
+  GTask *task;
+  gchar *nssdb = g_build_filename (g_get_home_dir (), ".pki", "nssdb", NULL);
 
-  camel_init (e_get_user_data_dir (), FALSE);
-  g_signal_connect (G_OBJECT (self), "user-alert", G_CALLBACK (on_user_alert), NULL);
+  self->cancellable = g_cancellable_new ();
+
+  camel_init (nssdb, TRUE);
+  g_signal_connect_object (G_OBJECT (self), "user-alert", G_CALLBACK (on_user_alert), self, 0);
+
+  PK11_SetPasswordFunc (stamp_session_pk11_password);
 
   camel_session_set_network_monitor (CAMEL_SESSION (self), network_monitor);
-  g_signal_connect (network_monitor, "network-changed", G_CALLBACK (on_network_changed), self);
+  g_signal_connect_object (network_monitor, "network-changed", G_CALLBACK (on_network_changed), self, 0);
   camel_session_set_online (CAMEL_SESSION (self), TRUE);
-}
 
-typedef struct _TryCredentialsData {
-  CamelService *service;
-  const gchar *mechanism;
-} TryCredentialsData;
+  task = g_task_new (self, self->cancellable, on_accounts_loaded, self);
+  e_source_registry_new (self->cancellable, on_registry_ready_for_load, task);
+}
 
 static gboolean
 try_credentials_sync (ECredentialsPrompter    *prompter,
@@ -69,7 +354,7 @@ try_credentials_sync (ECredentialsPrompter    *prompter,
                       GError                 **error)
 {
   TryCredentialsData *data = user_data;
-  gchar *credential_name = NULL;
+  g_autofree char *credential_name = NULL;
   CamelAuthenticationResult result;
 
   g_return_val_if_fail (E_IS_SOURCE (source), FALSE);
@@ -79,42 +364,39 @@ try_credentials_sync (ECredentialsPrompter    *prompter,
   g_return_val_if_fail (CAMEL_IS_SERVICE (data->service), FALSE);
 
   if (e_source_has_extension (source, E_SOURCE_EXTENSION_AUTHENTICATION)) {
-	  ESourceAuthentication *auth_extension;
+    ESourceAuthentication *auth_extension;
 
-	  auth_extension = e_source_get_extension (source, E_SOURCE_EXTENSION_AUTHENTICATION);
-	  credential_name = e_source_authentication_dup_credential_name (auth_extension);
+    auth_extension = e_source_get_extension (source, E_SOURCE_EXTENSION_AUTHENTICATION);
+    credential_name = e_source_authentication_dup_credential_name (auth_extension);
 
-	  if (!credential_name || !*credential_name) {
-		  g_free (credential_name);
-		  credential_name = NULL;
-	  }
+    if (!credential_name || !*credential_name) {
+      g_free (credential_name);
+      credential_name = NULL;
+    }
   }
 
   camel_service_set_password (data->service, e_named_parameters_get (credentials,
-	  credential_name ? credential_name : E_SOURCE_CREDENTIAL_PASSWORD));
-
-  g_free (credential_name);
+                                                                     credential_name ? credential_name : E_SOURCE_CREDENTIAL_PASSWORD));
 
   result = camel_service_authenticate_sync (data->service, data->mechanism, cancellable, error);
 
   *out_authenticated = result == CAMEL_AUTHENTICATION_ACCEPTED;
 
   if (*out_authenticated) {
-	  ESourceCredentialsProvider *credentials_provider;
-	  ESource *cred_source;
+    ESourceCredentialsProvider *credentials_provider;
+    ESource *cred_source;
 
-	  credentials_provider = e_credentials_prompter_get_provider (prompter);
-	  cred_source = e_source_credentials_provider_ref_credentials_source (credentials_provider, source);
+    credentials_provider = e_credentials_prompter_get_provider (prompter);
+    cred_source = e_source_credentials_provider_ref_credentials_source (credentials_provider, source);
 
-	  if (cred_source)
-		  e_source_invoke_authenticate_sync (cred_source, credentials, cancellable, NULL);
+    if (cred_source)
+      e_source_invoke_authenticate_sync (cred_source, credentials, cancellable, NULL);
 
-	  g_clear_object (&cred_source);
+    g_clear_object (&cred_source);
   }
 
   return result == CAMEL_AUTHENTICATION_REJECTED;
 }
-
 
 static gboolean
 authenticate_sync (CamelSession  *session,
@@ -129,12 +411,8 @@ authenticate_sync (CamelSession  *session,
   CamelAuthenticationResult result = CAMEL_AUTHENTICATION_REJECTED;
   GError *local_error = NULL;
   ESource *source;
-  ESourceRegistry *registry;
   const gchar *uid;
   gboolean authenticated;
-  StampSessionPrivate *priv = stamp_session_get_instance_private (self);
-
-  registry = priv->registry;
 
   /* Treat a mechanism name of "none" as NULL. */
   if (g_strcmp0 (mechanism, "none") == 0)
@@ -148,11 +426,8 @@ authenticate_sync (CamelSession  *session,
   /* If the SASL mechanism does not involve a user
    * password, then it gets one shot to authenticate. */
   if (authtype != NULL && !authtype->need_password) {
-    g_print ("SASL?");
     result = camel_service_authenticate_sync (service, mechanism, cancellable, &local_error);
-
-    if (result == CAMEL_AUTHENTICATION_REJECTED)
-      g_print ("FAILED\n");
+    return result == CAMEL_AUTHENTICATION_ACCEPTED;
   }
 
   /* Some SASL mechanisms can attempt to authenticate without a
@@ -181,8 +456,8 @@ authenticate_sync (CamelSession  *session,
     if (sasl != NULL) {
       try_empty_password =
         camel_sasl_try_empty_password_sync (
-        sasl, cancellable, &local_error);
-    g_object_unref (sasl);
+          sasl, cancellable, &local_error);
+      g_object_unref (sasl);
     }
   }
 
@@ -195,7 +470,7 @@ authenticate_sync (CamelSession  *session,
 
   /* Find a matching ESource for this CamelService. */
   uid = camel_service_get_uid (service);
-  source = e_source_registry_ref_source (registry, uid);
+  source = e_source_registry_ref_source (self->registry, uid);
 
   if (source == NULL) {
     g_set_error (
@@ -208,73 +483,28 @@ authenticate_sync (CamelSession  *session,
   result = CAMEL_AUTHENTICATION_REJECTED;
 
   if (try_empty_password) {
-	  result = camel_service_authenticate_sync (
-		  service, mechanism, cancellable, error);
+    result = camel_service_authenticate_sync (service, mechanism, cancellable, error);
   }
 
   if (result == CAMEL_AUTHENTICATION_REJECTED) {
     ECredentialsPrompter *prompter;
-			TryCredentialsData data;
+    TryCredentialsData data;
 
-    g_print ("Ask for creds\n");
     data.service = service;
     data.mechanism = mechanism;
-    prompter = e_credentials_prompter_new(priv->registry);
-    e_credentials_prompter_set_auto_prompt (prompter, TRUE);
-    authenticated = e_credentials_prompter_loop_prompt_sync (prompter, source, E_CREDENTIALS_PROMPTER_PROMPT_FLAG_ALLOW_SOURCE_SAVE, try_credentials_sync, &data, NULL, error);
-
-    /* e_credentials_prompter_ */
+    prompter = e_credentials_prompter_new (self->registry);
+    authenticated = e_credentials_prompter_loop_prompt_sync (prompter,
+                                                             source,
+                                                             E_CREDENTIALS_PROMPTER_PROMPT_FLAG_ALLOW_SOURCE_SAVE,
+                                                             try_credentials_sync,
+                                                             &data,
+                                                             cancellable,
+                                                             error);
   } else {
-		authenticated = (result == CAMEL_AUTHENTICATION_ACCEPTED);
-	}
-
+    authenticated = (result == CAMEL_AUTHENTICATION_ACCEPTED);
+  }
 
   return authenticated;
-}
-
-static
-void on_get_folder_info (GObject      *store,
-                         GAsyncResult *res,
-                         gpointer      user_data)
-{
-  g_autoptr (GError) error = NULL;
-  g_autoptr (CamelFolderInfo) folder_info = camel_store_get_folder_info_finish (CAMEL_STORE (store), res, &error);
-
-  if (error) {
-    g_print ("%s: %s\n", G_STRFUNC, error->message);
-    return;
-  }
-
-  g_print ("/*** \n");
-  if (folder_info) {
-      CamelFolderInfo *current_folder_info = CAMEL_FOLDER_INFO (folder_info);
-            GPtrArray *messages;
-
-      g_print ("=> %d\n", CAMEL_IS_FOLDER_INFO (folder_info));
-      while (current_folder_info) {
-          CamelFolder *inbox;
-
-          g_print (" --> %s\n", current_folder_info->display_name);
-
-
-          inbox = camel_store_get_folder_sync (CAMEL_STORE (store), current_folder_info->display_name, CAMEL_STORE_FOLDER_NONE, NULL, NULL);
-          if (inbox) {
-            CamelFolderSummary *summary;
-            g_autoptr (GError) local_error = NULL;
-
-            if (g_strcmp0 ("Junk-E-Mail", current_folder_info->display_name) == 0)
-              camel_folder_refresh_info_sync (inbox, NULL, NULL);
-            summary = camel_folder_get_folder_summary (inbox);
-            if (summary) {
-              g_print ("%s %d\n", camel_folder_get_display_name (inbox), camel_folder_summary_get_unread_count (summary));
-            }
-            messages = camel_folder_get_uids (inbox);
-            g_print ("-> %d\n", messages->len);
-          }
-          current_folder_info = current_folder_info->next;
-      }
-  }
-  g_print ("***/ \n");
 }
 
 static CamelService *
@@ -286,45 +516,51 @@ add_service (CamelSession       *session,
 {
   CamelService *service;
   StampSession *self = STAMP_SESSION (session);
-  StampSessionPrivate *priv = stamp_session_get_instance_private (self);
+  g_autoptr (GError) local_error = NULL;
 
-  g_print ("%s: ENTER\n", G_STRFUNC);
-
-  g_print ("%s: uid %s\n", G_STRFUNC, uid);
   service = CAMEL_SESSION_CLASS (stamp_session_parent_class)->add_service (
-                                        session,
-                                       uid,
-                                       protocol,
-                                       CAMEL_PROVIDER_STORE,
-                                       NULL);
+    session,
+    uid,
+    protocol,
+    type,
+    error);
 
   if (CAMEL_IS_SERVICE (service)) {
-    ESource *source = e_source_registry_ref_source (priv->registry, uid);
+    ESource *source = e_source_registry_ref_source (self->registry, uid);
     const char *extension_name = e_source_camel_get_extension_name (protocol);
-    ESource *extension_source = e_source_registry_find_extension (priv->registry, source, extension_name);
+    ESource *extension_source = e_source_registry_find_extension (self->registry, source, extension_name);
 
     if (extension_source)
       source = extension_source;
 
     e_source_camel_configure_service (source, service);
-
-    g_object_bind_property (source, "display-name", service, "display-name", G_BINDING_SYNC_CREATE);
-    if (CAMEL_IS_OFFLINE_STORE (service)) {
-      StampAccount *account = stamp_account_new (CAMEL_SERVICE (service));
-      priv->accounts = g_list_append (priv->accounts, account);
-      g_print ("Adding account: %s\n", camel_service_get_display_name (service));
-      g_signal_emit (self, signals[ACCOUNT_ADDED], 0, account, NULL);
-
-      /* g_print ("%s:\n", camel_service_get_display_name (service)); */
-      /* camel_offline_store_set_online_sync (CAMEL_OFFLINE_STORE (service), TRUE, NULL, NULL); */
-      /* camel_service_connect_sync (service, NULL, NULL); */
-      /* camel_store_synchronize_sync (CAMEL_STORE (service), FALSE, NULL, NULL); */
-      /* camel_store_get_folder_info (CAMEL_STORE (service), NULL, CAMEL_STORE_FOLDER_INFO_RECURSIVE, G_PRIORITY_DEFAULT, NULL, on_get_folder_info, NULL); */
-    }
   }
 
-  g_print ("%s: EXIT\n", G_STRFUNC);
   return service;
+}
+
+static void
+remove_service (CamelSession *session,
+                CamelService *service)
+{
+  StampSession *self = STAMP_SESSION (session);
+
+  CAMEL_SESSION_CLASS (stamp_session_parent_class)->remove_service (session, service);
+
+  /* TODO: Handle more than offline store */
+  if (!CAMEL_IS_OFFLINE_STORE (service))
+    return;
+
+  for (GList *iter = self->accounts; iter && iter->data; iter = g_list_next (iter)) {
+    StampAccount *account = STAMP_ACCOUNT (iter->data);
+    StampMailService *mail_service = stamp_account_get_mail_service (account);
+
+    if (mail_service->service == service) {
+      g_signal_emit (self, signals[ACCOUNT_REMOVED], 0, account, NULL);
+      self->accounts = g_list_remove (self->accounts, account);
+      return;
+    }
+  }
 }
 
 static CamelFilterDriver *
@@ -338,135 +574,122 @@ get_filter_driver (CamelSession  *session,
   return filter_driver;
 }
 
+static gboolean
+get_oauth2_access_token_sync (CamelSession  *session,
+                              CamelService  *service,
+                              gchar        **out_access_token,
+                              gint          *out_expires_in,
+                              GCancellable  *cancellable,
+                              GError       **error)
+{
+  StampSession *self;
+  g_autoptr (ESource) source = NULL;
+  g_autoptr (ESource) cred_source = NULL;
+  GError *local_error = NULL;
+  gboolean success;
+
+  g_return_val_if_fail (STAMP_IS_SESSION (session), FALSE);
+  g_return_val_if_fail (CAMEL_IS_SERVICE (service), FALSE);
+
+  self = STAMP_SESSION (session);
+  source = e_source_registry_ref_source (self->registry, camel_service_get_uid (service));
+  if (!source) {
+    g_set_error (error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND,
+                 ("Corresponding source for service with UID “%s” not found"),
+                 camel_service_get_uid (service));
+
+    return FALSE;
+  }
+
+  cred_source = e_source_registry_find_extension (self->registry, source, E_SOURCE_EXTENSION_COLLECTION);
+  if (!cred_source && !e_util_can_use_collection_as_credential_source (cred_source, source)) {
+    g_clear_object (&cred_source);
+    cred_source = source;
+  }
+
+  success = e_source_get_oauth2_access_token_sync (cred_source, cancellable, out_access_token, out_expires_in, &local_error);
+
+  /* The Connection Refused error can be returned when the OAuth2 token is expired or
+     when its refresh failed for some reason. In that case change the error domain/code,
+     thus the other Camel/mail code understands it. */
+  if (g_error_matches (local_error, G_IO_ERROR, G_IO_ERROR_CONNECTION_REFUSED) ||
+      g_error_matches (local_error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND)) {
+    local_error->domain = CAMEL_SERVICE_ERROR;
+    local_error->code = CAMEL_SERVICE_ERROR_CANT_AUTHENTICATE;
+
+    e_source_invoke_credentials_required_sync (cred_source, E_SOURCE_CREDENTIALS_REASON_REJECTED, "", 0, local_error, cancellable, NULL);
+  }
+
+  if (local_error)
+    g_propagate_error (error, local_error);
+
+  return success;
+}
+
+static void
+stamp_session_dispose (GObject *object)
+{
+  StampSession *self = STAMP_SESSION (object);
+
+  g_cancellable_cancel (self->cancellable);
+  g_clear_object (&self->cancellable);
+
+  g_clear_object (&self->registry);
+  g_clear_list (&self->accounts, g_object_unref);
+  g_clear_list (&self->signatures, stamp_signature_clear);
+
+  camel_shutdown ();
+
+  G_OBJECT_CLASS (stamp_session_parent_class)->dispose (object);
+}
+
 static void
 stamp_session_class_init (StampSessionClass *klass)
 {
   CamelSessionClass *session_class;
+  GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
   session_class = CAMEL_SESSION_CLASS (klass);
   session_class->authenticate_sync = authenticate_sync;
   session_class->add_service = add_service;
+  session_class->remove_service = remove_service;
   session_class->get_filter_driver = get_filter_driver;
+  session_class->get_oauth2_access_token_sync = get_oauth2_access_token_sync;
+
+  object_class->dispose = stamp_session_dispose;
 
   signals[ACCOUNT_ADDED] = g_signal_new ("account-added", G_OBJECT_CLASS_TYPE (klass),
-                                 G_SIGNAL_RUN_FIRST | G_SIGNAL_RUN_LAST,
-                                 0, NULL, NULL, NULL,
-                                 G_TYPE_NONE,
-                                 1, STAMP_TYPE_ACCOUNT);
+                                         G_SIGNAL_RUN_FIRST | G_SIGNAL_RUN_LAST,
+                                         0, NULL, NULL, NULL,
+                                         G_TYPE_NONE,
+                                         1, STAMP_TYPE_ACCOUNT);
 
-}
+  signals[ACCOUNT_REMOVED] = g_signal_new ("account-removed", G_OBJECT_CLASS_TYPE (klass),
+                                           G_SIGNAL_RUN_FIRST | G_SIGNAL_RUN_LAST,
+                                           0, NULL, NULL, NULL,
+                                           G_TYPE_NONE,
+                                           1, STAMP_TYPE_ACCOUNT);
 
-static void
-add_source (gpointer source,
-            gpointer user_data) {
+  signals[ACCOUNT_CHANGED] = g_signal_new ("account-changed", G_OBJECT_CLASS_TYPE (klass),
+                                           G_SIGNAL_RUN_FIRST | G_SIGNAL_RUN_LAST,
+                                           0, NULL, NULL, NULL,
+                                           G_TYPE_NONE,
+                                           1, STAMP_TYPE_ACCOUNT);
 
-  ESource *src = E_SOURCE (source);
-  StampSession *self = STAMP_SESSION (user_data);
-  ESourceMailAccount *extension;
-  CamelService *service;
-  const char *uid = e_source_get_uid (src);
-  static gboolean en1 = FALSE;
-
-  if (g_strcmp0 (uid, "vfolder") == 0) {
-      return;
-  }
-
-  if (g_strcmp0 (uid, "71d13f6e1649721b66ee4768e7fff049652e956d") != 0) {
-      return;
-  }
-
-  if (en1)
-    return;
-
-  en1 = TRUE;
-
-  g_print ("%s: ENTER\n", G_STRFUNC);
-  g_print ("%s: Adding source uid: %s\n", G_STRFUNC, uid);
-
-  extension = e_source_get_extension (src, E_SOURCE_EXTENSION_MAIL_ACCOUNT);
-  add_service (CAMEL_SESSION (self),
-                             uid,
-                             e_source_backend_get_backend_name (E_SOURCE_BACKEND (extension)),
-                             CAMEL_PROVIDER_STORE,
-                             NULL);
-  g_print ("%s: EXIT\n", G_STRFUNC);
-}
-
-static void
-on_new_source_registry (GObject      *source_objet,
-                        GAsyncResult *res,
-                        gpointer      user_data)
-{
-  StampSession *self = STAMP_SESSION (user_data);
-  StampSessionPrivate *priv = stamp_session_get_instance_private (self);
-  g_autoptr (GError) error = NULL;
-  ESourceRegistry *registry = e_source_registry_new_finish (res, &error);
-  GList *sources;
-
-  g_print ("%s: ENTER\n", G_STRFUNC);
-  if (error) {
-    g_critical ("%s: %s", G_STRFUNC, error->message);
-    /* g_task_return_error (task, g_steal_pointer (&error)); */
-    return;
-  }
-
-  priv->registry = registry;
-
-  sources = e_source_registry_list_sources (priv->registry, E_SOURCE_EXTENSION_MAIL_ACCOUNT);
-
-  g_list_foreach (sources, add_source, self);
-  g_print ("%s: EXIT\n", G_STRFUNC);
-  g_signal_connect (priv->registry, "source-added", G_CALLBACK (add_source), self);
-
-  /* g_task_return_boolean (task, TRUE); */
-}
-
-static void
-start_session (GTask        *task,
-               gpointer      object,
-               gpointer      user_data,
-               GCancellable *cancellable)
-{
-  StampSession *self = STAMP_SESSION (object);
-  StampSessionPrivate *priv = stamp_session_get_instance_private (self);
-  g_autoptr (GError) error = NULL;
-
-  g_print ("%s: ENTER\n", G_STRFUNC);
-  if (priv->registry) {
-    g_warning ("CamelSession is already started\n");
-    g_task_return_boolean (task, TRUE);
-    return;
-  }
-
-  e_source_registry_new (cancellable, on_new_source_registry, self);
-  g_print ("%s: EXIT\n", G_STRFUNC);
-}
-
-void
-stamp_session_start (StampSession        *self,
-                     GCancellable        *cancellable,
-                     GAsyncReadyCallback  callback,
-                     gpointer             user_data)
-{
-  g_autoptr (GTask) task = NULL;
-  g_return_if_fail (self);
-
-  g_print ("%s: ENTER\n", G_STRFUNC);
-  task = g_task_new (G_OBJECT (self), NULL, callback, user_data);
-  g_task_run_in_thread (task, start_session);
-  g_print ("%s: EXIT\n", G_STRFUNC);
+  signals[PK11_PASSWORD] = g_signal_new ("pk11-password", G_OBJECT_CLASS_TYPE (klass),
+                                         G_SIGNAL_RUN_FIRST | G_SIGNAL_RUN_LAST,
+                                         0, NULL, NULL, NULL,
+                                         G_TYPE_NONE,
+                                         3, G_TYPE_POINTER, G_TYPE_INT, G_TYPE_POINTER);
 }
 
 StampSession *
 stamp_session_get_default (void)
 {
   if (!_session) {
-    g_autofree char *data_dir = g_build_path (G_DIR_SEPARATOR_S, g_get_user_data_dir (), "stamp", NULL);
-    g_autofree char *cache_dir = g_build_path (G_DIR_SEPARATOR_S, g_get_user_cache_dir (), "stamp", NULL);
-
     _session = g_object_new (STAMP_TYPE_SESSION,
-                             "user-data-dir", data_dir,
-                             "user-cache-dir", cache_dir,
+                             "user-data-dir", stamp_get_data_dir (),
+                             "user-cache-dir", stamp_get_cache_dir (),
                              NULL);
   }
 
@@ -476,10 +699,29 @@ stamp_session_get_default (void)
 GList *
 stamp_session_get_accounts (StampSession *self)
 {
-  StampSessionPrivate *priv = stamp_session_get_instance_private (self);
-  GList *list = NULL;
+  return self->accounts;
+}
 
-  list = g_list_copy (priv->accounts);
+GList *
+stamp_session_get_signatures (StampSession *self)
+{
+  return self->signatures;
+}
 
-  return list;
+const char *
+stamp_get_cache_dir (void)
+{
+  if (!cache_dir)
+    cache_dir = g_build_path (G_DIR_SEPARATOR_S, g_get_user_cache_dir (), "stamp", NULL);
+
+  return cache_dir;
+}
+
+const char *
+stamp_get_data_dir (void)
+{
+  if (!data_dir)
+    data_dir = g_build_path (G_DIR_SEPARATOR_S, g_get_user_data_dir (), "stamp", NULL);
+
+  return data_dir;
 }

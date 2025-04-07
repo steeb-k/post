@@ -1,0 +1,292 @@
+{
+  "id": "org.tabos.stamp",
+  "runtime": "org.gnome.Platform",
+  "runtime-version": "master",
+  "sdk": "org.gnome.Sdk",
+  "command": "stamp",
+  "desktop-file-name-suffix": " (Development)",
+  "finish-args": [
+    "--share=ipc",
+    "--share=network",
+    "--socket=fallback-x11",
+    "--device=dri",
+    "--socket=pcsc",
+    "--socket=wayland",
+    "--talk-name=org.gnome.OnlineAccounts",
+    "--talk-name=org.gnome.keyring.SystemPrompter",
+    "--talk-name=org.gnome.evolution.dataserver.AddressBook10",
+    "--talk-name=org.gnome.evolution.dataserver.Calendar8",
+    "--talk-name=org.gnome.evolution.dataserver.Sources5",
+    "--talk-name=org.gnome.evolution.dataserver.Subprocess.Backend",
+    "--talk-name=org.freedesktop.Flatpak",
+    "--filesystem=/tmp",
+    "--filesystem=~/.pki/nssdb:rw",
+    "--filesystem=xdg-config/pki:rw",
+    "--filesystem=~/.gnupg:rw",
+    "--filesystem=xdg-config/gnupg:rw",
+    "--filesystem=xdg-run/p11-kit/pkcs11"
+  ],
+  "cleanup": [
+    "/include",
+    "/lib/pkgconfig",
+    "/man",
+    "/share/doc",
+    "/share/gtk-doc",
+    "/share/man",
+    "/share/pkgconfig",
+    "*.la",
+    "*.a"
+  ],
+  "modules": [
+    {
+      "name": "liboauth",
+      "config-opts": [
+        "--enable-nss"
+      ],
+      "cleanup": [
+        "/share/man"
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://downloads.sourceforge.net/project/liboauth/liboauth-1.0.3.tar.gz",
+          "sha256": "0df60157b052f0e774ade8a8bac59d6e8d4b464058cc55f9208d72e41156811f"
+        }
+      ]
+    },
+    {
+      "name": "librest",
+      "buildsystem": "meson",
+      "config-opts": [
+        "-Dexamples=false",
+        "-Dgtk_doc=false",
+        "-Dtests=false"
+      ],
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://gitlab.gnome.org/GNOME/librest.git",
+          "branch": "master"
+        }
+      ]
+    },
+    {
+      "name": "gnome-online-accounts",
+      "buildsystem": "meson",
+      "config-opts": [
+        "-Dvapi=false",
+        "-Dgoabackend=false",
+        "-Dintrospection=false",
+        "-Dkerberos=false"
+      ],
+      "cleanup": [
+        "/bin"
+      ],
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://gitlab.gnome.org/GNOME/gnome-online-accounts.git",
+          "branch": "master"
+        }
+      ]
+    },
+    {
+      "name": "evolution-data-server",
+      "buildsystem": "cmake-ninja",
+      "cleanup": [
+        "/etc",
+        "/lib/evolution-data-server/*-backends",
+        "/libexec",
+        "/share/dbus-1",
+        "/share/GConf",
+        "/share/pixmaps"
+      ],
+      "config-opts": [
+        "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
+        "-DENABLE_EXAMPLES=OFF",
+        "-DENABLE_GOA=ON",
+        "-DENABLE_OAUTH2=ON",
+        "-DWITH_LIBDB=OFF",
+        "-DENABLE_WEATHER=OFF",
+        "-DENABLE_CANBERRA=OFF",
+        "-DENABLE_VALA_BINDINGS=OFF",
+        "-DWITH_KRB5=OFF",
+        "-DWITH_OPENLDAP=OFF",
+        "-DENABLE_INTROSPECTION=OFF",
+        "-DENABLE_INSTALLED_TESTS=OFF",
+        "-DENABLE_GTK_DOC=OFF",
+        "-DWITH_PRIVATE_DOCS=OFF",
+        "-DWITH_SYSTEMDUSERUNITDIR=OFF",
+        "-DENABLE_TESTS=OFF"
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://download.gnome.org/sources/evolution-data-server/3.59/evolution-data-server-3.59.2.tar.xz",
+          "sha256": "15bd798c85dee923462bebe880761b4668b6c5065584e840900988389add83bf"
+        }
+      ],
+      "modules": [
+        {
+          "name": "intltool",
+          "cleanup": [
+            "*"
+          ],
+          "sources": [
+            {
+              "type": "archive",
+              "url": "https://launchpad.net/intltool/trunk/0.51.0/+download/intltool-0.51.0.tar.gz",
+              "sha256": "67c74d94196b153b774ab9f89b2fa6c6ba79352407037c8c14d5aeb334e959cd"
+            }
+          ]
+        },
+        {
+          "name": "libical",
+          "cleanup": [
+            "/lib/cmake",
+            "/libexec"
+          ],
+          "buildsystem": "cmake-ninja",
+          "config-opts": [
+            "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
+            "-DCMAKE_INSTALL_LIBDIR=/app/lib",
+            "-DWITH_CXX_BINDINGS=false",
+            "-DSHARED_ONLY=true",
+            "-DGOBJECT_INTROSPECTION=true",
+            "-DICAL_BUILD_DOCS=false",
+            "-DICAL_GLIB_VAPI=true",
+            "-DLIBICAL_BUILD_TESTING=false"
+          ],
+          "sources": [
+            {
+              "type": "git",
+              "url": "https://github.com/libical/libical.git",
+              "tag": "v3.0.20"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name" : "libportal",
+      "buildsystem" : "meson",
+      "config-opts" : [
+        "-Dbackend-gtk4=enabled",
+        "-Dintrospection=false",
+        "-Ddocs=false"
+      ],
+      "sources" : [
+        {
+          "type" : "git",
+          "url" : "https://github.com/flatpak/libportal.git",
+          "branch" : "main"
+        }
+      ]
+    },
+    {
+      "name": "evolution-ews",
+      "buildsystem": "cmake-ninja",
+      "config-opts": [
+        "-DWITH_MSPACK=OFF",
+        "-DENABLE_WITH_EVOLUTION=OFF"
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://download.gnome.org/sources/evolution-ews/3.59/evolution-ews-3.59.2.tar.xz",
+          "sha256": "e7f5857a1b12a793aa5028c829cd93d66a7ba7fd212564b8507071cdbec515d2"
+        },
+        {
+          "type": "patch",
+          "path": "./evolution-compilation-switch.patch"
+        }
+      ],
+      "post-install": [
+        "cp NEWS /app/share/NEWS.ews"
+      ]
+    },
+        {
+            "name": "pcsc-lite",
+            "config-opts": [
+                "--disable-libudev",
+                "--disable-libsystemd",
+                "--without-systemdsystemunitdir",
+                "--disable-serial",
+                "--disable-usb",
+                "--disable-polkit",
+                "--disable-documentation"
+            ],
+            "cleanup": [
+                "/bin",
+                "/bin/pcsc-spy",
+                "/include",
+                "/lib/libpcscspy*",
+                "/lib/pkg-config",
+                "/sbin",
+                "/sbin/pcscd",
+                "/share/doc",
+                "/share/man"
+            ],
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://pcsclite.apdu.fr/files/pcsc-lite-2.3.3.tar.xz",
+                    "sha256": "cdff7d7153a0b37aa74e26dfec89ec7dc5c5286aa21b91b903e38739d227e8e7"
+                }
+            ]
+        },
+        {
+            "name": "opensc",
+            "config-opts": [
+                "--disable-doc",
+                "--disable-man",
+                "--with-completiondir=/app/lib/share/bash-completion/completions",
+                "--disable-tests"
+            ],
+            "cleanup": [
+                "/bin",
+                "/share/opensc",
+                "/lib/share/bash-completion/completions"
+            ],
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://github.com/OpenSC/OpenSC/releases/download/0.26.1/opensc-0.26.1.tar.gz",
+                    "sha256": "f16291a031d86e570394762e9f35eaf2fcbc2337a49910f3feae42d54e1688cb"
+                },
+                {
+                    "type": "patch",
+                    "path": "patches/3316.patch"
+                }
+            ]
+        },
+       {
+            "name": "pcsc-tools",
+            "cleanup": [
+                "*"
+            ],
+            "config-opts": [
+                "--disable-gettext"
+            ],
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://pcsc-tools.apdu.fr/pcsc-tools-1.7.3.tar.bz2",
+                    "sha256": "c3b6d2b7a40bc066ebb8cd2512fb42e2b787a5c491a5715b8741743f4edb8cc2"
+                }
+            ]
+        },
+
+    {
+      "name": "stamp",
+      "builddir": true,
+      "buildsystem": "meson",
+      "sources": [
+        {
+          "type": "git",
+          "url": "file:///home/vw70lbu/Projekte/"
+        }
+      ]
+    }
+  ]
+}

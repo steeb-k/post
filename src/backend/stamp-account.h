@@ -1,9 +1,29 @@
+/*
+ * Copyright 2025-2026 Jan-Michael Brummer
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #pragma once
 
+#include <camel/camel.h>
 #include <gdk/gdk.h>
 #include <glib-object.h>
-
-#include <camel/camel.h>
+#include <libebook/libebook.h>
+#include <libedataserverui4/libedataserverui4.h>
 
 G_BEGIN_DECLS
 
@@ -11,14 +31,165 @@ G_BEGIN_DECLS
 
 G_DECLARE_FINAL_TYPE (StampAccount, stamp_account, STAMP, ACCOUNT, GObject);
 
-StampAccount *
-stamp_account_new (CamelService *service);
+/* TODO: Hide elements behind getter/setter */
+typedef struct {
+  CamelService *service;
 
-CamelService *
-stamp_account_get_service (StampAccount *self);
+  CamelSession *session;
+  CamelTransport *transport;
+  CamelFolder *trash_folder;
+  CamelFolder *sent_folder;
+  ESource *source;
+  ESource *transport_source;
+  CamelInternetAddress *address;
+  gboolean enabled;
+} StampMailService;
+
+typedef struct {
+  EBookClient *client;
+  ESource *source;
+  gboolean enabled;
+} StampContactsService;
+
+typedef struct {
+  ECalClient *client;
+  ESource *source;
+  gboolean enabled;
+} StampCalendarService;
+
+/*
+ * Setup
+ */
+
+StampAccount *
+stamp_account_new (ESource         *collection,
+                   ESourceRegistry *registry);
+
+void
+stamp_account_add_mail (StampAccount *self,
+                        ESource      *source);
+
+void
+stamp_account_add_calendar (StampAccount *self,
+                            ESource      *source);
+
+void
+stamp_account_add_address_book (StampAccount *self,
+                                ESource      *source);
+
+void
+stamp_account_add_mail_transport (StampAccount *self,
+                                  ESource      *source);
+
+void
+stamp_account_add_mail_identity (StampAccount *self,
+                                 ESource      *identity);
+
+void
+stamp_account_init_async (StampAccount        *account,
+                          GCancellable        *cancellable,
+                          GAsyncReadyCallback  callback,
+                          gpointer             user_data);
+
+gboolean
+stamp_account_init_finish (GAsyncResult  *res,
+                           GError       **error);
+
+/*
+ * Getter/Setter
+ */
 
 const char *
 stamp_account_get_name (StampAccount *self);
+
+void
+stamp_account_set_name (StampAccount *self,
+                        const char   *name);
+
+const char *
+stamp_account_get_uid (StampAccount *self);
+
+CamelInternetAddress *
+stamp_account_get_address (StampAccount *self);
+
+void
+stamp_account_contacts_changed (StampAccount *self,
+                                ESource      *source);
+
+void
+stamp_account_mail_changed (StampAccount *self,
+                            ESource      *source);
+
+GPtrArray *
+stamp_account_get_books (StampAccount *self);
+
+StampMailService *
+stamp_account_get_mail_service (StampAccount *self);
+
+/*
+ * Contacts
+ */
+
+void
+stamp_account_get_photo (StampAccount        *self,
+                         const char          *sender,
+                         GCancellable        *cancellable,
+                         GFunc  callback,
+                         gpointer             user_data);
+
+gpointer
+stamp_account_get_photo_finish (StampAccount  *self,
+                                GAsyncResult  *result,
+                                GError       **error);
+
+void
+stamp_account_search_contacts (StampAccount        *self,
+                               EBookClient         *client,
+                               const char          *search_text,
+                               GCancellable        *cancellable,
+                               GAsyncReadyCallback  callback,
+                               gpointer             user_data);
+
+GSList *
+stamp_account_search_contacts_finish (StampAccount  *self,
+                                      EBookClient   *client,
+                                      GAsyncResult  *res,
+                                      GError       **error);
+
+/*
+ * Mail
+ */
+
+void
+stamp_account_send_mail (StampAccount         *self,
+                         CamelMimeMessage     *message,
+                         CamelInternetAddress *sender,
+                         CamelInternetAddress *recipient,
+                         GCancellable         *cancellable,
+                         GAsyncReadyCallback   callback,
+                         gpointer              user_data);
+
+gpointer
+stamp_account_send_mail_finish (StampAccount  *session,
+                                GAsyncResult  *result,
+                                GError       **error);
+
+char *
+stamp_account_save_draft (StampAccount         *self,
+                          const char           *draft_uid,
+                          CamelMimeMessage     *message,
+                          CamelInternetAddress *sender,
+                          CamelInternetAddress *recipient);
+
+void
+stamp_account_remove_draft (StampAccount *self,
+                            const char   *uid);
+
+CamelFolder *
+stamp_account_get_mail_trash_folder (StampAccount *self);
+
+CamelFolder *
+stamp_account_get_mail_sent_folder (StampAccount *self);
 
 G_END_DECLS
 

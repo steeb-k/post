@@ -1,10 +1,18 @@
 [Desktop Entry]
 Name=Stamp
-Exec=stamp
+Comment=Send and receive mail
+Exec=stamp %U
 Icon=org.tabos.stamp
 Terminal=false
 Type=Application
-Categories=Utility;
+MimeType=x-scheme-handler/mailto;
+Categories=GNOME;GTK;Office;Email;Calendar;ContactManagement;
 Keywords=GTK;
 StartupNotify=true
-DBusActivatable=true
+X-GNOME-UsesNotifications=true
+Actions=Compose;
+
+[Desktop Action Compose]
+Name=Compose Message
+Exec=stamp mailto:
+Icon=mail-message-new

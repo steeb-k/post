@@ -1,6 +1,5 @@
-/* main.c
- *
- * Copyright 2025 Jan-Michael Brummer
+/*
+ * Copyright 2025-2026 Jan-Michael Brummer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,22 +20,27 @@
 #include "config.h"
 
 #include <glib/gi18n.h>
+#include <gst/gst.h>
 
 #include "stamp-application.h"
 
 int
-main (int   argc,
-      char *argv[])
+main (int    argc,
+      char **argv)
 {
-	g_autoptr(StampApplication) app = NULL;
-	int ret;
+  g_autoptr (StampApplication) app = NULL;
+  int ret;
 
-	bindtextdomain (GETTEXT_PACKAGE, LOCALEDIR);
-	bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
-	textdomain (GETTEXT_PACKAGE);
+  bindtextdomain (GETTEXT_PACKAGE, LOCALEDIR);
+  bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
+  textdomain (GETTEXT_PACKAGE);
 
-	app = stamp_application_new ("org.tabos.stamp", G_APPLICATION_HANDLES_COMMAND_LINE);
-	ret = g_application_run (G_APPLICATION (app), argc, argv);
+  gst_init (&argc, &argv);
 
-	return ret;
+  g_set_prgname ("stamp");
+  g_set_application_name (_("Stamp"));
+  app = stamp_application_new ("org.tabos.stamp", G_APPLICATION_HANDLES_COMMAND_LINE);
+  ret = g_application_run (G_APPLICATION (app), argc, argv);
+
+  return ret;
 }

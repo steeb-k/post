@@ -1,0 +1,161 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampContactList: Adw.BreakpointBin {
+  width-request: 300;
+  height-request: 300;
+
+  child: Adw.ToolbarView contact_view {
+    styles [
+      "secondary-sidebar-pane",
+    ]
+
+    [top]
+    Adw.HeaderBar normal_headerbar {
+      title-widget: Adw.WindowTitle window_title {
+        title: _("Contact");
+      };
+
+      [start]
+      ToggleButton sidebar_button {
+        icon-name: "sidebar-show-symbolic";
+        tooltip-text: _("Sidebar Toggle");
+        visible: false;
+
+        styles [
+          "flat",
+        ]
+      }
+
+      [start]
+      ToggleButton start_search_btn {
+        active: bind search_bar.search-mode-enabled bidirectional;
+        tooltip-text: _("Search");
+        icon-name: "edit-find-symbolic";
+      }
+
+      [end]
+      ToggleButton end_search_btn {
+        active: bind search_bar.search-mode-enabled bidirectional;
+        tooltip-text: _("Search");
+        icon-name: "edit-find-symbolic";
+        visible: false;
+      }
+
+      [end]
+      MenuButton sort_button {
+        icon-name: "sort-order-symbolic";
+        tooltip-text: _("Sort Order");
+      }
+    }
+
+    [top]
+    SearchBar search_bar {
+      key-capture-widget: contact_view;
+
+      child: Adw.Clamp {
+        maximum-size: 400;
+
+        child: Box {
+          orientation: vertical;
+
+          SearchEntry search_entry {
+            search-changed => $on_contact_search_entry_changed();
+            search-delay: 500;
+            hexpand: true;
+          }
+
+          ProgressBar progress {
+            accessibility {
+              label: _("Progress animation");
+            }
+
+            text: _("");
+
+            styles [
+              "osd",
+              "progress-indicator",
+            ]
+          }
+        };
+      };
+    }
+
+    content: Stack stack {
+      transition-type: crossfade;
+
+      StackPage {
+        name: "content";
+
+        child: ScrolledWindow scrolled_window {
+          hscrollbar-policy: never;
+          vexpand: true;
+          propagate-natural-height: true;
+          overlay-scrolling: true;
+
+          child: ListView listview {
+            tab-behavior: item;
+
+            factory: SignalListItemFactory {
+              setup => $on_setup_list_item();
+              bind => $on_bind_list_item();
+              // unbind => $on_unbind_list_item();
+            };
+
+            model: SingleSelection selection {
+              autoselect: false;
+              can-unselect: true;
+              selection-changed => $on_selection_changed();
+
+              model: FilterListModel filter_list_model {
+                model: SortListModel sort_list_model {};
+
+                items-changed => $on_items_changed();
+              };
+            };
+
+            styles [
+              "navigation-sidebar",
+            ]
+          };
+        };
+      }
+
+      StackPage {
+        name: "notfound";
+
+        child: Adw.StatusPage {
+          title: _("No Contact Found");
+        };
+      }
+
+      StackPage {
+        name: "empty";
+
+        child: Adw.Bin {};
+      }
+
+      StackPage {
+        name: "loading";
+
+        child: Adw.Spinner {};
+      }
+    };
+  };
+}
+
+// menu sort_menu_model {
+//   section {
+//     label: _("Sort contacts by:");
+//     item {
+//       label: _("First Name");
+//       action: 'contact.contacts-sort';
+//       action-target: 'first';
+//     }
+//     item {
+//       label: _("Last Name");
+//       action: 'contact.contacts-sort';
+//       action-target: 'last';
+//     }
+//   }
+// }
