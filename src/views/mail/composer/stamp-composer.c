@@ -319,11 +319,9 @@ on_get_body_html (GObject      *source_object,
                   gpointer      user_data)
 {
   StampComposer *self = user_data;
-  WebKitWebView *web_view = WEBKIT_WEB_VIEW (source_object);
+  StampWebView *web_view = STAMP_WEB_VIEW (source_object);
   g_autoptr (GError) error = NULL;
-  WebKitUserMessage *response = webkit_web_view_send_message_to_page_finish (web_view, res, &error);
-  GVariant *parameters;
-  const char *out;
+  g_autofree char *body = stamp_webview_get_body_html_finish (web_view, res, &error);
   CamelMimeMessage *mime_message;
   CamelInternetAddress *sender;
   CamelInternetAddress *recipient;
@@ -331,15 +329,13 @@ on_get_body_html (GObject      *source_object,
   const char *mail;
   CamelInternetAddress *addresses;
 
-  if (!response) {
+  if (!body) {
     if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
       g_warning ("Failed to get HTML content for mail: %s", error->message);
     return;
   }
 
-  parameters = webkit_user_message_get_parameters (response);
-  out = g_variant_get_string (parameters, NULL);
-  mime_message = build_message (self, out);
+  mime_message = build_message (self, body);
 
   addresses = stamp_account_get_address (self->account);
 
@@ -625,11 +621,9 @@ on_auto_save_get_body_html (GObject      *source_object,
                             gpointer      user_data)
 {
   StampComposer *self = user_data;
-  WebKitWebView *web_view = WEBKIT_WEB_VIEW (source_object);
+  StampWebView *web_view = STAMP_WEB_VIEW (source_object);
   g_autoptr (GError) error = NULL;
-  WebKitUserMessage *response = webkit_web_view_send_message_to_page_finish (web_view, res, &error);
-  GVariant *parameters;
-  const char *out;
+  g_autofree char *body = stamp_webview_get_body_html_finish (web_view, res, &error);
   CamelMimeMessage *mime_message;
   CamelInternetAddress *sender;
   CamelInternetAddress *recipient;
@@ -637,15 +631,13 @@ on_auto_save_get_body_html (GObject      *source_object,
   const char *mail;
   CamelInternetAddress *addresses;
 
-  if (!response) {
+  if (!body) {
     if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
       g_warning ("Failed to get HTML content for mail: %s", error->message);
     return;
   }
 
-  parameters = webkit_user_message_get_parameters (response);
-  out = g_variant_get_string (parameters, NULL);
-  mime_message = build_message (self, out);
+  mime_message = build_message (self, body);
 
   addresses = stamp_account_get_address (self->account);
 
@@ -787,11 +779,9 @@ on_draft_get_body_html (GObject      *source_object,
                         gpointer      user_data)
 {
   StampComposer *self = user_data;
-  WebKitWebView *web_view = WEBKIT_WEB_VIEW (source_object);
+  StampWebView *web_view = STAMP_WEB_VIEW (source_object);
   g_autoptr (GError) error = NULL;
-  WebKitUserMessage *response = webkit_web_view_send_message_to_page_finish (web_view, res, &error);
-  GVariant *parameters;
-  const char *out;
+  g_autofree char *body = stamp_webview_get_body_html_finish (web_view, res, &error);
   CamelMimeMessage *mime_message;
   CamelInternetAddress *sender;
   CamelInternetAddress *recipient;
@@ -799,15 +789,13 @@ on_draft_get_body_html (GObject      *source_object,
   const char *mail;
   CamelInternetAddress *addresses;
 
-  if (!response) {
+  if (!body) {
     if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
       g_warning ("Failed to get HTML content for mail: %s", error->message);
     return;
   }
 
-  parameters = webkit_user_message_get_parameters (response);
-  out = g_variant_get_string (parameters, NULL);
-  mime_message = build_message (self, out);
+  mime_message = build_message (self, body);
 
   addresses = stamp_account_get_address (self->account);
 
