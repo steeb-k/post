@@ -86,14 +86,7 @@ on_activate (GtkListView *view,
   stamp_tag_set_label (STAMP_TAG (tag), (char *)name);
   stamp_tag_set_email (STAMP_TAG (tag), emails->data);
 
-  g_signal_connect_object (tag, "destroy", G_CALLBACK (on_tag_destroy), self, 0);
-
-  self->receivers = g_list_append (self->receivers, tag);
-  adw_wrap_box_append (ADW_WRAP_BOX (self->wrap_box), tag);
-  self->has_entries = TRUE;
-  g_object_notify (G_OBJECT (self), "has-entries");
-
-  adw_wrap_box_reorder_child_after (ADW_WRAP_BOX (self->wrap_box), self->entry, tag);
+  stamp_contact_completion_add_tag (self, STAMP_TAG (tag));
 
   gtk_popover_popdown (GTK_POPOVER (self->popover));
 }
@@ -131,12 +124,7 @@ convert_to_tag (StampContactCompletion *self,
     stamp_tag_set_label (STAMP_TAG (tag), tmp);
     stamp_tag_set_email (STAMP_TAG (tag), tmp);
 
-    self->receivers = g_list_append (self->receivers, tag);
-    adw_wrap_box_append (ADW_WRAP_BOX (self->wrap_box), tag);
-    self->has_entries = TRUE;
-    g_object_notify (G_OBJECT (self), "has-entries");
-
-    adw_wrap_box_reorder_child_after (ADW_WRAP_BOX (self->wrap_box), self->entry, tag);
+    stamp_contact_completion_add_tag (self, STAMP_TAG (tag));
 
     gtk_editable_set_text (GTK_EDITABLE (self->entry), "");
 
@@ -343,12 +331,7 @@ on_changed (GtkEditable *ed,
     /*   stamp_tag_set_label (STAMP_TAG (tag), tmp); */
     /*   stamp_tag_set_email (STAMP_TAG (tag), tmp); */
 
-    /*   self->receivers = g_list_append (self->receivers, tag); */
-    /*   adw_wrap_box_append (ADW_WRAP_BOX (self->wrap_box), tag); */
-    /*   self->has_entries = TRUE; */
-    /*   g_object_notify (G_OBJECT (self), "has-entries"); */
-
-    /*   adw_wrap_box_reorder_child_after (ADW_WRAP_BOX (self->wrap_box), self->entry, tag); */
+    /*   stamp_contact_completion_add_tag (self, STAMP_TAG (tag)); */
 
     /*   gtk_editable_set_text (GTK_EDITABLE (self->entry), ""); */
 
@@ -597,6 +580,8 @@ void
 stamp_contact_completion_add_tag (StampContactCompletion *self,
                                   StampTag               *tag)
 {
+  g_signal_connect_object (tag, "destroy", G_CALLBACK (on_tag_destroy), self, 0);
+
   adw_wrap_box_append (ADW_WRAP_BOX (self->wrap_box), GTK_WIDGET (tag));
   self->receivers = g_list_append (self->receivers, tag);
   self->has_entries = TRUE;
