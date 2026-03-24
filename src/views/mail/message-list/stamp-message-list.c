@@ -113,13 +113,13 @@ sort_mails (GtkListBoxRow *row1,
 {
   StampMessageListItem *item1 = STAMP_MESSAGE_LIST_ITEM (row1);
   StampMessageListItem *item2 = STAMP_MESSAGE_LIST_ITEM (row2);
+  guint ts1 = stamp_message_list_item_get_timestamp (item1);
+  guint ts2 = stamp_message_list_item_get_timestamp (item2);
 
-  if (stamp_message_list_item_get_timestamp (item1) < stamp_message_list_item_get_timestamp (item2))
+  if (ts1 < ts2)
     return -1;
-
-  if (stamp_message_list_item_get_timestamp (item1) > stamp_message_list_item_get_timestamp (item2))
+  if (ts1 > ts2)
     return 1;
-
   return 0;
 }
 
@@ -293,7 +293,6 @@ on_message_body (GObject      *source,
   g_autoptr (GError) error = NULL;
   char *body;
 
-  g_print ("%s: ENTER\n", G_STRFUNC);
   body = stamp_message_list_item_get_message_body_html_finish (data->item, res, &error);
   if (error) {
     if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
@@ -301,7 +300,6 @@ on_message_body (GObject      *source,
     return;
   }
 
-  g_print ("%s: %p\n", G_STRFUNC, data->self->account);
   composer = stamp_composer_new_with_quote (data->type,
                                             stamp_message_list_item_get_uid (data->item),
                                             data->self->account,

@@ -307,12 +307,6 @@ stamp_application_quit_action (GSimpleAction *action,
   windows = gtk_application_get_windows (GTK_APPLICATION (self));
 
   while (windows && windows->data) {
-    windows = windows->next;
-  }
-
-  windows = gtk_application_get_windows (GTK_APPLICATION (self));
-
-  while (windows && windows->data) {
     GtkWindow *window = GTK_WINDOW (windows->data);
 
     windows = windows->next;
@@ -330,7 +324,7 @@ stamp_application_accounts_action (GSimpleAction *action,
   const char *flatpak_id = getenv ("FLATPAK_ID");
 
   if (flatpak_id) {
-    system ("flatpak-spawn --host gnome-control-center online-accounts");
+    g_spawn_command_line_async ("flatpak-spawn --host gnome-control-center online-accounts", NULL);
   } else {
     StampApplication *self = STAMP_APPLICATION (user_data);
     GtkWindow *window = gtk_application_get_active_window (GTK_APPLICATION (self));

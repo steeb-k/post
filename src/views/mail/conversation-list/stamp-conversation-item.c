@@ -554,8 +554,6 @@ stamp_conversation_item_get_labels (StampConversationItem *self)
     const char *name = camel_named_flags_get (flags, idx);
 
     if (g_strcmp0 (name, "$has_cal") != 0 && g_strcmp0 (name, "$Labelimportant") != 0 && !g_str_has_prefix (name, "X-")) {
-      /* FIXME: not all labels returned */
-      g_print ("%s: %d %s (len %d)\n", G_STRFUNC, idx, name, camel_named_flags_get_length (flags));
       return g_strdup (name);
     }
   }

@@ -28,6 +28,7 @@
     <file preprocess="xml-stripblanks">views/mail/message-list/stamp-message-list.ui</file>
     <file preprocess="xml-stripblanks">views/mail/message-list/stamp-message-list-item.ui</file>
     <file alias="blank-message-template.html" compressed="true">resources/blank-message-template.html</file>
+    <file alias="plain-message-template.html" compressed="true">resources/plain-message-template.html</file>
     <file alias="stamp-composer.js" compressed="true">resources/stamp-composer.js</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/archive-symbolic.svg">resources/icons/scalable/actions/archive-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/birthday-symbolic.svg">resources/icons/scalable/actions/birthday-symbolic.svg</file>

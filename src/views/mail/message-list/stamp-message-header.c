@@ -415,7 +415,7 @@ stamp_message_header_class_init (StampMessageHeaderClass *klass)
                                                          NULL,
                                                          FALSE,
                                                          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-  g_object_class_install_property (object_class, PROP_IS_UNREAD,
+  g_object_class_install_property (object_class, PROP_IS_READ,
                                    g_param_spec_boolean ("is-read",
                                                          NULL,
                                                          NULL,
@@ -597,11 +597,6 @@ stamp_message_header_set_mail (StampMessageHeader    *self,
 
   tmp = g_markup_printf_escaped ("<span alpha=\"55%%\">To:</span>");
   gtk_label_set_markup (GTK_LABEL (self->to), tmp);
-  /* if (tmp_to->len > 0) { */
-  /*   tmp = g_markup_printf_escaped ("<span alpha=\"55%%\">To:</span> %s", tmp_to->str); */
-  /*   gtk_label_set_markup (GTK_LABEL (self->to), tmp); */
-  /*   gtk_widget_set_tooltip_text (self->to, tmp_addresses->str); */
-  /* } */
 
   to = NULL;
   g_clear_object (&address);

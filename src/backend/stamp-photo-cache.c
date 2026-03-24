@@ -207,7 +207,10 @@ stamp_photo_cache_new (StampAccount *account)
   cache->cache_dir = g_strdup (stamp_get_cache_dir ());
   cache->next_waiter_id = 1;
 
-  g_mkdir_with_parents (cache->cache_dir, 0700);
+  if (g_mkdir_with_parents (cache->cache_dir, 0700) != 0) {
+    g_warning ("%s: Could not create cache directory: %s", G_STRFUNC, g_strerror (errno));
+  }
+
   return cache;
 }
 
@@ -580,13 +583,7 @@ stamp_photo_cache_lookup_async (StampPhotoCache *self,
     return;
   }
 
-  /* TODO: We are currently not limiting search to a specific book */
-  /*if (book_uid) {
-    EBookClient *book = stamp_account_get_book (self->account, book_uid);
-
-    if (book)
-      books = g_slist_append (books, book);
-  } else*/{
+  {
     GPtrArray *account_books = stamp_account_get_books (self->account);
 
     for (int idx = 0; idx < account_books->len; idx++) {

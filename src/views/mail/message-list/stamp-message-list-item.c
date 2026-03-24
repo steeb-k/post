@@ -24,6 +24,7 @@
 #include "stamp-message-header.h"
 #include "stamp-session.h"
 #include "stamp-webview.h"
+#include "stamp-mime-parser.h"
 
 #include <camel/camel.h>
 #include <glib/gi18n.h>
@@ -81,403 +82,14 @@ enum {
   LAST_PROP
 };
 
-static char *
-convert_to_utf8 (GMemoryOutputStream *os,
-                 const char          *encoding)
-{
-  gsize num_bytes = g_memory_output_stream_get_size (os);
-  g_autofree char *bytes = g_memory_output_stream_steal_data (os);
-  g_autoptr (GError) error = NULL;
-  g_autofree char *utf8 = NULL;
-
-  if (!bytes)
-    return NULL;
-
-  if (encoding) {
-    const char *iconv_encoding = camel_iconv_charset_name (encoding);
-
-    if (iconv_encoding) {
-      utf8 = g_convert (bytes, num_bytes, "UTF-8", iconv_encoding, NULL, NULL, &error);
-      if (error) {
-        g_warning ("Could not convert data: %s", error->message);
-        g_clear_error (&error);
-      }
-    }
-  }
-
-  if (!utf8 || !g_utf8_validate (utf8, -1, NULL)) {
-    g_clear_pointer (&utf8, g_free);
-
-    utf8 = g_convert (bytes, num_bytes, "UTF-8", "ISO-8859-1", NULL, NULL, &error);
-  }
-
-  return g_steal_pointer (&utf8);
-}
-
-static void
-handle_text_mime (StampMessageListItem *self,
-                  CamelDataWrapper     *part)
-{
-  CamelContentType *field = camel_data_wrapper_get_mime_type_field (part);
-  g_autoptr (GError) error = NULL;
-
-  g_print ("%s: %s/%s\n", G_STRFUNC, field->type, field->subtype);
-  if (g_strcmp0 (field->subtype, "calendar") == 0) {
-    GOutputStream *os = g_memory_output_stream_new_resizable ();
-    g_autofree char *tmp = NULL;
-    ICalTime *time;
-    g_autofree char *content = NULL;
-
-    camel_data_wrapper_decode_to_output_stream_sync (part, G_OUTPUT_STREAM (os), self->cancellable, &error);
-    if (error) {
-      g_warning ("Could not decode output: %s", error->message);
-      return;
-    }
-    g_output_stream_close (G_OUTPUT_STREAM (os), self->cancellable, &error);
-    if (error) {
-      g_warning ("Could not close stream: %s", error->message);
-      return;
-    }
-
-    content = convert_to_utf8 (G_MEMORY_OUTPUT_STREAM (os), camel_content_type_param (field, "charset"));
-
-/*    if (strstr (content, "METHOD:REQUEST")) {
-      adw_banner_set_button_label (ADW_BANNER (self->vcard_banner), _("RSVP"));
-    } else if (strstr (content, "METHOD:REPLY")) {
-      adw_banner_set_button_label (ADW_BANNER (self->vcard_banner), NULL);
-
-      if (strstr (content, "PARTSTAT=ACCEPTED")) {
-        g_print ("******* ACCEPTED\n");
-      } else if (strstr (content, "PARTSTAT=DECLINED")) {
-        g_print ("******* DECLINED\n");
-      } else if (strstr (content, "PARTSTAT=TENTATIVE")) {
-        g_print ("******* TENTATIVE\n");
-      }
-    } else {
-      return;
-    }*/
-
-    self->calendar = e_cal_util_parse_ics_string (content);
-    if (self->calendar) {
-      time = i_cal_component_get_dtstart (self->calendar);
-      tmp = g_strdup_printf ("%s: %d.%d.%d %.2d:%.2d",
-                             i_cal_component_get_summary (self->calendar),
-                             i_cal_time_get_day (time),
-                             i_cal_time_get_month (time),
-                             i_cal_time_get_year (time),
-                             i_cal_time_get_hour (time),
-                             i_cal_time_get_minute (time));
-      adw_banner_set_title (ADW_BANNER (self->vcard_banner), tmp);
-      adw_banner_set_revealed (ADW_BANNER (self->vcard_banner), TRUE);
-#if 0
-      {
-        ICalComponent *event;
-        ICalProperty *prop;
-        CamelInternetAddress *address = stamp_account_get_address (self->account);
-        const char *name;
-        const char *email;
-
-        camel_internet_address_get (address, 0, &name, &email);
-
-        event = i_cal_component_get_first_component (self->calendar, I_CAL_VEVENT_COMPONENT);
-
-        for (prop = i_cal_component_get_first_property (event, I_CAL_ATTENDEE_PROPERTY); prop; prop = i_cal_component_get_next_property (event, I_CAL_ATTENDEE_PROPERTY)) {
-          const char *attendee = i_cal_property_get_attendee (prop);
-          const char *attendee_email;
-
-          g_print ("%s: attendee %s\n", G_STRFUNC, attendee);
-          if (g_str_has_prefix (attendee, "mailto:"))
-            attendee_email = attendee + 7;
-          else
-            attendee_email = attendee;
-
-          if (g_strcmp0 (attendee_email, email) == 0) {
-            ICalParameter *p = i_cal_property_get_first_parameter (prop, I_CAL_PARTSTAT_PARAMETER);
-
-            g_print ("%s: Found, get part stat\n", G_STRFUNC);
-            if (p) {
-              ICalParameterPartstat partstat = i_cal_parameter_get_partstat (p);
-              g_print ("%s: My status: %x (%x, %x, %x, %x) \n", G_STRFUNC, partstat, I_CAL_PARTSTAT_NEEDSACTION, I_CAL_PARTSTAT_ACCEPTED, I_CAL_PARTSTAT_TENTATIVE, I_CAL_PARTSTAT_DECLINED);
-            }
-            break;
-          }
-        }
-      }
-#endif
-    }
-    return;
-  } else if (g_strcmp0 (field->subtype, "x-pkcs7-mime") == 0) {
-    g_autoptr (GOutputStream) os = g_memory_output_stream_new_resizable ();
-
-    camel_data_wrapper_decode_to_output_stream_sync (camel_medium_get_content (CAMEL_MEDIUM (part)), G_OUTPUT_STREAM (os), self->cancellable, &error);
-    if (error) {
-      g_warning ("Could not decode output: %s", error->message);
-      return;
-    }
-
-    g_output_stream_close (G_OUTPUT_STREAM (os), self->cancellable, &error);
-    if (error) {
-      g_warning ("Could not decode output: %s", error->message);
-      return;
-    }
-
-    g_print ("%s: %s\n", G_STRFUNC, convert_to_utf8 (G_MEMORY_OUTPUT_STREAM (os), camel_content_type_param (field, "charset")));
-  } else if (!self->message_content || (!self->message_is_html && g_strcmp0 (field->subtype, "html") == 0)) {
-    g_autoptr (GOutputStream) os = g_memory_output_stream_new_resizable ();
-
-    camel_data_wrapper_decode_to_output_stream_sync (part, G_OUTPUT_STREAM (os), self->cancellable, &error);
-    if (error) {
-      g_warning ("Could not decode output: %s", error->message);
-      return;
-    }
-
-    g_output_stream_close (G_OUTPUT_STREAM (os), self->cancellable, &error);
-    if (error) {
-      g_warning ("Could not decode output: %s", error->message);
-      return;
-    }
-
-    if (self->message_content)
-      g_clear_pointer (&self->message_content, g_free);
-
-    self->message_content = convert_to_utf8 (G_MEMORY_OUTPUT_STREAM (os), camel_content_type_param (field, "charset"));
-
-    if (g_strcmp0 (field->subtype, "html") == 0)
-      self->message_is_html = TRUE;
-  }
-}
-
-static void
-handle_inline_mime (StampMessageListItem *self,
-                    CamelMimePart        *part)
-{
-  GByteArray *byte_array = g_byte_array_new ();
-  CamelStream *os = camel_stream_mem_new ();
-  GBytes *bytes;
-  GInputStream *inline_stream;
-  CamelDataWrapper *content;
-  g_autoptr (GError) error = NULL;
-
-  if (!camel_mime_part_get_content_id (part))
-    return;
-
-  camel_stream_mem_set_byte_array (CAMEL_STREAM_MEM (os), byte_array);
-
-  content = camel_medium_get_content (CAMEL_MEDIUM (part));
-  camel_data_wrapper_decode_to_stream_sync (content, os, self->cancellable, &error);
-  if (error) {
-    g_warning ("Could not decode output: %s", error->message);
-    return;
-  }
-
-  bytes = g_byte_array_free_to_bytes (byte_array);
-
-  inline_stream = g_memory_input_stream_new_from_bytes (bytes);
-
-  stamp_webview_add_internal_resource (self->web_view, camel_mime_part_get_content_id (part), inline_stream);
-}
-
-static void
-dump_infos (const char *desc,
-            GQueue     *list)
-{
-  g_print (" %s\n signed by:\n", desc);
-  for (int idx = 0; idx < list->length; idx++) {
-    CamelCipherCertInfo *info = g_queue_peek_nth (list, idx);
-    g_print (" cn: %s <%s>\n", info->name, info->email);
-  }
-}
-
-static char *
-get_signers (GQueue *list)
-{
-  GString *signers = g_string_new (NULL);
-
-  for (int idx = 0; idx < list->length; idx++) {
-    CamelCipherCertInfo *info = g_queue_peek_nth (list, idx);
-    /* g_print (" cn: %s <%s>\n", info->name, info->email); */
-    g_string_append_printf (signers, " %s <%s>", info->name, info->email);
-  }
-
-  return g_string_free (signers, FALSE);
-}
-
-static void
-parse_mime_content (StampMessageListItem *self,
-                    CamelMimeMessage     *message,
-                    CamelDataWrapper     *mime_content)
-{
-  if (CAMEL_IS_MULTIPART (mime_content)) {
-    CamelMultipart *content = CAMEL_MULTIPART (mime_content);
-
-    g_print ("%s: MULTIPART\n", G_STRFUNC);
-    for (guint idx = 0; idx < camel_multipart_get_number (content); idx++) {
-      CamelMimePart *part = camel_multipart_get_part (content, idx);
-      CamelContentType *ct = camel_mime_part_get_content_type (part);
-      CamelContentType *field;
-
-again:
-      field = camel_data_wrapper_get_mime_type_field (CAMEL_DATA_WRAPPER (part));
-
-      if (g_strcmp0 (camel_mime_part_get_disposition (part), "inline") == 0) {
-        handle_inline_mime (self, part);
-      } else if (g_strcmp0 (camel_mime_part_get_disposition (part), "attachment") == 0) {
-        GtkWidget *attachment_button = stamp_attachment_button_new (part); /*, self->cancellable); */
-
-        adw_wrap_box_append (ADW_WRAP_BOX (self->attachment_flow_box), attachment_button);
-        gtk_widget_set_visible (self->attachment_flow_box, TRUE);
-      } else if (camel_mime_part_get_disposition (part)) {
-        g_debug ("%s: TODO: %s", G_STRFUNC, camel_mime_part_get_disposition (part));
-      }
-
-      if (g_strcmp0 (field->type, "text") == 0) {
-        handle_text_mime (self, camel_medium_get_content (CAMEL_MEDIUM (part)));
-      } else if (g_strcmp0 (field->type, "multipart") == 0) {
-        parse_mime_content (self, message, camel_medium_get_content (CAMEL_MEDIUM (part)));
-      } else if (g_strcmp0 (field->type, "application") == 0) {
-        if (g_strcmp0 (field->subtype, "pgp-signature") == 0) {
-          CamelSession *session = CAMEL_SESSION (stamp_session_get_default ());
-          g_autoptr (GError) local_error = NULL;
-          CamelCipherValidity *valid;
-          CamelCipherContext *cipher = camel_gpg_context_new (session);
-          valid = camel_cipher_context_verify_sync (cipher, CAMEL_MIME_PART (message), NULL, &local_error);
-          if (local_error) {
-            g_warning ("Error verifying pgp: %s", local_error->message);
-          } else {
-            g_autofree char *tmp = NULL;
-
-            if (valid->encrypt.status != CAMEL_CIPHER_VALIDITY_ENCRYPT_NONE)
-              dump_infos (valid->encrypt.description, &valid->encrypt.encrypters);
-          }
-        } else if (g_strcmp0 (field->subtype, "pgp-encrypted") == 0) {
-          CamelSession *session = CAMEL_SESSION (stamp_session_get_default ());
-          g_autoptr (GError) local_error = NULL;
-          CamelCipherValidity *valid;
-          CamelMimePart *opart = camel_mime_part_new ();
-          CamelCipherContext *cipher = camel_gpg_context_new (session);
-          valid = camel_cipher_context_decrypt_sync (cipher, CAMEL_MIME_PART (message), opart, NULL, &local_error);
-          if (local_error) {
-            g_warning ("Error verifying pgp: %s", local_error->message);
-          } else {
-            g_autofree char *tmp = NULL;
-
-            part = opart;
-            adw_banner_set_title (ADW_BANNER (self->encryption_banner), _("Valid Encryption"));
-            adw_banner_set_revealed (ADW_BANNER (self->encryption_banner), TRUE);
-            self->signature_details = g_strdup (camel_cipher_validity_get_description (valid));
-            goto again;
-            if (valid->encrypt.status != CAMEL_CIPHER_VALIDITY_ENCRYPT_NONE)
-              dump_infos (valid->encrypt.description, &valid->encrypt.encrypters);
-            if (valid->sign.status != CAMEL_CIPHER_VALIDITY_SIGN_NONE) {
-              g_autofree char *signer = get_signers (&valid->sign.signers);
-              dump_infos (valid->sign.description, &valid->sign.signers);
-
-              switch (valid->sign.status) {
-                case CAMEL_CIPHER_VALIDITY_SIGN_GOOD:
-                  tmp = g_strdup_printf ("Valid Signature: %s", signer);
-                  break;
-                case CAMEL_CIPHER_VALIDITY_SIGN_BAD:
-                  tmp = g_strdup_printf ("Bad Signature: %s", signer);
-                  break;
-                case CAMEL_CIPHER_VALIDITY_SIGN_NEED_PUBLIC_KEY:
-                  tmp = g_strdup_printf ("Signed, but no public key available: %s", signer);
-                  break;
-                case CAMEL_CIPHER_VALIDITY_SIGN_UNKNOWN:
-                  tmp = g_strdup_printf ("Signed, but unknown: %s", signer);
-                  break;
-                case CAMEL_CIPHER_VALIDITY_SIGN_NONE:
-                default:
-                  break;
-              }
-
-              if (tmp) {
-                adw_banner_set_title (ADW_BANNER (self->signature_banner), tmp);
-                adw_banner_set_revealed (ADW_BANNER (self->signature_banner), TRUE);
-                self->signature_details = g_strdup (camel_cipher_validity_get_description (valid));
-              }
-            }
-          }
-        } else if (g_strcmp0 (field->subtype, "pkcs7-signature") == 0) {
-          CamelSession *session = CAMEL_SESSION (stamp_session_get_default ());
-          g_autoptr (GError) local_error = NULL;
-          CamelCipherValidity *valid;
-          CamelCipherContext *cipher = camel_smime_context_new (session);
-
-          valid = camel_cipher_context_verify_sync (cipher, CAMEL_MIME_PART (message), NULL, &local_error);
-          if (local_error || !valid) {
-            g_warning ("Error verifying smime: %s", local_error ? local_error->message : "?");
-          } else {
-            g_autofree char *tmp = NULL;
-            if (valid->sign.status != CAMEL_CIPHER_VALIDITY_SIGN_NONE) {
-              g_autofree char *signer = get_signers (&valid->sign.signers);
-              switch (valid->sign.status) {
-                case CAMEL_CIPHER_VALIDITY_SIGN_GOOD:
-                  tmp = g_strdup_printf ("Valid Signature: %s", signer);
-                  gtk_widget_add_css_class (self->signature_banner, "signature-valid");
-                  break;
-                case CAMEL_CIPHER_VALIDITY_SIGN_BAD:
-                  tmp = g_strdup_printf ("Bad Signature: %s", signer);
-                  gtk_widget_add_css_class (self->signature_banner, "signature-bad");
-                  break;
-                case CAMEL_CIPHER_VALIDITY_SIGN_NEED_PUBLIC_KEY:
-                  tmp = g_strdup_printf ("Signed, but no public key available: %s", signer);
-                  gtk_widget_add_css_class (self->signature_banner, "signature-warning");
-                  break;
-                case CAMEL_CIPHER_VALIDITY_SIGN_UNKNOWN:
-                  tmp = g_strdup_printf ("Signed, but unknown: %s", signer);
-                  gtk_widget_add_css_class (self->signature_banner, "signature-warning");
-                  break;
-                case CAMEL_CIPHER_VALIDITY_SIGN_NONE:
-                default:
-                  break;
-              }
-              if (tmp) {
-                adw_banner_set_title (ADW_BANNER (self->signature_banner), tmp);
-                adw_banner_set_revealed (ADW_BANNER (self->signature_banner), TRUE);
-                self->signature_status = valid->sign.status;
-                self->signature_details = g_strdup (camel_cipher_validity_get_description (valid));
-              }
-            }
-          }
-        }
-      } else {
-        g_debug ("%s: TODO type %s", G_STRFUNC, field->type);
-      }
-    }
-  } else {
-    CamelContentType *ct = camel_mime_part_get_content_type (CAMEL_MIME_PART (message));
-    g_print ("%s: NO MULTIPART\n", G_STRFUNC);
-
-    if (camel_content_type_is (ct, "application", "pkcs7-mime")) {
-      /* if (g_strcmp0 (camel_data_wrapper_get_mime_type (mime_content), "application/pkcs7-mime") == 0) { */
-      CamelCipherContext *context;
-      CamelMimePart *opart;
-      CamelCipherValidity *valid;
-      g_autoptr (GError) error = NULL;
-
-      context = camel_smime_context_new (CAMEL_SESSION (stamp_session_get_default ()));
-
-      opart = camel_mime_part_new ();
-      valid = camel_cipher_context_decrypt_sync (context, CAMEL_MIME_PART (message), opart, NULL, &error);
-      g_print ("%s: PKCS7-MIME valid %p\n", G_STRFUNC, valid);
-      if (error) {
-        g_warning ("Could not parse S/MIME message: %s", error->message);
-        self->signature_details = g_strdup (error->message);
-        adw_banner_set_title (ADW_BANNER (self->signature_banner), _("Error parsing S/MIME message"));
-        adw_banner_set_revealed (ADW_BANNER (self->signature_banner), TRUE);
-      } else {
-        handle_text_mime (self, CAMEL_DATA_WRAPPER (opart));
-      }
-    } else {
-      handle_text_mime (self, mime_content);
-    }
-  }
-}
-
 static void
 open_message (StampMessageListItem *self,
               CamelMimeMessage     *message)
 {
+  StampMimeParser *parser;
+  StampMimeContent *body;
+  StampMimeValidation *validation;
+  StampMimeCalendar *calendar;
   const char *address = camel_medium_get_header (CAMEL_MEDIUM (message), "Disposition-Notification-To");
   const char *auth_as = camel_medium_get_header (CAMEL_MEDIUM (message), "X-MS-Exchange-Organization-AuthAs");
 
@@ -508,7 +120,76 @@ open_message (StampMessageListItem *self,
     adw_banner_set_revealed (ADW_BANNER (self->external_sender_banner), TRUE);
   }
 
-  parse_mime_content (self, message, camel_medium_get_content (CAMEL_MEDIUM (message)));
+  parser = stamp_mime_parser_new (message, CAMEL_SESSION (stamp_session_get_default ()), self->cancellable);
+  stamp_mime_parser_parse (parser);
+
+  validation = stamp_mime_parser_get_validation (parser);
+  if (validation) {
+    if (validation->encryption == STAMP_MIME_ENCRYPTION_VALID) {
+      adw_banner_set_title (ADW_BANNER (self->encryption_banner), _("Valid Encryption"));
+      adw_banner_set_revealed (ADW_BANNER (self->encryption_banner), TRUE);
+    }
+
+    if (validation->status != STAMP_MIME_SIGNATURE_NONE) {
+      g_autofree char *tmp = NULL;
+
+      switch (validation->status) {
+        case STAMP_MIME_SIGNATURE_GOOD:
+          gtk_widget_add_css_class (self->signature_banner, "signature-valid");
+          break;
+        case STAMP_MIME_SIGNATURE_BAD:
+          gtk_widget_add_css_class (self->signature_banner, "signature-bad");
+          break;
+        case STAMP_MIME_SIGNATURE_UNKNOWN:
+          gtk_widget_add_css_class (self->signature_banner, "signature-warning");
+          break;
+        case STAMP_MIME_SIGNATURE_NONE:
+        default:
+          break;
+      }
+
+      if (validation->description) {
+        adw_banner_set_title (ADW_BANNER (self->signature_banner), validation->description);
+        adw_banner_set_revealed (ADW_BANNER (self->signature_banner), TRUE);
+        self->signature_details = g_strdup (validation->description);
+      }
+    }
+  }
+
+  calendar = stamp_mime_parser_get_calendar (parser);
+  if (calendar && calendar->ical) {
+    ICalTime *time;
+
+    self->calendar = g_object_ref (calendar->ical);
+    time = i_cal_component_get_dtstart (self->calendar);
+    if (time) {
+      g_autofree char *tmp = g_strdup_printf ("%s: %d.%d.%d %.2d:%.2d",
+                                              i_cal_component_get_summary (self->calendar),
+                                              i_cal_time_get_day (time),
+                                              i_cal_time_get_month (time),
+                                              i_cal_time_get_year (time),
+                                              i_cal_time_get_hour (time),
+                                              i_cal_time_get_minute (time));
+      adw_banner_set_title (ADW_BANNER (self->vcard_banner), tmp);
+      adw_banner_set_revealed (ADW_BANNER (self->vcard_banner), TRUE);
+    }
+  }
+
+  body = stamp_mime_parser_get_body (parser);
+  if (body && body->content) {
+    self->message_content = g_strdup (body->content);
+    self->message_is_html = body->is_html;
+
+    if (self->message_is_html && body->is_html) {
+      char *html_with_images = stamp_mime_parser_embed_inline_images (parser, self->message_content);
+      if (html_with_images) {
+        g_clear_pointer (&self->message_content, g_free);
+        self->message_content = html_with_images;
+      }
+    }
+  }
+
+  g_clear_pointer (&parser, stamp_mime_parser_free);
 
   if (!self->message_content) {
     self->loading_done = TRUE;
@@ -529,11 +210,24 @@ on_get_message (GObject      *source,
                 GAsyncResult *res,
                 gpointer      user_data)
 {
-  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
+  StampMessageListItem *self;
   g_autoptr (GError) error = NULL;
-  CamelFolder *folder = CAMEL_FOLDER (source);
-  CamelMimeMessage *message = camel_folder_get_message_finish (folder, res, &error);
-  GSettings *settings = g_settings_new ("org.tabos.stamp.mail");
+  CamelFolder *folder;
+  CamelMimeMessage *message;
+  GSettings *settings;
+
+  if (!user_data)
+    return;
+
+  self = STAMP_MESSAGE_LIST_ITEM (user_data);
+  if (!self->message_loaded) {
+    g_object_unref (self);
+    return;
+  }
+
+  folder = CAMEL_FOLDER (source);
+  message = camel_folder_get_message_finish (folder, res, &error);
+  settings = g_settings_new ("org.tabos.stamp.mail");
 
   if (error) {
     if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
@@ -541,6 +235,7 @@ on_get_message (GObject      *source,
 
     self->loading_done = TRUE;
     g_clear_handle_id (&self->progress_handle, g_source_remove);
+    g_object_unref (self);
     return;
   }
 
@@ -555,6 +250,7 @@ on_get_message (GObject      *source,
     self->message = g_object_ref (message);
 
   open_message (self, message);
+  g_object_unref (self);
 }
 
 static gboolean
@@ -591,6 +287,7 @@ start_get_message (StampMessageListItem *self,
 
   folder = camel_folder_summary_get_folder (summary);
 
+  g_object_ref (self);
   camel_folder_get_message (folder, camel_message_info_get_uid (self->message_info), G_PRIORITY_DEFAULT, self->cancellable, on_get_message, self);
 }
 
@@ -760,7 +457,6 @@ stamp_message_list_item_send_rsvp (StampMessageListItem  *self,
     const char *attendee = i_cal_property_get_attendee (prop);
     const char *attendee_email;
 
-    g_print ("%s: attendee %s\n", G_STRFUNC, attendee);
     if (g_str_has_prefix (attendee, "mailto:"))
       attendee_email = attendee + 7;
     else
@@ -769,7 +465,6 @@ stamp_message_list_item_send_rsvp (StampMessageListItem  *self,
     if (g_strcmp0 (attendee_email, email) == 0) {
       ICalParameter *p = i_cal_parameter_new_partstat (stat);
 
-      g_print ("%s: Found, set part stat\n", G_STRFUNC);
       i_cal_property_set_parameter (prop, p);
       stat_set = TRUE;
       break;
@@ -780,7 +475,6 @@ stamp_message_list_item_send_rsvp (StampMessageListItem  *self,
     g_autofree char *mailto = g_strdup_printf ("mailto:%s", email);
     ICalProperty *attendee = i_cal_property_new_attendee (mailto);
 
-    g_print ("%s: Own mail address not part of attendees so most likely a group mail address, add our own\n", G_STRFUNC);
     i_cal_property_add_parameter (attendee, i_cal_parameter_new_partstat (stat));
     i_cal_component_add_property (event, attendee);
   }
@@ -798,8 +492,6 @@ stamp_message_list_item_send_rsvp (StampMessageListItem  *self,
     g_warning ("%s: Could not receive event: %s", G_STRFUNC, local_error->message);
     return;
   }
-
-  g_print ("%s: EXIT\n", G_STRFUNC);
 }
 
 static void
@@ -810,7 +502,6 @@ on_rsvp_response (GtkWidget *dialog,
   StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
   ICalParameterPartstat stat = I_CAL_PARTSTAT_NONE;
 
-  g_print ("%s: response %s\n", G_STRFUNC, response);
   if (g_strcmp0 (response, "accept") == 0) {
     stat = I_CAL_PARTSTAT_ACCEPTED;
   } else if (g_strcmp0 (response, "tentative") == 0) {
@@ -888,9 +579,8 @@ stamp_message_list_item_dispose (GObject *object)
 
 static void
 on_send_disposition (AdwBanner *banner,
-                    gpointer   user_data)
+                     gpointer   user_data)
 {
-  g_print ("%s: ENTER\n", G_STRFUNC);
 }
 
 void

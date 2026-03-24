@@ -53,6 +53,11 @@ struct _StampComposer {
   GtkWidget *attachment_revealer;
   GtkWidget *attachment_box;
   GtkWidget *request_disposition;
+  GtkWidget *pgp_sign;
+  GtkWidget *pgp_encrypt;
+  GtkWidget *smime_sign;
+  GtkWidget *smime_encrypt;
+  GtkWidget *security_menu;
   StampComposerType type;
   CamelMimeMessage *orig_message;
   char *draft_uid;
@@ -196,10 +201,8 @@ build_message (StampComposer *self,
         CamelContentType *ctype = camel_mime_part_get_content_type (multi_part);
 
         if (ctype) {
-          g_print ("type: %s/%s\n", ctype->type ? ctype->type : "", ctype->subtype ? ctype->subtype : "");
           if (g_strcmp0 (ctype->type, "multipart") == 0 && g_strcmp0 (ctype->subtype, "related") == 0) {
             int nr;
-            g_print ("ADDING\n");
             nr = camel_multipart_get_number (CAMEL_MULTIPART (camel_medium_get_content (CAMEL_MEDIUM (multi_part))));
             for (int j = 0; j < nr; j++) {
               CamelMimePart *img = camel_multipart_get_part (CAMEL_MULTIPART (camel_medium_get_content (CAMEL_MEDIUM (multi_part))), j);
@@ -208,7 +211,6 @@ build_message (StampComposer *self,
                 camel_multipart_add_part (body, img);
             }
           } else if (g_strcmp0 (ctype->type, "image") == 0) {
-            g_print ("ADDING IMAGE\n");
             camel_multipart_add_part (body, multi_part);
           }
         }
@@ -304,13 +306,146 @@ on_send_mail (GObject      *account,
     return;
   }
 
-  if (self->draft_uid) {
-
-  }
-
   self->is_dirty = FALSE;
   stamp_mail_view_show_toast (STAMP_MAIL_VIEW (mail_view), _("Mail sent"));
   gtk_window_destroy (GTK_WINDOW (self));
+}
+
+static void
+apply_crypto (CamelSession *session,
+              CamelMimeMessage *mime_message,
+              CamelInternetAddress *recipient,
+              gboolean pgp_sign,
+              gboolean pgp_encrypt,
+              gboolean smime_sign,
+              gboolean smime_encrypt,
+              GCancellable *cancellable)
+{
+  g_autoptr (GError) error = NULL;
+
+  if (pgp_sign || pgp_encrypt) {
+    CamelCipherContext *cipher;
+    CamelMimePart *ipart;
+    CamelMimePart *opart;
+    GPtrArray *recipients_list;
+
+    cipher = camel_gpg_context_new (session);
+
+    ipart = CAMEL_MIME_PART (mime_message);
+    opart = camel_mime_part_new ();
+
+    if (pgp_sign) {
+      gboolean success = camel_cipher_context_sign_sync (cipher, NULL, CAMEL_CIPHER_HASH_SHA256,
+                                                         ipart, opart,
+                                                         cancellable, &error);
+      if (!success || error) {
+        if (error) {
+          g_warning ("PGP signing failed: %s", error->message);
+          g_error_free (error);
+          error = NULL;
+        }
+      } else {
+        g_object_unref (mime_message);
+        mime_message = CAMEL_MIME_MESSAGE (opart);
+        ipart = CAMEL_MIME_PART (mime_message);
+        opart = camel_mime_part_new ();
+      }
+    }
+
+    if (pgp_encrypt && !error) {
+      gboolean success;
+
+      recipients_list = g_ptr_array_new ();
+      for (int i = 0; i < camel_address_length (CAMEL_ADDRESS (recipient)); i++) {
+        const char *r_name, *r_mail;
+        if (camel_internet_address_get (recipient, i, &r_name, &r_mail) && r_mail) {
+          g_ptr_array_add (recipients_list, g_strdup (r_mail));
+        }
+      }
+
+      success = camel_cipher_context_encrypt_sync (cipher, NULL, recipients_list,
+                                                   ipart, opart,
+                                                   cancellable, &error);
+      g_ptr_array_free (recipients_list, TRUE);
+
+      if (!success || error) {
+        if (error) {
+          g_warning ("PGP encryption failed: %s", error->message);
+          g_error_free (error);
+          error = NULL;
+        }
+      } else {
+        g_object_unref (mime_message);
+        mime_message = CAMEL_MIME_MESSAGE (opart);
+      }
+    } else {
+      g_object_unref (opart);
+    }
+
+    g_object_unref (cipher);
+  }
+
+  if (smime_sign || smime_encrypt) {
+    CamelCipherContext *cipher;
+    CamelMimePart *ipart;
+    CamelMimePart *opart;
+    GPtrArray *recipients_list;
+
+    cipher = camel_smime_context_new (session);
+
+    ipart = CAMEL_MIME_PART (mime_message);
+    opart = camel_mime_part_new ();
+
+    if (smime_sign) {
+      gboolean success = camel_cipher_context_sign_sync (cipher, NULL, CAMEL_CIPHER_HASH_SHA256,
+                                                         ipart, opart,
+                                                         cancellable, &error);
+      if (!success || error) {
+        if (error) {
+          g_warning ("S/MIME signing failed: %s", error->message);
+          g_error_free (error);
+          error = NULL;
+        }
+      } else {
+        g_object_unref (mime_message);
+        mime_message = CAMEL_MIME_MESSAGE (opart);
+        ipart = CAMEL_MIME_PART (mime_message);
+        opart = camel_mime_part_new ();
+      }
+    }
+
+    if (smime_encrypt && !error) {
+      gboolean success;
+
+      recipients_list = g_ptr_array_new ();
+      for (int i = 0; i < camel_address_length (CAMEL_ADDRESS (recipient)); i++) {
+        const char *r_name, *r_mail;
+        if (camel_internet_address_get (recipient, i, &r_name, &r_mail) && r_mail) {
+          g_ptr_array_add (recipients_list, g_strdup (r_mail));
+        }
+      }
+
+      success = camel_cipher_context_encrypt_sync (cipher, NULL, recipients_list,
+                                                   ipart, opart,
+                                                   cancellable, &error);
+      g_ptr_array_free (recipients_list, TRUE);
+
+      if (!success || error) {
+        if (error) {
+          g_warning ("S/MIME encryption failed: %s", error->message);
+          g_error_free (error);
+          error = NULL;
+        }
+      } else {
+        g_object_unref (mime_message);
+        mime_message = CAMEL_MIME_MESSAGE (opart);
+      }
+    } else {
+      g_object_unref (opart);
+    }
+
+    g_object_unref (cipher);
+  }
 }
 
 static void
@@ -343,7 +478,52 @@ on_get_body_html (GObject      *source_object,
   sender = build_sender (mime_message, name, mail);
   recipient = build_recipients (self, mime_message);
 
-  stamp_account_send_mail (self->account, mime_message, sender, recipient, self->cancellable, on_send_mail, self);
+  if (self->security_menu && !self->pgp_sign) {
+    GtkWidget *popover = GTK_WIDGET (gtk_menu_button_get_popover (GTK_MENU_BUTTON (self->security_menu)));
+    if (popover) {
+      GtkWidget *box = gtk_widget_get_first_child (popover);
+      while (box && !GTK_IS_BOX (box))
+        box = gtk_widget_get_next_sibling (box);
+
+      if (box) {
+        GtkWidget *child = gtk_widget_get_first_child (box);
+        while (child && !self->pgp_sign) {
+          if (GTK_IS_BOX (child)) {
+            GtkWidget *toggle = gtk_widget_get_first_child (child);
+            while (toggle && !self->pgp_sign) {
+              const char *widget_name = gtk_widget_get_name (toggle);
+              if (GTK_IS_TOGGLE_BUTTON (toggle)) {
+                if (g_strcmp0 (widget_name, "pgp_sign") == 0)
+                  self->pgp_sign = toggle;
+                else if (g_strcmp0 (widget_name, "pgp_encrypt") == 0)
+                  self->pgp_encrypt = toggle;
+                else if (g_strcmp0 (widget_name, "smime_sign") == 0)
+                  self->smime_sign = toggle;
+                else if (g_strcmp0 (widget_name, "smime_encrypt") == 0)
+                  self->smime_encrypt = toggle;
+              }
+              toggle = gtk_widget_get_next_sibling (toggle);
+            }
+          }
+          child = gtk_widget_get_next_sibling (child);
+        }
+      }
+    }
+  }
+
+  gboolean do_pgp_sign = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->pgp_sign));
+  gboolean do_pgp_encrypt = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->pgp_encrypt));
+  gboolean do_smime_sign = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->smime_sign));
+  gboolean do_smime_encrypt = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->smime_encrypt));
+
+  if (do_pgp_sign || do_pgp_encrypt || do_smime_sign || do_smime_encrypt) {
+    CamelSession *session = CAMEL_SESSION (stamp_session_get_default ());
+
+    apply_crypto (session, mime_message, recipient, do_pgp_sign, do_pgp_encrypt, do_smime_sign, do_smime_encrypt, self->cancellable);
+  }
+
+  stamp_account_send_mail (self->account, mime_message, sender, recipient,
+                           do_pgp_sign || do_smime_sign, do_pgp_encrypt || do_smime_encrypt, self->cancellable, on_send_mail, self);
 }
 
 static void
@@ -497,14 +677,6 @@ load_from_combobox (StampComposer *self)
 }
 
 static void
-on_selection_changed (StampWebView *webview,
-                      gpointer      user_data)
-{
-  StampComposer *self = STAMP_COMPOSER (user_data);
-  update_actions (self);
-}
-
-static void
 on_from_setup (GtkSignalListItemFactory *f,
                GtkListItem              *item,
                gpointer                  data)
@@ -648,8 +820,8 @@ on_auto_save_get_body_html (GObject      *source_object,
   self->draft_uid = stamp_account_save_draft (self->account, self->draft_uid, mime_message, sender, recipient);
   if (self->draft_uid) {
     g_autofree char *save_str = NULL;
-    GDateTime *dt = g_date_time_new_now_local();
-    g_autofree char *time = g_date_time_format(dt, "%H:%M");
+    GDateTime *dt = g_date_time_new_now_local ();
+    g_autofree char *time = g_date_time_format (dt, "%H:%M");
 
     save_str = g_strdup_printf ("Saved Draft (%s)", time);
     adw_window_title_set_subtitle (ADW_WINDOW_TITLE (self->window_title), save_str);
@@ -660,8 +832,6 @@ static gboolean
 autosave_timeout_cb (gpointer user_data)
 {
   StampComposer *self = STAMP_COMPOSER (user_data);
-
-  g_print ("%s: ENTER\n", G_STRFUNC);
 
   self->autosave_source_id = 0;
   stamp_webview_get_body_html (self->webview, self->cancellable, on_auto_save_get_body_html, self);
@@ -675,14 +845,14 @@ mark_dirty (StampComposer *self)
   self->is_dirty = TRUE;
 
   if (self->autosave_source_id)
-      g_source_remove (self->autosave_source_id);
+    g_source_remove (self->autosave_source_id);
 
   self->autosave_source_id = g_timeout_add_seconds (10, autosave_timeout_cb, self);
 }
 
 static void
 on_dirty_message (WebKitUserContentManager *manager,
-                  WebKitUserMessage      *message,
+                  WebKitUserMessage        *message,
                   gpointer                  user_data)
 {
   StampComposer *self = STAMP_COMPOSER (user_data);
@@ -690,19 +860,17 @@ on_dirty_message (WebKitUserContentManager *manager,
 }
 
 static void
-on_load_changed (WebKitWebView  *view,
-                 WebKitLoadEvent load_event,
-                 gpointer        user_data)
+on_load_changed (WebKitWebView   *view,
+                 WebKitLoadEvent  load_event,
+                 gpointer         user_data)
 {
-  g_print ("%s: ENTER %d\n", G_STRFUNC, load_event);
   if (load_event != WEBKIT_LOAD_FINISHED)
-      return;
+    return;
 
-  g_print ("%s: RUN JS\n", G_STRFUNC);
   webkit_web_view_evaluate_javascript (view, "document.body.addEventListener('input', () => {"
-      "    window.webkit.messageHandlers.dirty.postMessage('');"
-      "});",
-      -1, NULL, NULL, NULL, NULL, NULL);
+                                       "    window.webkit.messageHandlers.dirty.postMessage('');"
+                                       "});",
+                                       -1, NULL, NULL, NULL, NULL, NULL);
 }
 
 static void
@@ -717,6 +885,7 @@ stamp_composer_init (StampComposer *self)
   gtk_widget_init_template (GTK_WIDGET (self));
 
   self->type = STAMP_COMPOSER_NEW;
+  self->cancellable = g_cancellable_new ();
   self->webview = stamp_webview_new ();
   stamp_webview_set_editable (self->webview);
   gtk_widget_set_focusable (GTK_WIDGET (self->webview), TRUE);
@@ -729,7 +898,7 @@ stamp_composer_init (StampComposer *self)
 #pragma GCC diagnostic pop
 
   webkit_web_view_load_html (WEBKIT_WEB_VIEW (self->webview), tmp, NULL);
-  g_signal_connect_object (self->webview, "selection-changed", G_CALLBACK (on_selection_changed), self, 0);
+  /* g_signal_connect_object (self->webview, "selection-changed", G_CALLBACK (on_selection_changed), self, 0); */
 
   self->action_map = G_ACTION_MAP (self);
   g_action_map_add_action_entries (self->action_map,
@@ -821,7 +990,6 @@ on_draft_response (AdwAlertDialog *dialog,
     else
       gtk_window_destroy (GTK_WINDOW (self));
   } else if (g_strcmp0 (response, "close") == 0) {
-
     stamp_account_remove_draft (self->account, self->draft_uid);
     gtk_window_destroy (GTK_WINDOW (self));
   }
@@ -898,6 +1066,8 @@ stamp_composer_dispose (GObject *object)
   StampComposer *self = STAMP_COMPOSER (object);
 
   g_clear_handle_id (&self->autosave_source_id, g_source_remove);
+  g_cancellable_cancel (self->cancellable);
+  g_clear_object (&self->cancellable);
 
   g_cancellable_cancel (self->cancellable);
   g_clear_object (&self->cancellable);
@@ -928,6 +1098,11 @@ stamp_composer_class_init (StampComposerClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampComposer, attachment_revealer);
   gtk_widget_class_bind_template_child (widget_class, StampComposer, attachment_box);
   gtk_widget_class_bind_template_child (widget_class, StampComposer, request_disposition);
+  gtk_widget_class_bind_template_child (widget_class, StampComposer, pgp_sign);
+  gtk_widget_class_bind_template_child (widget_class, StampComposer, pgp_encrypt);
+  gtk_widget_class_bind_template_child (widget_class, StampComposer, smime_sign);
+  gtk_widget_class_bind_template_child (widget_class, StampComposer, smime_encrypt);
+  gtk_widget_class_bind_template_child (widget_class, StampComposer, security_menu);
   gtk_widget_class_bind_template_child (widget_class, StampComposer, toggle);
 
   gtk_widget_class_bind_template_callback (widget_class, on_close_button_clicked);
@@ -1011,9 +1186,7 @@ remove_own_address (StampComposer        *self,
     }
   }
 
-    g_print ("%d %d\n", idx, len);
   if (idx != len) {
-    g_print ("Removing\n");
     camel_address_remove (CAMEL_ADDRESS (address), idx);
   }
 }

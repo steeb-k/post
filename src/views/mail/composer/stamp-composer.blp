@@ -362,6 +362,61 @@ template $StampComposer: Adw.ApplicationWindow {
             "flat",
           ]
         }
+
+        MenuButton security_menu {
+          icon-name: "shield-symbolic";
+
+          styles [
+            "flat",
+          ]
+
+          Popover popover {
+            Box {
+              orientation: vertical;
+              spacing: 6;
+
+              Label {
+                label: _("PGP");
+                halign: start;
+
+                styles [
+                  "dim-label",
+                ]
+              }
+
+              ToggleButton pgp_sign {
+                label: _("Sign");
+                icon-name: "signature-symbolic";
+              }
+
+              ToggleButton pgp_encrypt {
+                label: _("Encrypt");
+                icon-name: "locked-symbolic";
+              }
+
+              Separator {}
+
+              Label {
+                label: _("S/MIME");
+                halign: start;
+
+                styles [
+                  "dim-label",
+                ]
+              }
+
+              ToggleButton smime_sign {
+                label: _("Sign");
+                icon-name: "signature-symbolic";
+              }
+
+              ToggleButton smime_encrypt {
+                label: _("Encrypt");
+                icon-name: "locked-symbolic";
+              }
+            }
+          }
+        }
       }
     }
   }

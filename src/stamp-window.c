@@ -58,7 +58,7 @@ on_open_settings_clicked (GtkWidget     *listbox,
   const char *flatpak_id = getenv ("FLATPAK_ID");
 
   if (flatpak_id) {
-    system ("flatpak-spawn --host gnome-control-center online-accounts");
+    g_spawn_command_line_async ("flatpak-spawn --host gnome-control-center online-accounts", NULL);
   } else {
     g_autoptr (GError) error = NULL;
     GDesktopAppInfo *app_info = g_desktop_app_info_new ("gnome-online-accounts-panel.desktop");
@@ -78,7 +78,7 @@ on_account_changed (GObject      *object,
   StampSession *session = STAMP_SESSION (object);
   GList *accounts = stamp_session_get_accounts (session);
 
-  if (!accounts || g_list_length (accounts) == 0) {
+  if (accounts == NULL) {
     adw_view_stack_set_visible_child_name (self->app_view_stack, "welcome");
   } else {
     adw_view_stack_set_visible_child_name (self->app_view_stack, "main");
@@ -90,12 +90,11 @@ stamp_window_dispose (GObject *object)
 {
   StampWindow *self = STAMP_WINDOW (object);
   StampSession *session = NULL;
-  g_autoptr (GSettings) settings = g_settings_new ("org.tabos.stamp");
   const char *view;
 
   view = adw_view_stack_get_visible_child_name (self->main_view_stack);
   if (view)
-    g_settings_set (settings, "view", "s", view);
+    g_settings_set (STAMP_SETTINGS, "view", "s", view);
 
   stamp_mail_view_setup (STAMP_MAIL_VIEW (self->mail_view), NULL);
   stamp_calendar_view_setup (STAMP_CALENDAR_VIEW (self->calendar_view), NULL);
@@ -136,13 +135,12 @@ static void
 stamp_window_init (StampWindow *self)
 {
   StampSession *session = NULL;
-  g_autoptr (GSettings) settings = g_settings_new ("org.tabos.stamp");
   g_autofree char *view = NULL;
 
   gtk_widget_init_template (GTK_WIDGET (self));
 
   session = stamp_session_get_default ();
-  g_settings_bind (settings, "background-notifications", self, "hide-on-close", G_SETTINGS_BIND_DEFAULT);
+  g_settings_bind (STAMP_SETTINGS, "background-notifications", self, "hide-on-close", G_SETTINGS_BIND_DEFAULT);
 
   g_signal_connect_object (session, "account-added", G_CALLBACK (on_account_changed), self, 0);
   g_signal_connect_object (session, "account-removed", G_CALLBACK (on_account_changed), self, 0);
@@ -153,7 +151,7 @@ stamp_window_init (StampWindow *self)
   stamp_mail_view_setup (STAMP_MAIL_VIEW (self->mail_view), self->main_view_stack);
   stamp_calendar_view_setup (STAMP_CALENDAR_VIEW (self->calendar_view), self->main_view_stack);
 
-  g_settings_get (settings, "view", "s", &view);
+  g_settings_get (STAMP_SETTINGS, "view", "s", &view);
   adw_view_stack_set_visible_child_name (self->main_view_stack, view);
 }
 

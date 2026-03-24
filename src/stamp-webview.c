@@ -199,8 +199,13 @@ on_decide_policy (WebKitWebView            *web_view,
     if (navigation_type == WEBKIT_NAVIGATION_TYPE_LINK_CLICKED) {
       WebKitURIRequest *request = webkit_navigation_action_get_request (navigation_action);
       const char *uri = webkit_uri_request_get_uri (request);
+      g_autoptr (GError) error = NULL;
 
-      g_app_info_launch_default_for_uri (uri, NULL, NULL);
+      if (!g_app_info_launch_default_for_uri (uri, NULL, &error)) {
+        g_warning ("Could not launch URI '%s': %s", uri, error ? error->message : "unknown error");
+      }
+      webkit_policy_decision_ignore (decision);
+      return GDK_EVENT_STOP;
     } else if (navigation_type == WEBKIT_NAVIGATION_TYPE_OTHER) {
       webkit_policy_decision_use (decision);
       return GDK_EVENT_STOP;
@@ -318,7 +323,9 @@ stamp_webview_user_message_received (WebKitWebView     *webview,
   StampWebViewPrivate *priv = stamp_webview_get_instance_private (self);
   const char *name = webkit_user_message_get_name (message);
 
+  g_print ("%s: ENTER %s\n", G_STRFUNC, name);
   if (g_strcmp0 (name, "image-load-blocked") == 0) {
+    g_print ("%s: %d\n", G_STRFUNC, priv->queued_load_images);
     if (!priv->queued_load_images)
       stamp_webview_image_load_blocked (self);
 
@@ -409,8 +416,15 @@ void
 stamp_webview_load_plain_text (StampWebView *self,
                                char         *content)
 {
-  if (content)
-    webkit_web_view_load_plain_text (WEBKIT_WEB_VIEW (self), content);
+  if (content) {
+    g_autoptr (GBytes) template = g_resources_lookup_data ("/org/tabos/stamp/plain-message-template.html", G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-nonliteral"
+    g_autofree char *html = g_strdup_printf (g_bytes_get_data (template, NULL), content);
+#pragma GCC diagnostic pop
+
+    webkit_web_view_load_html (WEBKIT_WEB_VIEW (self), html, NULL);
+  }
 }
 
 void
@@ -510,6 +524,7 @@ stamp_web_view_load_images (StampWebView *self)
 {
   StampWebViewPrivate *priv = stamp_webview_get_instance_private (self);
 
+  g_print ("%s: %d\n", G_STRFUNC, priv->loaded);
   if (priv->loaded) {
     WebKitUserMessage *message = webkit_user_message_new ("set-image-loading-enabled", g_variant_new_boolean (TRUE));
 

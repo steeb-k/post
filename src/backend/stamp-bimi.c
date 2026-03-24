@@ -60,6 +60,8 @@ stamp_query_bimi_logo (const char *domain)
       char txt[256];
       char *logo;
 
+      if (txt_len >= sizeof (txt))
+        txt_len = sizeof (txt) - 1;
       memcpy (txt, rdata + 1, txt_len);
       txt[txt_len] = '\0';
 

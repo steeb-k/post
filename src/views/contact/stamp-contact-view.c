@@ -28,6 +28,18 @@ struct _StampContactView {
 
 G_DEFINE_FINAL_TYPE (StampContactView, stamp_contact_view, ADW_TYPE_BREAKPOINT_BIN)
 
+static AdwOverlaySplitView *
+get_current_osv (StampContactView *self)
+{
+  const char *layout = adw_multi_layout_view_get_layout_name (self->contacts_layout);
+
+  if (g_strcmp0 (layout, "tablet") == 0)
+    return self->tablet_osv;
+  if (g_strcmp0 (layout, "mobile") == 0)
+    return self->mobile_osv;
+  return NULL;
+}
+
 static void
 on_contacts_hidden (AdwNavigationPage *page,
                     gpointer           user_data)
@@ -47,8 +59,7 @@ on_details_hidden (AdwNavigationPage *page,
 static void
 on_sidebar_visibility_changed (StampContactView *self)
 {
-  const char *layout = adw_multi_layout_view_get_layout_name (self->contacts_layout);
-  AdwOverlaySplitView *osv = g_strcmp0 (layout, "tablet") == 0 ? self->tablet_osv : g_strcmp0 (layout, "mobile") == 0 ? self->mobile_osv : NULL;
+  AdwOverlaySplitView *osv = get_current_osv (self);
   GtkWidget *btn;
   gboolean shown;
 
@@ -64,10 +75,7 @@ on_sidebar_visibility_changed (StampContactView *self)
 static void
 close_overlay_sidebar (StampContactView *self)
 {
-  const char *layout = adw_multi_layout_view_get_layout_name (self->contacts_layout);
-  AdwOverlaySplitView *osv =
-    g_strcmp0 (layout, "tablet") == 0 ? self->tablet_osv :
-    g_strcmp0 (layout, "mobile") == 0 ? self->mobile_osv : NULL;
+  AdwOverlaySplitView *osv = get_current_osv (self);
   if (!osv || !adw_overlay_split_view_get_show_sidebar (osv)) return;
   adw_overlay_split_view_set_show_sidebar (osv, FALSE);
   gtk_toggle_button_set_active (
@@ -178,8 +186,7 @@ on_toggle_sidebar (GtkToggleButton *btn G_GNUC_UNUSED,
                    gpointer             user_data)
 {
   StampContactView *self = STAMP_CONTACT_VIEW (user_data);
-  const char *layout = adw_multi_layout_view_get_layout_name (self->contacts_layout);
-  AdwOverlaySplitView *osv = g_strcmp0 (layout, "tablet") == 0 ? self->tablet_osv : g_strcmp0 (layout, "mobile") == 0 ? self->mobile_osv : self->outer_osv;
+  AdwOverlaySplitView *osv = get_current_osv (self);
 
   if (!osv)
     return;

@@ -567,7 +567,6 @@ update_selection_title (StampConversationList *self)
   guint n_selected = gtk_bitset_get_size (self->selected);
   char buf[64];
 
-  g_print ("%s: ENTER\n", G_STRFUNC);
   g_snprintf (buf, sizeof buf, _("%u selected"), n_selected);
 
   adw_window_title_set_title (ADW_WINDOW_TITLE (self->selection_label), buf);
@@ -1079,13 +1078,9 @@ on_multi_selection_changed (GtkSelectionModel *model,
   guint n_selected = gtk_bitset_get_size (self->selected);
   char buf[64];
 
-  g_print ("%s: ENTER\n", G_STRFUNC);
   g_snprintf (buf, sizeof buf, _("%u selected"), n_selected);
 
   adw_window_title_set_title (ADW_WINDOW_TITLE (self->selection_label), buf);
-
-  /* gtk_widget_queue_draw (GTK_WIDGET (self->listview)); */
-  g_print ("%s: EXIT\n", G_STRFUNC);
 }
 
 static void
@@ -1131,7 +1126,6 @@ on_drag_update (GtkGesturePan   *gesture,
 
   if (clean_y > 32) {
     gtk_widget_set_margin_top (GTK_WIDGET (self->spinner), clean_y);
-    gtk_widget_set_margin_top (GTK_WIDGET (self->spinner), clean_y);
     g_value_set_int (&value, 32);
     gtk_widget_set_size_request (GTK_WIDGET (self->spinner), 32, 32);
   } else if (clean_y > 0) {
@@ -1150,7 +1144,6 @@ static void
 load_folder_idle (gpointer user_data)
 {
   StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
-  g_print ("%s: ENTER\n", G_STRFUNC);
   stamp_conversation_list_load_folder (self, self->account, self->full_name);
 }
 
@@ -1316,21 +1309,17 @@ collect_messages (CamelFolderThreadNode *node,
 {
   CamelFolderThreadNode *child = camel_folder_thread_node_get_child (node);
 
-  g_print ("%s: ENTER\n", G_STRFUNC);
   if (!array) {
-    g_print ("%s: Creating new array\n", G_STRFUNC);
     array = g_ptr_array_new ();
   }
 
   g_ptr_array_add (array, node);
 
   while (child) {
-    g_print ("%s: Child %p\n", G_STRFUNC, child);
     array = collect_messages (child, array);
     child = camel_folder_thread_node_get_next (child);
   }
 
-  g_print ("%s: EXIT %d\n", G_STRFUNC, array->len);
   return array;
 }
 
@@ -1342,9 +1331,6 @@ stamp_conversation_list_mark_read (StampConversationList *self,
   g_autoptr (GPtrArray) node_array = g_ptr_array_new ();
   g_autoptr (GPtrArray) array = NULL;
 
-  g_print ("%s: ENTER, selection_mode: %d\n", G_STRFUNC, self->selection_mode);
-
-  g_print ("%s: Collect all top nodes\n", G_STRFUNC);
   if (self->selection_mode) {
     GtkBitset *selected_items = self->selected;
     GtkBitsetIter iter;
@@ -1356,7 +1342,6 @@ stamp_conversation_list_mark_read (StampConversationList *self,
       g_autoptr (StampConversationItem) item = STAMP_CONVERSATION_ITEM (g_list_model_get_item (G_LIST_MODEL (self->multi_selection), current_item_position));
 
       node = stamp_conversation_item_get_node (item);
-      g_print ("%s: Adding top node %p\n", G_STRFUNC, node);
       g_ptr_array_add (node_array, node);
       gtk_bitset_iter_next (&iter, &current_item_position);
     }
@@ -1369,24 +1354,17 @@ stamp_conversation_list_mark_read (StampConversationList *self,
       StampConversationItem *item = STAMP_CONVERSATION_ITEM (gtk_single_selection_get_selected_item (GTK_SINGLE_SELECTION (self->single_selection)));
       node = stamp_conversation_item_get_node (item);
     }
-    g_print ("%s: Adding top node %p\n", G_STRFUNC, node);
     g_ptr_array_add (node_array, node);
   }
 
-  g_print ("%s: Create an array of all sub nodes\n", G_STRFUNC);
   for (int idx = 0; idx < node_array->len; idx++) {
     CamelFolderThreadNode *child_node = node_array->pdata[idx];
 
     array = collect_messages (child_node, array);
   }
 
-  /* Mark all items as read */
   for (int idx = array->len - 1; idx >= 0; idx--) {
     CamelFolderThreadNode *child_node = array->pdata[idx];
-    const CamelMessageInfo *info;
-
-    info = camel_folder_thread_node_get_item (child_node);
-    g_print ("%s: Marking %s as read\n", G_STRFUNC, camel_message_info_get_subject (info));
     camel_message_info_set_flags (CAMEL_MESSAGE_INFO (camel_folder_thread_node_get_item (child_node)), CAMEL_MESSAGE_SEEN, ~0);
   }
 }
@@ -1398,9 +1376,6 @@ stamp_conversation_list_mark_unread (StampConversationList *self,
   g_autoptr (GPtrArray) node_array = g_ptr_array_new ();
   g_autoptr (GPtrArray) array = NULL;
 
-  g_print ("%s: ENTER, selection_mode: %d\n", G_STRFUNC, self->selection_mode);
-
-  g_print ("%s: Collect all top nodes\n", G_STRFUNC);
   if (self->selection_mode) {
     GtkBitset *selected_items = self->selected;
     GtkBitsetIter iter;
@@ -1412,7 +1387,6 @@ stamp_conversation_list_mark_unread (StampConversationList *self,
       g_autoptr (StampConversationItem) item = STAMP_CONVERSATION_ITEM (g_list_model_get_item (G_LIST_MODEL (self->multi_selection), current_item_position));
 
       node = stamp_conversation_item_get_node (item);
-      g_print ("%s: Adding top node %p\n", G_STRFUNC, node);
       g_ptr_array_add (node_array, node);
       gtk_bitset_iter_next (&iter, &current_item_position);
     }
@@ -1425,24 +1399,17 @@ stamp_conversation_list_mark_unread (StampConversationList *self,
       StampConversationItem *item = STAMP_CONVERSATION_ITEM (gtk_single_selection_get_selected_item (GTK_SINGLE_SELECTION (self->single_selection)));
       node = stamp_conversation_item_get_node (item);
     }
-    g_print ("%s: Adding top node %p\n", G_STRFUNC, node);
     g_ptr_array_add (node_array, node);
   }
 
-  g_print ("%s: Create an array of all sub nodes\n", G_STRFUNC);
   for (int idx = 0; idx < node_array->len; idx++) {
     CamelFolderThreadNode *child_node = node_array->pdata[idx];
 
     array = collect_messages (child_node, array);
   }
 
-  /* Mark all items as read */
   for (int idx = array->len - 1; idx >= 0; idx--) {
     CamelFolderThreadNode *child_node = array->pdata[idx];
-    const CamelMessageInfo *info;
-
-    info = camel_folder_thread_node_get_item (child_node);
-    g_print ("%s: Marking %s as read\n", G_STRFUNC, camel_message_info_get_subject (info));
     camel_message_info_set_flags (CAMEL_MESSAGE_INFO (camel_folder_thread_node_get_item (child_node)), CAMEL_MESSAGE_SEEN, 0);
   }
 }

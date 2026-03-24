@@ -17,7 +17,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-/* TODO: Initial expanding no longer works... */
+
 
 #include "stamp-folder-list.h"
 
@@ -204,7 +204,6 @@ on_stamp_folder_list_account_removed (GObject      *object,
   }
 }
 
-/* TODO: Move to helper */
 static char **
 g_strv_remove (const char * const *strv,
                const char         *str)
@@ -235,7 +234,6 @@ g_strv_remove (const char * const *strv,
   return new_strv;
 }
 
-/* TODO: Move to helper */
 static char **
 g_strv_append (const char * const *strv,
                const char         *str)
@@ -467,11 +465,8 @@ on_drag_prepare (GtkDragSource *source,
   GtkTreeExpander *expander = GTK_TREE_EXPANDER (gtk_list_item_get_child (list_item));
   StampItem *item = STAMP_ITEM (gtk_tree_expander_get_item (expander));
 
-  g_print ("%s: ENTER\n", G_STRFUNC);
   if (STAMP_IS_ACCOUNT_ITEM (item)) {
-    g_print ("type: %lu\n", (unsigned long)STAMP_TYPE_ITEM);
     g_type_ensure (STAMP_TYPE_ITEM);
-    g_print ("type: %lu\n", (unsigned long)STAMP_TYPE_ITEM);
     return gdk_content_provider_new_typed (STAMP_TYPE_ITEM, item);
   }
 

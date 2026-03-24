@@ -165,6 +165,8 @@ stamp_account_send_mail (StampAccount         *self,
                          CamelMimeMessage     *message,
                          CamelInternetAddress *sender,
                          CamelInternetAddress *recipient,
+                         gboolean              pgp_sign,
+                         gboolean              pgp_encrypt,
                          GCancellable         *cancellable,
                          GAsyncReadyCallback   callback,
                          gpointer              user_data);

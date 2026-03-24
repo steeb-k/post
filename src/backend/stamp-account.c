@@ -838,6 +838,8 @@ typedef struct {
   CamelMimeMessage *message;
   CamelInternetAddress *sender;
   CamelInternetAddress *recipient;
+  gboolean pgp_sign;
+  gboolean pgp_encrypt;
 } SendMailData;
 
 static void
@@ -890,6 +892,8 @@ stamp_account_send_mail (StampAccount         *self,
                          CamelMimeMessage     *message,
                          CamelInternetAddress *sender,
                          CamelInternetAddress *recipient,
+                         gboolean              pgp_sign,
+                         gboolean              pgp_encrypt,
                          GCancellable         *cancellable,
                          GAsyncReadyCallback   callback,
                          gpointer              user_data)
@@ -900,6 +904,8 @@ stamp_account_send_mail (StampAccount         *self,
   data->message = g_object_ref (message);
   data->sender = g_object_ref (sender);
   data->recipient = g_object_ref (recipient);
+  data->pgp_sign = pgp_sign;
+  data->pgp_encrypt = pgp_encrypt;
 
   g_task_set_task_data (task, data, send_mail_data_free);
   g_task_run_in_thread (task, send_mail);

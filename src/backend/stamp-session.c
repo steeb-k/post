@@ -25,7 +25,6 @@
 #include <pk11pub.h>
 #include <nss.h>
 #include <nssb64.h>
-#include <pk11pub.h>
 #include <secmod.h>
 
 #include "stamp-account.h"
@@ -34,6 +33,7 @@
 static StampSession *_session = NULL;
 static char *cache_dir = NULL;
 static char *data_dir = NULL;
+static GMutex dir_mutex;
 
 struct _StampSession {
   CamelSession parent_instance;
@@ -602,7 +602,7 @@ get_oauth2_access_token_sync (CamelSession  *session,
   }
 
   cred_source = e_source_registry_find_extension (self->registry, source, E_SOURCE_EXTENSION_COLLECTION);
-  if (!cred_source && !e_util_can_use_collection_as_credential_source (cred_source, source)) {
+  if (!cred_source || !e_util_can_use_collection_as_credential_source (cred_source, source)) {
     g_clear_object (&cred_source);
     cred_source = source;
   }
@@ -711,8 +711,10 @@ stamp_session_get_signatures (StampSession *self)
 const char *
 stamp_get_cache_dir (void)
 {
+  g_mutex_lock (&dir_mutex);
   if (!cache_dir)
     cache_dir = g_build_path (G_DIR_SEPARATOR_S, g_get_user_cache_dir (), "stamp", NULL);
+  g_mutex_unlock (&dir_mutex);
 
   return cache_dir;
 }
@@ -720,8 +722,10 @@ stamp_get_cache_dir (void)
 const char *
 stamp_get_data_dir (void)
 {
+  g_mutex_lock (&dir_mutex);
   if (!data_dir)
     data_dir = g_build_path (G_DIR_SEPARATOR_S, g_get_user_data_dir (), "stamp", NULL);
+  g_mutex_unlock (&dir_mutex);
 
   return data_dir;
 }

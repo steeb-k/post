@@ -107,7 +107,6 @@ on_get_contacts (GObject      *object,
   old = g_list_model_get_n_items (G_LIST_MODEL (self->list_store));
   stamp_contact_list_store_remove_all (self->list_store);
 
-  g_print ("%s: Got %d contacts\n", G_STRFUNC, g_slist_length (contacts));
   for (GSList *iter = contacts; iter && iter->data; iter = g_slist_next (iter)) {
     EContact *c = iter->data;
     g_autoptr (StampContactItem) item = stamp_contact_item_new (c);
