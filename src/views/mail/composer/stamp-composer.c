@@ -80,13 +80,14 @@ on_query_command (GObject      *source,
                   GAsyncResult *res,
                   gpointer      user_data)
 {
-  StampComposer *self = STAMP_COMPOSER (user_data);
+  StampComposer *self = user_data;
   g_autoptr (GError) error = NULL;
   gboolean ret;
 
   ret = stamp_web_view_query_command_state_finish (source, res, &error);
   if (error) {
-    g_warning ("Could not query command state: %s", error->message);
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+      g_warning ("Could not query command state: %s", error->message);
     return;
   }
 
@@ -128,10 +129,10 @@ on_query_strikethrough_command (GObject      *source,
 static void
 update_actions (StampComposer *self)
 {
-  stamp_web_view_query_command_state (self->webview, "bold", NULL, on_query_bold_command, self);
-  stamp_web_view_query_command_state (self->webview, "italic", NULL, on_query_italic_command, self);
-  stamp_web_view_query_command_state (self->webview, "underline", NULL, on_query_underline_command, self);
-  stamp_web_view_query_command_state (self->webview, "strikethrough", NULL, on_query_strikethrough_command, self);
+  stamp_web_view_query_command_state (self->webview, "bold", self->cancellable, on_query_bold_command, self);
+  stamp_web_view_query_command_state (self->webview, "italic", self->cancellable, on_query_italic_command, self);
+  stamp_web_view_query_command_state (self->webview, "underline", self->cancellable, on_query_underline_command, self);
+  stamp_web_view_query_command_state (self->webview, "strikethrough", self->cancellable, on_query_strikethrough_command, self);
 }
 
 static void
@@ -292,12 +293,14 @@ on_send_mail (GObject      *account,
               GAsyncResult *res,
               gpointer      user_data)
 {
-  StampComposer *self = STAMP_COMPOSER (user_data);
+  StampComposer *self = user_data;
   StampWindow *window = STAMP_WINDOW (stamp_get_main_window ());
   GtkWidget *mail_view = stamp_window_get_mail_view (window);
   g_autoptr (GError) error = NULL;
 
   if (!stamp_account_send_mail_finish (STAMP_ACCOUNT (account), res, &error)) {
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+      g_warning ("Failed to send mail: %s", error->message);
     return;
   }
 
@@ -315,12 +318,10 @@ on_get_body_html (GObject      *source_object,
                   GAsyncResult *res,
                   gpointer      user_data)
 {
-  StampComposer *self = STAMP_COMPOSER (user_data);
-  WebKitWebView *web_view = WEBKIT_WEB_VIEW (source_object);
+  StampComposer *self = user_data;
+  StampWebView *web_view = STAMP_WEB_VIEW (source_object);
   g_autoptr (GError) error = NULL;
-  WebKitUserMessage *response = webkit_web_view_send_message_to_page_finish (web_view, res, &error);
-  GVariant *parameters;
-  const char *out;
+  g_autofree char *body = stamp_webview_get_body_html_finish (web_view, res, &error);
   CamelMimeMessage *mime_message;
   CamelInternetAddress *sender;
   CamelInternetAddress *recipient;
@@ -328,9 +329,13 @@ on_get_body_html (GObject      *source_object,
   const char *mail;
   CamelInternetAddress *addresses;
 
-  parameters = webkit_user_message_get_parameters (response);
-  out = g_variant_get_string (parameters, NULL);
-  mime_message = build_message (self, out);
+  if (!body) {
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+      g_warning ("Failed to get HTML content for mail: %s", error->message);
+    return;
+  }
+
+  mime_message = build_message (self, body);
 
   addresses = stamp_account_get_address (self->account);
 
@@ -615,12 +620,10 @@ on_auto_save_get_body_html (GObject      *source_object,
                             GAsyncResult *res,
                             gpointer      user_data)
 {
-  StampComposer *self = STAMP_COMPOSER (user_data);
-  WebKitWebView *web_view = WEBKIT_WEB_VIEW (source_object);
+  StampComposer *self = user_data;
+  StampWebView *web_view = STAMP_WEB_VIEW (source_object);
   g_autoptr (GError) error = NULL;
-  WebKitUserMessage *response = webkit_web_view_send_message_to_page_finish (web_view, res, &error);
-  GVariant *parameters;
-  const char *out;
+  g_autofree char *body = stamp_webview_get_body_html_finish (web_view, res, &error);
   CamelMimeMessage *mime_message;
   CamelInternetAddress *sender;
   CamelInternetAddress *recipient;
@@ -628,9 +631,13 @@ on_auto_save_get_body_html (GObject      *source_object,
   const char *mail;
   CamelInternetAddress *addresses;
 
-  parameters = webkit_user_message_get_parameters (response);
-  out = g_variant_get_string (parameters, NULL);
-  mime_message = build_message (self, out);
+  if (!body) {
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+      g_warning ("Failed to get HTML content for mail: %s", error->message);
+    return;
+  }
+
+  mime_message = build_message (self, body);
 
   addresses = stamp_account_get_address (self->account);
 
@@ -657,7 +664,7 @@ autosave_timeout_cb (gpointer user_data)
   g_print ("%s: ENTER\n", G_STRFUNC);
 
   self->autosave_source_id = 0;
-  stamp_webview_get_body_html (self->webview, NULL, on_auto_save_get_body_html, self);
+  stamp_webview_get_body_html (self->webview, self->cancellable, on_auto_save_get_body_html, self);
 
   return G_SOURCE_REMOVE;
 }
@@ -753,6 +760,8 @@ stamp_composer_init (StampComposer *self)
   g_signal_connect (self->webview, "load-changed", G_CALLBACK (on_load_changed), self);
 
   /* self->auto_save_draft_handler = g_timeout_add_seconds (3, auto_save_draft, self); */
+
+  self->cancellable = g_cancellable_new ();
 }
 
 static void
@@ -769,12 +778,10 @@ on_draft_get_body_html (GObject      *source_object,
                         GAsyncResult *res,
                         gpointer      user_data)
 {
-  StampComposer *self = STAMP_COMPOSER (user_data);
-  WebKitWebView *web_view = WEBKIT_WEB_VIEW (source_object);
+  StampComposer *self = user_data;
+  StampWebView *web_view = STAMP_WEB_VIEW (source_object);
   g_autoptr (GError) error = NULL;
-  WebKitUserMessage *response = webkit_web_view_send_message_to_page_finish (web_view, res, &error);
-  GVariant *parameters;
-  const char *out;
+  g_autofree char *body = stamp_webview_get_body_html_finish (web_view, res, &error);
   CamelMimeMessage *mime_message;
   CamelInternetAddress *sender;
   CamelInternetAddress *recipient;
@@ -782,9 +789,13 @@ on_draft_get_body_html (GObject      *source_object,
   const char *mail;
   CamelInternetAddress *addresses;
 
-  parameters = webkit_user_message_get_parameters (response);
-  out = g_variant_get_string (parameters, NULL);
-  mime_message = build_message (self, out);
+  if (!body) {
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+      g_warning ("Failed to get HTML content for mail: %s", error->message);
+    return;
+  }
+
+  mime_message = build_message (self, body);
 
   addresses = stamp_account_get_address (self->account);
 
@@ -806,7 +817,7 @@ on_draft_response (AdwAlertDialog *dialog,
 
   if (g_strcmp0 (response, "save-draft") == 0) {
     if (!self->is_dirty)
-      stamp_webview_get_body_html (self->webview, NULL, on_draft_get_body_html, self);
+      stamp_webview_get_body_html (self->webview, self->cancellable, on_draft_get_body_html, self);
     else
       gtk_window_destroy (GTK_WINDOW (self));
   } else if (g_strcmp0 (response, "close") == 0) {
@@ -887,6 +898,9 @@ stamp_composer_dispose (GObject *object)
   StampComposer *self = STAMP_COMPOSER (object);
 
   g_clear_handle_id (&self->autosave_source_id, g_source_remove);
+
+  g_cancellable_cancel (self->cancellable);
+  g_clear_object (&self->cancellable);
 
   G_OBJECT_CLASS (stamp_composer_parent_class)->dispose (object);
 }
