@@ -19,16 +19,18 @@
 
 #include "stamp-photo-cache.h"
 
+#include "stamp-account.h"
+#include "stamp-bimi.h"
+#include "stamp-helper.h"
+#include "stamp-session.h"
+#include "stamp-settings.h"
+
 #include <libebook/libebook.h>
 #include <libedataserver/libedataserver.h>
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
 #include <glib/gstdio.h>
 #include <string.h>
-
-#include "stamp-account.h"
-#include "stamp-bimi.h"
-#include "stamp-session.h"
 
 #define STAMP_CACHE_TTL_SEC        (7 * 24 * 60 * 60)   /* 1 Week */
 #define STAMP_CACHE_NEGATIVE_SUFFIX ".negative"
@@ -288,9 +290,8 @@ check_bimi (StampPhotoCache *self,
             GCancellable    *cancellable)
 {
   GdkTexture *texture = NULL;
-  g_autoptr (GSettings) settings = g_settings_new ("org.tabos.stamp.mail");
 
-  if (g_settings_get_boolean (settings, "load-bimi-images")) {
+  if (g_settings_get_boolean (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_LOAD_BIMI_IMAGES)) {
     g_autoptr (GError) error = NULL;
     const char *domain = strchr (email, '@');
     g_autofree char *url = NULL;
@@ -589,10 +590,10 @@ stamp_photo_cache_lookup_async (StampPhotoCache *self,
     for (int idx = 0; idx < account_books->len; idx++) {
       StampContactsService *service = g_ptr_array_index (account_books, idx);
 
-      if (!service->enabled)
+      if (!stamp_contacts_service_get_enabled (service))
         continue;
 
-      books = g_slist_append (books, service->client);
+      books = g_slist_append (books, stamp_contacts_service_get_client (service));
     }
   }
 

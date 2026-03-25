@@ -80,7 +80,7 @@ typedef struct {
   ICalComponent *ical;
 } StampMimeCalendar;
 
-typedef void (*StampMimeParserCallback) (StampMimeParser *parser,
+typedef void (*StampMimeParserCallback) (StampMimeParser *self,
                                         gpointer user_data);
 
 struct _StampMimeParser {
@@ -104,27 +104,39 @@ struct _StampMimeParser {
   GError *error;
 };
 
-StampMimeParser *stamp_mime_parser_new (CamelMimeMessage *message,
-                                       CamelSession *session,
-                                       GCancellable *cancellable);
+StampMimeParser *
+stamp_mime_parser_new (CamelMimeMessage *message,
+                       CamelSession     *session,
+                       GCancellable     *cancellable);
 
-void stamp_mime_parser_free (StampMimeParser *parser);
+void
+stamp_mime_parser_free (StampMimeParser *self);
 
-gboolean stamp_mime_parser_parse (StampMimeParser *parser);
+gboolean
+stamp_mime_parser_parse (StampMimeParser *self);
 
-StampMimeContent *stamp_mime_parser_get_body (StampMimeParser *parser);
+StampMimeContent *
+stamp_mime_parser_get_body (StampMimeParser *self);
 
-GPtrArray *stamp_mime_parser_get_attachments (StampMimeParser *parser);
+GPtrArray *
+stamp_mime_parser_get_attachments (StampMimeParser *self);
 
-StampMimeValidation *stamp_mime_parser_get_validation (StampMimeParser *parser);
+StampMimeValidation *
+stamp_mime_parser_get_validation (StampMimeParser *self);
 
-StampMimeCalendar *stamp_mime_parser_get_calendar (StampMimeParser *parser);
+StampMimeCalendar *
+stamp_mime_parser_get_calendar (StampMimeParser *self);
 
-gboolean stamp_mime_parser_has_calendar (StampMimeParser *parser);
+gboolean
+stamp_mime_parser_has_calendar (StampMimeParser *self);
 
-gboolean stamp_mime_parser_has_attachments (StampMimeParser *parser);
+gboolean
+stamp_mime_parser_has_attachments (StampMimeParser *self);
 
-GPtrArray *stamp_mime_parser_get_inline_parts (StampMimeParser *parser);
+GPtrArray *
+stamp_mime_parser_get_inline_parts (StampMimeParser *self);
 
-char *stamp_mime_parser_embed_inline_images (StampMimeParser *parser, const char *html_content);
+char *
+stamp_mime_parser_embed_inline_images (StampMimeParser *self,
+                                       const char      *html_content);
 

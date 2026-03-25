@@ -22,14 +22,16 @@
 #include "stamp-account-item.h"
 #include "stamp-folder-item.h"
 
+#include <adwaita.h>
+
 struct _StampFolderRow {
   GtkBox parent_instance;
 
-  GtkWidget *image;
-  GtkWidget *inscription;
-  GtkWidget *unread;
-  GtkWidget *spinner;
-  GtkWidget *error;
+  GtkImage *image;
+  GtkInscription *inscription;
+  GtkLabel *unread;
+  AdwSpinner *spinner;
+  GtkImage *error;
 };
 
 G_DEFINE_FINAL_TYPE (StampFolderRow, stamp_folder_row, GTK_TYPE_BOX)
@@ -69,7 +71,7 @@ transform_unread_to (GBinding     *binding,
   StampFolderRow *self = STAMP_FOLDER_ROW (user_data);
   guint unread = g_value_get_uint (from_value);
 
-  gtk_widget_set_visible (self->unread, unread > 0);
+  gtk_widget_set_visible (GTK_WIDGET (self->unread), unread > 0);
   if (unread) {
     g_autofree char *label = g_strdup_printf ("%u", unread);
 
@@ -89,7 +91,7 @@ transform_error_to (GBinding     *binding,
   GError *error = g_value_get_pointer (from_value);
 
   if (error)
-    gtk_widget_set_tooltip_text (self->error, error->message);
+    gtk_widget_set_tooltip_text (GTK_WIDGET (self->error), error->message);
 
   g_value_set_boolean (to_value, error != NULL);
 
@@ -102,17 +104,16 @@ stamp_folder_row_bind (StampFolderRow *self,
 {
   const char *icon_name = stamp_item_get_icon_name (item);
 
-  gtk_image_set_from_icon_name (GTK_IMAGE (self->image), icon_name);
-  gtk_widget_set_visible (self->image, icon_name != NULL);
+  gtk_image_set_from_icon_name (self->image, icon_name);
+  gtk_widget_set_visible (GTK_WIDGET (self->image), icon_name != NULL);
 
   g_object_bind_property (item, "name", self->inscription, "text", G_BINDING_SYNC_CREATE);
   g_object_bind_property (item, "name", self->inscription, "tooltip-text", G_BINDING_SYNC_CREATE);
   g_object_bind_property (item, "loading", self->spinner, "visible", G_BINDING_SYNC_CREATE);
   g_object_bind_property_full (item, "error", self->error, "visible", G_BINDING_SYNC_CREATE, transform_error_to, NULL, g_object_ref (self), g_object_unref);
 
-  if (STAMP_IS_ACCOUNT_ITEM (item)) {
-    gtk_widget_set_visible (self->unread, FALSE);
-  } else {
+  if (STAMP_IS_ACCOUNT_ITEM (item))
+    gtk_widget_set_visible (GTK_WIDGET (self->unread), FALSE);
+  else
     g_object_bind_property_full (item, "unread", self->unread, "label", G_BINDING_SYNC_CREATE, transform_unread_to, NULL, g_object_ref (self), g_object_unref);
-  }
 }

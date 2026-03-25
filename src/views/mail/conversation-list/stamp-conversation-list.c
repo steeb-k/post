@@ -30,6 +30,9 @@
 #include <camel/camel.h>
 #include <glib/gi18n.h>
 
+#define INITIAL_LOAD_COUNT 200
+#define BATCH_LOAD_COUNT 100
+
 enum FilterMode {
   FILTER_MODE_ALL,
   FILTER_MODE_STARRED,
@@ -60,7 +63,7 @@ struct _StampConversationList {
   GtkWidget *sort_button;
   GtkWidget *mail_list_stack;
   GtkBitset *selected;
-  GtkWidget *sidebar_button;
+  GtkToggleButton *sidebar_button;
 
   GListStore *list_store;
   GtkSingleSelection *single_selection;
@@ -89,6 +92,7 @@ struct _StampConversationList {
   guint anchor_position;
   GHashTable *position_to_check;
   GPtrArray *trash_array;
+  guint pending_load_count;
 };
 
 G_DEFINE_FINAL_TYPE (StampConversationList, stamp_conversation_list, ADW_TYPE_BIN)
@@ -111,7 +115,9 @@ static StampConversationItem *
 stamp_conversation_item_find_item (GListStore *store,
                                    const char *uid)
 {
-  for (int idx = 0; idx < g_list_model_get_n_items (G_LIST_MODEL (store)); idx++) {
+  guint list_len = g_list_model_get_n_items (G_LIST_MODEL (store));
+
+  for (guint idx = 0; idx < list_len; idx++) {
     g_autoptr (StampConversationItem) item = g_list_model_get_item (G_LIST_MODEL (store), idx);
 
     if (item && g_strcmp0 (stamp_conversation_item_get_uid (item), uid) == 0) {
@@ -123,6 +129,9 @@ stamp_conversation_item_find_item (GListStore *store,
 
 static void
 load_folder_idle (gpointer user_data);
+
+static gboolean
+load_more_items_idle (gpointer user_data);
 
 
 static void
@@ -326,7 +335,7 @@ on_get_folder (GObject      *source,
   g_signal_connect_object (folder, "changed", G_CALLBACK (on_conversation_list_folder_changed), self, 0);
 
   mail_service = stamp_account_get_mail_service (self->account);
-  g_hash_table_insert (self->folders, g_strdup (camel_service_get_uid (mail_service->service)), g_object_ref (folder));
+  g_hash_table_insert (self->folders, g_strdup (camel_service_get_uid (stamp_mail_service_get_service (mail_service))), g_object_ref (folder));
 
   thread = get_thread (self, folder);
   self->thread = thread;
@@ -335,17 +344,28 @@ on_get_folder (GObject      *source,
 
   if (thread) {
     CamelFolderThreadNode *child;
-    const char *service_uid = camel_service_get_uid (mail_service->service);
+    const char *service_uid = camel_service_get_uid (stamp_mail_service_get_service (mail_service));
+    guint loaded = 0;
 
     child = camel_folder_thread_get_tree (thread);
 
-    while (child) {
+    while (child /*&& loaded < INITIAL_LOAD_COUNT*/) {
       StampConversationItem *item = NULL;
 
       item = stamp_conversation_item_new (child, service_uid);
 
       g_ptr_array_add (array, item);
       child = camel_folder_thread_node_get_next (child);
+/*      loaded++;
+    }
+
+    if (child) {
+      guint remaining = 0;
+      while (child) {
+        remaining++;
+        child = camel_folder_thread_node_get_next (child);
+      }
+      self->pending_load_count = remaining;*/
     }
   }
 
@@ -358,6 +378,54 @@ on_get_folder (GObject      *source,
 
   gtk_widget_set_visible (self->spinner, FALSE);
   gtk_widget_set_margin_top (self->spinner, 12);
+
+  if (self->pending_load_count > 0) {
+    g_idle_add (load_more_items_idle, self);
+  }
+}
+
+static gboolean
+load_more_items_idle (gpointer user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+  guint current_count = g_list_model_get_n_items (G_LIST_MODEL (self->list_store));
+
+  if (!self->thread || self->pending_load_count == 0) {
+    return FALSE;
+  }
+
+  CamelFolderThreadNode *child = camel_folder_thread_get_tree (self->thread);
+  guint skip = current_count;
+  guint loaded = 0;
+
+  while (child && loaded < skip) {
+    child = camel_folder_thread_node_get_next (child);
+    loaded++;
+  }
+
+  loaded = 0;
+  g_autoptr (GPtrArray) new_items = g_ptr_array_new_with_free_func (g_object_unref);
+  StampMailService *mail_service = stamp_account_get_mail_service (self->account);
+  const char *service_uid = camel_service_get_uid (stamp_mail_service_get_service (mail_service));
+
+  while (child && loaded < BATCH_LOAD_COUNT) {
+    StampConversationItem *item = stamp_conversation_item_new (child, service_uid);
+    g_ptr_array_add (new_items, item);
+    child = camel_folder_thread_node_get_next (child);
+    loaded++;
+    self->pending_load_count--;
+  }
+
+  if (new_items->len > 0) {
+    guint pos = g_list_model_get_n_items (G_LIST_MODEL (self->list_store));
+    g_list_store_splice (self->list_store, pos, 0, new_items->pdata, new_items->len);
+  }
+
+  if (self->pending_load_count > 0) {
+    return TRUE;
+  }
+
+  return FALSE;
 }
 
 void
@@ -371,6 +439,10 @@ stamp_conversation_list_load_folder (StampConversationList *self,
     g_cancellable_cancel (self->cancellable);
     g_clear_object (&self->cancellable);
   }
+
+  if (!account)
+    return;
+
   self->cancellable = g_cancellable_new ();
 
   mail_service = stamp_account_get_mail_service (account);
@@ -381,7 +453,7 @@ stamp_conversation_list_load_folder (StampConversationList *self,
     self->full_name = g_strdup (full_name);
   }
 
-  camel_store_get_folder (CAMEL_STORE (mail_service->service), full_name, CAMEL_STORE_FOLDER_NONE, G_PRIORITY_DEFAULT, self->cancellable, on_get_folder, self);
+  camel_store_get_folder (CAMEL_STORE (stamp_mail_service_get_service (mail_service)), full_name, CAMEL_STORE_FOLDER_NONE, G_PRIORITY_DEFAULT, self->cancellable, on_get_folder, self);
 }
 
 static void
@@ -800,7 +872,7 @@ on_bind_list_item (GtkListItemFactory *factory,
   StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
   GtkWidget *row;
   StampConversationItem *model;
-  GtkWidget *check_button;
+  GtkCheckButton *check_button;
   guint pos = gtk_list_item_get_position (list_item);
 
   row = gtk_list_item_get_child (list_item);
@@ -810,7 +882,7 @@ on_bind_list_item (GtkListItemFactory *factory,
   stamp_conversation_row_set_selection_visible (STAMP_CONVERSATION_ROW (row), self->selection_mode);
 
   check_button = stamp_conversation_row_get_check_button (STAMP_CONVERSATION_ROW (row));
-  gtk_check_button_set_active (GTK_CHECK_BUTTON (check_button), gtk_list_item_get_selected (list_item));
+  gtk_check_button_set_active (check_button, gtk_list_item_get_selected (list_item));
   g_signal_connect (check_button, "toggled", G_CALLBACK (on_check_toggled), list_item);
 
   g_hash_table_insert (self->position_to_check, GUINT_TO_POINTER (pos), check_button);
@@ -825,7 +897,7 @@ on_unbind_list_item (GtkListItemFactory *factory,
 {
   StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
   GtkWidget *row;
-  GtkWidget *check_button;
+  GtkCheckButton *check_button;
   StampConversationItem *model;
   guint pos = gtk_list_item_get_position (list_item);
   g_hash_table_remove (self->position_to_check, GUINT_TO_POINTER (pos));
@@ -1455,10 +1527,7 @@ on_transfer_messages_to (GObject      *source,
   g_print ("%s: ENTER\n", G_STRFUNC);
   if (!camel_folder_transfer_messages_to_finish (folder, res, &transferred_uids, &error)) {
     g_warning ("%s: Could not move message: %s", G_STRFUNC, error->message);
-  } else {
-    g_print ("%s: transferred %d\n", G_STRFUNC, transferred_uids ?  transferred_uids->len : 0);
   }
-  g_print ("%s: EXIT\n", G_STRFUNC);
 }
 
 void
@@ -1672,8 +1741,16 @@ stamp_conversation_list_undo_trash (StampConversationList *self)
                               g_list_model_get_n_items (G_LIST_MODEL (self->list_store)));
 }
 
-GtkWidget *
+GtkToggleButton *
 stamp_conversation_list_get_sidebar_button (StampConversationList *self)
 {
   return self->sidebar_button;
+}
+
+void
+stamp_consersation_list_set_show_buttons (StampConversationList *self,
+                                          gboolean               show)
+{
+  adw_header_bar_set_show_end_title_buttons (ADW_HEADER_BAR (self->normal_headerbar), show);
+  adw_header_bar_set_show_end_title_buttons (ADW_HEADER_BAR (self->selection_headerbar), show);
 }

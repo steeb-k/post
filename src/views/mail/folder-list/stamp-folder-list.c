@@ -17,23 +17,22 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-
-
 #include "stamp-folder-list.h"
 
 #include "stamp-account-item.h"
 #include "stamp-folder-item.h"
 #include "stamp-folder-row.h"
+#include "stamp-helper.h"
+#include "stamp-settings.h"
 #include "stamp-session.h"
 
 struct _StampFolderList {
   AdwBin parent_instance;
 
-  GtkWidget *sorter;
-  GtkWidget *folders_list;
-  GtkWidget *sort_list_model;
+  GtkCustomSorter *sorter;
+  GtkListView *folders_list;
+  GtkSortListModel *sort_list_model;
   GtkSingleSelection *selection;
-  GSettings *settings;
 
   gboolean already_selected;
   GListStore *list_store;
@@ -69,7 +68,7 @@ on_selection_changed (GtkSelectionModel *selection,
     StampAccount *account = stamp_item_get_account (item);
     const char *full_name = stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item));
 
-    g_settings_set (self->settings, "selected-folder", "(ss)", stamp_account_get_name (account), full_name);
+    g_settings_set (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_SELECTED_FOLDER, "(ss)", stamp_account_get_name (account), full_name);
 
     g_signal_emit (self, signals[FOLDER_SELECTED], 0, account, full_name);
   }
@@ -79,8 +78,7 @@ static void
 insert_item (StampFolderList  *self,
              StampAccountItem *item)
 {
-  g_autoptr (GSettings) settings = g_settings_new ("org.tabos.stamp");
-  char **saved_order = g_settings_get_strv (settings, "account-order");
+  char **saved_order = g_settings_get_strv (STAMP_SETTINGS, STAMP_PREFS_ACCOUNT_ORDER);
   int pos = -1;
   int saved_pos = 0;
   const char *name = stamp_item_get_name (STAMP_ITEM (item));
@@ -97,22 +95,20 @@ insert_item (StampFolderList  *self,
     g_list_store_append (self->list_store, item);
   } else {
     int insert_index = 0;
+    guint list_len = g_list_model_get_n_items (G_LIST_MODEL (self->list_store));
 
-    for (int i = 0; i < g_list_model_get_n_items (G_LIST_MODEL (self->list_store)); i++) {
-      StampItem *cur_item = g_list_model_get_item (G_LIST_MODEL (self->list_store), i);
+    for (guint idx = 0; idx < list_len; idx++) {
+      StampItem *cur_item = g_list_model_get_item (G_LIST_MODEL (self->list_store), idx);
       const char *cur_name;
 
-      if (!STAMP_IS_ACCOUNT_ITEM (cur_item)) {
+      if (!STAMP_IS_ACCOUNT_ITEM (cur_item))
         continue;
-      }
 
       cur_name = stamp_item_get_name (cur_item);
 
-      for (int j = 0; j < pos; j++) {
-        if (g_strcmp0 (saved_order[j], cur_name) == 0) {
+      for (int j = 0; j < pos; j++)
+        if (g_strcmp0 (saved_order[j], cur_name) == 0)
           insert_index++;
-        }
-      }
     }
 
     g_list_store_insert (self->list_store, insert_index, item);
@@ -175,7 +171,7 @@ on_stamp_folder_list_account_added (GObject      *object,
   g_signal_connect_object (account, "mail-removed", G_CALLBACK (on_mail_removed), self, 0);
 
   mail_service = stamp_account_get_mail_service (account);
-  if (!mail_service || !mail_service->enabled)
+  if (!mail_service || !stamp_mail_service_get_enabled (mail_service))
     return;
 
   account_item = stamp_account_item_new (account);
@@ -202,66 +198,6 @@ on_stamp_folder_list_account_removed (GObject      *object,
       break;
     }
   }
-}
-
-static char **
-g_strv_remove (const char * const *strv,
-               const char         *str)
-{
-  char **new_strv;
-  char **n;
-  const char * const *s;
-  guint len;
-
-  if (!g_strv_contains (strv, str))
-    return g_strdupv ((char **)strv);
-
-  /* Needs room for one fewer string than before, plus one for trailing NULL. */
-  len = g_strv_length ((char **)strv);
-  new_strv = g_malloc ((len - 1 + 1) * sizeof (char *));
-  n = new_strv;
-  s = strv;
-
-  while (*s != NULL) {
-    if (strcmp (*s, str) != 0) {
-      *n = g_strdup (*s);
-      n++;
-    }
-    s++;
-  }
-  new_strv[len - 1] = NULL;
-
-  return new_strv;
-}
-
-static char **
-g_strv_append (const char * const *strv,
-               const char         *str)
-{
-  char **new_strv;
-  char **n;
-  const char * const *s;
-  guint len;
-
-  if (g_strv_contains (strv, str))
-    return g_strdupv ((char **)strv);
-
-  /* Needs room for one fewer string than before, plus one for trailing NULL. */
-  len = g_strv_length ((char **)strv) + 2;
-  new_strv = g_malloc (len * sizeof (char *));
-  n = new_strv;
-  s = strv;
-
-  while (*s != NULL) {
-    *n = g_strdup (*s);
-    n++;
-    s++;
-  }
-
-  new_strv[len - 2] = g_strdup (str);
-  new_strv[len - 1] = NULL;
-
-  return new_strv;
 }
 
 static void
@@ -341,7 +277,7 @@ on_bind_folder (GtkListItemFactory *factory,
       g_autofree char *account_name = NULL;
       g_autofree char *folder_name = NULL;
 
-      g_settings_get (self->settings, "selected-folder", "(ss)", &account_name, &folder_name);
+      g_settings_get (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_SELECTED_FOLDER, "(ss)", &account_name, &folder_name);
       if (g_strcmp0 (stamp_account_get_name (account), account_name) == 0 && g_strcmp0 (full_name, folder_name) == 0) {
         gtk_single_selection_set_selected (self->selection, gtk_list_item_get_position (list_item));
         self->already_selected = TRUE;
@@ -662,13 +598,11 @@ stamp_folder_list_init (StampFolderList *self)
 
   gtk_widget_init_template (GTK_WIDGET (self));
 
-  self->settings = g_settings_new ("org.tabos.stamp.mail");
-
   self->list_store = g_list_store_new (STAMP_TYPE_ITEM);
   tree = gtk_tree_list_model_new (G_LIST_MODEL (self->list_store), FALSE, FALSE, get_child, g_object_ref (self), g_object_unref);
 
   gtk_sort_list_model_set_model (GTK_SORT_LIST_MODEL (self->sort_list_model), G_LIST_MODEL (tree));
-  gtk_custom_sorter_set_sort_func (GTK_CUSTOM_SORTER (self->sorter), folders_sorter, NULL, NULL);
+  gtk_custom_sorter_set_sort_func (self->sorter, folders_sorter, NULL, NULL);
 
   session = stamp_session_get_default ();
   g_signal_connect_object (session, "account-added", G_CALLBACK (on_stamp_folder_list_account_added), self, 0);

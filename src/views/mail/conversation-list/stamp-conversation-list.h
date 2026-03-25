@@ -19,11 +19,11 @@
 
 #pragma once
 
-#include <adwaita.h>
-#include <camel/camel.h>
-
 #include "stamp-account.h"
 #include "stamp-conversation-item.h"
+
+#include <adwaita.h>
+#include <camel/camel.h>
 
 G_BEGIN_DECLS
 
@@ -67,7 +67,11 @@ void
 stamp_mail_conversation_list_search_contact (StampConversationList *self,
                                              const char            *mail);
 
-GtkWidget *
+GtkToggleButton *
 stamp_conversation_list_get_sidebar_button (StampConversationList *self);
+
+void
+stamp_consersation_list_set_show_buttons (StampConversationList *self,
+                                          gboolean               show);
 
 G_END_DECLS

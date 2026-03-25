@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include "stamp-mail-view.h"
+
 #include <adwaita.h>
 
 G_BEGIN_DECLS
@@ -35,10 +37,10 @@ void
 stamp_window_show_contact (StampWindow *self,
                            const char  *mail);
 
-GtkWidget *
+StampMailView *
 stamp_window_get_mail_view (StampWindow *self);
 
-GtkWindow *
+StampWindow *
 stamp_get_main_window (void);
 
 G_END_DECLS

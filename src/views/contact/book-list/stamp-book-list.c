@@ -204,7 +204,7 @@ on_book_added (GObject              *source,
 
   g_print ("%s: Adding account\n", G_STRFUNC);
 
-  g_print ("%s: New book added %s\n", G_STRFUNC, e_source_get_display_name (service->source));
+  g_print ("%s: New book added %s\n", G_STRFUNC, e_source_get_display_name (stamp_contacts_service_get_source (service)));
   account_item = stamp_book_account_item_new (account);
   g_list_store_append (self->list_store, account_item);
 }
@@ -252,7 +252,7 @@ on_stamp_book_list_account_added (GObject      *object,
   for (guint idx = 0; idx < books->len; idx++) {
     StampContactsService *service = g_ptr_array_index (books, idx);
 
-    if (service->enabled) {
+    if (stamp_contacts_service_get_enabled (service)) {
       enabled = TRUE;
       break;
     }

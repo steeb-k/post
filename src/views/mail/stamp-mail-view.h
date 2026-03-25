@@ -19,8 +19,6 @@
 
 #include <adwaita.h>
 
-#include "stamp-composer.h"
-
 #pragma once
 
 G_BEGIN_DECLS
@@ -31,10 +29,6 @@ G_DECLARE_FINAL_TYPE (StampMailView, stamp_mail_view, STAMP, MAIL_VIEW, AdwBreak
 
 GtkWidget *
 stamp_mail_view_new (void);
-
-void
-stamp_mail_view_setup (StampMailView    *self,
-                       AdwViewStack     *stack);
 
 void
 stamp_mail_view_search_contact (StampMailView *self,

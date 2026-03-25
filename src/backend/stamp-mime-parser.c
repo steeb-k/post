@@ -152,9 +152,9 @@ convert_content_to_utf8 (const char *data,
                          gsize       len,
                          const char *encoding)
 {
-  const char *iconv_encoding;
   g_autofree char *utf8 = NULL;
   g_autoptr (GError) error = NULL;
+  const char *iconv_encoding;
 
   if (!data || len == 0)
     return NULL;
@@ -171,7 +171,9 @@ convert_content_to_utf8 (const char *data,
 
   if (!utf8 || !g_utf8_validate (utf8, -1, NULL)) {
     g_clear_pointer (&utf8, g_free);
-    utf8 = g_convert (data, len, "UTF-8", "ISO-8859-1", NULL, NULL, NULL);
+    utf8 = g_convert (data, len, "UTF-8", "ISO-8859-1", NULL, NULL, &error);
+    if (error)
+      g_clear_pointer (&utf8, g_free);
   }
 
   return g_steal_pointer (&utf8);
@@ -253,9 +255,12 @@ convert_newlines_to_br (char **content)
     newline_regex = g_regex_new ("\r?\n", 0, 0, NULL);
 
   if (newline_regex && *content) {
-    converted = g_regex_replace_literal (newline_regex, *content, -1, 0, "<br/>", 0, NULL);
+    g_autoptr (GError) error = NULL;
 
-    if (converted) {
+    converted = g_regex_replace_literal (newline_regex, *content, -1, 0, "<br/>", 0, &error);
+    if (error) {
+      g_warning ("%s: Could not apply regex: %s", G_STRFUNC, error->message);
+    } else if (converted) {
       g_free (*content);
       *content = g_steal_pointer (&converted);
     }
@@ -280,12 +285,12 @@ handle_text_content (StampMimeParser  *parser,
   os = G_MEMORY_OUTPUT_STREAM (g_memory_output_stream_new_resizable ());
 
   if (!camel_data_wrapper_decode_to_output_stream_sync (content, G_OUTPUT_STREAM (os), parser->cancellable, &error)) {
-    g_warning ("Could not decode text content: %s", error ? error->message : "unknown error");
+    g_warning ("%s: Could not decode text content: %s", G_STRFUNC, error ? error->message : "unknown error");
     return FALSE;
   }
 
   if (!g_output_stream_close (G_OUTPUT_STREAM (os), parser->cancellable, &error)) {
-    g_warning ("Could not close stream: %s", error->message);
+    g_warning ("%s: Could not close stream: %s", G_STRFUNC, error->message);
     return FALSE;
   }
 
@@ -308,11 +313,10 @@ handle_text_content (StampMimeParser  *parser,
     body_len = text ? strlen (text) : 0;
   }
 
-  if (!parser->body) {
+  if (!parser->body)
     parser->body = stamp_mime_content_new ();
-  } else {
+  else
     g_clear_pointer (&parser->body->content, g_free);
-  }
 
   parser->body->content = g_strndup (body, body_len);
   parser->body->length = body_len;
@@ -372,12 +376,12 @@ handle_calendar_content (StampMimeParser  *parser,
                          CamelDataWrapper *content,
                          CamelContentType *content_type)
 {
-  GMemoryOutputStream *os;
+  g_autoptr (GMemoryOutputStream) os = NULL;
   g_autoptr (GError) error = NULL;
   g_autofree char *ical_text = NULL;
   ICalComponent *ical = NULL;
-  char *ical_start = NULL;
-  char *body = NULL;
+  const char *ical_start = NULL;
+  const char *body = NULL;
 
   if (!content)
     return FALSE;
@@ -385,12 +389,12 @@ handle_calendar_content (StampMimeParser  *parser,
   os = G_MEMORY_OUTPUT_STREAM (g_memory_output_stream_new_resizable ());
 
   if (!camel_data_wrapper_decode_to_output_stream_sync (content, G_OUTPUT_STREAM (os), parser->cancellable, &error)) {
-    g_warning ("Could not decode calendar content: %s", error ? error->message : "unknown error");
+    g_warning ("%s: Could not decode calendar content: %s", G_STRFUNC, error ? error->message : "unknown error");
     return FALSE;
   }
 
   if (!g_output_stream_close (G_OUTPUT_STREAM (os), parser->cancellable, &error)) {
-    g_warning ("Could not close stream: %s", error->message);
+    g_warning ("%s: Could not close stream: %s", G_STRFUNC, error->message);
     return FALSE;
   }
 
@@ -457,7 +461,6 @@ handle_inline_content (StampMimeParser *parser,
   StampMimeInlinePart *inline_part;
 
   content_type = camel_mime_part_get_content_type (part);
-
   content_id = camel_mime_part_get_content_id (part);
   if (!content_id) {
     handle_text_content (parser, camel_medium_get_content (CAMEL_MEDIUM (part)), content_type);
@@ -469,9 +472,8 @@ handle_inline_content (StampMimeParser *parser,
     return;
 
   os = g_memory_output_stream_new_resizable ();
-
   if (!camel_data_wrapper_decode_to_output_stream_sync (content, os, parser->cancellable, &error)) {
-    g_warning ("Could not decode inline content: %s", error->message);
+    g_warning ("%s: Could not decode inline content: %s", G_STRFUNC, error->message);
     return;
   }
 
@@ -486,6 +488,7 @@ handle_inline_content (StampMimeParser *parser,
   if (content_type && content_type->subtype) {
     inline_part->content_type = g_strdup_printf ("%s/%s", content_type->type, content_type->subtype);
   } else {
+    /* Fallback */
     inline_part->content_type = g_strdup ("image/png");
   }
 
@@ -502,6 +505,7 @@ handle_attachment (StampMimeParser *parser,
   g_autoptr (GError) error = NULL;
   g_autoptr (GByteArray) byte_array = NULL;
   CamelStream *stream;
+  g_autoptr (GOutputStream) os = NULL;
 
   content_type = camel_mime_part_get_content_type (part);
   filename = camel_mime_part_get_filename (part);
@@ -510,10 +514,8 @@ handle_attachment (StampMimeParser *parser,
   stream = camel_stream_mem_new ();
   camel_stream_mem_set_byte_array (CAMEL_STREAM_MEM (stream), byte_array);
 
-  if (!camel_data_wrapper_write_to_stream_sync (CAMEL_DATA_WRAPPER (camel_medium_get_content (CAMEL_MEDIUM (part))),
-                                                stream,
-                                                parser->cancellable, &error)) {
-    g_warning ("Could not get attachment content: %s", error ? error->message : "unknown error");
+  if (!camel_data_wrapper_write_to_stream_sync (CAMEL_DATA_WRAPPER (camel_medium_get_content (CAMEL_MEDIUM (part))), stream, parser->cancellable, &error)) {
+    g_warning ("%s: Could not get attachment content: %s", G_STRFUNC, error ? error->message : "unknown error");
     return;
   }
 
@@ -521,8 +523,13 @@ handle_attachment (StampMimeParser *parser,
   attachment->filename = g_strdup (filename);
   attachment->content_type = g_strdup (content_type ? content_type->type : "application/octet-stream");
   attachment->content_id = g_strdup (camel_mime_part_get_content_id (part));
-  attachment->data = g_byte_array_free_to_bytes (g_steal_pointer (&byte_array));
-  attachment->size = attachment->data ? g_bytes_get_size (attachment->data) : 0;
+
+  os = g_memory_output_stream_new_resizable ();
+  if (camel_data_wrapper_decode_to_output_stream_sync (CAMEL_DATA_WRAPPER (camel_medium_get_content (CAMEL_MEDIUM (part))), os, parser->cancellable, &error)) {
+    g_output_stream_close (os, parser->cancellable, NULL);
+    attachment->data = g_memory_output_stream_steal_as_bytes (G_MEMORY_OUTPUT_STREAM (os));
+    attachment->size = attachment->data ? g_bytes_get_size (attachment->data) : 0;
+  }
 
   g_ptr_array_add (parser->attachments, attachment);
 }

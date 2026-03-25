@@ -41,9 +41,3 @@ stamp_calendar_view_new (void)
   return g_object_new (STAMP_TYPE_CALENDAR_VIEW, NULL);
 }
 
-void
-stamp_calendar_view_setup (StampCalendarView *self,
-                           AdwViewStack      *stack)
-{
-  adw_view_switcher_bar_set_stack (ADW_VIEW_SWITCHER_BAR (self->view_switcher), stack);
-}

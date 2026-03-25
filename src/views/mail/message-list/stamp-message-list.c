@@ -185,7 +185,7 @@ stamp_message_list_set_conversation (StampMessageList      *self,
   GAction *action;
   GSimpleActionGroup *action_group;
   StampWindow *window = STAMP_WINDOW (stamp_get_main_window ());
-  GtkWidget *mail_view = stamp_window_get_mail_view (window);
+  StampMailView *mail_view = stamp_window_get_mail_view (window);
   /* int idx = 0; */
   CamelFolderSummary *summary;
   CamelFolder *folder;
@@ -197,7 +197,7 @@ stamp_message_list_set_conversation (StampMessageList      *self,
   gtk_list_box_remove_all (GTK_LIST_BOX (self->list_box));
 
   g_clear_pointer (&self->messages, g_hash_table_unref);
-  action_group = stamp_mail_view_get_action_group (STAMP_MAIL_VIEW (mail_view));
+  action_group = stamp_mail_view_get_action_group (mail_view);
 
   /* Reply */
   action = g_action_map_lookup_action (G_ACTION_MAP (action_group),

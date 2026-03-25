@@ -2,24 +2,9 @@ using Gtk 4.0;
 using Adw 1;
 
 template $StampTag: Box {
-  Box {
-    orientation: vertical;
-    valign: center;
-
-    Label label {
-      xalign: 0;
-      ellipsize: end;
-    }
-
-    Label mail {
-      xalign: 0;
-      ellipsize: end;
-      visible: false;
-
-      styles [
-        "dim-label",
-      ]
-    }
+  Label label {
+    xalign: 0;
+    ellipsize: end;
   }
 
   Button button {

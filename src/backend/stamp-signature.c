@@ -19,6 +19,14 @@
 
 #include "stamp-signature.h"
 
+struct _StampSignature {
+  char *name;
+  char *mime_type;
+  char *content;
+  ESource *source;
+  GCancellable *cancellable;
+};
+
 static void
 on_signature_replace (GObject      *source_object,
                       GAsyncResult *res,
@@ -30,6 +38,7 @@ on_signature_replace (GObject      *source_object,
   if (!e_source_mail_signature_replace_finish (source, res, &error)) {
     if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
       g_warning ("%s: Could not save signature: %s", G_STRFUNC, error->message);
+
     return;
   }
 }
@@ -40,7 +49,60 @@ stamp_signature_save (StampSignature *self,
 {
   ESourceMailSignature *ext;
 
+  g_assert (self);
+  g_assert (html_signature);
+
   ext = e_source_get_extension (self->source, E_SOURCE_EXTENSION_MAIL_SIGNATURE);
+  if (!ext)
+    return;
+
   e_source_mail_signature_set_mime_type (ext, "text/html");
-  e_source_mail_signature_replace (self->source, html_signature, strlen (html_signature), G_PRIORITY_DEFAULT, self->cancellable, on_signature_replace, self);
+  e_source_mail_signature_replace (self->source, html_signature, strlen (html_signature), G_PRIORITY_DEFAULT, self->cancellable, on_signature_replace, NULL);
+}
+
+void
+stamp_signature_clear (gpointer user_data)
+{
+  StampSignature *self = user_data;
+
+  if (self->cancellable)
+    g_cancellable_cancel (self->cancellable);
+  g_clear_object (&self->cancellable);
+
+  g_clear_object (&self->source);
+  g_clear_pointer (&self->name, g_free);
+  g_clear_pointer (&self->mime_type, g_free);
+  g_clear_pointer (&self->content, g_free);
+
+  g_clear_pointer (&self, g_free);
+}
+
+StampSignature *
+stamp_signature_new (ESource    *source,
+                     const char *mime_type,
+                     const char *content)
+{
+  StampSignature *self = g_new0 (StampSignature, 1);
+
+  self->name = g_strdup (e_source_get_display_name (source));
+  self->mime_type = g_strdup (mime_type);
+  self->content = g_strdup (content);
+  self->source = source;
+  self->cancellable = g_cancellable_new ();
+
+  return self;
+}
+
+const char *
+stamp_signature_get_mime_type (StampSignature *self)
+{
+  g_assert (self);
+  return self->mime_type;
+}
+
+const char *
+stamp_signature_get_content (StampSignature *self)
+{
+  g_assert (self);
+  return self->content;
 }

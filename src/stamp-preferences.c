@@ -23,22 +23,24 @@
 #include <libportal-gtk4/portal-gtk4.h>
 
 #include "stamp-preferences-signatures.h"
+#include "stamp-settings.h"
 #include "stamp-webview.h"
 
 struct _StampPreferences {
   AdwPreferencesDialog parent_instance;
 
-  GtkWidget *here;
-  GtkWidget *background_notifications;
-  GtkWidget *autostart;
-  GtkWidget *always_show_images;
-  GtkWidget *bimi_images;
-  GtkWidget *mark_read;
-  GtkWidget *play_incoming_sound;
-  GtkWindow *refresh_interval;
-  GtkWidget *important_first;
+  AdwSwitchRow *background_notifications;
+  AdwSwitchRow *autostart;
+  AdwSwitchRow *always_show_images;
+  AdwSwitchRow *bimi_images;
+  AdwSpinRow *mark_read;
+  AdwSwitchRow *play_incoming_sound;
+  AdwSpinRow *refresh_interval;
+  AdwSwitchRow *important_first;
 
   gboolean autostart_failed;
+
+  GCancellable *cancellable;
 };
 
 G_DEFINE_FINAL_TYPE (StampPreferences, stamp_preferences, ADW_TYPE_PREFERENCES_DIALOG)
@@ -53,10 +55,26 @@ on_signature_row_activated (GtkWidget *button,
   adw_preferences_dialog_push_subpage (ADW_PREFERENCES_DIALOG (self), page);
 }
 
+static void
+stamp_preferences_dispose (GObject *object)
+{
+  StampPreferences *self = STAMP_PREFERENCES (object);
+
+  if (self->cancellable)
+    g_cancellable_cancel (self->cancellable);
+
+  g_clear_object (&self->cancellable);
+
+  G_OBJECT_CLASS (stamp_preferences_parent_class)->dispose (object);
+}
+
 void
 stamp_preferences_class_init (StampPreferencesClass *klass)
 {
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
+  GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
+
+  gobject_class->dispose = stamp_preferences_dispose;
 
   gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/stamp-preferences.ui");
 
@@ -82,7 +100,7 @@ on_request_background (GObject      *source_object,
 
   if (!xdp_portal_request_background_finish (portal, res, &error)) {
     if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
-      g_warning ("Could not request background: %s", error->message);
+      g_warning ("%s: Could not request background: %s", G_STRFUNC, error->message);
     return;
   }
 }
@@ -101,28 +119,27 @@ on_autostart (GObject    *object,
   g_ptr_array_add (commandline, g_strdup ("stamp"));
   g_ptr_array_add (commandline, g_strdup ("--hidden"));
 
-  xdp_portal_request_background (portal, parent_window, _("Notifications"), commandline, XDP_BACKGROUND_FLAG_AUTOSTART, NULL, on_request_background, self);
+  xdp_portal_request_background (portal, parent_window, _("Notifications"), commandline, XDP_BACKGROUND_FLAG_AUTOSTART, self->cancellable, on_request_background, self);
 }
 
 void
 stamp_preferences_init (StampPreferences *self)
 {
-  GSettings *settings = g_settings_new ("org.tabos.stamp");
-  GSettings *mail_settings = g_settings_new ("org.tabos.stamp.mail");
-
   g_type_ensure (STAMP_TYPE_WEBVIEW);
 
   gtk_widget_init_template (GTK_WIDGET (self));
 
-  g_settings_bind (settings, "background-notifications", self->background_notifications, "active", G_SETTINGS_BIND_DEFAULT);
-  g_settings_bind (settings, "autostart", self->autostart, "active", G_SETTINGS_BIND_DEFAULT);
-  g_settings_bind (mail_settings, "always-show-images", self->always_show_images, "active", G_SETTINGS_BIND_DEFAULT);
-  g_settings_bind (mail_settings, "play-incoming-sound", self->play_incoming_sound, "active", G_SETTINGS_BIND_DEFAULT);
+  self->cancellable = g_cancellable_new ();
+
+  g_settings_bind (STAMP_SETTINGS, STAMP_PREFS_BACKGROUND_NOTIFICATIONS, self->background_notifications, "active", G_SETTINGS_BIND_DEFAULT);
+  g_settings_bind (STAMP_SETTINGS, STAMP_PREFS_BACKGROUND_AUTOSTART, self->autostart, "active", G_SETTINGS_BIND_DEFAULT);
+  g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_ALWAYS_SHOW_IMAGES, self->always_show_images, "active", G_SETTINGS_BIND_DEFAULT);
+  g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_PLAY_INCOMING_SOUND, self->play_incoming_sound, "active", G_SETTINGS_BIND_DEFAULT);
   g_signal_connect_object (self->autostart, "notify::active", G_CALLBACK (on_autostart), self, 0);
-  g_settings_bind (mail_settings, "load-bimi-images", self->bimi_images, "active", G_SETTINGS_BIND_DEFAULT);
-  g_settings_bind (mail_settings, "important-first", self->important_first, "active", G_SETTINGS_BIND_DEFAULT);
-  g_settings_bind (mail_settings, "mark-read-timeout", self->mark_read, "value", G_SETTINGS_BIND_DEFAULT);
-  g_settings_bind (mail_settings, "refresh-interval", self->refresh_interval, "value", G_SETTINGS_BIND_DEFAULT);
+  g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_LOAD_BIMI_IMAGES, self->bimi_images, "active", G_SETTINGS_BIND_DEFAULT);
+  g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_IMPORTANT_FIRST, self->important_first, "active", G_SETTINGS_BIND_DEFAULT);
+  g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_MARK_READ_TIMEOUT, self->mark_read, "value", G_SETTINGS_BIND_DEFAULT);
+  g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_REFRESH_INTERVAL, self->refresh_interval, "value", G_SETTINGS_BIND_DEFAULT);
 }
 
 GtkWidget *

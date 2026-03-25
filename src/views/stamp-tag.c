@@ -23,24 +23,23 @@
 #include <glib/gi18n.h>
 
 #include "stamp-account.h"
+#include "stamp-helper.h"
 #include "stamp-session.h"
 #include "stamp-window.h"
 
 struct _StampTag {
   GtkBox parent_instance;
 
-  GtkWidget *label;
-  GtkWidget *mail;
-  GtkWidget *button;
-  GtkWidget *popover;
-  GtkWidget *popover_avatar;
-  GtkWidget *popover_name;
-  GtkWidget *popover_email;
+  GtkLabel *label;
+  GtkButton *button;
+  GtkPopoverMenu *popover;
+  AdwAvatar *popover_avatar;
+  GtkLabel *popover_name;
+  GtkLabel *popover_email;
 
+  char *mail;
   GCancellable *cancellable;
   StampAccount *account;
-
-  gboolean show_avatar;
 };
 
 G_DEFINE_FINAL_TYPE (StampTag, stamp_tag, GTK_TYPE_BOX)
@@ -79,11 +78,10 @@ static void
 on_get_photo (gpointer photo,
               gpointer user_data)
 {
-  g_autoptr (StampTag) self = STAMP_TAG (user_data);
+  StampTag *self = STAMP_TAG (user_data);
 
-  if (photo) {
-    adw_avatar_set_custom_image (ADW_AVATAR (self->popover_avatar), GDK_PAINTABLE (photo));
-  }
+  if (photo)
+    adw_avatar_set_custom_image (self->popover_avatar, GDK_PAINTABLE (photo));
 }
 
 static void
@@ -96,11 +94,15 @@ stamp_tag_set_property (GObject      *object,
 
   switch (property_id) {
     case PROP_ACCOUNT:
-      self->account = g_value_get_object (value);
-      break;
+      g_clear_object (&self->account);
 
+      self->account = g_value_get_object (value);
+      if (self->account)
+        g_object_ref (self->account);
+
+      break;
     case PROP_LABEL:
-      gtk_label_set_text (GTK_LABEL (self->label), g_value_get_string (value));
+      gtk_label_set_text (self->label, g_value_get_string (value));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -117,14 +119,9 @@ on_released (GtkGesture *gesture,
 {
   StampTag *self = STAMP_TAG (user_data);
 
-  stamp_account_get_photo (self->account,
-                           gtk_label_get_text (GTK_LABEL (self->mail)),
-                           self->cancellable,
-                           on_get_photo,
-                           g_object_ref (self));
+  stamp_account_get_photo (self->account, self->mail, self->cancellable, on_get_photo, self);
 
   gtk_popover_popup (GTK_POPOVER (self->popover));
-
   gtk_gesture_set_state (gesture, GTK_EVENT_SEQUENCE_CLAIMED);
 }
 
@@ -140,7 +137,7 @@ on_copy_activate (GSimpleAction *action,
   display = gtk_widget_get_display (GTK_WIDGET (self));
   clipboard = gdk_display_get_clipboard (display);
 
-  gdk_clipboard_set_text (clipboard, stamp_tag_get_email (self));
+  gdk_clipboard_set_text (clipboard, stamp_tag_get_mail (self));
 }
 
 static void
@@ -152,7 +149,7 @@ on_search_activate (GSimpleAction *action,
   GApplication *app = g_application_get_default ();
   GtkWindow *window = gtk_application_get_active_window (GTK_APPLICATION (app));
 
-  stamp_window_search_contact (STAMP_WINDOW (window), stamp_tag_get_email (self));
+  stamp_window_search_contact (STAMP_WINDOW (window), self->mail);
 }
 
 static void
@@ -162,9 +159,9 @@ on_show_contact_activate (GSimpleAction *action,
 {
   StampTag *self = STAMP_TAG (user_data);
   GApplication *app = g_application_get_default ();
-  GtkWindow *window = gtk_application_get_active_window (GTK_APPLICATION (app));
+  StampWindow *window = STAMP_WINDOW (gtk_application_get_active_window (GTK_APPLICATION (app)));
 
-  stamp_window_show_contact (STAMP_WINDOW (window), stamp_tag_get_email (self));
+  stamp_window_show_contact (window, self->mail);
 }
 
 static void
@@ -177,15 +174,18 @@ stamp_tag_init (StampTag *self)
 
   g_signal_connect (action, "activate", G_CALLBACK (on_copy_activate), self);
   g_action_map_add_action (G_ACTION_MAP (group), G_ACTION (action));
+
   g_signal_connect (search_action, "activate", G_CALLBACK (on_search_activate), self);
   g_action_map_add_action (G_ACTION_MAP (group), G_ACTION (search_action));
+
   g_signal_connect (show_contact_action, "activate", G_CALLBACK (on_show_contact_activate), self);
   g_action_map_add_action (G_ACTION_MAP (group), G_ACTION (show_contact_action));
+
   gtk_widget_insert_action_group (GTK_WIDGET (self), "tag", G_ACTION_GROUP (group));
 
   gtk_widget_init_template (GTK_WIDGET (self));
 
-  gtk_widget_set_parent (self->popover, GTK_WIDGET (self));
+  gtk_widget_set_parent (GTK_WIDGET (self->popover), GTK_WIDGET (self));
 }
 
 static void
@@ -207,6 +207,9 @@ stamp_tag_dispose (GObject *object)
 
   g_clear_object (&self->cancellable);
 
+  g_clear_pointer (&self->mail, g_free);
+  g_clear_object (&self->account);
+
   gtk_widget_dispose_template (GTK_WIDGET (self), STAMP_TYPE_TAG);
 
   G_OBJECT_CLASS (stamp_tag_parent_class)->dispose (object);
@@ -225,7 +228,6 @@ stamp_tag_class_init (StampTagClass *klass)
   object_class->dispose = stamp_tag_dispose;
 
   gtk_widget_class_bind_template_child (widget_class, StampTag, label);
-  gtk_widget_class_bind_template_child (widget_class, StampTag, mail);
   gtk_widget_class_bind_template_child (widget_class, StampTag, button);
   gtk_widget_class_bind_template_child (widget_class, StampTag, popover);
   gtk_widget_class_bind_template_child (widget_class, StampTag, popover_avatar);
@@ -241,11 +243,11 @@ stamp_tag_class_init (StampTagClass *klass)
                                                     "",
                                                     G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  obj_properties[PROP_ACCOUNT] =
-    g_param_spec_object ("account",
-                         NULL, NULL,
-                         STAMP_TYPE_ACCOUNT,
-                         G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
+  obj_properties[PROP_ACCOUNT] = g_param_spec_object ("account",
+                                                      NULL,
+                                                      NULL,
+                                                      STAMP_TYPE_ACCOUNT,
+                                                      G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
 
   g_object_class_install_properties (object_class, LAST_PROP, obj_properties);
 }
@@ -253,42 +255,30 @@ stamp_tag_class_init (StampTagClass *klass)
 GtkWidget *
 stamp_tag_new (StampAccount *account)
 {
-  return g_object_new (STAMP_TYPE_TAG,
-                       "account", account,
-                       NULL);
-}
-
-static char *
-strip_department (const char *str)
-{
-  char *ret = g_strdup (str);
-  char *pos;
-
-  pos = strchr (ret, '(');
-  if (pos) {
-    ret[pos - ret] = '\0';
-  }
-
-  return ret;
+  return g_object_new (STAMP_TYPE_TAG, "account", account, NULL);
 }
 
 void
 stamp_tag_set_label (StampTag   *self,
                      const char *label)
 {
-  g_autofree char *stripped = strip_department (label);
+  g_autofree char *stripped = stamp_strip_department (label);
   g_autofree char *tmp = g_markup_printf_escaped ("<b>%s</b>", label);
-  gtk_label_set_text (GTK_LABEL (self->label), label);
 
-  gtk_label_set_markup (GTK_LABEL (self->popover_name), tmp);
-  adw_avatar_set_text (ADW_AVATAR (self->popover_avatar), stripped);
+  gtk_label_set_text (self->label, label);
+  gtk_label_set_markup (self->popover_name, tmp);
+  adw_avatar_set_text (self->popover_avatar, stripped);
 }
 
 void
-stamp_tag_set_email (StampTag   *self,
-                     const char *mail)
+stamp_tag_set_mail (StampTag   *self,
+                    const char *mail)
 {
-  gtk_label_set_text (GTK_LABEL (self->mail), mail);
+  if (self->mail == mail)
+    return;
+
+  g_clear_pointer (&self->mail, g_free);
+  self->mail = g_strdup (mail);
 
   if (self->cancellable)
     g_cancellable_cancel (self->cancellable);
@@ -296,38 +286,25 @@ stamp_tag_set_email (StampTag   *self,
   g_clear_object (&self->cancellable);
   self->cancellable = g_cancellable_new ();
 
-  gtk_label_set_text (GTK_LABEL (self->popover_email), mail);
+  gtk_label_set_text (self->popover_email, mail);
 }
 
 const char *
-stamp_tag_get_email (StampTag *self)
+stamp_tag_get_mail (StampTag *self)
 {
-  return gtk_label_get_text (GTK_LABEL (self->mail));
+  return self->mail;
 }
 
 const char *
 stamp_tag_get_label (StampTag *self)
 {
-  return gtk_label_get_text (GTK_LABEL (self->label));
+  return gtk_label_get_text (self->label);
 }
 
 void
 stamp_tag_set_show_button (StampTag *self,
                            gboolean  show)
 {
-  gtk_widget_set_visible (self->button, show);
+  gtk_widget_set_visible (GTK_WIDGET (self->button), show);
 }
 
-void
-stamp_tag_set_show_email (StampTag *self,
-                          gboolean  show)
-{
-  gtk_widget_set_visible (self->mail, show);
-}
-
-void
-stamp_tag_set_show_avatar (StampTag *self,
-                           gboolean  show)
-{
-  self->show_avatar = show;
-}

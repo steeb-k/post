@@ -21,6 +21,31 @@
 #include "stamp-photo-cache.h"
 #include "stamp-session.h"
 
+struct _StampMailService {
+  CamelService *service;
+
+  CamelSession *session;
+  CamelTransport *transport;
+  CamelFolder *trash_folder;
+  CamelFolder *sent_folder;
+  ESource *source;
+  ESource *transport_source;
+  CamelInternetAddress *address;
+  gboolean enabled;
+};
+
+struct _StampContactsService {
+  EBookClient *client;
+  ESource *source;
+  gboolean enabled;
+};
+
+struct _StampCalendarService {
+  ECalClient *client;
+  ESource *source;
+  gboolean enabled;
+};
+
 struct _StampAccount {
   GObject parent_instance;
 
@@ -53,6 +78,7 @@ enum {
   MAIL_REMOVED,
   BOOK_ADDED,
   BOOK_REMOVED,
+  CALENDAR_ADDED,
   LAST_SIGNAL,
 };
 
@@ -174,6 +200,12 @@ stamp_account_class_init (StampAccountClass *klass)
                                         G_TYPE_NONE,
                                         2, STAMP_TYPE_ACCOUNT,
                                         G_TYPE_POINTER);
+  signals[CALENDAR_ADDED] = g_signal_new ("calendar-added", G_OBJECT_CLASS_TYPE (klass),
+                                          G_SIGNAL_RUN_FIRST | G_SIGNAL_RUN_LAST,
+                                          0, NULL, NULL, NULL,
+                                          G_TYPE_NONE,
+                                          2, STAMP_TYPE_ACCOUNT,
+                                          G_TYPE_POINTER);
 }
 
 StampAccount *
@@ -419,7 +451,7 @@ on_book_client_ready (GObject      *src,
       service->client = E_BOOK_CLIENT (client);
       service->enabled = TRUE;
       g_print ("Book '%s' connected\n", e_source_get_display_name (service->source));
-      /* g_signal_emit (ctx->account, signals[BOOK_ADDED], 0, ctx->account, service); */
+      g_signal_emit (ctx->account, signals[BOOK_ADDED], 0, ctx->account, service);
     } else {
       g_clear_object (&client);
     }
@@ -448,7 +480,7 @@ on_cal_client_ready (GObject      *src,
       service->client = E_CAL_CLIENT (g_object_ref (client));
       service->enabled = TRUE;
       g_print ("Calendar '%s' connected\n", e_source_get_display_name (service->source));
-      /* g_signal_emit (ctx->account, signals[CALENDAR_ADDED], 0, ctx->account, service); */
+      g_signal_emit (ctx->account, signals[CALENDAR_ADDED], 0, ctx->account, service);
     } else {
       g_clear_object (&client);
     }
@@ -457,42 +489,47 @@ on_cal_client_ready (GObject      *src,
   init_context_finish_one (ctx);
 }
 
-static CamelFolderInfo *
-find_sent_folder_info (CamelFolderInfo *fi)
+typedef enum {
+  FIND_BY_FLAGS,
+  FIND_BY_NAME,
+} FindFolderType;
+
+typedef struct {
+  FindFolderType type;
+  guint32 flags;
+  const char *name;
+} FindFolderData;
+
+static gboolean
+match_folder_info (CamelFolderInfo *fi,
+                   const FindFolderData *data)
 {
-  while (fi) {
-    if ((fi->flags & CAMEL_FOLDER_TYPE_MASK) == CAMEL_FOLDER_TYPE_SENT)
-      return fi;
+  if (data->type == FIND_BY_FLAGS)
+    return (fi->flags & CAMEL_FOLDER_TYPE_MASK) == data->flags;
 
-    if (fi->child) {
-      CamelFolderInfo *found = find_sent_folder_info (fi->child);
-      if (found)
-        return found;
-    }
+  if (data->type == FIND_BY_NAME && data->name)
+    return fi->display_name && g_ascii_strcasecmp (fi->display_name, data->name) == 0;
 
-    fi = fi->next;
-  }
-
-  return NULL;
+  return FALSE;
 }
 
 static CamelFolderInfo *
-find_fi_by_display_name (CamelFolderInfo *fi,
-                         const gchar     *name)
+find_folder_info_recursive (CamelFolderInfo  *fi,
+                            const FindFolderData *data)
 {
   while (fi) {
-    if (fi->display_name &&
-        g_ascii_strcasecmp (fi->display_name, name) == 0)
+    if (match_folder_info (fi, data))
       return fi;
 
     if (fi->child) {
-      CamelFolderInfo *found = find_fi_by_display_name (fi->child, name);
+      CamelFolderInfo *found = find_folder_info_recursive (fi->child, data);
       if (found)
         return found;
     }
 
     fi = fi->next;
   }
+
   return NULL;
 }
 
@@ -521,7 +558,10 @@ find_sent_folder (CamelStore *store)
     return NULL;
   }
 
-  fi = find_sent_folder_info (root);
+  {
+    FindFolderData data = { .type = FIND_BY_FLAGS, .flags = CAMEL_FOLDER_TYPE_SENT };
+    fi = find_folder_info_recursive (root, &data);
+  }
   if (fi) {
     folder = camel_store_get_folder_sync (store, fi->full_name, 0, NULL, &error);
     if (error) {
@@ -545,7 +585,8 @@ find_sent_folder (CamelStore *store)
     };
 
     for (gint i = 0; sent_names[i]; i++) {
-      fi = find_fi_by_display_name (root, sent_names[i]);
+      FindFolderData data = { .type = FIND_BY_NAME, .name = sent_names[i] };
+      fi = find_folder_info_recursive (root, &data);
       if (fi) {
         folder = open_folder_from_fi (store, fi, &error);
         if (error) {
@@ -622,6 +663,7 @@ stamp_account_init_async (StampAccount        *self,
 
   if (mail_enabled) {
     stamp_account_enable_mail (self);
+    g_signal_emit (self, signals[MAIL_ADDED], 0, self, self->mail->service);
   }
 
   for (guint i = 0; i < self->calendars->len; i++) {
@@ -650,7 +692,7 @@ stamp_account_init_async (StampAccount        *self,
         service->client = E_CAL_CLIENT (g_object_ref (client));
         service->enabled = TRUE;
         g_print ("Calendar '%s' connected\n", e_source_get_display_name (service->source));
-        /* g_signal_emit (ctx->account, signals[CALENDAR_ADDED], 0, ctx->account, service); */
+        g_signal_emit (ctx->account, signals[CALENDAR_ADDED], 0, ctx->account, service);
       }
       init_context_finish_one (ctx);
     }
@@ -917,6 +959,72 @@ stamp_account_get_mail_service (StampAccount *self)
   return self->mail;
 }
 
+CamelService *
+stamp_mail_service_get_service (StampMailService *self)
+{
+  return self->service;
+}
+
+CamelTransport *
+stamp_mail_service_get_transport (StampMailService *self)
+{
+  return self->transport;
+}
+
+gboolean
+stamp_mail_service_get_enabled (StampMailService *self)
+{
+  return self->enabled;
+}
+
+ESource *
+stamp_mail_service_get_source (StampMailService *self)
+{
+  return self->source;
+}
+
+ESource *
+stamp_mail_service_get_transport_source (StampMailService *self)
+{
+  return self->transport_source;
+}
+
+gboolean
+stamp_contacts_service_get_enabled (StampContactsService *self)
+{
+  return self->enabled;
+}
+
+EBookClient *
+stamp_contacts_service_get_client (StampContactsService *self)
+{
+  return self->client;
+}
+
+ESource *
+stamp_contacts_service_get_source (StampContactsService *self)
+{
+  return self->source;
+}
+
+gboolean
+stamp_calendar_service_get_enabled (StampCalendarService *self)
+{
+  return self->enabled;
+}
+
+ECalClient *
+stamp_calendar_service_get_client (StampCalendarService *self)
+{
+  return self->client;
+}
+
+ESource *
+stamp_calendar_service_get_source (StampCalendarService *self)
+{
+  return self->source;
+}
+
 static gboolean
 is_drafts_folder (CamelFolderInfo *fi)
 {
@@ -1024,6 +1132,132 @@ stamp_account_remove_draft (StampAccount *self,
   camel_folder_expunge_sync (drafts_folder, NULL, &error);
   if (error)
     g_warning ("%s: Could not expunge folder: %s", G_STRFUNC, error->message);
+}
+
+typedef struct {
+  StampAccount *account;
+  gchar *draft_uid;
+  CamelMimeMessage *message;
+  CamelInternetAddress *sender;
+  CamelInternetAddress *recipient;
+} SaveDraftData;
+
+static void
+save_draft_data_free (gpointer user_data)
+{
+  SaveDraftData *data = user_data;
+
+  g_clear_object (&data->account);
+  g_clear_pointer (&data->draft_uid, g_free);
+  g_clear_object (&data->message);
+  g_clear_object (&data->sender);
+  g_clear_object (&data->recipient);
+  g_clear_pointer (&data, g_free);
+}
+
+static void
+save_draft_thread (GTask        *task,
+                   gpointer      source_object,
+                   gpointer      task_data,
+                   GCancellable *cancellable)
+{
+  SaveDraftData *data = task_data;
+  char *uid;
+
+  uid = stamp_account_save_draft (data->account,
+                                  data->draft_uid,
+                                  data->message,
+                                  data->sender,
+                                  data->recipient);
+
+  if (uid)
+    g_task_return_pointer (task, uid, g_free);
+  else
+    g_task_return_pointer (task, NULL, NULL);
+}
+
+void
+stamp_account_save_draft_async (StampAccount         *self,
+                                const char           *draft_uid,
+                                CamelMimeMessage     *message,
+                                CamelInternetAddress *sender,
+                                CamelInternetAddress *recipient,
+                                GCancellable         *cancellable,
+                                GAsyncReadyCallback  callback,
+                                gpointer             user_data)
+{
+  GTask *task = g_task_new (self, cancellable, callback, user_data);
+  SaveDraftData *data = g_new0 (SaveDraftData, 1);
+
+  data->account = g_object_ref (self);
+  data->draft_uid = g_strdup (draft_uid);
+  data->message = g_object_ref (message);
+  data->sender = g_object_ref (sender);
+  data->recipient = g_object_ref (recipient);
+
+  g_task_set_task_data (task, data, save_draft_data_free);
+  g_task_run_in_thread (task, save_draft_thread);
+}
+
+char *
+stamp_account_save_draft_async_finish (StampAccount  *self,
+                                       GAsyncResult  *result,
+                                       GError       **error)
+{
+  return g_task_propagate_pointer (G_TASK (result), error);
+}
+
+typedef struct {
+  StampAccount *account;
+  char *uid;
+} RemoveDraftData;
+
+static void
+remove_draft_data_free (gpointer user_data)
+{
+  RemoveDraftData *data = user_data;
+
+  g_clear_object (&data->account);
+  g_clear_pointer (&data->uid, g_free);
+  g_clear_pointer (&data, g_free);
+}
+
+static void
+remove_draft_thread (GTask        *task,
+                     gpointer      source_object,
+                     gpointer      task_data,
+                     GCancellable *cancellable)
+{
+  RemoveDraftData *data = task_data;
+
+  stamp_account_remove_draft (data->account, data->uid);
+
+  g_task_return_boolean (task, TRUE);
+}
+
+void
+stamp_account_remove_draft_async (StampAccount        *self,
+                                 const char           *uid,
+                                 GCancellable         *cancellable,
+                                 GAsyncReadyCallback   callback,
+                                 gpointer             user_data)
+{
+  GTask *task = g_task_new (self, cancellable, callback, user_data);
+  RemoveDraftData *data = g_new0 (RemoveDraftData, 1);
+
+  data->account = g_object_ref (self);
+  data->uid = g_strdup (uid);
+
+  g_task_set_task_data (task, data, remove_draft_data_free);
+  g_task_run_in_thread (task, remove_draft_thread);
+}
+
+gboolean
+stamp_account_remove_draft_async_finish (StampAccount  *self,
+                                        GAsyncResult  *result,
+                                        GError       **error)
+{
+  return g_task_propagate_boolean (G_TASK (result), error);
 }
 
 CamelFolder *

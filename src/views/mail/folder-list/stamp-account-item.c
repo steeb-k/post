@@ -34,6 +34,7 @@ struct _StampAccountItem {
 
   GQueue *refresh_queue;
   gboolean refresh_queue_running;
+  gboolean first_refresh;
 };
 
 G_DEFINE_FINAL_TYPE (StampAccountItem, stamp_account_item, STAMP_TYPE_ITEM)
@@ -52,7 +53,9 @@ static StampFolderItem *
 stamp_account_item_find_item (GListStore *store,
                               const char *full_name)
 {
-  for (int idx = 0; idx < g_list_model_get_n_items (G_LIST_MODEL (store)); idx++) {
+  guint list_len = g_list_model_get_n_items (G_LIST_MODEL (store));
+
+  for (guint idx = 0; idx < list_len; idx++) {
     StampFolderItem *item = g_list_model_get_item (G_LIST_MODEL (store), idx);
     GListStore *child_store;
 
@@ -86,12 +89,11 @@ show_info (StampAccountItem *self,
 {
   GListStore *list_store = stamp_item_get_list_store (STAMP_ITEM (self));
   g_autoptr (GPtrArray) array = NULL;
-  int old;
+  guint old;
 
   old = g_list_model_get_n_items (G_LIST_MODEL (list_store));
-  g_print ("%s: ENTER %d\n", G_STRFUNC, old);
 
-  for (int idx = 0; idx < g_list_model_get_n_items (G_LIST_MODEL (list_store)); idx++) {
+  for (guint idx = 0; idx < old; idx++) {
     StampFolderItem *item = g_list_model_get_item (G_LIST_MODEL (list_store), idx);
 
     stamp_folder_item_disconnect (item);
@@ -108,8 +110,10 @@ show_info (StampAccountItem *self,
   }
 
   g_list_store_splice (list_store, 0, old, array->pdata, array->len);
-  g_print ("%s: EXIT %d\n", G_STRFUNC, g_list_model_get_n_items (G_LIST_MODEL (list_store)));
 }
+
+static gboolean
+refresh_folder_main (gpointer user_data);
 
 void
 on_offline_store_folder_created (CamelOfflineStore *store,
@@ -143,6 +147,9 @@ on_get_folder_info (GObject      *source,
     g_print ("%s: %s\n", G_STRFUNC, folder_info->full_name);
     show_info (self, folder_info);
     stamp_account_item_connect_to_account (self);
+
+    /* Defer folder refresh to give folder items time to load their folders */
+    g_idle_add (refresh_folder_main, self);
   }
 }
 
@@ -264,7 +271,9 @@ stamp_account_item_find_and_delete_item (StampAccountItem *self,
                                          GListStore       *store,
                                          const char       *full_name)
 {
-  for (int idx = 0; idx < g_list_model_get_n_items (G_LIST_MODEL (store)); idx++) {
+  guint list_len = g_list_model_get_n_items (G_LIST_MODEL (store));
+
+  for (guint idx = 0; idx < list_len; idx++) {
     StampFolderItem *item = g_list_model_get_item (G_LIST_MODEL (store), idx);
     GListStore *child_store;
 
@@ -412,25 +421,75 @@ create_queue (StampAccountItem *self,
               GListStore       *store)
 {
   guint len = g_list_model_get_n_items (G_LIST_MODEL (store));
+  GPtrArray *priority_folders = g_ptr_array_new ();
+  GPtrArray *normal_folders = g_ptr_array_new ();
 
-  for (int idx = 0; idx < len; idx++) {
+  /* Clear the queue before adding new items */
+  g_queue_clear (self->refresh_queue);
+
+  for (guint idx = 0; idx < len; idx++) {
     g_autoptr (StampFolderItem) folder_item = STAMP_FOLDER_ITEM (g_list_model_get_item (G_LIST_MODEL (store), idx));
     GListStore *child_store = stamp_item_get_list_store (STAMP_ITEM (folder_item));
     CamelFolder *folder = stamp_folder_item_get_folder (folder_item);
+    const char *full_name;
 
     if (!CAMEL_IS_FOLDER (folder)) {
       continue;
     }
 
-    if (g_queue_index (self->refresh_queue, folder_item) != -1) {
-      continue;
-    }
+    full_name = stamp_folder_item_get_full_name (folder_item);
 
+    /* First process child folders if present */
     if (child_store) {
       create_queue (self, child_store);
     }
-    g_queue_push_tail (self->refresh_queue, g_steal_pointer (&folder_item));
+
+    /* Prioritize INBOX and its subfolders (including German names) */
+    if (g_str_has_prefix (full_name, "INBOX") ||
+        g_strcmp0 (full_name, "Inbox") == 0 ||
+        g_strcmp0 (full_name, "INBOX") == 0 ||
+        g_strcmp0 (full_name, "Posteingang") == 0 ||
+        g_str_has_prefix (full_name, "Posteingang/")) {
+      g_ptr_array_add (priority_folders, g_steal_pointer (&folder_item));
+    } else {
+      g_ptr_array_add (normal_folders, g_steal_pointer (&folder_item));
+    }
   }
+
+  /* Add priority folders first (INBOX) */
+  for (guint idx = 0; idx < priority_folders->len; idx++) {
+    StampFolderItem *folder_item = priority_folders->pdata[idx];
+    g_queue_push_tail (self->refresh_queue, g_object_ref (folder_item));
+  }
+  g_ptr_array_free (priority_folders, TRUE);
+
+  /* Then normal folders */
+  for (guint idx = 0; idx < normal_folders->len; idx++) {
+    StampFolderItem *folder_item = normal_folders->pdata[idx];
+    g_queue_push_tail (self->refresh_queue, g_object_ref (folder_item));
+  }
+  g_ptr_array_free (normal_folders, TRUE);
+}
+
+static StampFolderItem *
+find_priority_folder_item (StampAccountItem *self)
+{
+  GList *iter;
+
+  for (iter = self->refresh_queue->head; iter; iter = g_list_next (iter)) {
+    StampFolderItem *folder_item = STAMP_FOLDER_ITEM (iter->data);
+    const char *full_name = stamp_folder_item_get_full_name (folder_item);
+
+    if (g_str_has_prefix (full_name, "INBOX") ||
+        g_strcmp0 (full_name, "Inbox") == 0 ||
+        g_strcmp0 (full_name, "INBOX") == 0 ||
+        g_strcmp0 (full_name, "Posteingang") == 0 ||
+        g_str_has_prefix (full_name, "Posteingang/")) {
+      return folder_item;
+    }
+  }
+
+  return NULL;
 }
 
 static gboolean
@@ -438,6 +497,7 @@ refresh_folder_main (gpointer user_data)
 {
   StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data);
   GListStore *store;
+  StampFolderItem *folder_item = NULL;
 
   if (g_cancellable_is_cancelled (self->cancellable))
     return G_SOURCE_REMOVE;
@@ -446,18 +506,37 @@ refresh_folder_main (gpointer user_data)
 
   create_queue (self, store);
 
+  /* Always refresh the first folder in the queue (which is now prioritized) */
   if (!self->refresh_queue_running) {
-    StampFolderItem *folder_item = g_queue_pop_head (self->refresh_queue);
     CamelFolder *folder;
 
+    /* On first refresh, prioritize INBOX/Posteingang */
+    if (self->first_refresh) {
+      self->first_refresh = FALSE;
+      folder_item = find_priority_folder_item (self);
+      g_print ("%s: First refresh - looking for INBOX, found: %p\n", G_STRFUNC, folder_item);
+    }
+
+    /* If no priority folder found or not first refresh, use first in queue */
+    if (!folder_item) {
+      folder_item = g_queue_pop_head (self->refresh_queue);
+    }
+
     if (folder_item) {
+      /* Remove from queue if not already removed */
+      if (g_queue_find (self->refresh_queue, folder_item)) {
+        g_queue_remove (self->refresh_queue, folder_item);
+      }
+
       folder = stamp_folder_item_get_folder (folder_item);
       self->refresh_queue_running = TRUE;
       stamp_item_set_loading (STAMP_ITEM (folder_item), TRUE);
 
-      g_debug ("%s: Refreshing %s\n", G_STRFUNC, camel_folder_get_display_name (folder));
+      g_print ("%s: Starting refresh for: %s\n", G_STRFUNC, camel_folder_get_display_name (folder));
       camel_folder_refresh_info (folder, G_PRIORITY_DEFAULT, self->cancellable, on_refresh, self);
     }
+  } else {
+    g_print ("%s: Refresh already running, queue updated for next iteration\n", G_STRFUNC);
   }
 
   return G_SOURCE_REMOVE;
@@ -536,7 +615,7 @@ stamp_account_item_constructed (GObject *object)
   self->cancellable = g_cancellable_new ();
 
   /* Register callbacks for folder changes... */
-  self->offline_store = CAMEL_OFFLINE_STORE (mail_service->service);
+  self->offline_store = CAMEL_OFFLINE_STORE (stamp_mail_service_get_service (mail_service));
   g_object_ref (self->offline_store);
 
   g_signal_connect_object (self->offline_store, "folder-created", G_CALLBACK (on_offline_store_folder_created), self, 0);
@@ -586,6 +665,7 @@ stamp_account_item_class_init (StampAccountItemClass *klass)
 void
 stamp_account_item_init (StampAccountItem *self)
 {
+  self->first_refresh = TRUE;
 }
 
 StampAccountItem *

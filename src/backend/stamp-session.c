@@ -19,6 +19,10 @@
 
 #include "stamp-session.h"
 
+#include "stamp-account.h"
+#include "stamp-helper.h"
+#include "stamp-signature.h"
+
 #include <libedataserverui4/libedataserverui4.h>
 #include <libebook/libebook.h>
 #include <libedata-book/libedata-book.h>
@@ -27,13 +31,7 @@
 #include <nssb64.h>
 #include <secmod.h>
 
-#include "stamp-account.h"
-#include "stamp-signature.h"
-
 static StampSession *_session = NULL;
-static char *cache_dir = NULL;
-static char *data_dir = NULL;
-static GMutex dir_mutex;
 
 struct _StampSession {
   CamelSession parent_instance;
@@ -47,7 +45,7 @@ struct _StampSession {
 
 typedef struct _TryCredentialsData {
   CamelService *service;
-  const gchar *mechanism;
+  const char *mechanism;
 } TryCredentialsData;
 
 G_DEFINE_FINAL_TYPE (StampSession, stamp_session, CAMEL_TYPE_SESSION)
@@ -61,18 +59,6 @@ enum {
 };
 
 static gint signals[LAST_SIGNAL] = { 0 };
-
-static void
-stamp_signature_clear (gpointer user_data)
-{
-  StampSignature *signature = user_data;
-
-  g_clear_pointer (&signature->name, g_free);
-  g_clear_pointer (&signature->mime_type, g_free);
-  g_clear_pointer (&signature->content, g_free);
-
-  g_clear_pointer (&signature, g_free);
-}
 
 static void
 on_user_alert (CamelSession *session,
@@ -128,19 +114,43 @@ on_account_ready (GObject      *src,
                   GAsyncResult *res,
                   gpointer      user_data)
 {
-  StampSession *self = STAMP_SESSION (user_data);
   StampAccount *account = STAMP_ACCOUNT (src);
   g_autoptr (GError) error = NULL;
 
   if (!stamp_account_init_finish (res, &error)) {
-    g_warning ("%s: Account init failed: %s", G_STRFUNC, error ? error->message : "");
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+      g_warning ("%s: Account init failed: %s", G_STRFUNC, error ? error->message : "");
+
     return;
   }
 
-  g_debug ("%s: '%s' ready", G_STRFUNC, stamp_account_get_name (account));
+  g_debug ("%s: '%s' services ready", G_STRFUNC, stamp_account_get_name (account));
+}
+
+static gboolean
+on_accounts_loaded_idle (gpointer user_data)
+{
+  StampSession *self = STAMP_SESSION (user_data);
+  StampAccount *account = NULL;
+  GPtrArray *accounts = g_object_get_data (G_OBJECT (self), "accounts-to-load");
+  guint idx = GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (self), "accounts-idx"));
+
+  if (!accounts || idx >= accounts->len) {
+    g_object_set_data (G_OBJECT (self), "accounts-to-load", NULL);
+    return G_SOURCE_REMOVE;
+  }
+
+  account = g_ptr_array_index (accounts, idx);
+  g_debug ("%s: Loading account %s", G_STRFUNC, stamp_account_get_name (account));
 
   self->accounts = g_list_append (self->accounts, account);
   g_signal_emit (self, signals[ACCOUNT_ADDED], 0, account, NULL);
+
+  stamp_account_init_async (g_object_ref (account), self->cancellable, on_account_ready, self);
+
+  g_object_set_data (G_OBJECT (self), "accounts-idx", GUINT_TO_POINTER (idx + 1));
+
+  return G_SOURCE_CONTINUE;
 }
 
 static void
@@ -159,12 +169,13 @@ on_accounts_loaded (GObject      *src,
 
   g_debug ("%s: %u account(s) found", G_STRFUNC, accounts->len);
 
-  for (guint i = 0; i < accounts->len; i++) {
-    StampAccount *account = g_ptr_array_index (accounts, i);
+  if (accounts->len == 0)
+    return;
 
-    g_debug ("%s: Loading account %s", G_STRFUNC, stamp_account_get_name (account));
-    stamp_account_init_async (g_object_ref (account), self->cancellable, on_account_ready, self);
-  }
+  g_object_set_data_full (G_OBJECT (self), "accounts-to-load", g_steal_pointer (&accounts), (GDestroyNotify)g_ptr_array_unref);
+  g_object_set_data (G_OBJECT (self), "accounts-idx", GUINT_TO_POINTER (0));
+
+  g_idle_add (on_accounts_loaded_idle, self);
 }
 
 static GPtrArray *
@@ -237,7 +248,7 @@ on_source_changed (ESourceRegistry *registry,
   StampAccount *account = stamp_session_find_account_by_uid (self->accounts, parent_uid);
 
   if (!account) {
-    /* No account, means that it is a change in the collection */
+    /* No account means that it is a change in the collection */
     account = stamp_session_find_account_by_uid (self->accounts, e_source_get_uid (source));
 
     if (account) {
@@ -273,14 +284,9 @@ on_signature_loaded (GObject      *source_object,
     return;
   }
 
-  signature = g_new0 (StampSignature, 1);
-
   ext = e_source_get_extension (source, E_SOURCE_EXTENSION_MAIL_SIGNATURE);
-  signature->name = g_strdup (e_source_get_display_name (source));
-  signature->mime_type = g_strdup (e_source_mail_signature_get_mime_type (ext));
-  signature->content = g_strdup (contents);
-  signature->source = source;
 
+  signature = stamp_signature_new (source, e_source_mail_signature_get_mime_type (ext), contents);
   self->signatures = g_list_append (self->signatures, signature);
 }
 
@@ -306,7 +312,6 @@ on_registry_ready_for_load (GObject      *src,
   StampSession *self = STAMP_SESSION (g_task_get_source_object (task));
   g_autoptr (GError) error = NULL;
   g_autoptr (ESourceRegistry) registry = e_source_registry_new_finish (res, &error);
-  GPtrArray *accounts;
 
   if (error) {
     g_task_return_error (task, g_steal_pointer (&error));
@@ -318,8 +323,7 @@ on_registry_ready_for_load (GObject      *src,
 
   stamp_session_load_signatures (self);
 
-  accounts = stamp_session_load_accounts_from_registry (self->registry);
-  g_task_return_pointer (task, accounts, (GDestroyNotify)g_ptr_array_unref);
+  g_task_return_pointer (task, stamp_session_load_accounts_from_registry (self->registry), (GDestroyNotify)g_ptr_array_unref);
 }
 
 static void
@@ -327,7 +331,7 @@ stamp_session_init (StampSession *self)
 {
   GNetworkMonitor *network_monitor = e_network_monitor_get_default ();
   GTask *task;
-  gchar *nssdb = g_build_filename (g_get_home_dir (), ".pki", "nssdb", NULL);
+  g_autofree char *nssdb = g_build_filename (g_get_home_dir (), ".pki", "nssdb", NULL);
 
   self->cancellable = g_cancellable_new ();
 
@@ -410,7 +414,7 @@ authenticate_sync (CamelSession  *session,
   gboolean try_empty_password = FALSE;
   CamelAuthenticationResult result = CAMEL_AUTHENTICATION_REJECTED;
   GError *local_error = NULL;
-  ESource *source;
+  g_autoptr (ESource) source = NULL;
   const gchar *uid;
   gboolean authenticated;
 
@@ -472,11 +476,8 @@ authenticate_sync (CamelSession  *session,
   uid = camel_service_get_uid (service);
   source = e_source_registry_ref_source (self->registry, uid);
 
-  if (source == NULL) {
-    g_set_error (
-      error, CAMEL_SERVICE_ERROR,
-      CAMEL_SERVICE_ERROR_CANT_AUTHENTICATE,
-      ("No data source found for UID “%s”"), uid);
+  if (!source) {
+    g_set_error (error, CAMEL_SERVICE_ERROR, CAMEL_SERVICE_ERROR_CANT_AUTHENTICATE, ("No data source found for UID “%s”"), uid);
     return FALSE;
   }
 
@@ -526,12 +527,14 @@ add_service (CamelSession       *session,
     error);
 
   if (CAMEL_IS_SERVICE (service)) {
-    ESource *source = e_source_registry_ref_source (self->registry, uid);
+    g_autoptr (ESource) source = e_source_registry_ref_source (self->registry, uid);
     const char *extension_name = e_source_camel_get_extension_name (protocol);
-    ESource *extension_source = e_source_registry_find_extension (self->registry, source, extension_name);
+    g_autoptr (ESource) extension_source = e_source_registry_find_extension (self->registry, source, extension_name);
 
-    if (extension_source)
-      source = extension_source;
+    if (extension_source) {
+      g_clear_object (&source);
+      source = g_steal_pointer (&extension_source);
+    }
 
     e_source_camel_configure_service (source, service);
   }
@@ -555,7 +558,7 @@ remove_service (CamelSession *session,
     StampAccount *account = STAMP_ACCOUNT (iter->data);
     StampMailService *mail_service = stamp_account_get_mail_service (account);
 
-    if (mail_service->service == service) {
+    if (stamp_mail_service_get_service (mail_service) == service) {
       g_signal_emit (self, signals[ACCOUNT_REMOVED], 0, account, NULL);
       self->accounts = g_list_remove (self->accounts, account);
       return;
@@ -708,24 +711,3 @@ stamp_session_get_signatures (StampSession *self)
   return self->signatures;
 }
 
-const char *
-stamp_get_cache_dir (void)
-{
-  g_mutex_lock (&dir_mutex);
-  if (!cache_dir)
-    cache_dir = g_build_path (G_DIR_SEPARATOR_S, g_get_user_cache_dir (), "stamp", NULL);
-  g_mutex_unlock (&dir_mutex);
-
-  return cache_dir;
-}
-
-const char *
-stamp_get_data_dir (void)
-{
-  g_mutex_lock (&dir_mutex);
-  if (!data_dir)
-    data_dir = g_build_path (G_DIR_SEPARATOR_S, g_get_user_data_dir (), "stamp", NULL);
-  g_mutex_unlock (&dir_mutex);
-
-  return data_dir;
-}

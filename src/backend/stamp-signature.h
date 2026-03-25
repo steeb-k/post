@@ -20,22 +20,29 @@
 #pragma once
 
 #include <glib.h>
-
 #include <libebackend/libebackend.h>
 
 G_BEGIN_DECLS
 
-typedef struct {
-  char *name;
-  char *mime_type;
-  char *content;
-  ESource *source;
-  GCancellable *cancellable;
-} StampSignature;
+typedef struct _StampSignature StampSignature;
 
 void
 stamp_signature_save (StampSignature *signature,
                       char           *html_signature);
+
+void
+stamp_signature_clear (gpointer user_data);
+
+StampSignature *
+stamp_signature_new (ESource    *source,
+                     const char *mime_type,
+                     const char *content);
+
+const char *
+stamp_signature_get_mime_type (StampSignature *self);
+
+const char *
+stamp_signature_get_content (StampSignature *self);
 
 G_END_DECLS
 

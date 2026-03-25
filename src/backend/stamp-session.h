@@ -36,13 +36,5 @@ stamp_session_get_accounts (StampSession *self);
 GList *
 stamp_session_get_signatures (StampSession *self);
 
-/* Move to helper */
-
-const char *
-stamp_get_cache_dir (void);
-
-const char *
-stamp_get_data_dir (void);
-
 G_END_DECLS
 

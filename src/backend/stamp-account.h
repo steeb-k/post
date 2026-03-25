@@ -127,6 +127,25 @@ StampMailService *
 stamp_account_get_mail_service (StampAccount *self);
 
 /*
+ * Mail Service Getter
+ */
+
+CamelService *
+stamp_mail_service_get_service (StampMailService *self);
+
+CamelTransport *
+stamp_mail_service_get_transport (StampMailService *self);
+
+gboolean
+stamp_mail_service_get_enabled (StampMailService *self);
+
+ESource *
+stamp_mail_service_get_source (StampMailService *self);
+
+ESource *
+stamp_mail_service_get_transport_source (StampMailService *self);
+
+/*
  * Contacts
  */
 
@@ -184,14 +203,67 @@ stamp_account_save_draft (StampAccount         *self,
                           CamelInternetAddress *recipient);
 
 void
+stamp_account_save_draft_async (StampAccount         *self,
+                                const char           *draft_uid,
+                                CamelMimeMessage     *message,
+                                CamelInternetAddress *sender,
+                                CamelInternetAddress *recipient,
+                                GCancellable         *cancellable,
+                                GAsyncReadyCallback  callback,
+                                gpointer             user_data);
+
+char *
+stamp_account_save_draft_async_finish (StampAccount  *self,
+                                       GAsyncResult  *result,
+                                       GError       **error);
+
+void
 stamp_account_remove_draft (StampAccount *self,
                             const char   *uid);
+
+void
+stamp_account_remove_draft_async (StampAccount        *self,
+                                 const char           *uid,
+                                 GCancellable         *cancellable,
+                                 GAsyncReadyCallback   callback,
+                                 gpointer             user_data);
+
+gboolean
+stamp_account_remove_draft_async_finish (StampAccount  *self,
+                                        GAsyncResult  *result,
+                                        GError       **error);
 
 CamelFolder *
 stamp_account_get_mail_trash_folder (StampAccount *self);
 
 CamelFolder *
 stamp_account_get_mail_sent_folder (StampAccount *self);
+
+/*
+ * Contacts Service Getter
+ */
+
+gboolean
+stamp_contacts_service_get_enabled (StampContactsService *self);
+
+EBookClient *
+stamp_contacts_service_get_client (StampContactsService *self);
+
+ESource *
+stamp_contacts_service_get_source (StampContactsService *self);
+
+/*
+ * Calendar Service Getter
+ */
+
+gboolean
+stamp_calendar_service_get_enabled (StampCalendarService *self);
+
+ECalClient *
+stamp_calendar_service_get_client (StampCalendarService *self);
+
+ESource *
+stamp_calendar_service_get_source (StampCalendarService *self);
 
 G_END_DECLS
 

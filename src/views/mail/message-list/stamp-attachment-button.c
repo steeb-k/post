@@ -28,10 +28,15 @@ struct _StampAttachmentButton {
 
   CamelMimePart *mime_part;
   GFile *file;
+  char *filename;
+  char *content_type;
+  gsize size;
+  GBytes *data;
+  GCancellable *cancellable;
 
   GtkWidget *image;
-  GtkWidget *filename;
-  GtkWidget *size;
+  GtkWidget *filename_label;
+  GtkWidget *size_label;
   GtkWidget *context_menu;
 };
 
@@ -41,6 +46,10 @@ enum {
   PROP_0,
   PROP_MIME_PART,
   PROP_FILE,
+  PROP_FILENAME,
+  PROP_CONTENT_TYPE,
+  PROP_SIZE,
+  PROP_DATA,
   LAST_PROP
 };
 
@@ -58,6 +67,18 @@ stamp_attachment_button_get_property (GObject    *object,
       break;
     case PROP_FILE:
       g_value_set_object (value, self->file);
+      break;
+    case PROP_FILENAME:
+      g_value_set_string (value, self->filename);
+      break;
+    case PROP_CONTENT_TYPE:
+      g_value_set_string (value, self->content_type);
+      break;
+    case PROP_SIZE:
+      g_value_set_uint64 (value, self->size);
+      break;
+    case PROP_DATA:
+      g_value_set_boxed (value, self->data);
       break;
     default:
       /* We don't have any other property... */
@@ -83,6 +104,23 @@ stamp_attachment_button_set_property (GObject      *object,
       if (self->file)
         g_object_ref (self->file);
       break;
+    case PROP_FILENAME:
+      g_free (self->filename);
+      self->filename = g_value_dup_string (value);
+      break;
+    case PROP_CONTENT_TYPE:
+      g_free (self->content_type);
+      self->content_type = g_value_dup_string (value);
+      break;
+    case PROP_SIZE:
+      self->size = g_value_get_uint64 (value);
+      break;
+    case PROP_DATA:
+      g_bytes_unref (self->data);
+      self->data = g_value_get_boxed (value);
+      if (self->data)
+        g_bytes_ref (self->data);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -102,6 +140,40 @@ on_file_launched (GObject      *source,
 }
 
 static void
+response_open_data_cb (AdwAlertDialog *dialog,
+                       gchar          *response,
+                       gpointer        user_data)
+{
+  StampAttachmentButton *self = STAMP_ATTACHMENT_BUTTON (user_data);
+  GtkRoot *root = gtk_widget_get_root (GTK_WIDGET (self));
+  g_autoptr (GtkFileLauncher) launcher = NULL;
+  g_autoptr (GFile) file = NULL;
+  g_autoptr (GError) error = NULL;
+  g_autoptr (GFileIOStream) stream = NULL;
+  g_autofree char *tmp = g_strdup_printf ("XXXXXX-%s", self->filename);
+
+  file = g_file_new_tmp (tmp, &stream, &error);
+  if (error) {
+    g_warning ("%s: Could not create temporary file: %s", G_STRFUNC, error->message);
+    return;
+  }
+
+  g_output_stream_write (g_io_stream_get_output_stream (G_IO_STREAM (stream)),
+                         g_bytes_get_data (self->data, NULL),
+                         g_bytes_get_size (self->data),
+                         NULL,
+                         &error);
+  if (error) {
+    g_warning ("%s: Could not write data to stream: %s", G_STRFUNC, error->message);
+    return;
+  }
+
+  launcher = gtk_file_launcher_new (file);
+
+  gtk_file_launcher_launch (launcher, GTK_WINDOW (root), NULL, on_file_launched, NULL);
+}
+
+static void
 response_open_cb (AdwAlertDialog *dialog,
                   gchar          *response,
                   gpointer        user_data)
@@ -112,7 +184,7 @@ response_open_cb (AdwAlertDialog *dialog,
   g_autoptr (GFile) file = NULL;
   g_autoptr (GError) error = NULL;
   g_autoptr (GFileIOStream) stream = NULL;
-  g_autofree char *tmp = g_strdup_printf ("XXXXXX-%s", gtk_label_get_text (GTK_LABEL (self->filename)));
+  g_autofree char *tmp = g_strdup_printf ("XXXXXX-%s", self->filename);
 
   file = g_file_new_tmp (tmp, &stream, &error);
   if (error) {
@@ -129,7 +201,6 @@ response_open_cb (AdwAlertDialog *dialog,
     return;
   }
 
-  g_print ("%s: Want to open %s\n", G_STRFUNC, g_file_get_path (file));
   launcher = gtk_file_launcher_new (file);
 
   gtk_file_launcher_launch (launcher, GTK_WINDOW (root), NULL, on_file_launched, NULL);
@@ -144,7 +215,7 @@ on_open_activate (GAction  *action,
   GtkRoot *root = gtk_widget_get_root (GTK_WIDGET (self));
 
   if (self->mime_part) {
-    g_autofree char *tmp = g_strdup_printf ("Trust and open `%s`?", gtk_label_get_text (GTK_LABEL (self->filename)));
+    g_autofree char *tmp = g_strdup_printf ("Trust and open `%s`?", gtk_label_get_text (GTK_LABEL (self->filename_label)));
     AdwDialog *dialog = adw_alert_dialog_new (tmp,
                                               "Attachment may cause damage to your system if opened. Only open files from trusted sources.");
 
@@ -156,7 +227,20 @@ on_open_activate (GAction  *action,
     g_signal_connect_object (dialog, "response::open", G_CALLBACK (response_open_cb), self, 0);
 
     adw_dialog_present (dialog, GTK_WIDGET (root));
-  } else {
+  } else if (self->data) {
+    g_autofree char *tmp = g_strdup_printf ("Trust and open `%s`?", gtk_label_get_text (GTK_LABEL (self->filename_label)));
+    AdwDialog *dialog = adw_alert_dialog_new (tmp,
+                                              "Attachment may cause damage to your system if opened. Only open files from trusted sources.");
+
+    adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "cancel", ("Cancel"));
+    adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "open", ("Open Anyway"));
+    adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "open");
+    adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "cancel");
+
+    g_signal_connect_object (dialog, "response::open", G_CALLBACK (response_open_data_cb), self, 0);
+
+    adw_dialog_present (dialog, GTK_WIDGET (root));
+  } else if (self->file) {
     g_autoptr (GtkFileLauncher) launcher = NULL;
 
     launcher = gtk_file_launcher_new (self->file);
@@ -201,10 +285,16 @@ on_save_as (GObject      *source_object,
   } else {
     stream = G_OUTPUT_STREAM (file_output_stream);
   }
-  camel_data_wrapper_decode_to_output_stream_sync (CAMEL_DATA_WRAPPER (camel_medium_get_content (CAMEL_MEDIUM (self->mime_part))),
+
+  if (self->mime_part) {
+    camel_data_wrapper_decode_to_output_stream_sync (CAMEL_DATA_WRAPPER (camel_medium_get_content (CAMEL_MEDIUM (self->mime_part))),
                                                    stream,
                                                    NULL,
                                                    &error);
+  } else if (self->data) {
+    g_output_stream_write_all (stream, g_bytes_get_data (self->data, NULL), g_bytes_get_size (self->data), NULL, NULL, &error);
+  }
+
   if (error) {
     g_warning ("Could not write file, abort: %s", error->message);
     return;
@@ -219,10 +309,10 @@ on_save_as_activate (GAction  *action,
   StampAttachmentButton *self = STAMP_ATTACHMENT_BUTTON (user_data);
   GtkRoot *root = gtk_widget_get_root (GTK_WIDGET (self));
   GtkFileDialog *dialog = gtk_file_dialog_new ();
-  g_autofree char *tmp = g_strdup_printf ("Save `%s`?", gtk_label_get_text (GTK_LABEL (self->filename)));
+  g_autofree char *tmp = g_strdup_printf ("Save `%s`?", gtk_label_get_text (GTK_LABEL (self->filename_label)));
 
   gtk_file_dialog_set_accept_label (dialog, _("Save"));
-  gtk_file_dialog_set_initial_name (dialog, gtk_label_get_text (GTK_LABEL (self->filename)));
+  gtk_file_dialog_set_initial_name (dialog, gtk_label_get_text (GTK_LABEL (self->filename_label)));
   gtk_file_dialog_set_title (dialog, tmp);
 
   gtk_file_dialog_save (dialog, GTK_WINDOW (root), NULL, on_save_as, self);
@@ -298,11 +388,12 @@ stamp_attachment_button_constructed (GObject *object)
   const char *filename = NULL;
   gsize size = 0;
 
+  self->cancellable = g_cancellable_new ();
   gtk_widget_init_template (GTK_WIDGET (self));
 
   if (self->mime_part) {
     mime_type = camel_content_type_simple (camel_mime_part_get_content_type (self->mime_part));
-    size = camel_data_wrapper_calculate_decoded_size_sync (CAMEL_DATA_WRAPPER (self->mime_part), NULL, NULL);
+    size = camel_data_wrapper_calculate_decoded_size_sync (CAMEL_DATA_WRAPPER (self->mime_part), self->cancellable, NULL);
     filename = camel_mime_part_get_filename (self->mime_part);
     glib_type = g_content_type_from_mime_type (mime_type);
     content_icon = g_content_type_get_icon (glib_type);
@@ -313,24 +404,37 @@ stamp_attachment_button_constructed (GObject *object)
 
     filename = g_file_info_get_display_name (info);
     size = g_file_info_get_size (info);
-    g_print ("%s: %s\n", G_STRFUNC, g_file_info_get_content_type (info));
     content_icon = g_content_type_get_icon (g_file_info_get_content_type (info));
+  } else if (self->filename && self->content_type) {
+    mime_type = g_strdup (self->content_type);
+    glib_type = g_content_type_from_mime_type (mime_type);
+    if (glib_type)
+      content_icon = g_content_type_get_icon (glib_type);
+    filename = self->filename;
+    size = self->size;
   } else {
     g_warning ("%s: Unhandled code, abort", G_STRFUNC);
     return;
   }
 
-  gtk_image_set_from_gicon (GTK_IMAGE (self->image), content_icon);
-  gtk_label_set_text (GTK_LABEL (self->filename), filename);
-  gtk_widget_set_tooltip_text (GTK_WIDGET (self), filename);
+  if (content_icon)
+    gtk_image_set_from_gicon (GTK_IMAGE (self->image), content_icon);
+  if (filename) {
+    gtk_label_set_text (GTK_LABEL (self->filename_label), filename);
+    gtk_widget_set_tooltip_text (GTK_WIDGET (self), filename);
+  }
 
-  readable_size = g_format_size (size);
-  tmp = g_strdup_printf ("<small>%s</small>", readable_size);
-  gtk_label_set_markup (GTK_LABEL (self->size), tmp);
+  if (size > 0) {
+    readable_size = g_format_size (size);
+    tmp = g_strdup_printf ("<small>%s</small>", readable_size);
+    gtk_label_set_markup (GTK_LABEL (self->size_label), tmp);
+  }
 
   if (self->mime_part) {
     remove_menu_item (G_MENU (self->context_menu), "attachmentbutton.remove");
-  } else {
+  } else if (self->data) {
+    remove_menu_item (G_MENU (self->context_menu), "attachmentbutton.remove");
+  } else if (self->file) {
     remove_menu_item (G_MENU (self->context_menu), "attachmentbutton.save-as");
   }
 }
@@ -341,6 +445,11 @@ stamp_attachment_button_dispose (GObject *object)
   StampAttachmentButton *self = STAMP_ATTACHMENT_BUTTON (object);
 
   g_clear_object (&self->mime_part);
+  g_clear_object (&self->file);
+  g_clear_pointer (&self->filename, g_free);
+  g_clear_pointer (&self->content_type, g_free);
+  g_bytes_unref (self->data);
+  g_clear_object (&self->cancellable);
 
   G_OBJECT_CLASS (stamp_attachment_button_parent_class)->dispose (object);
 }
@@ -367,8 +476,8 @@ stamp_attachment_button_class_init (StampAttachmentButtonClass *klass)
   object_class->dispose = stamp_attachment_button_dispose;
 
   gtk_widget_class_bind_template_child (widget_class, StampAttachmentButton, image);
-  gtk_widget_class_bind_template_child (widget_class, StampAttachmentButton, filename);
-  gtk_widget_class_bind_template_child (widget_class, StampAttachmentButton, size);
+  gtk_widget_class_bind_template_child (widget_class, StampAttachmentButton, filename_label);
+  gtk_widget_class_bind_template_child (widget_class, StampAttachmentButton, size_label);
   gtk_widget_class_bind_template_child (widget_class, StampAttachmentButton, context_menu);
 
   gtk_widget_class_bind_template_callback (widget_class, on_attachment_clicked);
@@ -386,12 +495,54 @@ stamp_attachment_button_class_init (StampAttachmentButtonClass *klass)
                                                         NULL,
                                                         G_TYPE_FILE,
                                                         G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_FILENAME,
+                                   g_param_spec_string ("filename",
+                                                        NULL,
+                                                        NULL,
+                                                        NULL,
+                                                        G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_CONTENT_TYPE,
+                                   g_param_spec_string ("content-type",
+                                                        NULL,
+                                                        NULL,
+                                                        NULL,
+                                                        G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_SIZE,
+                                   g_param_spec_uint64 ("size",
+                                                       NULL,
+                                                       NULL,
+                                                       0, G_MAXUINT64, 0,
+                                                       G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_DATA,
+                                   g_param_spec_boxed ("data",
+                                                      NULL,
+                                                      NULL,
+                                                      G_TYPE_BYTES,
+                                                      G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 }
 
 GtkWidget *
 stamp_attachment_button_new (CamelMimePart *mime_part)
 {
   return g_object_new (STAMP_TYPE_ATTACHMENT_BUTTON, "mime-part", mime_part, NULL);
+}
+
+GtkWidget *
+stamp_attachment_button_new_from_data (const char *filename,
+                                        const char *content_type,
+                                        gsize       size,
+                                        GBytes     *data)
+{
+  return g_object_new (STAMP_TYPE_ATTACHMENT_BUTTON,
+                       "filename", filename,
+                       "content-type", content_type,
+                       "size", size,
+                       "data", data,
+                       NULL);
 }
 
 GtkWidget *
@@ -429,7 +580,7 @@ stamp_attachment_button_get_mime_part (StampAttachmentButton *self)
   wrapper = camel_data_wrapper_new ();
 
   input_stream = G_INPUT_STREAM (g_file_read (self->file, NULL, NULL));
-  camel_data_wrapper_construct_from_input_stream_sync (wrapper, input_stream, NULL, NULL);
+  camel_data_wrapper_construct_from_input_stream_sync (wrapper, input_stream, self->cancellable, NULL);
 
   camel_data_wrapper_set_mime_type (wrapper, mime_type);
 

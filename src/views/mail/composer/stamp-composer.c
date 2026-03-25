@@ -162,8 +162,10 @@ build_message (StampComposer *self,
   CamelMimePart *part;
   CamelMultipart *body;
   CamelMimeMessage *message;
+  GCancellable *cancellable = self->cancellable ? self->cancellable : g_cancellable_new ();
 
-  camel_data_wrapper_construct_from_stream_sync (html, stream_filter, NULL, NULL);
+  camel_data_wrapper_construct_from_stream_sync (html, stream_filter, cancellable, NULL);
+  g_object_unref (cancellable);
   camel_data_wrapper_set_mime_type (html, "text/html; charset=utf-8");
 
   part = camel_mime_part_new ();
@@ -267,7 +269,7 @@ build_recipients (StampComposer    *self,
     StampTag *tag = STAMP_TAG (iter->data);
     CamelInternetAddress *to_addresses = camel_internet_address_new ();
 
-    camel_internet_address_add (to_addresses, stamp_tag_get_label (tag), stamp_tag_get_email (tag));
+    camel_internet_address_add (to_addresses, stamp_tag_get_label (tag), stamp_tag_get_mail (tag));
     camel_address_cat (CAMEL_ADDRESS (recipients), CAMEL_ADDRESS (to_addresses));
   }
 
@@ -279,7 +281,7 @@ build_recipients (StampComposer    *self,
     StampTag *tag = STAMP_TAG (iter->data);
     CamelInternetAddress *to_addresses = camel_internet_address_new ();
 
-    camel_internet_address_add (to_addresses, stamp_tag_get_label (tag), stamp_tag_get_email (tag));
+    camel_internet_address_add (to_addresses, stamp_tag_get_label (tag), stamp_tag_get_mail (tag));
     camel_address_cat (CAMEL_ADDRESS (cc_recipients), CAMEL_ADDRESS (to_addresses));
   }
 
@@ -297,7 +299,7 @@ on_send_mail (GObject      *account,
 {
   StampComposer *self = user_data;
   StampWindow *window = STAMP_WINDOW (stamp_get_main_window ());
-  GtkWidget *mail_view = stamp_window_get_mail_view (window);
+  StampMailView *mail_view = stamp_window_get_mail_view (window);
   g_autoptr (GError) error = NULL;
 
   if (!stamp_account_send_mail_finish (STAMP_ACCOUNT (account), res, &error)) {
@@ -307,7 +309,7 @@ on_send_mail (GObject      *account,
   }
 
   self->is_dirty = FALSE;
-  stamp_mail_view_show_toast (STAMP_MAIL_VIEW (mail_view), _("Mail sent"));
+  stamp_mail_view_show_toast (mail_view, _("Mail sent"));
   gtk_window_destroy (GTK_WINDOW (self));
 }
 
@@ -463,6 +465,10 @@ on_get_body_html (GObject      *source_object,
   const char *name;
   const char *mail;
   CamelInternetAddress *addresses;
+  gboolean do_pgp_sign;
+  gboolean do_pgp_encrypt;
+  gboolean do_smime_sign;
+  gboolean do_smime_encrypt;
 
   if (!body) {
     if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
@@ -511,10 +517,10 @@ on_get_body_html (GObject      *source_object,
     }
   }
 
-  gboolean do_pgp_sign = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->pgp_sign));
-  gboolean do_pgp_encrypt = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->pgp_encrypt));
-  gboolean do_smime_sign = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->smime_sign));
-  gboolean do_smime_encrypt = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->smime_encrypt));
+  do_pgp_sign = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->pgp_sign));
+  do_pgp_encrypt = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->pgp_encrypt));
+  do_smime_sign = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->smime_sign));
+  do_smime_encrypt = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->smime_encrypt));
 
   if (do_pgp_sign || do_pgp_encrypt || do_smime_sign || do_smime_encrypt) {
     CamelSession *session = CAMEL_SESSION (stamp_session_get_default ());
@@ -542,6 +548,8 @@ stamp_composer_set_account (StampComposer *self,
       gtk_drop_down_set_selected (GTK_DROP_DOWN (self->from), idx);
       self->account = account;
       stamp_contact_completion_set_account (STAMP_CONTACT_COMPLETION (self->to), self->account);
+      stamp_contact_completion_set_account (STAMP_CONTACT_COMPLETION (self->cc), self->account);
+      stamp_contact_completion_set_account (STAMP_CONTACT_COMPLETION (self->bcc), self->account);
     }
   }
 }
@@ -601,7 +609,7 @@ on_insert_signature_activated (GSimpleAction *action,
     return;
 
   signature = signatures->data;
-  stamp_web_view_execute_editor_command (self->webview, "insertHTML", signature->content);
+  stamp_web_view_execute_editor_command (self->webview, "insertHTML", stamp_signature_get_content (signature));
 }
 
 static void
@@ -664,7 +672,7 @@ load_from_combobox (StampComposer *self)
     StampAccount *account = STAMP_ACCOUNT (iter->data);
     StampMailService *service = stamp_account_get_mail_service (account);
 
-    if (!service || !service->enabled)
+    if (!service || !stamp_mail_service_get_enabled (service))
       continue;
 
     g_list_store_append (store, account);
@@ -1148,10 +1156,8 @@ stamp_add_addresses_to_completion (StampComposer        *self,
     }
 
     stamp_tag_set_label (STAMP_TAG (tag), to);
-    stamp_tag_set_email (STAMP_TAG (tag), ia_address);
+    stamp_tag_set_mail (STAMP_TAG (tag), ia_address);
     stamp_tag_set_show_button (STAMP_TAG (tag), TRUE);
-    stamp_tag_set_show_email (STAMP_TAG (tag), FALSE);
-    stamp_tag_set_show_avatar (STAMP_TAG (tag), FALSE);
 
     stamp_contact_completion_add_tag (STAMP_CONTACT_COMPLETION (wrap_box), STAMP_TAG (tag));
   }

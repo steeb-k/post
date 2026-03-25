@@ -24,17 +24,39 @@
 #include <glib.h>
 #include <gio/gio.h>
 
-static GSettings *gsettings = NULL;
+static GHashTable *settings = NULL;
 
 GSettings *
 stamp_settings_get (const char *schema)
 {
-  if (gsettings)
-    return gsettings;
+  GSettings *gsettings = NULL;
+
+  if (settings) {
+    gsettings = g_hash_table_lookup (settings, schema);
+    if (gsettings)
+      return gsettings;
+  }
 
   gsettings = g_settings_new (schema);
-  if (gsettings == NULL)
-    g_warning ("Invalid schema %s requested", schema);
+  if (!gsettings)
+    g_warning ("%s: Invalid schema %s requested", G_STRFUNC, schema);
+  else
+    g_hash_table_insert (settings, g_strdup (schema), gsettings);
 
   return gsettings;
+}
+
+void
+stamp_settings_init (void)
+{
+  settings = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
+}
+
+void
+stamp_settings_shutdown (void)
+{
+  if (settings) {
+    g_hash_table_remove_all (settings);
+    g_clear_pointer (&settings, g_hash_table_unref);
+  }
 }

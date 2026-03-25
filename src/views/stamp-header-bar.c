@@ -38,3 +38,4 @@ stamp_header_bar_class_init (StampHeaderBarClass *klass)
 
   gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/views/stamp-header-bar.ui");
 }
+

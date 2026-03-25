@@ -35,26 +35,19 @@ void
 stamp_tag_set_label (StampTag   *self,
                      const char *label);
 
-void
-stamp_tag_set_email (StampTag   *self,
-                     const char *mail);
 
 const char *
 stamp_tag_get_label (StampTag *self);
 
+void
+stamp_tag_set_mail (StampTag   *self,
+                     const char *mail);
+
 const char *
-stamp_tag_get_email (StampTag *self);
+stamp_tag_get_mail (StampTag *self);
 
 void
 stamp_tag_set_show_button (StampTag *self,
-                           gboolean  show);
-
-void
-stamp_tag_set_show_email (StampTag *self,
-                          gboolean  show);
-
-void
-stamp_tag_set_show_avatar (StampTag *self,
                            gboolean  show);
 
 G_END_DECLS

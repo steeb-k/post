@@ -19,32 +19,33 @@
 
 #include "stamp-conversation-row.h"
 
-#include <glib/gi18n.h>
-
 #include "stamp-account.h"
+#include "stamp-helper.h"
 #include "stamp-session.h"
 #include "stamp-time-helpers.h"
+
+#include <glib/gi18n.h>
 
 struct _StampConversationRow {
   GtkBox parent_instance;
 
-  GtkWidget *stack;
-  GtkWidget *check_button;
-  GtkWidget *avatar;
-  GtkWidget *participants;
-  GtkWidget *topic;
-  GtkWidget *date;
-  GtkWidget *body;
-  GtkWidget *counter;
-  GtkWidget *flagged_icon;
-  GtkWidget *left_action;
-  GtkWidget *left_action_label;
-  GtkWidget *left_action_image;
-  GtkWidget *right_action;
-  GtkWidget *row;
-  GtkWidget *attachment_icon;
-  GtkWidget *calendar_icon;
-  GtkWidget *labels;
+  GtkStack *stack;
+  GtkCheckButton *check_button;
+  AdwAvatar *avatar;
+  GtkInscription *participants;
+  GtkInscription *topic;
+  GtkLabel *date;
+  GtkInscription *body;
+  GtkLabel *counter;
+  GtkImage *flagged_icon;
+  GtkBox *left_action;
+  GtkLabel *left_action_label;
+  GtkImage *left_action_image;
+  GtkBox *right_action;
+  GtkGrid *row;
+  GtkImage *attachment_icon;
+  GtkImage *calendar_icon;
+  GtkLabel *labels;
 
   GCancellable *cancellable;
   gboolean selected;
@@ -124,23 +125,23 @@ set_unread_status (StampConversationRow *self,
   self->unread = unread;
 
   if (!unread) {
-    gtk_widget_add_css_class (self->body, "dim-label");
-    gtk_widget_remove_css_class (self->topic, "caption-heading");
-    gtk_widget_add_css_class (self->topic, "caption");
-    gtk_widget_remove_css_class (self->participants, "heading");
-    gtk_widget_remove_css_class (self->topic, "accent");
+    gtk_widget_add_css_class (GTK_WIDGET (self->body), "dim-label");
+    gtk_widget_remove_css_class (GTK_WIDGET (self->topic), "caption-heading");
+    gtk_widget_add_css_class (GTK_WIDGET (self->topic), "caption");
+    gtk_widget_remove_css_class (GTK_WIDGET (self->participants), "heading");
+    gtk_widget_remove_css_class (GTK_WIDGET (self->topic), "accent");
 
-    gtk_label_set_text (GTK_LABEL (self->left_action_label), _("Mark Unread"));
-    gtk_image_set_from_icon_name (GTK_IMAGE (self->left_action_image), "mail-unread-symbolic");
+    gtk_label_set_text (self->left_action_label, _("Mark Unread"));
+    gtk_image_set_from_icon_name (self->left_action_image, "mail-unread-symbolic");
   } else {
-    gtk_widget_remove_css_class (self->topic, "caption");
-    gtk_widget_remove_css_class (self->body, "dim-label");
-    gtk_widget_add_css_class (self->topic, "caption-heading");
-    gtk_widget_add_css_class (self->participants, "heading");
-    gtk_widget_add_css_class (self->topic, "accent");
+    gtk_widget_remove_css_class (GTK_WIDGET (self->topic), "caption");
+    gtk_widget_remove_css_class (GTK_WIDGET (self->body), "dim-label");
+    gtk_widget_add_css_class (GTK_WIDGET (self->topic), "caption-heading");
+    gtk_widget_add_css_class (GTK_WIDGET (self->participants), "heading");
+    gtk_widget_add_css_class (GTK_WIDGET (self->topic), "accent");
 
-    gtk_label_set_text (GTK_LABEL (self->left_action_label), _("Mark Read"));
-    gtk_image_set_from_icon_name (GTK_IMAGE (self->left_action_image), "mark-read-symbolic");
+    gtk_label_set_text (self->left_action_label, _("Mark Read"));
+    gtk_image_set_from_icon_name (self->left_action_image, "mark-read-symbolic");
   }
 }
 
@@ -155,7 +156,7 @@ stamp_conversation_row_set_property (GObject      *object,
   switch (property_id) {
     case PROP_SELECTED:
       self->selected = g_value_get_boolean (value);
-      gtk_check_button_set_active (GTK_CHECK_BUTTON (self->check_button), self->selected);
+      gtk_check_button_set_active (self->check_button, self->selected);
       break;
     case PROP_IMPORTANT:
       if (g_value_get_boolean (value)) {
@@ -201,14 +202,14 @@ on_drag_update (GtkGestureDrag *gesture,
   pos = CLAMP (dx, -96, 96);
 
   if (pos > 0) {
-    gtk_widget_set_opacity (self->left_action, MIN (pos / 80.0, 1.0));
-    gtk_widget_set_opacity (self->right_action, 0);
+    gtk_widget_set_opacity (GTK_WIDGET (self->left_action), MIN (pos / 80.0, 1.0));
+    gtk_widget_set_opacity (GTK_WIDGET (self->right_action), 0);
   } else {
-    gtk_widget_set_opacity (self->right_action, MIN (-pos / 80.0, 1.0));
-    gtk_widget_set_opacity (self->left_action, 0);
+    gtk_widget_set_opacity (GTK_WIDGET (self->right_action), MIN (-pos / 80.0, 1.0));
+    gtk_widget_set_opacity (GTK_WIDGET (self->left_action), 0);
   }
 
-  set_offset (self->row, pos);
+  set_offset (GTK_WIDGET (self->row), pos);
 }
 
 static void
@@ -216,7 +217,7 @@ animate_to_zero (StampConversationRow *self,
                  double                pos)
 {
   AdwAnimationTarget *target = adw_callback_animation_target_new ((AdwAnimationTargetFunc)set_offset, self->row, NULL);
-  g_autoptr (AdwAnimation) anim = adw_timed_animation_new (self->row, pos, 0, 200, target);
+  g_autoptr (AdwAnimation) anim = adw_timed_animation_new (GTK_WIDGET (self->row), pos, 0, 200, target);
   adw_animation_play (anim);
 }
 
@@ -242,9 +243,9 @@ on_drag_end (GtkGestureDrag *gesture,
     g_signal_emit (self, signals[TRASH], 0);
 
   animate_to_zero (self, pos);
-  gtk_widget_set_opacity (self->row, 1);
-  gtk_widget_set_opacity (self->left_action, 0);
-  gtk_widget_set_opacity (self->right_action, 0);
+  gtk_widget_set_opacity (GTK_WIDGET (self->row), 1);
+  gtk_widget_set_opacity (GTK_WIDGET (self->left_action), 0);
+  gtk_widget_set_opacity (GTK_WIDGET (self->right_action), 0);
 }
 
 static void
@@ -358,8 +359,9 @@ on_get_photo (gpointer texture,
   StampConversationRow *self = STAMP_CONVERSATION_ROW (token->self);
 
   if (token->instance_id != self->instance_id || token->generation != token->self->generation) {
-    g_warning ("REALLLY\n");
-    if (texture) g_object_unref (texture);
+    if (texture)
+      g_object_unref (texture);
+
     g_free (token);
     return;
   }
@@ -372,20 +374,6 @@ on_get_photo (gpointer texture,
   g_free (token);
 }
 
-static char *
-strip_department (const char *str)
-{
-  char *ret = g_strdup (str);
-  char *pos;
-
-  pos = strchr (ret, '(');
-  if (pos) {
-    ret[pos - ret] = '\0';
-  }
-
-  return ret;
-}
-
 static gboolean
 transform_flagged_to (GBinding     *binding,
                       const GValue *from_value,
@@ -394,11 +382,10 @@ transform_flagged_to (GBinding     *binding,
 {
   gint flagged = g_value_get_boolean (from_value);
 
-  if (flagged) {
+  if (flagged)
     g_value_set_string (to_value, "starred-symbolic");
-  } else {
+  else
     g_value_set_string (to_value, "non-starred-symbolic");
-  }
 
   return TRUE;
 }
@@ -432,13 +419,13 @@ transfer_num_messages_to (GBinding     *binding,
   g_value_set_string (to_value, tmp);
 
   /* Hint: We are using opacity here as otherwise we do have weird fast mouse scrolling zitter effects
-   * (not scroll wheel) as widget will be recalculated everytime. So let's leave it here and change
+   * (not scroll wheel) as widget will be recalculated every time. So let's leave it here and change
    * opacity...
    */
   if (num > 1)
-    gtk_widget_set_opacity (self->counter, 1.0);
+    gtk_widget_set_opacity (GTK_WIDGET (self->counter), 1.0);
   else
-    gtk_widget_set_opacity (self->counter, 0.0);
+    gtk_widget_set_opacity (GTK_WIDGET (self->counter), 0.0);
 
   return TRUE;
 }
@@ -452,7 +439,7 @@ transfer_avatar_to (GBinding     *binding,
   const char *from = g_value_get_string (from_value);
   g_autofree char *tmp = NULL;
 
-  tmp = strip_department (from);
+  tmp = stamp_strip_department (from);
   g_value_set_string (to_value, tmp);
 
   return TRUE;
@@ -522,10 +509,10 @@ stamp_conversation_row_bind_mail (StampConversationRow  *self,
 
   labels = stamp_conversation_item_get_labels (item);
   if (labels) {
-    gtk_label_set_text (GTK_LABEL (self->labels), labels);
-    gtk_widget_set_visible (self->labels, TRUE);
+    gtk_label_set_text (self->labels, labels);
+    gtk_widget_set_visible (GTK_WIDGET (self->labels), TRUE);
   } else {
-    gtk_widget_set_visible (self->labels, FALSE);
+    gtk_widget_set_visible (GTK_WIDGET (self->labels), FALSE);
   }
 }
 
@@ -534,10 +521,10 @@ stamp_conversation_row_set_selection_visible (StampConversationRow *self,
                                               gboolean              visible)
 {
   if (visible) {
-    gtk_stack_set_visible_child (GTK_STACK (self->stack), self->check_button);
+    gtk_stack_set_visible_child (self->stack, GTK_WIDGET (self->check_button));
   } else {
-    gtk_stack_set_visible_child (GTK_STACK (self->stack), self->avatar);
-    gtk_check_button_set_active (GTK_CHECK_BUTTON (self->check_button), FALSE);
+    gtk_stack_set_visible_child (self->stack, GTK_WIDGET (self->avatar));
+    gtk_check_button_set_active (self->check_button, FALSE);
   }
 }
 
@@ -562,7 +549,7 @@ stamp_conversation_row_get_item (StampConversationRow *self)
   return self->item;
 }
 
-GtkWidget *
+GtkCheckButton *
 stamp_conversation_row_get_check_button (StampConversationRow *self)
 {
   return self->check_button;

@@ -92,6 +92,7 @@ open_message (StampMessageListItem *self,
   StampMimeCalendar *calendar;
   const char *address = camel_medium_get_header (CAMEL_MEDIUM (message), "Disposition-Notification-To");
   const char *auth_as = camel_medium_get_header (CAMEL_MEDIUM (message), "X-MS-Exchange-Organization-AuthAs");
+  GPtrArray *attachments;
 
   if (!address)
     address = camel_medium_get_header (CAMEL_MEDIUM (message), "Return-Receipt-To");
@@ -187,6 +188,18 @@ open_message (StampMessageListItem *self,
         self->message_content = html_with_images;
       }
     }
+  }
+
+  attachments = stamp_mime_parser_get_attachments (parser);
+  if (attachments && attachments->len > 0) {
+    for (guint i = 0; i < attachments->len; i++) {
+      StampMimeAttachment *att = g_ptr_array_index (attachments, i);
+      GtkWidget *button = stamp_attachment_button_new_from_data (att->filename, att->content_type, att->size, att->data);
+
+      adw_wrap_box_append (ADW_WRAP_BOX (self->attachment_flow_box), button);
+    }
+
+    gtk_widget_set_visible (self->attachment_flow_box, TRUE);
   }
 
   g_clear_pointer (&parser, stamp_mime_parser_free);
@@ -432,7 +445,7 @@ stamp_message_list_item_send_rsvp (StampMessageListItem  *self,
   g_autoptr (GError) local_error = NULL;
   ESourceRegistry *registry = e_source_registry_new_sync (cancellable, &local_error);
   StampMailService *service = stamp_account_get_mail_service (self->account);
-  const gchar *collection_uid = e_source_get_parent (service->source);
+  const gchar *collection_uid = e_source_get_parent (stamp_mail_service_get_source (service));
   GList *sources = e_source_registry_list_sources (registry, E_SOURCE_EXTENSION_CALENDAR);
   ESource *source;
   CamelInternetAddress *address = stamp_account_get_address (self->account);
@@ -768,10 +781,12 @@ stamp_message_list_item_view_source (StampMessageListItem *self)
   GFile *file = g_file_new_for_path (filename);
   g_autoptr (GByteArray) array = NULL;
   g_autoptr (CamelStream) stream = NULL;
+  GCancellable *cancellable = self->cancellable ? self->cancellable : g_cancellable_new ();
 
   array = g_byte_array_new ();
   stream = camel_stream_mem_new_with_byte_array (array);
-  camel_data_wrapper_write_to_stream_sync (CAMEL_DATA_WRAPPER (self->message), stream, NULL, &error);
+  camel_data_wrapper_write_to_stream_sync (CAMEL_DATA_WRAPPER (self->message), stream, cancellable, &error);
+  g_object_unref (cancellable);
 
   g_file_set_contents (filename, (char *)array->data, array->len, &error);
   if (error) {

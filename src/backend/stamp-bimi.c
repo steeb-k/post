@@ -37,24 +37,24 @@ stamp_query_bimi_logo (const char *domain)
 
   if (len < 0) {
     if (h_errno == NO_DATA) {
-      g_debug ("Domain %s exists, but no BIMI TXT record", domain);
+      g_debug ("%s: Domain %s exists, but no BIMI TXT record", G_STRFUNC, domain);
     } else if (h_errno == HOST_NOT_FOUND) {
-      g_debug ("%s NXDOMAIN", domain);
+      g_debug ("%s: %s NXDOMAIN", G_STRFUNC, domain);
     } else {
-      g_debug ("%s DNS error: %s", domain, hstrerror (h_errno));
+      g_debug ("%s: %s DNS error: %s", G_STRFUNC, domain, hstrerror (h_errno));
     }
 
     return NULL;
   }
 
   if (ns_initparse (answer, len, &handle) < 0) {
-    g_debug ("ns_initparse");
+    g_debug ("%s: ns_initparse", G_STRFUNC);
     return NULL;
   }
 
   count = ns_msg_count (handle, ns_s_an);
-  for (int i = 0; i < count; i++) {
-    if (ns_parserr (&handle, ns_s_an, i, &rr) == 0) {
+  for (int idx = 0; idx < count; idx++) {
+    if (ns_parserr (&handle, ns_s_an, idx, &rr) == 0) {
       const unsigned char *rdata = ns_rr_rdata (rr);
       int txt_len = rdata[0];
       char txt[256];
@@ -62,6 +62,7 @@ stamp_query_bimi_logo (const char *domain)
 
       if (txt_len >= sizeof (txt))
         txt_len = sizeof (txt) - 1;
+
       memcpy (txt, rdata + 1, txt_len);
       txt[txt_len] = '\0';
 
@@ -79,3 +80,4 @@ stamp_query_bimi_logo (const char *domain)
 
   return NULL;
 }
+

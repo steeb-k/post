@@ -21,6 +21,7 @@
 
 #include "stamp-conversation-list.h"
 #include "stamp-folder-list.h"
+#include "stamp-header-bar.h"
 #include "stamp-message-list.h"
 
 #include <glib/gi18n.h>
@@ -33,23 +34,30 @@ struct _StampMailView {
   AdwOverlaySplitView *tablet_osv;
   AdwOverlaySplitView *mobile_osv;
   AdwNavigationView *mobile_nav;
-  GtkWidget *details;
-  GtkWidget *folder_list;
-  GtkWidget *message_list;
-  GtkWidget *conversation_list;
+  StampFolderList *folder_list;
+  StampMessageList *message_list;
+  StampConversationList *conversation_list;
+  GtkPaned *desktop_paned;
+  GtkPaned *tablet_paned;
+  AdwToastOverlay *toast_overlay;
+
   GtkWidget *stack;
 
   GSimpleActionGroup *actions;
-  GtkWidget *toast_overlay;
   StampAccount *account;
-
-  GtkPaned *desktop_paned;
-  GtkPaned *tablet_paned;
 
   int saved_paned_pos;
 };
 
 G_DEFINE_FINAL_TYPE (StampMailView, stamp_mail_view, ADW_TYPE_BREAKPOINT_BIN)
+
+enum {
+  PROP_0,
+  PROP_STACK,
+  LAST_PROP
+};
+
+static GParamSpec *obj_properties[LAST_PROP];
 
 static AdwOverlaySplitView *
 get_current_osv (StampMailView *self)
@@ -58,62 +66,48 @@ get_current_osv (StampMailView *self)
 
   if (g_strcmp0 (layout, "tablet") == 0)
     return self->tablet_osv;
+
   if (g_strcmp0 (layout, "mobile") == 0)
     return self->mobile_osv;
+
   return NULL;
 }
 
-/* static void */
-/* on_outer_view_collapsed (AdwBreakpoint *breakpoint, */
-/*                          StampMailView *self) */
-/* { */
-/*   if (adw_navigation_split_view_get_show_content (ADW_NAVIGATION_SPLIT_VIEW (self->outer_view))) { */
-/*     adw_navigation_split_view_set_show_content (ADW_NAVIGATION_SPLIT_VIEW (self->inner_view), TRUE); */
-/*   } */
-/* } */
-
 static void
-on_details_hiddem (AdwNavigationPage *page,
+on_details_hidden (AdwNavigationPage *page,
                    gpointer           user_data)
 {
   StampMailView *self = STAMP_MAIL_VIEW (user_data);
 
-  stamp_conversation_list_unselect (STAMP_CONVERSATION_LIST (self->conversation_list));
+  stamp_conversation_list_unselect (self->conversation_list);
 }
-
-/* static void */
-/* on_mail_page_hidden (AdwNavigationPage *page, */
-/*                      gpointer           user_data) */
-/* { */
-/*   StampMailView *self = STAMP_MAIL_VIEW (user_data); */
-
-/*   stamp_folder_list_unselect (STAMP_FOLDER_LIST (self->folder_list)); */
-/* } */
 
 static void
 on_sidebar_visibility_changed (StampMailView *self)
 {
   AdwOverlaySplitView *osv = get_current_osv (self);
-  GtkWidget *btn;
+  GtkToggleButton *toggle_button;
   gboolean shown;
 
   if (!osv)
     return;
 
   shown = adw_overlay_split_view_get_show_sidebar (osv);
-  btn = stamp_conversation_list_get_sidebar_button (STAMP_CONVERSATION_LIST (self->conversation_list));
-  if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (btn)) != shown)
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (btn), shown);
+  toggle_button = stamp_conversation_list_get_sidebar_button (self->conversation_list);
+  if (gtk_toggle_button_get_active (toggle_button) != shown)
+    gtk_toggle_button_set_active (toggle_button, shown);
 }
 
 static void
 close_overlay_sidebar (StampMailView *self)
 {
   AdwOverlaySplitView *osv = get_current_osv (self);
-  if (!osv || !adw_overlay_split_view_get_show_sidebar (osv)) return;
+
+  if (!osv || !adw_overlay_split_view_get_show_sidebar (osv))
+    return;
+
   adw_overlay_split_view_set_show_sidebar (osv, FALSE);
-  gtk_toggle_button_set_active (
-    GTK_TOGGLE_BUTTON (stamp_conversation_list_get_sidebar_button (STAMP_CONVERSATION_LIST (self->conversation_list))), FALSE);
+  gtk_toggle_button_set_active (stamp_conversation_list_get_sidebar_button (self->conversation_list), FALSE);
 }
 
 static void
@@ -125,8 +119,10 @@ on_folder_selected (GtkWidget    *object,
   StampMailView *self = STAMP_MAIL_VIEW (user_data);
 
   close_overlay_sidebar (self);
-  self->account = account;
-  stamp_conversation_list_load_folder (STAMP_CONVERSATION_LIST (self->conversation_list), account, full_name);
+
+  g_clear_object (&self->account);
+  self->account = g_object_ref (account);
+  stamp_conversation_list_load_folder (self->conversation_list, account, full_name);
 }
 
 static void
@@ -139,11 +135,11 @@ on_conversation_selected (GtkWidget *object,
   if (thread_node) {
     const char *layout = adw_multi_layout_view_get_layout_name (self->mail_layout);
 
-    if (g_strcmp0 (layout, "mobile") == 0 && self->mobile_nav)
+    if (g_strcmp0 (layout, "mobile") == 0)
       adw_navigation_view_push_by_tag (self->mobile_nav, "content");
   }
-  /* adw_navigation_split_view_set_show_content (ADW_NAVIGATION_SPLIT_VIEW (self->outer_view), TRUE); */
-  stamp_message_list_set_conversation (STAMP_MESSAGE_LIST (self->message_list), self->account, (CamelFolderThreadNode *)thread_node);
+
+  stamp_message_list_set_conversation (self->message_list, self->account, (CamelFolderThreadNode *)thread_node);
 }
 
 static void
@@ -152,7 +148,7 @@ on_dismiss_button_clicked (AdwToast *toast,
 {
   StampMailView *self = STAMP_MAIL_VIEW (user_data);
 
-  stamp_conversation_list_undo_trash (STAMP_CONVERSATION_LIST (self->conversation_list));
+  stamp_conversation_list_undo_trash (self->conversation_list);
 }
 
 static void
@@ -163,11 +159,12 @@ on_conversation_trash (GtkWidget             *object,
   StampMailView *self = STAMP_MAIL_VIEW (user_data);
   AdwToast *toast;
 
-  stamp_conversation_list_trash (STAMP_CONVERSATION_LIST (self->conversation_list), item);
+  stamp_conversation_list_trash (self->conversation_list, item);
+
   toast = adw_toast_new (_("Conversations moved to trash"));
-  adw_toast_set_button_label (ADW_TOAST (toast), _("Undo"));
+  adw_toast_set_button_label (toast, _("Undo"));
   g_signal_connect (toast, "button-clicked", G_CALLBACK (on_dismiss_button_clicked), self);
-  adw_toast_overlay_add_toast (ADW_TOAST_OVERLAY (self->toast_overlay), toast);
+  adw_toast_overlay_add_toast (self->toast_overlay, toast);
 }
 
 static void
@@ -176,6 +173,7 @@ stamp_mail_view_dispose (GObject *object)
   StampMailView *self = STAMP_MAIL_VIEW (object);
 
   g_clear_object (&self->actions);
+  g_clear_object (&self->account);
 
   /* FIXME: Does not work with AdwBreakpointBin */
   /* gtk_widget_dispose_template (GTK_WIDGET (self), STAMP_TYPE_MAIL_VIEW); */
@@ -184,23 +182,56 @@ stamp_mail_view_dispose (GObject *object)
 }
 
 static void
-stamp_mail_view_get_property (GObject    *obj,
-                              guint       id,
-                              GValue     *val,
-                              GParamSpec *ps)
+stamp_mail_view_get_property (GObject    *object,
+                              guint       property_id,
+                              GValue     *value,
+                              GParamSpec *pspec)
 {
-  if (id == 1) g_value_set_object (val, STAMP_MAIL_VIEW (obj)->stack);
-  else G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, id, ps);
+  StampMailView *self = STAMP_MAIL_VIEW (object);
+
+  switch (property_id) {
+    case PROP_STACK:
+      g_value_set_object (value, self->stack);
+      break;
+    default:
+      /* We don't have any other property... */
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
 }
 
 static void
-stamp_mail_view_set_property (GObject      *obj,
-                              guint         id,
-                              const GValue *val,
-                              GParamSpec   *ps)
+stamp_mail_view_set_property (GObject      *object,
+                              guint         property_id,
+                              const GValue *value,
+                              GParamSpec   *pspec)
 {
-  if (id == 1) g_set_object (&STAMP_MAIL_VIEW (obj)->stack, g_value_get_object (val));
-  else G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, id, ps);
+  StampMailView *self = STAMP_MAIL_VIEW (object);
+
+  switch (property_id) {
+    case PROP_STACK:
+      g_set_object (&self->stack, g_value_get_object (value));
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+static gboolean
+is_mobile_view (StampMailView *self)
+{
+  return g_strcmp0 (adw_multi_layout_view_get_layout_name (self->mail_layout), "mobile") == 0;
+}
+
+static
+void on_apply_view (AdwBreakpoint *breakpoint,
+                    gpointer       user_data)
+{
+  StampMailView *self = STAMP_MAIL_VIEW (user_data);
+  gboolean show = is_mobile_view (self);
+
+  stamp_consersation_list_set_show_buttons (self->conversation_list, show);
 }
 
 void
@@ -215,10 +246,11 @@ stamp_mail_view_class_init (StampMailViewClass *klass)
   object_class->set_property = stamp_mail_view_set_property;
   object_class->get_property = stamp_mail_view_get_property;
 
-  g_object_class_install_property (object_class, 1,
-                                   g_param_spec_object ("stack", NULL, NULL,
-                                                        ADW_TYPE_VIEW_STACK,
-                                                        G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  obj_properties[PROP_STACK] = g_param_spec_object ("stack", NULL, NULL,
+                                                    ADW_TYPE_VIEW_STACK,
+                                                    G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+
+  g_object_class_install_properties (object_class, LAST_PROP, obj_properties);
 
   gtk_widget_class_bind_template_child (widget_class, StampMailView, mail_layout);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, folder_list);
@@ -231,9 +263,8 @@ stamp_mail_view_class_init (StampMailViewClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampMailView, tablet_osv);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, mobile_osv);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, mobile_nav);
-  gtk_widget_class_bind_template_callback (widget_class, on_details_hiddem);
-  /* gtk_widget_class_bind_template_callback (widget_class, on_mail_page_hidden); */
-  /* gtk_widget_class_bind_template_callback (widget_class, on_outer_view_collapsed); */
+  gtk_widget_class_bind_template_callback (widget_class, on_details_hidden);
+  gtk_widget_class_bind_template_callback (widget_class, on_apply_view);
   gtk_widget_class_bind_template_callback (widget_class, on_folder_selected);
   gtk_widget_class_bind_template_callback (widget_class, on_conversation_selected);
   gtk_widget_class_bind_template_callback (widget_class, on_conversation_trash);
@@ -248,7 +279,7 @@ on_mark_read (GSimpleAction *action,
   GAction *mark_read_action;
   GAction *mark_unread_action;
 
-  stamp_conversation_list_mark_read (STAMP_CONVERSATION_LIST (self->conversation_list), NULL);
+  stamp_conversation_list_mark_read (self->conversation_list, NULL);
 
   mark_read_action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-read");
   g_simple_action_set_enabled (G_SIMPLE_ACTION (mark_read_action), FALSE);
@@ -265,7 +296,7 @@ on_mark_unread (GSimpleAction *action,
   GAction *mark_read_action;
   GAction *mark_unread_action;
 
-  stamp_conversation_list_mark_unread (STAMP_CONVERSATION_LIST (self->conversation_list), NULL);
+  stamp_conversation_list_mark_unread (self->conversation_list, NULL);
 
   mark_read_action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-read");
   g_simple_action_set_enabled (G_SIMPLE_ACTION (mark_read_action), TRUE);
@@ -282,7 +313,7 @@ on_mark_unflag (GSimpleAction *action,
   GAction *mark_flag_action;
   GAction *mark_unflag_action;
 
-  stamp_conversation_list_mark_unflag_selected_messages (STAMP_CONVERSATION_LIST (self->conversation_list));
+  stamp_conversation_list_mark_unflag_selected_messages (self->conversation_list);
 
   mark_flag_action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-flag");
   g_simple_action_set_enabled (G_SIMPLE_ACTION (mark_flag_action), TRUE);
@@ -299,7 +330,7 @@ on_mark_flag (GSimpleAction *action,
   GAction *mark_flag_action;
   GAction *mark_unflag_action;
 
-  stamp_conversation_list_mark_flag_selected_messages (STAMP_CONVERSATION_LIST (self->conversation_list));
+  stamp_conversation_list_mark_flag_selected_messages (self->conversation_list);
 
   mark_flag_action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-flag");
   g_simple_action_set_enabled (G_SIMPLE_ACTION (mark_flag_action), FALSE);
@@ -314,7 +345,7 @@ on_reply (GSimpleAction *action,
 {
   StampMailView *self = STAMP_MAIL_VIEW (user_data);
 
-  stamp_message_list_compose (STAMP_MESSAGE_LIST (self->message_list), STAMP_COMPOSER_REPLY, parameter);
+  stamp_message_list_compose (self->message_list, STAMP_COMPOSER_REPLY, parameter);
 }
 
 static void
@@ -324,7 +355,7 @@ on_reply_all (GSimpleAction *action,
 {
   StampMailView *self = STAMP_MAIL_VIEW (user_data);
 
-  stamp_message_list_compose (STAMP_MESSAGE_LIST (self->message_list), STAMP_COMPOSER_REPLY_ALL, parameter);
+  stamp_message_list_compose (self->message_list, STAMP_COMPOSER_REPLY_ALL, parameter);
 }
 
 static void
@@ -334,7 +365,7 @@ on_forward (GSimpleAction *action,
 {
   StampMailView *self = STAMP_MAIL_VIEW (user_data);
 
-  stamp_message_list_compose (STAMP_MESSAGE_LIST (self->message_list), STAMP_COMPOSER_FORWARD, parameter);
+  stamp_message_list_compose (self->message_list, STAMP_COMPOSER_FORWARD, parameter);
 }
 
 static void
@@ -345,11 +376,12 @@ on_trash (GSimpleAction *action,
   StampMailView *self = STAMP_MAIL_VIEW (user_data);
   AdwToast *toast;
 
-  stamp_conversation_list_trash (STAMP_CONVERSATION_LIST (self->conversation_list), NULL);
+  stamp_conversation_list_trash (self->conversation_list, NULL);
+
   toast = adw_toast_new (_("Conversations moved to trash"));
-  adw_toast_set_button_label (ADW_TOAST (toast), _("Undo"));
+  adw_toast_set_button_label (toast, _("Undo"));
   g_signal_connect (toast, "button-clicked", G_CALLBACK (on_dismiss_button_clicked), self);
-  adw_toast_overlay_add_toast (ADW_TOAST_OVERLAY (self->toast_overlay), toast);
+  adw_toast_overlay_add_toast (self->toast_overlay, toast);
 }
 
 static void
@@ -359,7 +391,7 @@ on_print (GSimpleAction *action,
 {
   StampMailView *self = STAMP_MAIL_VIEW (user_data);
 
-  stamp_message_list_print (STAMP_MESSAGE_LIST (self->message_list), parameter);
+  stamp_message_list_print (self->message_list, parameter);
 }
 
 static void
@@ -369,7 +401,7 @@ on_view_source (GSimpleAction *action,
 {
   StampMailView *self = STAMP_MAIL_VIEW (user_data);
 
-  stamp_message_list_view_source (STAMP_MESSAGE_LIST (self->message_list), parameter);
+  stamp_message_list_view_source (self->message_list, parameter);
 }
 
 static void
@@ -379,7 +411,7 @@ on_composer_new (GSimpleAction *action,
 {
   StampMailView *self = STAMP_MAIL_VIEW (user_data);
 
-  stamp_message_list_compose (STAMP_MESSAGE_LIST (self->message_list), STAMP_COMPOSER_NEW, parameter);
+  stamp_message_list_compose (self->message_list, STAMP_COMPOSER_NEW, parameter);
 }
 
 static void
@@ -389,7 +421,7 @@ on_edit (GSimpleAction *action,
 {
   StampMailView *self = STAMP_MAIL_VIEW (user_data);
 
-  stamp_message_list_compose (STAMP_MESSAGE_LIST (self->message_list), STAMP_COMPOSER_DRAFT, parameter);
+  stamp_message_list_compose (self->message_list, STAMP_COMPOSER_DRAFT, parameter);
 }
 
 static const GActionEntry stamp_mail_view_action_entries[] = {
@@ -425,7 +457,7 @@ on_toggle_sidebar (GtkToggleButton *btn G_GNUC_UNUSED,
   if (!osv)
     return;
 
-  stamp_folder_list_unselect (STAMP_FOLDER_LIST (self->folder_list));
+  stamp_folder_list_unselect (self->folder_list);
   adw_overlay_split_view_set_show_sidebar (osv, !adw_overlay_split_view_get_show_sidebar (osv));
 }
 
@@ -437,9 +469,9 @@ on_layout_changed (AdwMultiLayoutView *view,
   StampMailView *self = STAMP_MAIL_VIEW (user_data);
   const char *name = adw_multi_layout_view_get_layout_name (view);
   gboolean narrow = g_strcmp0 (name, "desktop") != 0;
-  GtkWidget *btn = stamp_conversation_list_get_sidebar_button (STAMP_CONVERSATION_LIST (self->conversation_list));
+  GtkToggleButton *toggle_button = stamp_conversation_list_get_sidebar_button (self->conversation_list);
 
-  gtk_widget_set_visible (btn, narrow);
+  gtk_widget_set_visible (GTK_WIDGET (toggle_button), narrow);
 
   if (!narrow && self->saved_paned_pos > 50) {
     gtk_paned_set_position (self->desktop_paned, self->saved_paned_pos);
@@ -459,36 +491,6 @@ on_paned_changed (GtkPaned      *paned,
     return;
 
   self->saved_paned_pos = pos;
-}
-
-
-void
-stamp_mail_view_init (StampMailView *self)
-{
-  gtk_widget_init_template (GTK_WIDGET (self));
-
-  adw_multi_layout_view_set_layout_name (self->mail_layout, "desktop");
-
-  g_signal_connect (self->mail_layout, "notify::layout-name", G_CALLBACK (on_layout_changed), self);
-
-  self->saved_paned_pos = 360;
-
-  g_signal_connect (self->mail_layout, "notify::layout-name", G_CALLBACK (on_layout_changed), self);
-  g_signal_connect (stamp_conversation_list_get_sidebar_button (STAMP_CONVERSATION_LIST (self->conversation_list)), "clicked", G_CALLBACK (on_toggle_sidebar), self);
-
-  /* Remember paned position */
-  g_signal_connect (self->desktop_paned, "notify::position", G_CALLBACK (on_paned_changed), self);
-  g_signal_connect (self->tablet_paned, "notify::position", G_CALLBACK (on_paned_changed), self);
-
-  /* Synchronize button state with show-sidebar */
-  g_signal_connect_swapped (self->tablet_osv, "notify::show-sidebar", G_CALLBACK (on_sidebar_visibility_changed), self);
-  g_signal_connect_swapped (self->mobile_osv, "notify::show-sidebar", G_CALLBACK (on_sidebar_visibility_changed), self);
-}
-
-GtkWidget *
-stamp_mail_view_new (void)
-{
-  return g_object_new (STAMP_TYPE_MAIL_VIEW, NULL);
 }
 
 typedef struct {
@@ -511,12 +513,13 @@ static const Shortcut MailShortcuts[] = {
 };
 
 void
-stamp_mail_view_setup (StampMailView *self,
-                       AdwViewStack  *stack)
+stamp_mail_view_init (StampMailView *self)
 {
   GtkEventController *controller;
 
-  /* adw_view_switcher_bar_set_stack (ADW_VIEW_SWITCHER_BAR (self->view_switcher), stack); */
+  gtk_widget_init_template (GTK_WIDGET (self));
+
+  adw_multi_layout_view_set_layout_name (self->mail_layout, "desktop");
 
   self->actions = g_simple_action_group_new ();
   g_action_map_add_action_entries (G_ACTION_MAP (self->actions),
@@ -535,18 +538,37 @@ stamp_mail_view_setup (StampMailView *self,
     shortcut = gtk_shortcut_new (gtk_shortcut_trigger_parse_string (MailShortcuts[idx].shortcut), gtk_named_action_new (MailShortcuts[idx].action));
     gtk_shortcut_controller_add_shortcut (GTK_SHORTCUT_CONTROLLER (controller), shortcut);
   }
+
+  g_signal_connect (self->mail_layout, "notify::layout-name", G_CALLBACK (on_layout_changed), self);
+
+  self->saved_paned_pos = 360;
+
+  g_signal_connect (self->mail_layout, "notify::layout-name", G_CALLBACK (on_layout_changed), self);
+  g_signal_connect (stamp_conversation_list_get_sidebar_button (self->conversation_list), "clicked", G_CALLBACK (on_toggle_sidebar), self);
+
+  /* Remember paned position */
+  g_signal_connect (self->desktop_paned, "notify::position", G_CALLBACK (on_paned_changed), self);
+  g_signal_connect (self->tablet_paned, "notify::position", G_CALLBACK (on_paned_changed), self);
+
+  /* Synchronize button state with show-sidebar */
+  g_signal_connect_swapped (self->tablet_osv, "notify::show-sidebar", G_CALLBACK (on_sidebar_visibility_changed), self);
+  g_signal_connect_swapped (self->mobile_osv, "notify::show-sidebar", G_CALLBACK (on_sidebar_visibility_changed), self);
+}
+
+GtkWidget *
+stamp_mail_view_new (void)
+{
+  return g_object_new (STAMP_TYPE_MAIL_VIEW, NULL);
 }
 
 void
 stamp_mail_view_search_contact (StampMailView *self,
                                 const char    *mail)
 {
-  const char *layout = adw_multi_layout_view_get_layout_name (self->mail_layout);
+  stamp_mail_conversation_list_search_contact (self->conversation_list, mail);
 
-  stamp_mail_conversation_list_search_contact (STAMP_CONVERSATION_LIST (self->conversation_list), mail);
-  if (g_strcmp0 (layout, "mobile") == 0 && self->mobile_nav)
+  if (is_mobile_view (self))
     adw_navigation_view_pop_to_tag (self->mobile_nav, "main");
-  /* adw_navigation_split_view_set_show_content (ADW_NAVIGATION_SPLIT_VIEW (self->outer_view), FALSE); */
 }
 
 GSimpleActionGroup *
@@ -562,5 +584,5 @@ stamp_mail_view_show_toast (StampMailView *self,
   AdwToast *toast;
 
   toast = adw_toast_new (message);
-  adw_toast_overlay_add_toast (ADW_TOAST_OVERLAY (self->toast_overlay), toast);
+  adw_toast_overlay_add_toast (self->toast_overlay, toast);
 }

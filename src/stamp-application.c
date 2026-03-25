@@ -18,15 +18,16 @@
  */
 
 #include "config.h"
-#include <glib/gi18n.h>
-#include <gio/gdesktopappinfo.h>
-#include <pk11pub.h>
 
 #include "stamp-application.h"
 #include "stamp-composer.h"
+#include "stamp-helper.h"
 #include "stamp-preferences.h"
 #include "stamp-session.h"
 #include "stamp-window.h"
+
+#include <glib/gi18n.h>
+#include <pk11pub.h>
 
 struct _StampApplication {
   AdwApplication parent_instance;
@@ -273,7 +274,7 @@ stamp_application_about_action (GSimpleAction *action,
                                 GVariant      *parameter,
                                 gpointer       user_data)
 {
-  static const char *developers[] = {"Jan-Michael Brummer", NULL};
+  static const char *developers[] = {"Jan-Michael Brummer", "Michael Catanzaro", NULL};
   static const char *designers[] = {"Tobias Bernard", NULL};
   StampApplication *self = STAMP_APPLICATION (user_data);
   GtkWindow *window = NULL;
@@ -321,21 +322,7 @@ stamp_application_accounts_action (GSimpleAction *action,
                                    GVariant      *parameter,
                                    gpointer       user_data)
 {
-  const char *flatpak_id = getenv ("FLATPAK_ID");
-
-  if (flatpak_id) {
-    g_spawn_command_line_async ("flatpak-spawn --host gnome-control-center online-accounts", NULL);
-  } else {
-    StampApplication *self = STAMP_APPLICATION (user_data);
-    GtkWindow *window = gtk_application_get_active_window (GTK_APPLICATION (self));
-
-    g_autoptr (GError) error = NULL;
-    GDesktopAppInfo *app_info = g_desktop_app_info_new ("gnome-online-accounts-panel.desktop");
-    GdkAppLaunchContext *context;
-
-    context = gdk_display_get_app_launch_context (gtk_widget_get_display (GTK_WIDGET (window)));
-    g_app_info_launch (G_APP_INFO (app_info), NULL, G_APP_LAUNCH_CONTEXT (context), &error);
-  }
+  stamp_launch_goa ();
 }
 
 static void
@@ -367,10 +354,6 @@ stamp_application_init (StampApplication *self)
 
   g_application_add_main_option (G_APPLICATION (self), "hidden", 'h', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE, _("Start window hidden"), NULL);
 
-  gtk_application_set_accels_for_action (GTK_APPLICATION (self),
-                                         "app.quit",
-                                         (const char *[]) { "<primary>q", NULL });
-  gtk_application_set_accels_for_action (GTK_APPLICATION (self),
-                                         "app.preferences",
-                                         (const char *[]) { "<primary>comma", NULL });
+  gtk_application_set_accels_for_action (GTK_APPLICATION (self), "app.quit", (const char *[]) { "<primary>q", NULL });
+  gtk_application_set_accels_for_action (GTK_APPLICATION (self), "app.preferences", (const char *[]) { "<primary>comma", NULL });
 }

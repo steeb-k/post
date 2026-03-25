@@ -1,5 +1,5 @@
 /*
- * Copyright 2025-2026 Jan-Michael Brummer
+ * Copyright 2024-2026 Jan-Michael Brummer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,35 +17,31 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "config.h"
+#pragma once
 
-#include "stamp-application.h"
-#include "stamp-settings.h"
+#include <glib.h>
 
-#include <glib/gi18n.h>
-#include <gst/gst.h>
+G_BEGIN_DECLS
 
-int
-main (int    argc,
-      char **argv)
-{
-  g_autoptr (StampApplication) app = NULL;
-  int ret;
+const char *
+stamp_get_cache_dir (void);
 
-  bindtextdomain (GETTEXT_PACKAGE, LOCALEDIR);
-  bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
-  textdomain (GETTEXT_PACKAGE);
+const char *
+stamp_get_data_dir (void);
 
-  gst_init (&argc, &argv);
+char *
+stamp_strip_department (const char *str);
 
-  g_set_prgname ("stamp");
-  g_set_application_name (_("Stamp"));
-  stamp_settings_init ();
+void
+stamp_launch_goa (void);
 
-  app = stamp_application_new ("org.tabos.stamp", G_APPLICATION_HANDLES_COMMAND_LINE);
-  ret = g_application_run (G_APPLICATION (app), argc, argv);
+char **
+g_strv_remove (const char * const *strv,
+               const char         *str);
 
-  stamp_settings_shutdown ();
+char **
+g_strv_append (const char * const *strv,
+               const char         *str);
 
-  return ret;
-}
+G_END_DECLS
+

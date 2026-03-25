@@ -19,9 +19,9 @@
 
 #include "stamp-folder-item.h"
 
-#include <gst/gst.h>
-
 #include "stamp-item.h"
+
+#include <gst/gst.h>
 
 struct _StampFolderItem {
   StampItem parent_instance;
@@ -31,7 +31,6 @@ struct _StampFolderItem {
   GCancellable *cancellable;
 
   gint unread;
-
   char *notification;
 };
 
@@ -328,7 +327,7 @@ stamp_folder_item_constructed (GObject *object)
 
   stamp_item_set_loading (STAMP_ITEM (self), TRUE);
   g_debug ("%s: Loading folder %s", G_STRFUNC, self->folder_info->full_name);
-  camel_store_get_folder (CAMEL_STORE (mail_service->service),
+  camel_store_get_folder (CAMEL_STORE (stamp_mail_service_get_service (mail_service)),
                           self->folder_info->full_name,
                           CAMEL_STORE_FOLDER_NONE,
                           G_PRIORITY_DEFAULT,
@@ -351,6 +350,8 @@ stamp_folder_item_dispose (GObject *object)
   g_clear_object (&self->folder);
 
   g_boxed_free (camel_folder_info_get_type (), self->folder_info);
+
+  g_clear_pointer (&self->notification, g_free);
 
   G_OBJECT_CLASS (stamp_folder_item_parent_class)->dispose (object);
 }
@@ -431,7 +432,9 @@ stamp_folder_item_disconnect (StampFolderItem *self)
   if (!list_store)
     return;
 
-  for (int idx = 0; idx < g_list_model_get_n_items (G_LIST_MODEL (list_store)); idx++) {
+  guint list_len = g_list_model_get_n_items (G_LIST_MODEL (list_store));
+
+  for (guint idx = 0; idx < list_len; idx++) {
     g_autoptr (StampFolderItem) item = g_list_model_get_item (G_LIST_MODEL (list_store), idx);
 
     stamp_folder_item_disconnect (item);

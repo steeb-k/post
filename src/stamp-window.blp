@@ -10,6 +10,28 @@ template $StampWindow: Adw.ApplicationWindow {
 
   content: Adw.ViewStack app_view_stack {
     Adw.ViewStackPage {
+      name: "loading";
+
+      child: Adw.ToolbarView {
+        [top]
+        Adw.HeaderBar {
+          show-title: false;
+          show-end-title-buttons: true;
+        }
+
+        Adw.StatusPage {
+          title: _("Stamp");
+          icon-name: "org.tabos.stamp";
+          description: _("Loading configuration");
+
+          styles [
+            "icon-dropshadow",
+          ]
+        }
+      };
+    }
+
+    Adw.ViewStackPage {
       name: "welcome";
 
       child: Adw.ToolbarView {

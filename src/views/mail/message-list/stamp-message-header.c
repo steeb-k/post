@@ -18,6 +18,7 @@
  */
 
 #include "stamp-account.h"
+#include "stamp-helper.h"
 #include "stamp-message-header.h"
 #include "stamp-session.h"
 #include "stamp-tag.h"
@@ -304,20 +305,6 @@ parse_custom_address (const gchar *str)
   return addr;
 }
 
-static char *
-strip_department (const char *str)
-{
-  char *ret = g_strdup (str);
-  char *pos;
-
-  pos = strchr (ret, '(');
-  if (pos) {
-    ret[pos - ret] = '\0';
-  }
-
-  return ret;
-}
-
 static void
 on_released (GtkGesture *gesture,
              gint        n_press,
@@ -335,7 +322,7 @@ on_released (GtkGesture *gesture,
   camel_internet_address_get (address, 0, &name, &mail);
 
   tmp = g_markup_printf_escaped ("<b>%s</b>", name);
-  stripped = strip_department (name);
+  stripped = stamp_strip_department (name);
   adw_avatar_set_text (ADW_AVATAR (self->popover_avatar), stripped);
 
   gtk_label_set_markup (GTK_LABEL (self->popover_name), tmp);
@@ -540,7 +527,7 @@ stamp_message_header_set_mail (StampMessageHeader    *self,
     if (texture) {
       adw_avatar_set_custom_image (ADW_AVATAR (self->avatar), GDK_PAINTABLE (texture));
     } else {
-      g_autofree char *stripped_text = strip_department (ia_name);
+      g_autofree char *stripped_text = stamp_strip_department (ia_name);
 
       adw_avatar_set_text (ADW_AVATAR (self->avatar), stripped_text);
       adw_avatar_set_show_initials (ADW_AVATAR (self->avatar), TRUE);
@@ -569,10 +556,8 @@ stamp_message_header_set_mail (StampMessageHeader    *self,
       }
 
       stamp_tag_set_label (STAMP_TAG (tag), to);
-      stamp_tag_set_email (STAMP_TAG (tag), ia_address);
+      stamp_tag_set_mail (STAMP_TAG (tag), ia_address);
       stamp_tag_set_show_button (STAMP_TAG (tag), FALSE);
-      stamp_tag_set_show_email (STAMP_TAG (tag), FALSE);
-      stamp_tag_set_show_avatar (STAMP_TAG (tag), FALSE);
 
       if (self->total_to < MAX_VISIBLE_TO) {
         adw_wrap_box_append (ADW_WRAP_BOX (self->to_wrap), tag);
@@ -616,10 +601,8 @@ stamp_message_header_set_mail (StampMessageHeader    *self,
       }
 
       stamp_tag_set_label (STAMP_TAG (tag), to);
-      stamp_tag_set_email (STAMP_TAG (tag), ia_address);
+      stamp_tag_set_mail (STAMP_TAG (tag), ia_address);
       stamp_tag_set_show_button (STAMP_TAG (tag), FALSE);
-      stamp_tag_set_show_email (STAMP_TAG (tag), FALSE);
-      stamp_tag_set_show_avatar (STAMP_TAG (tag), FALSE);
 
       if (self->total_cc < MAX_VISIBLE_CC) {
         adw_wrap_box_append (ADW_WRAP_BOX (self->cc_wrap), tag);

@@ -19,9 +19,9 @@
 
 #include "stamp-item.h"
 
-#include <glib.h>
-
 #include "stamp-account.h"
+
+#include <glib.h>
 
 typedef struct {
   char *name;
@@ -65,6 +65,8 @@ stamp_item_dispose (GObject *object)
 
   if (priv->list_store)
     g_clear_object (&priv->list_store);
+
+  g_clear_object (&priv->error);
 
   G_OBJECT_CLASS (stamp_item_parent_class)->dispose (object);
 }
@@ -187,7 +189,6 @@ stamp_item_set_name (StampItem  *self,
 
   if (g_strcmp0 (priv->name, name) != 0) {
     g_clear_pointer (&priv->name, g_free);
-
     priv->name = g_strdup (name);
 
     g_object_notify (G_OBJECT (self), "name");

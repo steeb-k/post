@@ -24,14 +24,36 @@
 
 G_BEGIN_DECLS
 
-#define STAMP_PREFS_SCHEMA  "org.tabos.stamp"
+#define STAMP_PREFS_SCHEMA                    "org.tabos.stamp"
+#define STAMP_PREFS_WINDOW_MAXIMIZED          "window-maximized"
+#define STAMP_PREFS_WINDOW_SIZE               "window-size"
+#define STAMP_PREFS_WINDOW_WIDTH              "window-width"
+#define STAMP_PREFS_WINDOW_HEIGHT             "window-height"
+#define STAMP_PREFS_BACKGROUND_NOTIFICATIONS  "background-notifications"
+#define STAMP_PREFS_BACKGROUND_AUTOSTART      "autostart"
+#define STAMP_PREFS_VIEW                      "view"
+#define STAMP_PREFS_ACCOUNT_ORDER             "account-order"
 
-#define STAMP_PREFS_STATE_WINDOW_SIZE            "window-size"
-#define STAMP_PREFS_STATE_IS_MAXIMIZED           "is-maximized"
+#define STAMP_PREFS_MAIL_SCHEMA               "org.tabos.stamp.mail"
+#define STAMP_PREFS_MAIL_SELECTED_FOLDER      "selected-folder"
+#define STAMP_PREFS_MAIL_ALWAYS_SHOW_IMAGES   "always-show-images"
+#define STAMP_PREFS_MAIL_LOAD_BIMI_IMAGES     "load-bimi-images"
+#define STAMP_PREFS_MAIL_MARK_READ_TIMEOUT    "mark-read-timeout"
+#define STAMP_PREFS_MAIL_PLAY_INCOMING_SOUND  "play-incoming-sound"
+#define STAMP_PREFS_MAIL_IMPORTANT_FIRST      "important-first"
+#define STAMP_PREFS_MAIL_REFRESH_INTERVAL     "refresh-interval"
 
 #define STAMP_SETTINGS stamp_settings_get (STAMP_PREFS_SCHEMA)
+#define STAMP_SETTINGS_MAIL stamp_settings_get (STAMP_PREFS_MAIL_SCHEMA)
 
-GSettings *stamp_settings_get (const char *schema);
+GSettings *
+stamp_settings_get (const char *schema);
+
+void
+stamp_settings_init (void);
+
+void
+stamp_settings_shutdown (void);
 
 G_END_DECLS
 

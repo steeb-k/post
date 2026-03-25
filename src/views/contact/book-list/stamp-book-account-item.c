@@ -46,13 +46,17 @@ on_book_added (GObject              *source,
                gpointer              user_data)
 {
   StampBookAccountItem *self = STAMP_BOOK_ACCOUNT_ITEM (user_data);
-  ESource *src = e_client_get_source (E_CLIENT (service->client));
+  EBookClient *client = stamp_contacts_service_get_client (service);
   GListStore *list_store;
 
+  if (!client)
+    return;
+
+  ESource *src = e_client_get_source (E_CLIENT (client));
   g_print ("%s: New book added %s\n", G_STRFUNC, e_source_get_display_name (src));
 
   list_store = stamp_item_get_list_store (STAMP_ITEM (self));
-  g_list_store_append (list_store, stamp_book_item_new (account, E_CLIENT (service->client)));
+  g_list_store_append (list_store, stamp_book_item_new (account, E_CLIENT (client)));
 }
 
 static gboolean
@@ -78,8 +82,9 @@ on_book_removed (GObject              *source,
                  gpointer              user_data)
 {
   StampBookAccountItem *self = STAMP_BOOK_ACCOUNT_ITEM (user_data);
-  ESource *src = e_client_get_source (E_CLIENT (service->client));
-  StampBookItem *item = stamp_book_item_new (account, E_CLIENT (service->client));
+  EBookClient *client = stamp_contacts_service_get_client (service);
+  ESource *src = e_client_get_source (E_CLIENT (client));
+  StampBookItem *item = stamp_book_item_new (account, E_CLIENT (client));
   GListStore *list_store;
   guint position = 0;
 
@@ -111,11 +116,11 @@ stamp_book_account_item_constructed (GObject *object)
     StampContactsService *service = books->pdata[idx];
     GListStore *list_store;
 
-    if (!service->enabled)
+    if (!stamp_contacts_service_get_enabled (service))
       continue;
 
     list_store = stamp_item_get_list_store (STAMP_ITEM (self));
-    g_list_store_append (list_store, stamp_book_item_new (account, E_CLIENT (service->client)));
+    g_list_store_append (list_store, stamp_book_item_new (account, E_CLIENT (stamp_contacts_service_get_client (service))));
   }
 
   g_signal_connect_object (account, "book-added", G_CALLBACK (on_book_added), self, 0);
@@ -155,3 +160,4 @@ stamp_book_account_item_new (StampAccount *account)
 {
   return g_object_new (STAMP_TYPE_BOOK_ACCOUNT_ITEM, "account", account, NULL);
 }
+

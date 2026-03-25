@@ -73,10 +73,26 @@ on_save_clicked (GtkWidget *button,
   stamp_webview_get_body_html (self->web_view, self->cancellable, on_get_body_html, self);
 }
 
+static void
+stamp_preferences_signatures_dispose (GObject *object)
+{
+  StampPreferencesSignatures *self = STAMP_PREFERENCES_SIGNATURES (object);
+
+  if (self->cancellable)
+    g_cancellable_cancel (self->cancellable);
+
+  g_clear_object (&self->cancellable);
+
+  G_OBJECT_CLASS (stamp_preferences_signatures_parent_class)->dispose (object);
+}
+
 void
 stamp_preferences_signatures_class_init (StampPreferencesSignaturesClass *klass)
 {
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
+  GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
+
+  gobject_class->dispose = stamp_preferences_signatures_dispose;
 
   gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/stamp-preferences-signatures.ui");
 
@@ -101,10 +117,10 @@ stamp_preferences_signatures_init (StampPreferencesSignatures *self)
     StampSignature *signature = signatures->data;
 
     self->signature = signature;
-    if (g_strcmp0 (signature->mime_type, "text/html") == 0)
-      webkit_web_view_load_html (WEBKIT_WEB_VIEW (self->web_view), signature->content, NULL);
+    if (g_strcmp0 (stamp_signature_get_mime_type (signature), "text/html") == 0)
+      webkit_web_view_load_html (WEBKIT_WEB_VIEW (self->web_view), stamp_signature_get_content (signature), NULL);
     else
-      webkit_web_view_load_plain_text (WEBKIT_WEB_VIEW (self->web_view), signature->content);
+      webkit_web_view_load_plain_text (WEBKIT_WEB_VIEW (self->web_view), stamp_signature_get_content (signature));
   } else {
     g_autoptr (GBytes) template = NULL;
 

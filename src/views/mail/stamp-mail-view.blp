@@ -7,6 +7,8 @@ template $StampMailView: Adw.BreakpointBin {
 
   Adw.Breakpoint bp_tablet {
     condition ("max-width: 920sp")
+    apply => $on_apply_view();
+    unapply => $on_apply_view();
 
     setters {
       mail_layout.layout-name: "tablet";
@@ -15,6 +17,8 @@ template $StampMailView: Adw.BreakpointBin {
 
   Adw.Breakpoint bp_mobile {
     condition ("max-width: 550sp")
+    apply => $on_apply_view();
+    unapply => $on_apply_view();
 
     setters {
       mail_layout.layout-name: "mobile";
@@ -170,7 +174,7 @@ template $StampMailView: Adw.BreakpointBin {
           Adw.NavigationPage {
             title: _("Details");
             tag: "content";
-            hidden => $on_details_hiddem();
+            hidden => $on_details_hidden();
 
             child: Adw.LayoutSlot {
               id: "content";

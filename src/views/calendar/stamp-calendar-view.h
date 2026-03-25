@@ -14,9 +14,5 @@ G_DECLARE_FINAL_TYPE (StampCalendarView, stamp_calendar_view, STAMP, CALENDAR_VI
 GtkWidget *
 stamp_calendar_view_new (void);
 
-void
-stamp_calendar_view_setup (StampCalendarView *self,
-                           AdwViewStack      *stack);
-
 G_END_DECLS
 

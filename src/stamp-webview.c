@@ -23,10 +23,6 @@
 
 struct _StampWebView {
   WebKitWebView parent_instance;
-};
-
-typedef struct {
-  WebKitWebView parent_instance;
 
   GHashTable *internal_resources;
   gint32 width_request;
@@ -36,9 +32,9 @@ typedef struct {
   gboolean queued_load_images;
   GCancellable *cancellable;
   gboolean body_html_changed;
-} StampWebViewPrivate;
+};
 
-G_DEFINE_FINAL_TYPE_WITH_PRIVATE (StampWebView, stamp_webview, WEBKIT_TYPE_WEB_VIEW)
+G_DEFINE_FINAL_TYPE (StampWebView, stamp_webview, WEBKIT_TYPE_WEB_VIEW)
 
 enum {
   PROP_0,
@@ -62,11 +58,10 @@ stamp_webview_get_property (GObject    *object,
                             GParamSpec *pspec)
 {
   StampWebView *self = STAMP_WEB_VIEW (object);
-  StampWebViewPrivate *priv = stamp_webview_get_instance_private (self);
 
   switch (property_id) {
     case PROP_SIZE_REQUEST:
-      g_value_set_boolean (value, priv->loaded);
+      g_value_set_boolean (value, self->loaded);
       break;
     default:
       /* We don't have any other property... */
@@ -94,9 +89,8 @@ static gboolean
 handle_internal_response (StampWebView           *self,
                           WebKitURISchemeRequest *request)
 {
-  StampWebViewPrivate *priv = stamp_webview_get_instance_private (self);
   g_autofree char *path = g_uri_unescape_string (webkit_uri_scheme_request_get_path (request), NULL);
-  GInputStream *stream = g_hash_table_lookup (priv->internal_resources, path);
+  GInputStream *stream = g_hash_table_lookup (self->internal_resources, path);
 
   if (stream) {
     if (G_IS_SEEKABLE (stream)) {
@@ -128,7 +122,6 @@ on_send_message_to_page (GObject      *source,
                          gpointer      user_data)
 {
   StampWebView *self = STAMP_WEB_VIEW (user_data);
-  StampWebViewPrivate *priv = stamp_webview_get_instance_private (self);
   g_autoptr (GError) error = NULL;
   g_autoptr (WebKitUserMessage) response = NULL;
   GVariant *variant;
@@ -143,8 +136,8 @@ on_send_message_to_page (GObject      *source,
   variant = webkit_user_message_get_parameters (response);
   g_variant_get (variant, "(uu)", &width, &height);
 
-  priv->width_request = width;
-  priv->height_request = height;
+  self->width_request = width;
+  self->height_request = height;
 
   g_object_notify (G_OBJECT (self), "size-request");
 }
@@ -155,7 +148,6 @@ on_load_changed (WebKitWebView   *web_view,
                  gpointer         user_data)
 {
   StampWebView *self = STAMP_WEB_VIEW (user_data);
-  StampWebViewPrivate *priv = stamp_webview_get_instance_private (self);
 
   g_signal_emit (self, signals[LOADED], 0, load_event == WEBKIT_LOAD_FINISHED);
 
@@ -166,16 +158,16 @@ on_load_changed (WebKitWebView   *web_view,
   }
 
   if (load_event == WEBKIT_LOAD_FINISHED) {
-    priv->loaded = TRUE;
+    self->loaded = TRUE;
 
     webkit_web_view_evaluate_javascript (web_view,
                                          "document.querySelector('[contenteditable]').focus();",
                                          -1, NULL, NULL, NULL, NULL, NULL);
-    if (priv->queued_body_content) {
-      stamp_web_view_set_body_content (self, priv->queued_body_content);
+    if (self->queued_body_content) {
+      stamp_web_view_set_body_content (self, self->queued_body_content);
     }
 
-    if (priv->queued_load_images) {
+    if (self->queued_load_images) {
       stamp_web_view_load_images (self);
     }
   }
@@ -283,22 +275,20 @@ on_key_released (GtkEventControllerKey *controller,
                  gpointer               user_data)
 {
   StampWebView *self = STAMP_WEB_VIEW (user_data);
-  StampWebViewPrivate *priv = stamp_webview_get_instance_private (self);
 
-  priv->body_html_changed = TRUE;
+  self->body_html_changed = TRUE;
 }
 
 static void
 stamp_webview_constructed (GObject *object)
 {
   StampWebView *self = STAMP_WEB_VIEW (object);
-  StampWebViewPrivate *priv = stamp_webview_get_instance_private (self);
   GtkEventController *controller;
 
   G_OBJECT_CLASS (stamp_webview_parent_class)->constructed (object);
 
-  priv->internal_resources = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
-  priv->queued_body_content = NULL;
+  self->internal_resources = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
+  self->queued_body_content = NULL;
 
   webkit_web_view_set_settings (WEBKIT_WEB_VIEW (self), stamp_get_webkit_settings (self));
 
@@ -320,13 +310,10 @@ stamp_webview_user_message_received (WebKitWebView     *webview,
                                      WebKitUserMessage *message)
 {
   StampWebView *self = STAMP_WEB_VIEW (webview);
-  StampWebViewPrivate *priv = stamp_webview_get_instance_private (self);
   const char *name = webkit_user_message_get_name (message);
 
-  g_print ("%s: ENTER %s\n", G_STRFUNC, name);
   if (g_strcmp0 (name, "image-load-blocked") == 0) {
-    g_print ("%s: %d\n", G_STRFUNC, priv->queued_load_images);
-    if (!priv->queued_load_images)
+    if (!self->queued_load_images)
       stamp_webview_image_load_blocked (self);
 
     return TRUE;
@@ -343,15 +330,14 @@ static void
 stamp_web_view_dispose (GObject *object)
 {
   StampWebView *self = STAMP_WEB_VIEW (object);
-  StampWebViewPrivate *priv = stamp_webview_get_instance_private (self);
 
-  if (priv->cancellable)
-    g_cancellable_cancel (priv->cancellable);
+  if (self->cancellable)
+    g_cancellable_cancel (self->cancellable);
 
-  g_clear_object (&priv->cancellable);
+  g_clear_object (&self->cancellable);
 
-  g_clear_pointer (&priv->queued_body_content, g_free);
-  g_clear_pointer (&priv->internal_resources, g_hash_table_unref);
+  g_clear_pointer (&self->queued_body_content, g_free);
+  g_clear_pointer (&self->internal_resources, g_hash_table_unref);
 
   G_OBJECT_CLASS (stamp_webview_parent_class)->dispose (object);
 }
@@ -432,9 +418,7 @@ stamp_webview_add_internal_resource (StampWebView *self,
                                      const char   *id,
                                      GInputStream *stream)
 {
-  StampWebViewPrivate *priv = stamp_webview_get_instance_private (self);
-
-  g_hash_table_insert (priv->internal_resources, g_strdup (id), g_object_ref (stream));
+  g_hash_table_insert (self->internal_resources, g_strdup (id), g_object_ref (stream));
 }
 
 void
@@ -486,24 +470,24 @@ stamp_web_view_set_body_content (StampWebView *self,
                                  char         *content)
 {
 #if 0
-  StampWebViewPrivate *priv = stamp_webview_get_instance_private (self);
+  StampWebViewPrivate *self = stamp_webview_get_instance_private (self);
 
-  if (priv->loaded) {
+  if (self->loaded) {
     WebKitUserMessage *message = webkit_user_message_new ("set-body-html", g_variant_new_string (content));
 
-    if (priv->cancellable)
-      g_cancellable_cancel (priv->cancellable);
+    if (self->cancellable)
+      g_cancellable_cancel (self->cancellable);
 
-    g_clear_object (&priv->cancellable);
+    g_clear_object (&self->cancellable);
 
-    priv->cancellable = g_cancellable_new ();
-    webkit_web_view_send_message_to_page (WEBKIT_WEB_VIEW (self), message, priv->cancellable, on_set_body_html, self);
+    self->cancellable = g_cancellable_new ();
+    webkit_web_view_send_message_to_page (WEBKIT_WEB_VIEW (self), message, self->cancellable, on_set_body_html, self);
   } else {
-    if (priv->queued_body_content == content)
+    if (self->queued_body_content == content)
       return;
 
-    g_clear_pointer (&priv->queued_body_content, g_free);
-    priv->queued_body_content = g_strdup (content);
+    g_clear_pointer (&self->queued_body_content, g_free);
+    self->queued_body_content = g_strdup (content);
   }
 #else
   g_autoptr (GBytes) template = g_resources_lookup_data ("/org/tabos/stamp/blank-message-template.html", G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
@@ -522,15 +506,12 @@ stamp_web_view_set_body_content (StampWebView *self,
 void
 stamp_web_view_load_images (StampWebView *self)
 {
-  StampWebViewPrivate *priv = stamp_webview_get_instance_private (self);
-
-  g_print ("%s: %d\n", G_STRFUNC, priv->loaded);
-  if (priv->loaded) {
+  if (self->loaded) {
     WebKitUserMessage *message = webkit_user_message_new ("set-image-loading-enabled", g_variant_new_boolean (TRUE));
 
-    webkit_web_view_send_message_to_page (WEBKIT_WEB_VIEW (self), message, priv->cancellable, NULL, NULL);
+    webkit_web_view_send_message_to_page (WEBKIT_WEB_VIEW (self), message, self->cancellable, NULL, NULL);
   } else {
-    priv->queued_load_images = TRUE;
+    self->queued_load_images = TRUE;
   }
 }
 
@@ -572,7 +553,6 @@ stamp_web_view_execute_editor_command (StampWebView *self,
                                        const char   *command,
                                        const char   *argument)
 {
-  StampWebViewPrivate *priv = stamp_webview_get_instance_private (self);
   g_autoptr (GStrvBuilder) builder = g_strv_builder_new ();
   g_auto (GStrv) arguments = NULL;
   WebKitUserMessage *message;
@@ -583,7 +563,7 @@ stamp_web_view_execute_editor_command (StampWebView *self,
   arguments = g_strv_builder_end (builder);
   message = webkit_user_message_new ("execute-editor-command", g_variant_new_strv ((const char * const *)arguments, 2));
 
-  webkit_web_view_send_message_to_page (WEBKIT_WEB_VIEW (self), message, priv->cancellable, NULL, NULL);
+  webkit_web_view_send_message_to_page (WEBKIT_WEB_VIEW (self), message, self->cancellable, NULL, NULL);
 }
 
 void
@@ -591,17 +571,14 @@ stamp_web_view_get_size (StampWebView *self,
                          gint32       *width,
                          gint32       *height)
 {
-  StampWebViewPrivate *priv = stamp_webview_get_instance_private (self);
-
-  *width = priv->width_request;
-  *height = priv->height_request;
+  *width = self->width_request;
+  *height = self->height_request;
 }
 
 gboolean
 stamp_web_view_changed (StampWebView *self)
 {
-  StampWebViewPrivate *priv = stamp_webview_get_instance_private (self);
-  return priv->body_html_changed;
+  return self->body_html_changed;
 }
 
 void
@@ -623,8 +600,5 @@ void
 stamp_webview_copy_resources (StampWebView *src,
                               StampWebView *dst)
 {
-  StampWebViewPrivate *priv_src = stamp_webview_get_instance_private (src);
-  StampWebViewPrivate *priv_dst = stamp_webview_get_instance_private (dst);
-
-  priv_dst->internal_resources = g_hash_table_ref (priv_src->internal_resources);
+  dst->internal_resources = g_hash_table_ref (src->internal_resources);
 }

@@ -84,7 +84,7 @@ on_activate (GtkListView *view,
   gtk_editable_set_text (GTK_EDITABLE (self->entry), "");
 
   stamp_tag_set_label (STAMP_TAG (tag), (char *)name);
-  stamp_tag_set_email (STAMP_TAG (tag), emails->data);
+  stamp_tag_set_mail (STAMP_TAG (tag), emails->data);
 
   stamp_contact_completion_add_tag (self, STAMP_TAG (tag));
 
@@ -122,7 +122,7 @@ convert_to_tag (StampContactCompletion *self,
     g_autofree char *tmp = g_strdup (text);
 
     stamp_tag_set_label (STAMP_TAG (tag), tmp);
-    stamp_tag_set_email (STAMP_TAG (tag), tmp);
+    stamp_tag_set_mail (STAMP_TAG (tag), tmp);
 
     stamp_contact_completion_add_tag (self, STAMP_TAG (tag));
 

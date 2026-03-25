@@ -17,10 +17,10 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include <adwaita.h>
-
 #include "stamp-account.h"
 #include "stamp-conversation-item.h"
+
+#include <gtk/gtk.h>
 
 #pragma once
 
@@ -56,7 +56,7 @@ stamp_conversation_row_get_selection_active (StampConversationRow *self);
 StampConversationItem *
 stamp_conversation_row_get_item (StampConversationRow *self);
 
-GtkWidget *
+GtkCheckButton *
 stamp_conversation_row_get_check_button (StampConversationRow *self);
 
 G_END_DECLS
