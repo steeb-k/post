@@ -23,6 +23,7 @@
 #include "stamp-message-list.h"
 #include "stamp-message-header.h"
 #include "stamp-session.h"
+#include "stamp-settings.h"
 #include "stamp-webview.h"
 #include "stamp-mime-parser.h"
 
@@ -227,34 +228,27 @@ on_get_message (GObject      *source,
   g_autoptr (GError) error = NULL;
   CamelFolder *folder;
   CamelMimeMessage *message;
-  GSettings *settings;
-
-  if (!user_data)
-    return;
-
-  self = STAMP_MESSAGE_LIST_ITEM (user_data);
-  if (!self->message_loaded) {
-    g_object_unref (self);
-    return;
-  }
 
   folder = CAMEL_FOLDER (source);
   message = camel_folder_get_message_finish (folder, res, &error);
-  settings = g_settings_new ("org.tabos.stamp.mail");
-
   if (error) {
-    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
-      g_warning ("Could not get message: %s", error->message);
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+      self = STAMP_MESSAGE_LIST_ITEM (user_data);
 
-    self->loading_done = TRUE;
-    g_clear_handle_id (&self->progress_handle, g_source_remove);
-    g_object_unref (self);
+      g_warning ("Could not get message: %s", error->message);
+      self->loading_done = TRUE;
+      g_clear_handle_id (&self->progress_handle, g_source_remove);
+    }
     return;
   }
 
+  self = STAMP_MESSAGE_LIST_ITEM (user_data);
+  if (!self->message_loaded)
+    return;
+
   if ((camel_folder_get_flags (folder) & CAMEL_FOLDER_IS_JUNK) == 0 &&
       (camel_folder_get_flags (folder) & CAMEL_FOLDER_IS_TRASH) == 0 &&
-      g_settings_get_boolean (settings, "always-show-images"))
+      g_settings_get_boolean (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_ALWAYS_SHOW_IMAGES))
     stamp_web_view_load_images (self->web_view);
 
   g_clear_object (&self->message);
@@ -263,7 +257,6 @@ on_get_message (GObject      *source,
     self->message = g_object_ref (message);
 
   open_message (self, message);
-  g_object_unref (self);
 }
 
 static gboolean
@@ -300,7 +293,6 @@ start_get_message (StampMessageListItem *self,
 
   folder = camel_folder_summary_get_folder (summary);
 
-  g_object_ref (self);
   camel_folder_get_message (folder, camel_message_info_get_uid (self->message_info), G_PRIORITY_DEFAULT, self->cancellable, on_get_message, self);
 }
 
@@ -685,6 +677,8 @@ stamp_message_list_item_init (StampMessageListItem *self)
   self->message = NULL;
   self->message_loaded = FALSE;
 
+  self->cancellable = g_cancellable_new ();
+
   g_signal_connect_object (self->web_view, "notify::size-request", G_CALLBACK (on_size_request), self, 0);
 }
 
@@ -781,12 +775,10 @@ stamp_message_list_item_view_source (StampMessageListItem *self)
   GFile *file = g_file_new_for_path (filename);
   g_autoptr (GByteArray) array = NULL;
   g_autoptr (CamelStream) stream = NULL;
-  GCancellable *cancellable = self->cancellable ? self->cancellable : g_cancellable_new ();
 
   array = g_byte_array_new ();
   stream = camel_stream_mem_new_with_byte_array (array);
-  camel_data_wrapper_write_to_stream_sync (CAMEL_DATA_WRAPPER (self->message), stream, cancellable, &error);
-  g_object_unref (cancellable);
+  camel_data_wrapper_write_to_stream_sync (CAMEL_DATA_WRAPPER (self->message), stream, self->cancellable, &error);
 
   g_file_set_contents (filename, (char *)array->data, array->len, &error);
   if (error) {
