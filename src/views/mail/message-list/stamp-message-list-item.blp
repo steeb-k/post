@@ -5,6 +5,9 @@ template $StampMessageListItem: ListBoxRow {
   activatable: false;
   margin-top: 2;
   margin-bottom: 2;
+  GestureClick {
+    released => $on_row_clicked();
+  }
 
   styles [
     "card",
@@ -13,11 +16,7 @@ template $StampMessageListItem: ListBoxRow {
   child: Box {
     orientation: vertical;
 
-    $StampMessageHeader header {
-      GestureClick {
-        released => $on_header_clicked();
-      }
-    }
+    $StampMessageHeader header {}
 
     Stack stack {
       transition-type: crossfade;
