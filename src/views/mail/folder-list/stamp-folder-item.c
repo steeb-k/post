@@ -419,6 +419,7 @@ void
 stamp_folder_item_disconnect (StampFolderItem *self)
 {
   GListStore *list_store = stamp_item_get_list_store (STAMP_ITEM (self));
+  guint list_len;
 
   g_cancellable_cancel (self->cancellable);
   g_clear_object (&self->cancellable);
@@ -432,8 +433,7 @@ stamp_folder_item_disconnect (StampFolderItem *self)
   if (!list_store)
     return;
 
-  guint list_len = g_list_model_get_n_items (G_LIST_MODEL (list_store));
-
+  list_len = g_list_model_get_n_items (G_LIST_MODEL (list_store));
   for (guint idx = 0; idx < list_len; idx++) {
     g_autoptr (StampFolderItem) item = g_list_model_get_item (G_LIST_MODEL (list_store), idx);
 

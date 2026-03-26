@@ -345,7 +345,7 @@ on_get_folder (GObject      *source,
   if (thread) {
     CamelFolderThreadNode *child;
     const char *service_uid = camel_service_get_uid (stamp_mail_service_get_service (mail_service));
-    guint loaded = 0;
+    /* guint loaded = 0; */
 
     child = camel_folder_thread_get_tree (thread);
 
@@ -388,15 +388,20 @@ static gboolean
 load_more_items_idle (gpointer user_data)
 {
   StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+  CamelFolderThreadNode *child;
+  StampMailService *mail_service;
+  g_autoptr (GPtrArray) new_items = NULL;
   guint current_count = g_list_model_get_n_items (G_LIST_MODEL (self->list_store));
+  guint skip;
+  guint loaded = 0;
+  const char *service_uid;
 
   if (!self->thread || self->pending_load_count == 0) {
     return FALSE;
   }
 
-  CamelFolderThreadNode *child = camel_folder_thread_get_tree (self->thread);
-  guint skip = current_count;
-  guint loaded = 0;
+  child = camel_folder_thread_get_tree (self->thread);
+  skip = current_count;
 
   while (child && loaded < skip) {
     child = camel_folder_thread_node_get_next (child);
@@ -404,12 +409,13 @@ load_more_items_idle (gpointer user_data)
   }
 
   loaded = 0;
-  g_autoptr (GPtrArray) new_items = g_ptr_array_new_with_free_func (g_object_unref);
-  StampMailService *mail_service = stamp_account_get_mail_service (self->account);
-  const char *service_uid = camel_service_get_uid (stamp_mail_service_get_service (mail_service));
+  new_items = g_ptr_array_new_with_free_func (g_object_unref);
+  mail_service = stamp_account_get_mail_service (self->account);
+  service_uid = camel_service_get_uid (stamp_mail_service_get_service (mail_service));
 
   while (child && loaded < BATCH_LOAD_COUNT) {
     StampConversationItem *item = stamp_conversation_item_new (child, service_uid);
+
     g_ptr_array_add (new_items, item);
     child = camel_folder_thread_node_get_next (child);
     loaded++;

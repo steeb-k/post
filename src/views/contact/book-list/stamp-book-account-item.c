@@ -47,12 +47,13 @@ on_book_added (GObject              *source,
 {
   StampBookAccountItem *self = STAMP_BOOK_ACCOUNT_ITEM (user_data);
   EBookClient *client = stamp_contacts_service_get_client (service);
+  ESource *src;
   GListStore *list_store;
 
   if (!client)
     return;
 
-  ESource *src = e_client_get_source (E_CLIENT (client));
+  src = e_client_get_source (E_CLIENT (client));
   g_print ("%s: New book added %s\n", G_STRFUNC, e_source_get_display_name (src));
 
   list_store = stamp_item_get_list_store (STAMP_ITEM (self));
