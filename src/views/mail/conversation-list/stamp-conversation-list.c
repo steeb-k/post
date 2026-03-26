@@ -165,7 +165,7 @@ get_thread (StampConversationList *self,
             CamelFolder           *folder)
 {
   const char *uri = camel_folder_get_full_name (folder);
-  CamelFolderThread *thread = NULL; /*g_hash_table_lookup (self->thread_cache, uri); */
+  CamelFolderThread *thread = g_hash_table_lookup (self->thread_cache, uri);
 
   if (!thread) {
     g_autoptr (GPtrArray) uids = camel_folder_dup_uids (folder);
@@ -439,6 +439,8 @@ stamp_conversation_list_load_folder (StampConversationList *self,
     g_cancellable_cancel (self->cancellable);
     g_clear_object (&self->cancellable);
   }
+
+  g_hash_table_insert (self->thread_cache, g_strdup (full_name), NULL);
 
   if (!account)
     return;
@@ -1292,6 +1294,13 @@ on_sort_activate (GSimpleAction *action,
 }
 
 static void
+thread_unref (gpointer user_data)
+{
+  if (user_data)
+    g_object_unref (user_data);
+}
+
+static void
 stamp_conversation_list_init (StampConversationList *self)
 {
   GtkSortListModel *sort_model;
@@ -1306,7 +1315,7 @@ stamp_conversation_list_init (StampConversationList *self)
 
   gtk_widget_init_template (GTK_WIDGET (self));
 
-  self->thread_cache = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
+  self->thread_cache = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, thread_unref);
 
   g_signal_connect_object (all_mails_action, "activate", G_CALLBACK (on_filter_activate), self, 0);
   g_action_map_add_action (G_ACTION_MAP (app), G_ACTION (all_mails_action));
