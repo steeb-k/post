@@ -6,12 +6,12 @@ template $StampMessageListItem: ListBoxRow {
   margin-top: 2;
   margin-bottom: 2;
 
+  styles [
+    "card",
+  ]
+
   child: Box {
     orientation: vertical;
-
-    styles [
-      "card",
-    ]
 
     $StampMessageHeader header {
       GestureClick {
