@@ -906,13 +906,13 @@ send_mail (GTask        *task,
   g_autoptr (GError) error = NULL;
   gboolean out_saved;
 
-  if (!camel_service_connect_sync (CAMEL_SERVICE (self->mail->transport), self->cancellable, &error)) {
+  if (!camel_service_connect_sync (CAMEL_SERVICE (self->mail->transport), cancellable, &error)) {
     g_warning ("%s: Could not connect to transport service '%s': %s", G_STRFUNC, e_source_get_display_name (self->mail->transport_source), error->message);
     g_task_return_error (task, g_steal_pointer (&error));
     return;
   }
 
-  if (!camel_transport_send_to_sync (self->mail->transport, data->message, CAMEL_ADDRESS (data->sender), CAMEL_ADDRESS (data->recipient), &out_saved, self->cancellable, &error)) {
+  if (!camel_transport_send_to_sync (self->mail->transport, data->message, CAMEL_ADDRESS (data->sender), CAMEL_ADDRESS (data->recipient), &out_saved, cancellable, &error)) {
     g_warning ("%s: Could not send to transport service '%s': %s", G_STRFUNC, e_source_get_display_name (self->mail->transport_source), error->message);
     g_task_return_error (task, g_steal_pointer (&error));
     return;
@@ -920,7 +920,7 @@ send_mail (GTask        *task,
 
   stamp_account_append_to_sent_folder (self, out_saved, data->message, NULL, NULL);
 
-  if (!camel_service_disconnect_sync (CAMEL_SERVICE (self->mail->transport), TRUE, self->cancellable, &error)) {
+  if (!camel_service_disconnect_sync (CAMEL_SERVICE (self->mail->transport), TRUE, cancellable, &error)) {
     g_warning ("%s: Could not disconnect from transport service '%s': %s", G_STRFUNC, e_source_get_display_name (self->mail->transport_source), error->message);
     g_task_return_error (task, g_steal_pointer (&error));
     return;
