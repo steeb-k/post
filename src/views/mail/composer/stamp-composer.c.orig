@@ -61,7 +61,6 @@ struct _StampComposer {
   StampComposerType type;
   CamelMimeMessage *orig_message;
   char *draft_uid;
-  GSimpleActionGroup *actions;
 
   GList *attachments;
   StampAccount *account;
@@ -646,6 +645,17 @@ on_add_attachment_activated (GSimpleAction *action,
   gtk_file_dialog_open (dialog, GTK_WINDOW (self), NULL, on_attachment_added, self);
 }
 
+static GActionEntry composer_entries[] = {
+  { "bold", on_edit_activate, "s", "''", NULL},
+  { "italic", on_edit_activate, "s", "''", NULL},
+  { "underline", on_edit_activate, "s", "''", NULL},
+  { "strikethrough", on_edit_activate, "s", "''", NULL},
+  { "send", on_send_activated },
+  { "remove-format", on_remove_format_activated },
+  { "insert-signature", on_insert_signature_activated },
+  { "add-attachment", on_add_attachment_activated },
+};
+
 static void
 load_from_combobox (StampComposer *self)
 {
@@ -869,17 +879,6 @@ on_load_changed (WebKitWebView   *view,
                                        -1, NULL, NULL, NULL, NULL, NULL);
 }
 
-static const GActionEntry stamp_composer_action_entries[] = {
-  { "bold", on_edit_activate, "s", "''", NULL},
-  { "italic", on_edit_activate, "s", "''", NULL},
-  { "underline", on_edit_activate, "s", "''", NULL},
-  { "strikethrough", on_edit_activate, "s", "''", NULL},
-  { "send", on_send_activated },
-  { "remove-format", on_remove_format_activated },
-  { "insert-signature", on_insert_signature_activated },
-  { "add-attachment", on_add_attachment_activated },
-};
-
 static void
 stamp_composer_init (StampComposer *self)
 {
@@ -888,8 +887,6 @@ stamp_composer_init (StampComposer *self)
   GtkListItemFactory *selected_factory;
   WebKitUserContentManager *manager;
   g_autofree char *tmp = NULL;
-  GtkShortcut *shortcut;
-  GtkEventController *controller;
 
   gtk_widget_init_template (GTK_WIDGET (self));
 
@@ -908,6 +905,11 @@ stamp_composer_init (StampComposer *self)
 
   webkit_web_view_load_html (WEBKIT_WEB_VIEW (self->webview), tmp, NULL);
   /* g_signal_connect_object (self->webview, "selection-changed", G_CALLBACK (on_selection_changed), self, 0); */
+
+  self->action_map = G_ACTION_MAP (self);
+  g_action_map_add_action_entries (self->action_map,
+                                   composer_entries, G_N_ELEMENTS (composer_entries),
+                                   self);
 
   factory = gtk_signal_list_item_factory_new ();
   g_signal_connect (factory, "setup", G_CALLBACK (on_setup_selected), self);
@@ -935,19 +937,6 @@ stamp_composer_init (StampComposer *self)
   /* self->auto_save_draft_handler = g_timeout_add_seconds (3, auto_save_draft, self); */
 
   self->cancellable = g_cancellable_new ();
-
-  self->actions = g_simple_action_group_new ();
-  g_action_map_add_action_entries (G_ACTION_MAP (self->actions),
-                                   stamp_composer_action_entries,
-                                   G_N_ELEMENTS (stamp_composer_action_entries),
-                                   self);
-  gtk_widget_insert_action_group (GTK_WIDGET (self), "composer", G_ACTION_GROUP (self->actions));
-
-  controller = gtk_shortcut_controller_new ();
-  gtk_widget_add_controller (GTK_WIDGET (self), controller);
-
-  shortcut = gtk_shortcut_new (gtk_shortcut_trigger_parse_string ("<primary>Return"), gtk_named_action_new ("composer.send"));
-  gtk_shortcut_controller_add_shortcut (GTK_SHORTCUT_CONTROLLER (controller), shortcut);
 }
 
 static void

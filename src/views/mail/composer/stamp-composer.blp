@@ -36,7 +36,7 @@ template $StampComposer: Adw.ApplicationWindow {
 
         icon-name: "sent-symbolic";
         sensitive: false;
-        action-name: "win.send";
+        action-name: "composer.send";
 
         styles [
           "suggested-action",
@@ -276,7 +276,7 @@ template $StampComposer: Adw.ApplicationWindow {
 
         ToggleButton {
           tooltip-text: _("Bold");
-          action-name: "win.bold";
+          action-name: "composer.bold";
           action-target: "'bold'";
           icon-name: "format-text-bold-symbolic";
 
@@ -287,7 +287,7 @@ template $StampComposer: Adw.ApplicationWindow {
 
         ToggleButton {
           tooltip-text: _("Italic");
-          action-name: "win.italic";
+          action-name: "composer.italic";
           action-target: "'italic'";
           icon-name: "format-text-italic-symbolic";
 
@@ -298,7 +298,7 @@ template $StampComposer: Adw.ApplicationWindow {
 
         ToggleButton {
           tooltip-text: _("Underline");
-          action-name: "win.underline";
+          action-name: "composer.underline";
           action-target: "'underline'";
           icon-name: "format-text-underline-symbolic";
 
@@ -309,7 +309,7 @@ template $StampComposer: Adw.ApplicationWindow {
 
         ToggleButton {
           tooltip-text: _("Strike Through");
-          action-name: "win.strikethrough";
+          action-name: "composer.strikethrough";
           action-target: "'strikethrough'";
           icon-name: "format-text-strikethrough-symbolic";
 
@@ -325,7 +325,7 @@ template $StampComposer: Adw.ApplicationWindow {
         }
 
         Button {
-          action-name: "win.remove-format";
+          action-name: "composer.remove-format";
           tooltip-text: _("Remove format");
           icon-name: "edit-clear-symbolic";
 
@@ -335,7 +335,7 @@ template $StampComposer: Adw.ApplicationWindow {
         }
 
         Button {
-          action-name: "win.insert-signature";
+          action-name: "composer.insert-signature";
           tooltip-text: _("Insert Signature");
           icon-name: "signature-symbolic";
 
@@ -345,7 +345,7 @@ template $StampComposer: Adw.ApplicationWindow {
         }
 
         Button {
-          action-name: "win.add-attachment";
+          action-name: "composer.add-attachment";
           tooltip-text: _("Add Attachment");
           icon-name: "mail-attachment-symbolic";
 

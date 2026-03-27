@@ -1,0 +1,14 @@
+--- src/views/mail/composer/stamp-composer.c
++++ src/views/mail/composer/stamp-composer.c
+@@ -163,10 +164,8 @@ build_message (StampComposer *self,
+   CamelMimePart *part;
+   CamelMultipart *body;
+   CamelMimeMessage *message;
+-  GCancellable *cancellable = self->cancellable ? self->cancellable : g_cancellable_new ();
+ 
+-  camel_data_wrapper_construct_from_stream_sync (html, stream_filter, cancellable, NULL);
+-  g_object_unref (cancellable);
++  camel_data_wrapper_construct_from_stream_sync (html, stream_filter, self->cancellable, NULL);
+   camel_data_wrapper_set_mime_type (html, "text/html; charset=utf-8");
+ 
+   part = camel_mime_part_new ();
