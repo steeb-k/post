@@ -28,6 +28,7 @@ struct _StampMailService {
   CamelTransport *transport;
   CamelFolder *trash_folder;
   CamelFolder *sent_folder;
+  CamelFolder *drafts_folder;
   ESource *source;
   ESource *transport_source;
   CamelInternetAddress *address;
@@ -602,6 +603,62 @@ out:
   return folder;
 }
 
+static gboolean
+is_drafts_folder (CamelFolderInfo *fi)
+{
+  const char *name;
+
+  if ((fi->flags & CAMEL_FOLDER_TYPE_MASK) == CAMEL_FOLDER_TYPE_DRAFTS)
+    return TRUE;
+
+  name = fi->display_name ? fi->display_name : fi->full_name;
+  return g_ascii_strcasecmp (name, "Drafts") == 0;
+}
+
+static CamelFolder *
+get_drafts_folder (CamelStore    *store,
+                   GCancellable  *cancellable,
+                   GError       **error)
+{
+  CamelFolderInfo *root = camel_store_get_folder_info_sync (store, NULL, CAMEL_STORE_FOLDER_INFO_RECURSIVE, cancellable, error);
+  CamelFolderInfo *fi;
+  const gchar *drafts_path;
+  CamelFolder *folder;
+
+  if (!root)
+    return NULL;
+
+  fi = root;
+  drafts_path = NULL;
+
+  while (fi) {
+    if (is_drafts_folder (fi)) {
+      drafts_path = fi->full_name;
+      break;
+    }
+    if (fi->child) {
+      fi = fi->child;
+      continue;
+    }
+    while (fi && !fi->next)
+      fi = fi->parent;
+    if (fi)
+      fi = fi->next;
+  }
+
+  /* Fallback falls kein \Drafts vom Server gemeldet */
+  if (!drafts_path)
+    drafts_path = "Drafts";
+
+  folder = camel_store_get_folder_sync (
+    store, drafts_path,
+    0,
+    cancellable, error);
+
+  camel_folder_info_free (root);
+  return folder;
+}
+
 static void
 stamp_account_enable_mail (StampAccount *self)
 {
@@ -626,6 +683,7 @@ stamp_account_enable_mail (StampAccount *self)
 
   self->mail->trash_folder = camel_store_get_trash_folder_sync (CAMEL_STORE (self->mail->service), NULL, &error);
   self->mail->sent_folder = find_sent_folder (CAMEL_STORE (self->mail->service));
+  self->mail->drafts_folder = get_drafts_folder (CAMEL_STORE (self->mail->service), NULL, &error);
 }
 
 void
@@ -1025,62 +1083,6 @@ stamp_calendar_service_get_source (StampCalendarService *self)
   return self->source;
 }
 
-static gboolean
-is_drafts_folder (CamelFolderInfo *fi)
-{
-  const char *name;
-
-  if ((fi->flags & CAMEL_FOLDER_TYPE_MASK) == CAMEL_FOLDER_TYPE_DRAFTS)
-    return TRUE;
-
-  name = fi->display_name ? fi->display_name : fi->full_name;
-  return g_ascii_strcasecmp (name, "Drafts") == 0;
-}
-
-static CamelFolder *
-get_drafts_folder (CamelStore    *store,
-                   GCancellable  *cancellable,
-                   GError       **error)
-{
-  CamelFolderInfo *root = camel_store_get_folder_info_sync (store, NULL, CAMEL_STORE_FOLDER_INFO_RECURSIVE, cancellable, error);
-  CamelFolderInfo *fi;
-  const gchar *drafts_path;
-  CamelFolder *folder;
-
-  if (!root)
-    return NULL;
-
-  fi = root;
-  drafts_path = NULL;
-
-  while (fi) {
-    if (is_drafts_folder (fi)) {
-      drafts_path = fi->full_name;
-      break;
-    }
-    if (fi->child) {
-      fi = fi->child;
-      continue;
-    }
-    while (fi && !fi->next)
-      fi = fi->parent;
-    if (fi)
-      fi = fi->next;
-  }
-
-  /* Fallback falls kein \Drafts vom Server gemeldet */
-  if (!drafts_path)
-    drafts_path = "Drafts";
-
-  folder = camel_store_get_folder_sync (
-    store, drafts_path,
-    0,
-    cancellable, error);
-
-  camel_folder_info_free (root);
-  return folder;
-}
-
 char *
 stamp_account_save_draft (StampAccount         *self,
                           const char           *draft_uid,
@@ -1090,23 +1092,21 @@ stamp_account_save_draft (StampAccount         *self,
 {
   g_autoptr (GError) error = NULL;
   g_autoptr (CamelMessageInfo) info = camel_message_info_new (NULL);
-  CamelFolder *drafts_folder;
   char *uid = NULL;
 
-  drafts_folder = get_drafts_folder (CAMEL_STORE (self->mail->service), NULL, &error);
   if (error) {
     g_warning ("%s: Could not load draft folder: %s", G_STRFUNC, error->message);
     return NULL;
   }
 
   camel_message_info_set_flags (info, CAMEL_MESSAGE_DRAFT, CAMEL_MESSAGE_DRAFT);
-  camel_folder_append_message_sync (drafts_folder, message, info, &uid, NULL, NULL);
+  camel_folder_append_message_sync (self->mail->drafts_folder, message, info, &uid, NULL, NULL);
 
   if (draft_uid) {
     g_print ("%s: Previous draft, removing old one %s\n", G_STRFUNC, draft_uid);
-    camel_folder_delete_message (drafts_folder, draft_uid);
-    camel_folder_refresh_info_sync (drafts_folder, NULL, NULL);
-    camel_folder_expunge_sync (drafts_folder, NULL, &error);
+    camel_folder_delete_message (self->mail->drafts_folder, draft_uid);
+    camel_folder_refresh_info_sync (self->mail->drafts_folder, NULL, NULL);
+    camel_folder_expunge_sync (self->mail->drafts_folder, NULL, &error);
     if (error)
       g_warning ("%s: Could not expunge folder: %s", G_STRFUNC, error->message);
   }
@@ -1118,18 +1118,11 @@ void
 stamp_account_remove_draft (StampAccount *self,
                             const char   *uid)
 {
-  CamelFolder *drafts_folder;
   g_autoptr (GError) error = NULL;
 
-  drafts_folder = get_drafts_folder (CAMEL_STORE (self->mail->service), NULL, &error);
-  if (error) {
-    g_warning ("%s: Could not load draft folder: %s", G_STRFUNC, error->message);
-    return;
-  }
-
-  camel_folder_delete_message (drafts_folder, uid);
-  camel_folder_refresh_info_sync (drafts_folder, NULL, NULL);
-  camel_folder_expunge_sync (drafts_folder, NULL, &error);
+  camel_folder_delete_message (self->mail->drafts_folder, uid);
+  camel_folder_refresh_info_sync (self->mail->drafts_folder, NULL, NULL);
+  camel_folder_expunge_sync (self->mail->drafts_folder, NULL, &error);
   if (error)
     g_warning ("%s: Could not expunge folder: %s", G_STRFUNC, error->message);
 }
@@ -1270,4 +1263,10 @@ CamelFolder *
 stamp_account_get_mail_sent_folder (StampAccount *self)
 {
   return self->mail->sent_folder;
+}
+
+CamelFolder *
+stamp_account_get_mail_drafts_folder (StampAccount *self)
+{
+  return self->mail->drafts_folder;
 }

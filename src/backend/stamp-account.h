@@ -31,31 +31,9 @@ G_BEGIN_DECLS
 
 G_DECLARE_FINAL_TYPE (StampAccount, stamp_account, STAMP, ACCOUNT, GObject);
 
-/* TODO: Hide elements behind getter/setter */
-typedef struct {
-  CamelService *service;
-
-  CamelSession *session;
-  CamelTransport *transport;
-  CamelFolder *trash_folder;
-  CamelFolder *sent_folder;
-  ESource *source;
-  ESource *transport_source;
-  CamelInternetAddress *address;
-  gboolean enabled;
-} StampMailService;
-
-typedef struct {
-  EBookClient *client;
-  ESource *source;
-  gboolean enabled;
-} StampContactsService;
-
-typedef struct {
-  ECalClient *client;
-  ESource *source;
-  gboolean enabled;
-} StampCalendarService;
+typedef struct _StampMailService StampMailService;
+typedef struct _StampContactsService StampContactsService;
+typedef struct _StampCalendarService StampCalendarService;
 
 /*
  * Setup
@@ -235,6 +213,9 @@ stamp_account_remove_draft_async_finish (StampAccount  *self,
 
 CamelFolder *
 stamp_account_get_mail_trash_folder (StampAccount *self);
+
+CamelFolder *
+stamp_account_get_mail_drafts_folder (StampAccount *self);
 
 CamelFolder *
 stamp_account_get_mail_sent_folder (StampAccount *self);

@@ -20,6 +20,7 @@
 #include "stamp-folder-item.h"
 
 #include "stamp-item.h"
+#include "stamp-settings.h"
 
 #include <gst/gst.h>
 
@@ -200,6 +201,7 @@ on_folder_item_folder_changed (CamelFolder           *folder,
   gint unseen_message_infos_length;
   CamelFolderSummary *summary;
   CamelFolder *trash_folder = stamp_account_get_mail_trash_folder (stamp_item_get_account (STAMP_ITEM (self)));
+  CamelFolder *draft_folder = stamp_account_get_mail_drafts_folder (stamp_item_get_account (STAMP_ITEM (self)));
 
   summary = camel_folder_get_folder_summary (folder);
   self->unread = camel_folder_summary_get_unread_count (summary);
@@ -238,10 +240,9 @@ on_folder_item_folder_changed (CamelFolder           *folder,
     }
 
     unseen_message_infos_length = g_list_length (unseen_message_infos);
-    if (folder != trash_folder && unseen_message_infos_length && unseen_message_infos && unseen_message_infos->data) {
+    if (folder != trash_folder && folder != draft_folder && unseen_message_infos_length && unseen_message_infos && unseen_message_infos->data) {
       CamelMessageInfo *unseen_message_info;
       GNotification *notification;
-      g_autoptr (GSettings) settings = g_settings_new ("org.tabos.stamp.mail");
       g_autofree char *title = NULL;
 
       unseen_message_info = CAMEL_MESSAGE_INFO (unseen_message_infos->data);
@@ -257,7 +258,7 @@ on_folder_item_folder_changed (CamelFolder           *folder,
       self->notification = g_strdup (camel_message_info_get_uid (unseen_message_info));
       g_application_send_notification (g_application_get_default (), self->notification, notification);
 
-      if (g_settings_get_boolean (settings, "play-incoming-sound"))
+      if (g_settings_get_boolean (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_PLAY_INCOMING_SOUND))
         play_incoming_sound ();
     }
   }
