@@ -22,7 +22,9 @@
 #include <glib/gi18n.h>
 #include <libportal-gtk4/portal-gtk4.h>
 
+#include "stamp-account.h"
 #include "stamp-preferences-signatures.h"
+#include "stamp-session.h"
 #include "stamp-settings.h"
 #include "stamp-webview.h"
 
@@ -122,6 +124,29 @@ on_autostart (GObject    *object,
   xdp_portal_request_background (portal, parent_window, _("Notifications"), commandline, XDP_BACKGROUND_FLAG_AUTOSTART, self->cancellable, on_request_background, self);
 }
 
+static void
+on_bimi_images (GtkWidget  *row,
+                GParamSpec *pspec,
+                gpointer    user_data)
+{
+  StampPreferences *self = STAMP_PREFERENCES (user_data);
+  gboolean enabled = adw_switch_row_get_active (ADW_SWITCH_ROW (row));
+  g_print ("%s: changed to %d\n", G_STRFUNC, enabled);
+
+  if (enabled) {
+    StampSession *session = stamp_session_get_default ();
+    GList *accounts = stamp_session_get_accounts (session);
+
+    /* Remove negative photo cache */
+    for (GList *iter = accounts; iter && iter->data; iter = g_list_next (iter)) {
+      StampAccount *account = STAMP_ACCOUNT (iter->data);
+
+      stamp_account_clear_negative_photo_cache (account);
+    }
+
+  }
+}
+
 void
 stamp_preferences_init (StampPreferences *self)
 {
@@ -140,6 +165,8 @@ stamp_preferences_init (StampPreferences *self)
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_IMPORTANT_FIRST, self->important_first, "active", G_SETTINGS_BIND_DEFAULT);
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_MARK_READ_TIMEOUT, self->mark_read, "value", G_SETTINGS_BIND_DEFAULT);
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_REFRESH_INTERVAL, self->refresh_interval, "value", G_SETTINGS_BIND_DEFAULT);
+
+  g_signal_connect_object (self->bimi_images, "notify::active", G_CALLBACK (on_bimi_images), self, 0);
 }
 
 GtkWidget *

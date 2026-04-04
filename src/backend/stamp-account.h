@@ -64,7 +64,7 @@ stamp_account_add_mail_identity (StampAccount *self,
                                  ESource      *identity);
 
 void
-stamp_account_init_async (StampAccount        *account,
+stamp_account_init_async (StampAccount        *self,
                           GCancellable        *cancellable,
                           GAsyncReadyCallback  callback,
                           gpointer             user_data);
@@ -72,6 +72,9 @@ stamp_account_init_async (StampAccount        *account,
 gboolean
 stamp_account_init_finish (GAsyncResult  *res,
                            GError       **error);
+
+void
+stamp_account_clear_negative_photo_cache (StampAccount *self);
 
 /*
  * Getter/Setter

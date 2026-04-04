@@ -197,6 +197,26 @@ stamp_disk_cache_purge (StampPhotoCache *cache)
   g_dir_close (dir);
 }
 
+void
+stamp_disk_cache_purge_negative (StampPhotoCache *cache)
+{
+  GDir *dir;
+  const char *name;
+
+  dir = g_dir_open (cache->cache_dir, 0, NULL);
+  if (!dir)
+    return;
+
+  while ((name = g_dir_read_name (dir))) {
+    g_autofree char *path = g_build_filename (cache->cache_dir, name, NULL);
+
+    if (g_strstr_len (path, -1, STAMP_CACHE_NEGATIVE_SUFFIX))
+      g_remove (path);
+  }
+
+  g_dir_close (dir);
+}
+
 StampPhotoCache *
 stamp_photo_cache_new (StampAccount *account)
 {

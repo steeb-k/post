@@ -1270,3 +1270,9 @@ stamp_account_get_mail_drafts_folder (StampAccount *self)
 {
   return self->mail->drafts_folder;
 }
+
+void
+stamp_account_clear_negative_photo_cache (StampAccount *self)
+{
+  stamp_disk_cache_purge_negative (self->photo_cache);
+}

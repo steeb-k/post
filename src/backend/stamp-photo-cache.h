@@ -45,5 +45,8 @@ stamp_photo_cache_lookup_async (StampPhotoCache *cache,
 void
 stamp_disk_cache_purge (StampPhotoCache *cache);
 
+void
+stamp_disk_cache_purge_negative (StampPhotoCache *cache);
+
 G_END_DECLS
 
