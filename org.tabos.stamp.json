@@ -1,7 +1,7 @@
 {
   "id": "org.tabos.stamp",
   "runtime": "org.gnome.Platform",
-  "runtime-version": "master",
+  "runtime-version": "50",
   "sdk": "org.gnome.Sdk",
   "command": "stamp",
   "desktop-file-name-suffix": " (Development)",
