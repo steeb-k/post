@@ -316,3 +316,7 @@ listview > row.tree-header:first-child {
   background-color: var(--secondary-sidebar-bg-color);
 }
 
+.message-list-header {
+  margin-top: 24px;
+  margin-bottom: 32px;
+}

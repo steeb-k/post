@@ -37,6 +37,8 @@ struct _StampMessageList {
 
   GHashTable *messages;
   StampAccount *account;
+
+  char *subject;
 };
 
 G_DEFINE_FINAL_TYPE (StampMessageList, stamp_message_list, ADW_TYPE_BREAKPOINT_BIN)
@@ -123,6 +125,56 @@ sort_mails (GtkListBoxRow *row1,
   return 0;
 }
 
+static gboolean
+subject_changed (const char *subject,
+                 char       *new_subject)
+{
+  /* Skip prefix Re: / Fwd: / Yes: / No: / .... */
+  g_auto (GStrv) split = g_strsplit (new_subject, ":", 2);
+  char *check = new_subject;
+  gboolean ret;
+
+  if (g_strv_length (split) == 2)
+    check = split[1];
+
+  g_strstrip (check);
+  ret = g_strstr_len (subject, -1, check) == NULL;
+
+  return ret;
+}
+
+static void
+update_header (GtkListBoxRow *row,
+               GtkListBoxRow *before,
+               gpointer       user_data)
+{
+  StampMessageList *self = STAMP_MESSAGE_LIST (user_data);
+  StampMessageListItem *item;
+  const char *subject;
+
+  if (!before)
+    return;
+
+  item = STAMP_MESSAGE_LIST_ITEM (before);
+  subject = camel_message_info_get_subject (stamp_message_list_item_get_message_info (item));
+  if (subject_changed (self->subject, (char *) subject)) {
+    GtkWidget *label = gtk_label_new (subject);
+
+    gtk_label_set_xalign (GTK_LABEL (label), 0);
+    gtk_label_set_wrap (GTK_LABEL (label), TRUE);
+    gtk_label_set_wrap_mode (GTK_LABEL (label), PANGO_WRAP_WORD_CHAR);
+    gtk_label_set_selectable (GTK_LABEL (label), TRUE);
+    gtk_widget_add_css_class (label, "title-2");
+    gtk_widget_add_css_class (label, "message-list-header");
+    g_clear_pointer (&self->subject, g_free);
+    self->subject = g_strdup (subject);
+
+    gtk_list_box_row_set_header (row, label);
+  } else {
+    gtk_list_box_row_set_header (row, NULL);
+  }
+}
+
 static void
 stamp_message_list_init (StampMessageList *self)
 {
@@ -131,6 +183,7 @@ stamp_message_list_init (StampMessageList *self)
   stamp_message_list_hovering_over_link (self, NULL, NULL);
 
   gtk_list_box_set_sort_func (GTK_LIST_BOX (self->list_box), sort_mails, NULL, NULL);
+  gtk_list_box_set_header_func (GTK_LIST_BOX (self->list_box), update_header, self, NULL);
 
   gtk_search_bar_connect_entry (GTK_SEARCH_BAR (self->search_bar), GTK_EDITABLE (self->search_entry));
 }
@@ -243,6 +296,8 @@ stamp_message_list_set_conversation (StampMessageList      *self,
 
   gtk_label_set_text (GTK_LABEL (self->message_title), camel_message_info_get_subject (camel_folder_thread_node_get_item (node)));
 
+  self->subject = g_strdup (camel_message_info_get_subject (camel_folder_thread_node_get_item (node)));
+
   item = stamp_message_list_item_new (self->account, node);
   if ((camel_message_info_get_flags (message) & CAMEL_MESSAGE_SEEN) == 0) {
     stamp_message_list_item_set_expanded (STAMP_MESSAGE_LIST_ITEM (item), TRUE);
@@ -254,7 +309,7 @@ stamp_message_list_set_conversation (StampMessageList      *self,
     go_down (self, camel_folder_thread_node_get_child (node));
 
   child = gtk_widget_get_last_child (self->list_box);
-  if (child && STAMP_MESSAGE_LIST_ITEM (child)) {
+  if (child && STAMP_IS_MESSAGE_LIST_ITEM (child) && STAMP_MESSAGE_LIST_ITEM (child)) {
     StampMessageListItem *list_item = STAMP_MESSAGE_LIST_ITEM (child);
 
     stamp_message_list_item_set_expanded (list_item, TRUE);
