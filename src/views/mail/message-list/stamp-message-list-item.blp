@@ -3,8 +3,7 @@ using Adw 1;
 
 template $StampMessageListItem: ListBoxRow {
   activatable: false;
-  margin-top: 2;
-  margin-bottom: 2;
+
   GestureClick {
     released => $on_row_clicked();
   }
@@ -28,6 +27,10 @@ template $StampMessageListItem: ListBoxRow {
         child: Revealer secondary_revealer {
           child: Box {
             orientation: vertical;
+
+            Adw.Banner error_banner {
+              revealed: false;
+            }
 
             Adw.Banner blocked_images_banner {
               title: _("This message contains remote images.");
@@ -63,10 +66,7 @@ template $StampMessageListItem: ListBoxRow {
             }
 
             $StampWebView web_view {
-              margin-bottom: 12;
-              margin-top: 0;
-              margin-start: 1;
-              margin-end: 1;
+              margin-bottom: 2;
               image-load-blocked => $on_image_load_blocked();
               loaded => $on_loaded();
               mouse-target-changed => $on_mouse_target_changed();

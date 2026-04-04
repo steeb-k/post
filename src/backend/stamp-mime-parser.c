@@ -667,6 +667,7 @@ handle_smime_encrypted (StampMimeParser *parser,
                                                 decrypted_part, parser->cancellable, &error);
   if (error) {
     g_warning ("S/MIME decryption failed: %s", error->message);
+    g_propagate_error (&parser->error, g_steal_pointer (&error));
     return FALSE;
   }
 

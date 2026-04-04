@@ -45,6 +45,7 @@ struct _StampMessageListItem {
   GtkWidget *secondary_revealer;
   GtkWidget *vcard_banner;
   GtkWidget *blocked_images_revealer;
+  GtkWidget *error_banner;
   GtkWidget *blocked_images_banner;
   GtkWidget *signature_banner;
   GtkWidget *encryption_banner;
@@ -124,6 +125,12 @@ open_message (StampMessageListItem *self,
 
   parser = stamp_mime_parser_new (message, CAMEL_SESSION (stamp_session_get_default ()), self->cancellable);
   stamp_mime_parser_parse (parser);
+
+  if (parser->error) {
+    g_warning ("ERROR: %s", parser->error->message);
+    adw_banner_set_title (ADW_BANNER (self->error_banner), parser->error->message);
+    adw_banner_set_revealed (ADW_BANNER (self->error_banner), TRUE);
+  }
 
   validation = stamp_mime_parser_get_validation (parser);
   if (validation) {
@@ -600,6 +607,7 @@ stamp_message_list_item_class_init (StampMessageListItemClass *klass)
 
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, header);
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, stack);
+  gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, error_banner);
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, blocked_images_banner);
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, disposition_banner);
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, signature_banner);
