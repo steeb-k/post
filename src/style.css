@@ -296,7 +296,6 @@ weekgrid > widget.now-strip {
 }
 
 listview > row.tree-header {
-  border-bottom: 1px solid alpha(@accent_color, 0.25);
   font-weight: bold;
   font-size: 1em;
   min-height: 36px;
