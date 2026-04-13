@@ -43,4 +43,7 @@ stamp_window_get_mail_view (StampWindow *self);
 StampWindow *
 stamp_get_main_window (void);
 
+void
+stamp_window_show_mail_view (StampWindow *self);
+
 G_END_DECLS

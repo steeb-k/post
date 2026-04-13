@@ -164,3 +164,10 @@ stamp_get_main_window (void)
 
   return STAMP_WINDOW (gtk_application_get_active_window (GTK_APPLICATION (app)));
 }
+
+void
+stamp_window_show_mail_view (StampWindow *self)
+{
+  adw_view_stack_set_visible_child_name (self->main_view_stack, "mail");
+}
+

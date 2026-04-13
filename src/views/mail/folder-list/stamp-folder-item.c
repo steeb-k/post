@@ -22,6 +22,7 @@
 #include "stamp-item.h"
 #include "stamp-settings.h"
 
+#include <glib/gi18n.h>
 #include <gst/gst.h>
 
 struct _StampFolderItem {
@@ -254,6 +255,8 @@ on_folder_item_folder_changed (CamelFolder           *folder,
 
       notification = g_notification_new (title);
       g_notification_set_body (notification, camel_message_info_get_subject (unseen_message_info));
+      g_notification_add_button_with_target (notification, _("Show"), "app.show-message", "s", camel_message_info_get_uid (unseen_message_info));
+      g_notification_set_default_action_and_target (notification, "app.show-message", "s", camel_message_info_get_uid (unseen_message_info));
 
       self->notification = g_strdup (camel_message_info_get_uid (unseen_message_info));
       g_application_send_notification (g_application_get_default (), self->notification, notification);

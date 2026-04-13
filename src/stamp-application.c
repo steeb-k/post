@@ -337,11 +337,25 @@ stamp_application_preferences_action (GSimpleAction *action,
   adw_dialog_present (ADW_DIALOG (preferences), GTK_WIDGET (window));
 }
 
+static void
+stamp_application_show_message (GSimpleAction *action,
+                                GVariant      *parameter,
+                                gpointer       user_data)
+{
+  StampWindow *window = stamp_get_main_window ();
+  const gchar *uid = g_variant_get_string (parameter, NULL);
+
+  stamp_window_show_mail_view (window);
+  /* TODO: Select folder and message? */
+  gtk_window_present (GTK_WINDOW (window));
+}
+
 static const GActionEntry app_actions[] = {
   { "accounts", stamp_application_accounts_action },
   { "quit", stamp_application_quit_action },
   { "about", stamp_application_about_action },
   { "preferences", stamp_application_preferences_action },
+  { "show-message", stamp_application_show_message, "s" },
 };
 
 static void
