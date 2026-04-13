@@ -1331,16 +1331,16 @@ stamp_conversation_list_init (StampConversationList *self)
 
   menu = g_menu_new ();
   filter_menu = g_menu_new ();
-  g_menu_append (filter_menu, "All Mails", "app.mail-filter::all-mails");
-  g_menu_append (filter_menu, "Starred", "app.mail-filter::starred");
-  g_menu_append (filter_menu, "Attachment", "app.mail-filter::attachment");
-  g_menu_append (filter_menu, "Unread", "app.mail-filter::unread");
-  g_menu_append_section (menu, "Filter", G_MENU_MODEL (filter_menu));
+  g_menu_append (filter_menu, _("All Mails"), "app.mail-filter::all-mails");
+  g_menu_append (filter_menu, _("Starred"), "app.mail-filter::starred");
+  g_menu_append (filter_menu, _("Attachment"), "app.mail-filter::attachment");
+  g_menu_append (filter_menu, _("Unread"), "app.mail-filter::unread");
+  g_menu_append_section (menu, _("Filter"), G_MENU_MODEL (filter_menu));
 
   sort_menu = g_menu_new ();
   g_menu_append_section (menu, "Sort Order", G_MENU_MODEL (sort_menu));
-  g_menu_append (sort_menu, "Newest First", "conversation.mail-sort::newest-first");
-  g_menu_append (sort_menu, "Oldest First", "conversation.mail-sort::oldest-first");
+  g_menu_append (sort_menu, _("Newest First"), "conversation.mail-sort::newest-first");
+  g_menu_append (sort_menu, _("Oldest First"), "conversation.mail-sort::oldest-first");
   gtk_menu_button_set_menu_model (GTK_MENU_BUTTON (self->sort_button), G_MENU_MODEL (menu));
 
   self->is_pulling = FALSE;
