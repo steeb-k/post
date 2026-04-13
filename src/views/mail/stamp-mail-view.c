@@ -225,8 +225,9 @@ is_mobile_view (StampMailView *self)
 }
 
 static
-void on_apply_view (AdwBreakpoint *breakpoint,
-                    gpointer       user_data)
+void
+on_apply_view (AdwBreakpoint *breakpoint,
+               gpointer       user_data)
 {
   StampMailView *self = STAMP_MAIL_VIEW (user_data);
   gboolean show = is_mobile_view (self);

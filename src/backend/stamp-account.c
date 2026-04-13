@@ -62,6 +62,7 @@ struct _StampAccount {
   GCancellable *cancellable;
 
   StampPhotoCache *photo_cache;
+  GList *categories;
 };
 
 G_DEFINE_FINAL_TYPE (StampAccount, stamp_account, G_TYPE_OBJECT)
@@ -502,7 +503,7 @@ typedef struct {
 } FindFolderData;
 
 static gboolean
-match_folder_info (CamelFolderInfo *fi,
+match_folder_info (CamelFolderInfo      *fi,
                    const FindFolderData *data)
 {
   if (data->type == FIND_BY_FLAGS)
@@ -515,7 +516,7 @@ match_folder_info (CamelFolderInfo *fi,
 }
 
 static CamelFolderInfo *
-find_folder_info_recursive (CamelFolderInfo  *fi,
+find_folder_info_recursive (CamelFolderInfo      *fi,
                             const FindFolderData *data)
 {
   while (fi) {
@@ -684,6 +685,9 @@ stamp_account_enable_mail (StampAccount *self)
   self->mail->trash_folder = camel_store_get_trash_folder_sync (CAMEL_STORE (self->mail->service), NULL, &error);
   self->mail->sent_folder = find_sent_folder (CAMEL_STORE (self->mail->service));
   self->mail->drafts_folder = get_drafts_folder (CAMEL_STORE (self->mail->service), NULL, &error);
+
+  if (g_strcmp0 (e_source_backend_get_backend_name (E_SOURCE_BACKEND (extension)), "microsoft365") == 0)
+    self->categories = stamp_m365_get_categories_sync (self->mail->source, self->cancellable, &error);
 }
 
 void
@@ -1176,8 +1180,8 @@ stamp_account_save_draft_async (StampAccount         *self,
                                 CamelInternetAddress *sender,
                                 CamelInternetAddress *recipient,
                                 GCancellable         *cancellable,
-                                GAsyncReadyCallback  callback,
-                                gpointer             user_data)
+                                GAsyncReadyCallback   callback,
+                                gpointer              user_data)
 {
   GTask *task = g_task_new (self, cancellable, callback, user_data);
   SaveDraftData *data = g_new0 (SaveDraftData, 1);
@@ -1230,10 +1234,10 @@ remove_draft_thread (GTask        *task,
 
 void
 stamp_account_remove_draft_async (StampAccount        *self,
-                                 const char           *uid,
-                                 GCancellable         *cancellable,
-                                 GAsyncReadyCallback   callback,
-                                 gpointer             user_data)
+                                  const char          *uid,
+                                  GCancellable        *cancellable,
+                                  GAsyncReadyCallback  callback,
+                                  gpointer             user_data)
 {
   GTask *task = g_task_new (self, cancellable, callback, user_data);
   RemoveDraftData *data = g_new0 (RemoveDraftData, 1);
@@ -1247,8 +1251,8 @@ stamp_account_remove_draft_async (StampAccount        *self,
 
 gboolean
 stamp_account_remove_draft_async_finish (StampAccount  *self,
-                                        GAsyncResult  *result,
-                                        GError       **error)
+                                         GAsyncResult  *result,
+                                         GError       **error)
 {
   return g_task_propagate_boolean (G_TASK (result), error);
 }
@@ -1275,4 +1279,32 @@ void
 stamp_account_clear_negative_photo_cache (StampAccount *self)
 {
   stamp_disk_cache_purge_negative (self->photo_cache);
+}
+
+StampCategory *
+stamp_account_find_category (StampAccount *self,
+                             const char   *name)
+{
+  g_autoptr (GString) str = NULL;
+
+  if (!self->categories)
+    return NULL;
+
+  str = g_string_new (name);
+  g_string_replace (str, "_", " ", 0);
+
+  for (GList *iter = self->categories; iter && iter->data; iter = g_list_next (iter)) {
+    StampCategory *cat = iter->data;
+
+    if (g_strcmp0 (stamp_category_get_name (cat), str->str) == 0)
+      return g_object_ref (cat);
+  }
+
+  return NULL;
+}
+
+GList *
+stamp_account_get_categories (StampAccount *self)
+{
+  return self->categories;
 }

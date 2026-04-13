@@ -154,19 +154,15 @@ template $StampConversationRow: Box {
           row: 2;
         }
 
-        Label labels {
-          styles [
-            "counter",
-            "long",
-            "needs-attention",
-          ]
-
+        FlowBox labels {
+          selection-mode: none;
           visible: false;
         }
 
         Inscription body {
           hexpand: true;
           xalign: 0;
+          valign: center;
           text-overflow: ellipsize_end;
 
           styles [

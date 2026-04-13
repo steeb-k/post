@@ -90,8 +90,13 @@ void
 stamp_conversation_item_update (StampConversationItem *self,
                                 CamelMessageInfo      *info);
 
-char *
+GPtrArray *
 stamp_conversation_item_get_labels (StampConversationItem *self);
+
+void
+stamp_conversation_item_set_label (StampConversationItem *self,
+                                   const char            *label,
+                                   gboolean               state);
 
 gboolean
 stamp_conversation_item_is_important (StampConversationItem *self);

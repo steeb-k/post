@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include "stamp-category.h"
+
 #include <camel/camel.h>
 #include <gdk/gdk.h>
 #include <glib-object.h>
@@ -222,6 +224,13 @@ stamp_account_get_mail_drafts_folder (StampAccount *self);
 
 CamelFolder *
 stamp_account_get_mail_sent_folder (StampAccount *self);
+
+GList *
+stamp_account_get_categories (StampAccount *self);
+
+StampCategory *
+stamp_account_find_category (StampAccount *self,
+                             const char   *name);
 
 /*
  * Contacts Service Getter

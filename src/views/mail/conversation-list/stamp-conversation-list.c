@@ -93,6 +93,9 @@ struct _StampConversationList {
   GHashTable *position_to_check;
   GPtrArray *trash_array;
   guint pending_load_count;
+
+  GSimpleActionGroup *actions;
+  GMenu *cat_menu;
 };
 
 G_DEFINE_FINAL_TYPE (StampConversationList, stamp_conversation_list, ADW_TYPE_BIN)
@@ -287,6 +290,61 @@ on_single_selection_changed (GtkSelectionModel *model,
                              gpointer           user_data);
 
 static void
+on_category_toggled (GSimpleAction *action,
+                     GVariant      *parameter,
+                     gpointer       user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+  StampConversationItem *item = STAMP_CONVERSATION_ITEM (gtk_single_selection_get_selected_item (self->single_selection));
+  g_autoptr (GVariant) state = g_action_get_state (G_ACTION (action));
+  gboolean active = g_variant_get_boolean (state);
+  const char *action_name = g_action_get_name (G_ACTION (action));
+  const char *id = action_name + 4;
+
+  g_simple_action_set_state (action, g_variant_new_boolean (!active));
+  stamp_conversation_item_set_label (item, id, !active);
+}
+
+static void
+rebuild_category_actions (StampConversationList *self)
+{
+  GActionMap *map = G_ACTION_MAP (self->actions);
+  char **old_names = g_object_get_data (G_OBJECT (self->actions), "cat-action-names");
+  GPtrArray *names = g_ptr_array_new_with_free_func (g_free);
+  GList *categories;
+
+  if (!self->account)
+    return;
+
+  categories = stamp_account_get_categories (self->account);
+
+  if (old_names) {
+    for (guint idx = 0; old_names[idx]; idx++)
+      g_action_map_remove_action (map, old_names[idx]);
+  }
+
+  for (GList *iter = categories; iter && iter->data; iter = g_list_next (iter)) {
+    StampCategory *cat = iter->data;
+    g_autoptr (GString) name = g_string_new (stamp_category_get_name (cat));
+    char *action_name;
+    g_autoptr (GSimpleAction) action;
+
+    g_string_replace (name, " ", "_", 0);
+
+    action_name = g_strdup_printf ("cat-%s", name->str);
+    action = g_simple_action_new_stateful (action_name, NULL, g_variant_new_boolean (FALSE));
+
+    g_signal_connect (action, "activate", G_CALLBACK (on_category_toggled), self);
+    g_action_map_add_action (map, G_ACTION (action));
+
+    g_ptr_array_add (names, g_strdup (action_name));
+  }
+
+  g_ptr_array_add (names, NULL);
+  g_object_set_data_full (G_OBJECT (self->actions), "cat-action-names", g_ptr_array_free (names, FALSE), (GDestroyNotify)g_strfreev);
+}
+
+static void
 on_items_changed (GListModel *model,
                   guint       position,
                   guint       removed,
@@ -301,6 +359,8 @@ on_items_changed (GListModel *model,
   } else {
     gtk_stack_set_visible_child_name (GTK_STACK (self->mail_list_stack), "list");
   }
+
+  rebuild_category_actions (self);
 }
 
 static void
@@ -456,6 +516,8 @@ stamp_conversation_list_load_folder (StampConversationList *self,
   mail_service = stamp_account_get_mail_service (account);
   self->account = account;
 
+  rebuild_category_actions (self);
+
   if (self->full_name != full_name) {
     g_clear_pointer (&self->full_name, g_free);
     self->full_name = g_strdup (full_name);
@@ -536,12 +598,15 @@ handle_popover (RowData *row_data,
 {
   GtkWidget *popover;
   g_autoptr (GMenu) menu = NULL;
+  g_autoptr (GMenu) sub_menu = NULL;
   GdkRectangle rect;
   StampConversationRow *child = STAMP_CONVERSATION_ROW (gtk_list_item_get_child (row_data->list_item));
   graphene_point_t src_point = { (float)x, (float)y };
   graphene_point_t dst_point;
   guint position = gtk_list_item_get_position (row_data->list_item);
   GtkSelectionModel *model = gtk_list_view_get_model (GTK_LIST_VIEW (row_data->self->listview));
+  GList *categories;
+  GPtrArray *labels;
 
   gtk_selection_model_select_item (model, position, TRUE);
 
@@ -552,6 +617,40 @@ handle_popover (RowData *row_data,
 
   g_menu_append (menu, _("Mark Read"), "mail.mark-read-current");
   g_menu_append (menu, _("Mark Unread"), "mail.mark-unread-current");
+
+  labels = stamp_conversation_item_get_labels (STAMP_CONVERSATION_ITEM (gtk_list_item_get_item (row_data->list_item)));
+  categories = stamp_account_get_categories (row_data->self->account);
+  if (categories) {
+    sub_menu = g_menu_new ();
+
+    for (GList *iter = categories; iter && iter->data; iter = g_list_next (iter)) {
+      StampCategory *cat = iter->data;
+      g_autoptr (GString) name = g_string_new (stamp_category_get_name (cat));
+      GMenuItem *item;
+      g_autofree char *action_name = NULL;
+      g_autofree char *full_action_name = NULL;
+      GAction *action;
+
+      g_string_replace (name, " ", "_", 0);
+      action_name = g_strdup_printf ("cat-%s", name->str);
+      full_action_name = g_strdup_printf ("conversation-list.%s", action_name);
+      item = g_menu_item_new (stamp_category_get_name (cat), full_action_name);
+      g_menu_append_item (sub_menu, item);
+
+      action = g_action_map_lookup_action (G_ACTION_MAP (row_data->self->actions), action_name);
+      g_simple_action_set_state (G_SIMPLE_ACTION (action), g_variant_new_boolean (FALSE));
+      for (int idx = 0; idx < labels->len; idx++) {
+        char *cat_name = labels->pdata[idx];
+
+        if (g_strcmp0 (cat_name, action_name + 4) == 0) {
+          g_simple_action_set_state (G_SIMPLE_ACTION (action), g_variant_new_boolean (TRUE));
+          break;
+        }
+      }
+    }
+
+    g_menu_append_submenu (menu, _("Category"), G_MENU_MODEL (sub_menu));
+  }
 
   popover = gtk_popover_menu_new_from_model (G_MENU_MODEL (menu));
   gtk_popover_set_has_arrow (GTK_POPOVER (popover), FALSE);
@@ -1312,6 +1411,29 @@ thread_unref (gpointer user_data)
 }
 
 static void
+on_mark_category (GSimpleAction *action,
+                  GVariant      *parameter,
+                  gpointer       user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+  StampConversationItem *item = NULL;
+  const char *value;
+
+  if (!parameter)
+    return;
+
+  value = g_variant_get_string (parameter, NULL);
+
+  item = STAMP_CONVERSATION_ITEM (gtk_single_selection_get_selected_item (GTK_SINGLE_SELECTION (self->single_selection)));
+
+  stamp_conversation_item_set_label (item, value, TRUE);
+}
+
+static const GActionEntry stamp_conversation_list_action_entries[] = {
+  { .name = "mark-category", .activate = on_mark_category, .parameter_type = "s" },
+};
+
+static void
 stamp_conversation_list_init (StampConversationList *self)
 {
   GtkSortListModel *sort_model;
@@ -1325,6 +1447,13 @@ stamp_conversation_list_init (StampConversationList *self)
   GSimpleAction *sort_action = g_simple_action_new_stateful ("mail-sort", G_VARIANT_TYPE_STRING, g_variant_new_string ("newest-first"));
 
   gtk_widget_init_template (GTK_WIDGET (self));
+
+  self->actions = g_simple_action_group_new ();
+  g_action_map_add_action_entries (G_ACTION_MAP (self->actions),
+                                   stamp_conversation_list_action_entries,
+                                   G_N_ELEMENTS (stamp_conversation_list_action_entries),
+                                   self);
+  gtk_widget_insert_action_group (GTK_WIDGET (self), "conversation-list", G_ACTION_GROUP (self->actions));
 
   self->thread_cache = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, thread_unref);
 
@@ -1363,6 +1492,7 @@ stamp_conversation_list_init (StampConversationList *self)
 
   g_signal_connect (G_LIST_MODEL (sort_model), "items-changed", G_CALLBACK (on_items_changed), self);
 
+  rebuild_category_actions (self);
 
   self->single_selection = gtk_single_selection_new (G_LIST_MODEL (sort_model));
   g_signal_connect_object (self->single_selection, "selection-changed", G_CALLBACK (on_single_selection_changed), self, 0);

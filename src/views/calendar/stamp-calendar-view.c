@@ -40,4 +40,3 @@ stamp_calendar_view_new (void)
 {
   return g_object_new (STAMP_TYPE_CALENDAR_VIEW, NULL);
 }
-

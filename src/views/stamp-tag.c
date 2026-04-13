@@ -307,4 +307,3 @@ stamp_tag_set_show_button (StampTag *self,
 {
   gtk_widget_set_visible (GTK_WIDGET (self->button), show);
 }
-

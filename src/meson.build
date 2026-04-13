@@ -18,6 +18,7 @@ stamp_sources = [
   'backend/stamp-session.c',
   'backend/stamp-account.c',
   'backend/stamp-bimi.c',
+  'backend/stamp-category.c',
   'backend/stamp-helper.c',
   'backend/stamp-mime-parser.c',
   'backend/stamp-photo-cache.c',

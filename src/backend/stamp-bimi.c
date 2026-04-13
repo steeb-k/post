@@ -80,4 +80,3 @@ stamp_query_bimi_logo (const char *domain)
 
   return NULL;
 }
-

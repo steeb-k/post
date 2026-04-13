@@ -288,9 +288,9 @@ on_save_as (GObject      *source_object,
 
   if (self->mime_part) {
     camel_data_wrapper_decode_to_output_stream_sync (CAMEL_DATA_WRAPPER (camel_medium_get_content (CAMEL_MEDIUM (self->mime_part))),
-                                                   stream,
-                                                   NULL,
-                                                   &error);
+                                                     stream,
+                                                     NULL,
+                                                     &error);
   } else if (self->data) {
     g_output_stream_write_all (stream, g_bytes_get_data (self->data, NULL), g_bytes_get_size (self->data), NULL, NULL, &error);
   }
@@ -512,17 +512,17 @@ stamp_attachment_button_class_init (StampAttachmentButtonClass *klass)
 
   g_object_class_install_property (object_class, PROP_SIZE,
                                    g_param_spec_uint64 ("size",
-                                                       NULL,
-                                                       NULL,
-                                                       0, G_MAXUINT64, 0,
-                                                       G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+                                                        NULL,
+                                                        NULL,
+                                                        0, G_MAXUINT64, 0,
+                                                        G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_DATA,
                                    g_param_spec_boxed ("data",
-                                                      NULL,
-                                                      NULL,
-                                                      G_TYPE_BYTES,
-                                                      G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+                                                       NULL,
+                                                       NULL,
+                                                       G_TYPE_BYTES,
+                                                       G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 }
 
 GtkWidget *
@@ -533,9 +533,9 @@ stamp_attachment_button_new (CamelMimePart *mime_part)
 
 GtkWidget *
 stamp_attachment_button_new_from_data (const char *filename,
-                                        const char *content_type,
-                                        gsize       size,
-                                        GBytes     *data)
+                                       const char *content_type,
+                                       gsize       size,
+                                       GBytes     *data)
 {
   return g_object_new (STAMP_TYPE_ATTACHMENT_BUTTON,
                        "filename", filename,

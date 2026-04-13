@@ -31,6 +31,7 @@ struct _StampConversationItem {
   char *sender;
   char *service_uid;
   char *preview;
+  GPtrArray *labels;
   gboolean unread;
   gboolean starred;
   gboolean hidden;
@@ -52,6 +53,7 @@ enum {
   PROP_IMPORTANT,
   PROP_DATE,
   PROP_NUM_MESSAGES,
+  PROP_LABELS,
   LAST_PROP
 };
 
@@ -118,6 +120,9 @@ stamp_conversation_item_get_property (GObject    *object,
     case PROP_NUM_MESSAGES:
       g_value_set_ulong (value, stamp_conversation_item_get_num_messages (self));
       break;
+    case PROP_LABELS:
+      g_value_set_pointer (value, stamp_conversation_item_get_labels (self));
+      break;
     default:
       /* We don't have any other property... */
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -179,6 +184,7 @@ stamp_conversation_item_set_property (GObject      *object,
     case PROP_IMPORTANT:
     case PROP_DATE:
     case PROP_NUM_MESSAGES:
+    case PROP_LABELS:
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -279,6 +285,10 @@ stamp_conversation_item_class_init (StampConversationItemClass *klass)
                                                  G_MAXULONG,
                                                  0,
                                                  G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+  props[PROP_LABELS] = g_param_spec_pointer ("labels",
+                                             NULL,
+                                             NULL,
+                                             G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
   g_object_class_install_properties (object_class, LAST_PROP, props);
 }
@@ -542,11 +552,12 @@ stamp_conversation_item_get_calendar (StampConversationItem *self)
   return camel_message_info_get_user_flag (message, "$has_cal");
 }
 
-char *
+GPtrArray *
 stamp_conversation_item_get_labels (StampConversationItem *self)
 {
   const CamelMessageInfo *message;
   const CamelNamedFlags *flags;
+  GPtrArray *array = g_ptr_array_new_with_free_func (g_free);
 
   if (!self->thread_node)
     return FALSE;
@@ -559,11 +570,11 @@ stamp_conversation_item_get_labels (StampConversationItem *self)
     const char *name = camel_named_flags_get (flags, idx);
 
     if (g_strcmp0 (name, "$has_cal") != 0 && g_strcmp0 (name, "$Labelimportant") != 0 && !g_str_has_prefix (name, "X-")) {
-      return g_strdup (name);
+      g_ptr_array_add (array, g_strdup (name));
     }
   }
 
-  return NULL;
+  return array;
 }
 
 void
@@ -611,4 +622,20 @@ gboolean
 stamp_conversation_item_get_hidden (StampConversationItem *self)
 {
   return self->hidden;
+}
+
+void
+stamp_conversation_item_set_label (StampConversationItem *self,
+                                   const char            *label,
+                                   gboolean               state)
+{
+  CamelMessageInfo *info;
+
+  if (!self->thread_node)
+    return;
+
+  info = camel_folder_thread_node_get_item (self->thread_node);
+  camel_message_info_set_user_flag (info, label, state);
+
+  g_object_notify (G_OBJECT (self), "labels");
 }

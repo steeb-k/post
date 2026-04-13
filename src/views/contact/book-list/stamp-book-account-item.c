@@ -161,4 +161,3 @@ stamp_book_account_item_new (StampAccount *account)
 {
   return g_object_new (STAMP_TYPE_BOOK_ACCOUNT_ITEM, "account", account, NULL);
 }
-

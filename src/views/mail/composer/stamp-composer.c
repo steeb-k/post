@@ -313,14 +313,14 @@ on_send_mail (GObject      *account,
 }
 
 static void
-apply_crypto (CamelSession *session,
-              CamelMimeMessage *mime_message,
+apply_crypto (CamelSession         *session,
+              CamelMimeMessage     *mime_message,
               CamelInternetAddress *recipient,
-              gboolean pgp_sign,
-              gboolean pgp_encrypt,
-              gboolean smime_sign,
-              gboolean smime_encrypt,
-              GCancellable *cancellable)
+              gboolean              pgp_sign,
+              gboolean              pgp_encrypt,
+              gboolean              smime_sign,
+              gboolean              smime_encrypt,
+              GCancellable         *cancellable)
 {
   g_autoptr (GError) error = NULL;
 

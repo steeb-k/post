@@ -710,4 +710,3 @@ stamp_session_get_signatures (StampSession *self)
 {
   return self->signatures;
 }
-

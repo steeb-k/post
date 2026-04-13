@@ -157,7 +157,7 @@ update_header (GtkListBoxRow *row,
 
   item = STAMP_MESSAGE_LIST_ITEM (before);
   subject = camel_message_info_get_subject (stamp_message_list_item_get_message_info (item));
-  if (subject_changed (self->subject, (char *) subject)) {
+  if (subject_changed (self->subject, (char *)subject)) {
     GtkWidget *label = gtk_label_new (subject);
 
     gtk_label_set_xalign (GTK_LABEL (label), 0);

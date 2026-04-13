@@ -14,6 +14,7 @@ template $StampConversationList: Adw.Bin {
     Stack header_stack {
       Adw.HeaderBar normal_headerbar {
         show-end-title-buttons: false;
+
         title-widget: Adw.WindowTitle window_title {
           title: _("Mail");
         };
@@ -60,6 +61,7 @@ template $StampConversationList: Adw.Bin {
 
       Adw.HeaderBar selection_headerbar {
         show-end-title-buttons: false;
+
         title-widget: Adw.WindowTitle selection_label {
           title: _("Selection");
         };

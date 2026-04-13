@@ -143,7 +143,6 @@ on_bimi_images (GtkWidget  *row,
 
       stamp_account_clear_negative_photo_cache (account);
     }
-
   }
 }
 

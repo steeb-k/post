@@ -20,6 +20,7 @@
 #include "stamp-conversation-row.h"
 
 #include "stamp-account.h"
+#include "stamp-category.h"
 #include "stamp-helper.h"
 #include "stamp-session.h"
 #include "stamp-time-helpers.h"
@@ -45,7 +46,7 @@ struct _StampConversationRow {
   GtkGrid *row;
   GtkImage *attachment_icon;
   GtkImage *calendar_icon;
-  GtkLabel *labels;
+  GtkFlowBox *labels;
 
   GCancellable *cancellable;
   gboolean selected;
@@ -55,6 +56,8 @@ struct _StampConversationRow {
   guint instance_id;
   guint generation;
   gboolean unread;
+
+  StampAccount *account;
 };
 
 G_DEFINE_FINAL_TYPE (StampConversationRow, stamp_conversation_row, GTK_TYPE_BOX)
@@ -89,6 +92,7 @@ stamp_conversation_row_dispose (GObject *object)
   g_cancellable_cancel (self->cancellable);
   g_clear_object (&self->cancellable);
   g_clear_object (&self->item);
+  g_clear_object (&self->account);
 
   gtk_widget_dispose_template (GTK_WIDGET (self), STAMP_TYPE_CONVERSATION_ROW);
 
@@ -469,20 +473,63 @@ add_binding (StampConversationRow *self,
   g_ptr_array_add (self->bindings, binding);
 }
 
+static gboolean
+transfer_labels_to_box (GBinding     *binding,
+                        const GValue *from,
+                        GValue       *to,
+                        gpointer      user_data)
+{
+  StampConversationRow *self = STAMP_CONVERSATION_ROW (user_data);
+  GListStore *store = g_object_get_data (G_OBJECT (self->labels), "store");
+  GPtrArray *labels = g_value_get_pointer (from);
+
+  g_list_store_remove_all (store);
+
+  if (labels) {
+    for (int idx = 0; idx < labels->len; idx++) {
+      StampCategory *cat = stamp_account_find_category (self->account, labels->pdata[idx]);
+
+      if (cat)
+        g_list_store_append (store, cat);
+    }
+  }
+
+  g_value_set_boolean (to, labels && labels->len > 0);
+
+  return TRUE;
+}
+
+static GtkWidget *
+create_label (gpointer item,
+              gpointer user_data)
+{
+  StampCategory *obj = STAMP_CATEGORY (item);
+  const char *name = stamp_category_get_name (obj);
+  GtkWidget *label = gtk_label_new (name);
+  g_autofree char *css_color = g_strdup_printf ("category-color-%s", stamp_category_get_color (obj));
+
+  gtk_widget_add_css_class (label, "category-pill");
+  gtk_widget_add_css_class (label, css_color);
+
+  return label;
+}
+
 void
 stamp_conversation_row_bind_mail (StampConversationRow  *self,
                                   StampConversationItem *item,
                                   StampAccount          *account)
 {
-  g_autofree char *labels = NULL;
+  g_autoptr (GPtrArray) labels = NULL;
   g_autofree char *mail = NULL;
   StampPhotoToken *token;
+  GListStore *store;
 
   stamp_conversation_row_unbind_mail (self, item);
   if (!item)
     return;
 
   self->item = g_object_ref (item);
+  self->account = g_object_ref (account);
 
   self->generation++;
   self->cancellable = g_cancellable_new ();
@@ -494,6 +541,10 @@ stamp_conversation_row_bind_mail (StampConversationRow  *self,
   token->generation = self->generation;
 
   stamp_account_get_photo (account, mail, self->cancellable, on_get_photo, token);
+
+  store = g_list_store_new (STAMP_TYPE_CATEGORY);
+  gtk_flow_box_bind_model (self->labels, G_LIST_MODEL (store), create_label, NULL, NULL);
+  g_object_set_data_full (G_OBJECT (self->labels), "store", store, g_object_unref);
 
   add_binding (self, g_object_bind_property (item, "subject", self->topic, "text", G_BINDING_SYNC_CREATE));
   add_binding (self, g_object_bind_property (item, "from", self->participants, "text", G_BINDING_SYNC_CREATE));
@@ -507,13 +558,7 @@ stamp_conversation_row_bind_mail (StampConversationRow  *self,
   add_binding (self, g_object_bind_property_full (item, "date", self->date, "label", G_BINDING_SYNC_CREATE, transfer_date_to, NULL, NULL, NULL));
   add_binding (self, g_object_bind_property_full (item, "num-messages", self->counter, "label", G_BINDING_SYNC_CREATE, transfer_num_messages_to, NULL, self, NULL));
 
-  labels = stamp_conversation_item_get_labels (item);
-  if (labels) {
-    gtk_label_set_text (self->labels, labels);
-    gtk_widget_set_visible (GTK_WIDGET (self->labels), TRUE);
-  } else {
-    gtk_widget_set_visible (GTK_WIDGET (self->labels), FALSE);
-  }
+  add_binding (self, g_object_bind_property_full (item, "labels", self->labels, "visible", G_BINDING_SYNC_CREATE, transfer_labels_to_box, NULL, self, NULL));
 }
 
 void
