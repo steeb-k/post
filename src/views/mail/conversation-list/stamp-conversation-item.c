@@ -458,11 +458,16 @@ stamp_conversation_item_get_preview (StampConversationItem *self)
 {
   if (!self->preview) {
     const char *preview = NULL;
+    const CamelMessageInfo *info = NULL;
 
     for (CamelFolderThreadNode *child = camel_folder_thread_node_get_child (self->thread_node); child; child = camel_folder_thread_node_get_next (child)) {
-      const CamelMessageInfo *info = camel_folder_thread_node_get_item (child);
-      preview = camel_message_info_get_preview (info);
+      info = camel_folder_thread_node_get_item (child);
     }
+
+    if (!info)
+      info = camel_folder_thread_node_get_item (self->thread_node);
+
+     preview = camel_message_info_get_preview (info);
 
     if (preview && strlen (preview) > 0)
       self->preview = g_markup_escape_text (preview, -1);
