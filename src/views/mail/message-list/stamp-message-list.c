@@ -395,6 +395,10 @@ stamp_message_list_compose (StampMessageList  *self,
     child = gtk_widget_get_last_child (self->list_box);
   }
 
+  /* Ensure that last item is actually a message list item and not a header */
+  while (child && !STAMP_IS_MESSAGE_LIST_ITEM (child))
+    child = gtk_widget_get_prev_sibling (child);
+
   if (!child)
     return;
 
