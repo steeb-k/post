@@ -166,6 +166,7 @@ update_header (GtkListBoxRow *row,
     gtk_label_set_selectable (GTK_LABEL (label), TRUE);
     gtk_widget_add_css_class (label, "title-2");
     gtk_widget_add_css_class (label, "message-list-header");
+    gtk_widget_add_css_class (label, "message-list-header-between");
     g_clear_pointer (&self->subject, g_free);
     self->subject = g_strdup (subject);
 

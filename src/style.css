@@ -319,3 +319,7 @@ listview > row.tree-header:first-child {
   margin-top: 24px;
   margin-bottom: 32px;
 }
+
+.message-list-header-between {
+  margin-bottom: 48px;
+}
