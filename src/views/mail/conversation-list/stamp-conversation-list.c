@@ -1002,14 +1002,19 @@ on_selection_button_clicked (GtkWidget *button,
 }
 
 static void
+scroll_to_top_idle (gpointer user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+
+  gtk_list_view_scroll_to (GTK_LIST_VIEW (self->listview), 0, GTK_LIST_SCROLL_FOCUS, NULL);
+  gtk_widget_set_visible (self->scroll_to_top, FALSE);
+}
+
+static void
 on_scroll_to_top (GtkButton *button,
                   gpointer   user_data)
 {
-  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
-  GtkAdjustment *adj = gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (self->scrolled_window));
-
-  gtk_adjustment_set_value (adj, 0.0);
-  gtk_widget_set_visible (self->scroll_to_top, FALSE);
+  g_idle_add_once (scroll_to_top_idle, user_data);
 }
 
 static void
