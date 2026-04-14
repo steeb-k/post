@@ -72,6 +72,8 @@ struct _StampMessageListItem {
 
   guint progress_handle;
   gboolean loading_done;
+  GSimpleActionGroup *actions;
+  StampComposerType type;
 };
 
 G_DEFINE_FINAL_TYPE (StampMessageListItem, stamp_message_list_item, GTK_TYPE_LIST_BOX_ROW);
@@ -671,6 +673,172 @@ on_size_request (GtkWidget  *web_view,
   }
 }
 
+static void
+update_actions (StampMessageListItem *self)
+{
+  GAction *action;
+  guint32 flags = camel_message_info_get_flags (self->message_info);
+  gboolean flagged = (flags & CAMEL_MESSAGE_FLAGGED) != 0;
+  gboolean read = (flags & CAMEL_MESSAGE_SEEN) != 0;
+
+  action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-unflag");
+  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), flagged);
+  action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-flag");
+  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), !flagged);
+
+  action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-unread");
+  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), read);
+  action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-read");
+  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), !read);
+}
+
+static void
+on_mark_read_activate (GSimpleAction *action,
+                       GVariant      *parameter,
+                       gpointer       user_data)
+{
+  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
+
+  camel_message_info_set_flags ((CamelMessageInfo *)self->message_info, CAMEL_MESSAGE_SEEN, ~0);
+  update_actions (self);
+}
+
+static void
+on_mark_unread_activate (GSimpleAction *action,
+                         GVariant      *parameter,
+                         gpointer       user_data)
+{
+  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
+
+  camel_message_info_set_flags ((CamelMessageInfo *)self->message_info, CAMEL_MESSAGE_SEEN, 0);
+  update_actions (self);
+}
+
+static void
+on_mark_flag_activate (GSimpleAction *action,
+                       GVariant      *parameter,
+                       gpointer       user_data)
+{
+  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
+
+  camel_message_info_set_flags ((CamelMessageInfo *)self->message_info, CAMEL_MESSAGE_FLAGGED, ~0);
+  update_actions (self);
+}
+
+static void
+on_mark_unflag_activate (GSimpleAction *action,
+                         GVariant      *parameter,
+                         gpointer       user_data)
+{
+  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
+
+  camel_message_info_set_flags ((CamelMessageInfo *)self->message_info, CAMEL_MESSAGE_FLAGGED, 0);
+  update_actions (self);
+}
+
+static void
+on_print (GSimpleAction *action,
+          GVariant      *parameter,
+          gpointer       user_data)
+{
+  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
+  stamp_message_list_item_print (self);
+}
+
+static void
+on_view_source_activate (GSimpleAction *action,
+                         GVariant      *parameter,
+                         gpointer       user_data)
+{
+  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
+  stamp_message_list_item_view_source (self);
+}
+
+static void
+on_message_body (GObject      *source,
+                 GAsyncResult *res,
+                 gpointer      user_data)
+{
+  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
+  GtkWidget *composer;
+  g_autoptr (GError) error = NULL;
+  char *body;
+
+  body = stamp_message_list_item_get_message_body_html_finish (self, res, &error);
+  if (error) {
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+      g_warning ("Could not get message body html: %s", error->message);
+    return;
+  }
+
+  composer = stamp_composer_new_with_quote (self->type,
+                                            stamp_message_list_item_get_uid (self),
+                                            self->account,
+                                            stamp_message_list_item_get_web_view (self),
+                                            stamp_message_list_item_get_message_info (self),
+                                            stamp_message_list_item_get_message (self),
+                                            body);
+  gtk_window_present (GTK_WINDOW (composer));
+}
+
+static void
+stamp_message_list_item_compose (StampMessageListItem *self,
+                                 StampComposerType     type)
+{
+  if (type == STAMP_COMPOSER_NEW) {
+    GtkWidget *composer;
+
+    composer = stamp_composer_new (self->account);
+    gtk_window_present (GTK_WINDOW (composer));
+    return;
+  }
+
+  self->type = type;
+  stamp_message_list_item_get_message_body_html (self, NULL, on_message_body, self);
+}
+
+static void
+on_reply (GSimpleAction *action,
+          GVariant      *parameter,
+          gpointer       user_data)
+{
+  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
+
+  stamp_message_list_item_compose (self, STAMP_COMPOSER_REPLY);
+}
+
+static void
+on_reply_all (GSimpleAction *action,
+              GVariant      *parameter,
+              gpointer       user_data)
+{
+  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
+
+  stamp_message_list_item_compose (self, STAMP_COMPOSER_REPLY_ALL);
+}
+
+static void
+on_forward (GSimpleAction *action,
+            GVariant      *parameter,
+            gpointer       user_data)
+{
+  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
+
+  stamp_message_list_item_compose (self, STAMP_COMPOSER_FORWARD);
+}
+
+static const GActionEntry actions[] = {
+  { "reply", on_reply},
+  { "reply-all", on_reply_all},
+  { "forward", on_forward},
+  { "mark-read", on_mark_read_activate},
+  { "mark-unread", on_mark_unread_activate},
+  { "mark-flag", on_mark_flag_activate},
+  { "mark-unflag", on_mark_unflag_activate},
+  { "print", on_print},
+  { "view-source", on_view_source_activate},
+};
+
 void
 stamp_message_list_item_init (StampMessageListItem *self)
 {
@@ -682,6 +850,10 @@ stamp_message_list_item_init (StampMessageListItem *self)
   self->cancellable = g_cancellable_new ();
 
   g_signal_connect_object (self->web_view, "notify::size-request", G_CALLBACK (on_size_request), self, 0);
+
+  self->actions = g_simple_action_group_new ();
+  g_action_map_add_action_entries (G_ACTION_MAP (self->actions), actions, G_N_ELEMENTS (actions), self);
+  gtk_widget_insert_action_group (GTK_WIDGET (self), "message-list-item", G_ACTION_GROUP (self->actions));
 }
 
 GtkWidget *
@@ -695,6 +867,7 @@ stamp_message_list_item_new (StampAccount          *account,
                                             NULL);
 
   stamp_message_header_set_mail (STAMP_MESSAGE_HEADER (ret->header), thread_node);
+  update_actions (ret);
 
   return GTK_WIDGET (ret);
 }

@@ -1124,6 +1124,9 @@ stamp_account_remove_draft (StampAccount *self,
 {
   g_autoptr (GError) error = NULL;
 
+  if (!uid)
+    return;
+
   camel_folder_delete_message (self->mail->drafts_folder, uid);
   camel_folder_refresh_info_sync (self->mail->drafts_folder, NULL, NULL);
   camel_folder_expunge_sync (self->mail->drafts_folder, NULL, &error);

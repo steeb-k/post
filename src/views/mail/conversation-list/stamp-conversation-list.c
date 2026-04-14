@@ -124,9 +124,18 @@ stamp_conversation_item_find_item (GListStore *store,
 
   for (guint idx = 0; idx < list_len; idx++) {
     g_autoptr (StampConversationItem) item = g_list_model_get_item (G_LIST_MODEL (store), idx);
+    CamelFolderThreadNode *node;
 
     if (item && g_strcmp0 (stamp_conversation_item_get_uid (item), uid) == 0) {
       return g_steal_pointer (&item);
+    }
+
+    node = stamp_conversation_item_get_node (item);
+    for (CamelFolderThreadNode *iter = camel_folder_thread_node_get_child (node); iter; iter = camel_folder_thread_node_get_next (iter)) {
+      CamelMessageInfo *info = camel_folder_thread_node_get_item (iter);
+
+      if (g_strcmp0 (camel_message_info_get_uid (info), uid) == 0)
+        return g_steal_pointer (&item);
     }
   }
   return NULL;
@@ -155,6 +164,7 @@ on_conversation_list_folder_changed (CamelFolder           *folder,
 
       message_info = camel_folder_summary_get (camel_folder_get_folder_summary (folder), uid);
 
+      g_print ("%s: %p\n", G_STRFUNC, item);
       if (item)
         stamp_conversation_item_update (item, message_info);
     }

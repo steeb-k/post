@@ -66,6 +66,8 @@ struct _StampMessageHeader {
   guint total_cc;
 
   GCancellable *cancellable;
+  GSimpleActionGroup *actions;
+  const CamelMessageInfo *message_info;
 
   StampAccount *account;
 };
@@ -129,18 +131,19 @@ on_show_contact_activate (GSimpleAction *action,
 static void
 stamp_message_header_init (StampMessageHeader *self)
 {
-  GSimpleActionGroup *group = g_simple_action_group_new ();
   GSimpleAction *action = g_simple_action_new ("copy", NULL);
   GSimpleAction *search_action = g_simple_action_new ("search", NULL);
   GSimpleAction *show_contact_action = g_simple_action_new ("show-contact", NULL);
 
+  self->actions = g_simple_action_group_new ();
   g_signal_connect (action, "activate", G_CALLBACK (on_copy_activate), self);
-  g_action_map_add_action (G_ACTION_MAP (group), G_ACTION (action));
+  g_action_map_add_action (G_ACTION_MAP (self->actions), G_ACTION (action));
   g_signal_connect (search_action, "activate", G_CALLBACK (on_search_activate), self);
-  g_action_map_add_action (G_ACTION_MAP (group), G_ACTION (search_action));
+  g_action_map_add_action (G_ACTION_MAP (self->actions), G_ACTION (search_action));
   g_signal_connect (show_contact_action, "activate", G_CALLBACK (on_show_contact_activate), self);
-  g_action_map_add_action (G_ACTION_MAP (group), G_ACTION (show_contact_action));
-  gtk_widget_insert_action_group (GTK_WIDGET (self), "message-header", G_ACTION_GROUP (group));
+  g_action_map_add_action (G_ACTION_MAP (self->actions), G_ACTION (show_contact_action));
+
+  gtk_widget_insert_action_group (GTK_WIDGET (self), "message-header", G_ACTION_GROUP (self->actions));
 
   gtk_widget_init_template (GTK_WIDGET (self));
   self->collapsed = TRUE;
@@ -483,6 +486,22 @@ has_starred (CamelFolderThreadNode *thread_node)
   return camel_message_info_get_flags (camel_folder_thread_node_get_item (thread_node)) & CAMEL_MESSAGE_FLAGGED;
 }
 
+static gboolean
+transfer_flags_to_icon (GBinding     *binding,
+                        const GValue *from_value,
+                        GValue       *to_value,
+                        gpointer      user_data)
+{
+  guint flags = g_value_get_flags (from_value);
+
+  if (flags & CAMEL_MESSAGE_FLAGGED)
+    g_value_set_string (to_value, "starred-symbolic");
+  else
+    g_value_set_string (to_value, "non-starred-symbolic");
+
+  return TRUE;
+}
+
 void
 stamp_message_header_set_mail (StampMessageHeader    *self,
                                CamelFolderThreadNode *thread_node)
@@ -504,6 +523,8 @@ stamp_message_header_set_mail (StampMessageHeader    *self,
   GMenu *menu;
   GMenu *mark_menu;
   GMenu *more_menu;
+
+  self->message_info = message_info;
 
   if (camel_address_decode (CAMEL_ADDRESS (address), camel_message_info_get_from (message_info)) > 0) {
     camel_internet_address_get (address, 0, &ia_name, &ia_address);
@@ -643,11 +664,12 @@ stamp_message_header_set_mail (StampMessageHeader    *self,
 
   gtk_widget_set_visible (self->attachment_icon, has_attachment (thread_node));
 
-  if (has_starred (thread_node)) {
-    gtk_image_set_from_icon_name (GTK_IMAGE (self->starred_icon), "starred-symbolic");
-  } else {
-    gtk_image_set_from_icon_name (GTK_IMAGE (self->starred_icon), "non-starred-symbolic");
-  }
+  g_object_bind_property_full (message_info, "flags", self->starred_icon, "icon-name", G_BINDING_SYNC_CREATE, transfer_flags_to_icon, NULL, NULL, NULL);
+  /* if (has_starred (thread_node)) { */
+  /*   gtk_image_set_from_icon_name (GTK_IMAGE (self->starred_icon), "starred-symbolic"); */
+  /* } else { */
+  /*   gtk_image_set_from_icon_name (GTK_IMAGE (self->starred_icon), "non-starred-symbolic"); */
+  /* } */
 
   time = stamp_time_helpers_utf_friendly_time (camel_message_info_get_date_received (message_info), FALSE);
   gtk_label_set_text (GTK_LABEL (self->date), time);
@@ -657,53 +679,45 @@ stamp_message_header_set_mail (StampMessageHeader    *self,
   /* We need to do it here as blueprint does not handled target options */
   menu = g_menu_new ();
 
-  item = g_menu_item_new (_("Reply"), "mail.reply");
-  g_menu_item_set_attribute_value (item, "target", g_variant_new_string (camel_message_info_get_uid (message_info)));
+  item = g_menu_item_new (_("Reply"), "message-list-item.reply");
   g_menu_append_item (menu, item);
   g_clear_object (&item);
 
-  item = g_menu_item_new (_("Reply All"), "mail.reply-all");
-  g_menu_item_set_attribute_value (item, "target", g_variant_new_string (camel_message_info_get_uid (message_info)));
+  item = g_menu_item_new (_("Reply All"), "message-list-item.reply-all");
   g_menu_append_item (menu, item);
   g_clear_object (&item);
 
-  item = g_menu_item_new (_("Forward"), "mail.forward");
-  g_menu_item_set_attribute_value (item, "target", g_variant_new_string (camel_message_info_get_uid (message_info)));
+  item = g_menu_item_new (_("Forward"), "message-list-item.forward");
   g_menu_append_item (menu, item);
   g_clear_object (&item);
 
   mark_menu = g_menu_new ();
   g_menu_append_section (menu, NULL, G_MENU_MODEL (mark_menu));
 
-  item = g_menu_item_new (_("Mark Read"), "mail.mark-read");
-  g_menu_item_set_attribute_value (item, "target", g_variant_new_string (camel_message_info_get_uid (message_info)));
+  item = g_menu_item_new (_("Mark Read"), "message-list-item.mark-read");
   g_menu_append_item (mark_menu, item);
   g_clear_object (&item);
 
-  item = g_menu_item_new (_("Mark Unread"), "mail.mark-unread");
-  g_menu_item_set_attribute_value (item, "target", g_variant_new_string (camel_message_info_get_uid (message_info)));
+  item = g_menu_item_new (_("Mark Unread"), "message-list-item.mark-unread");
   g_menu_append_item (mark_menu, item);
   g_clear_object (&item);
 
-  item = g_menu_item_new (_("Mark Flag"), "mail.mark-flag");
-  g_menu_item_set_attribute_value (item, "target", g_variant_new_string (camel_message_info_get_uid (message_info)));
+  item = g_menu_item_new (_("Mark Flag"), "message-list-item.mark-flag");
   g_menu_append_item (mark_menu, item);
   g_clear_object (&item);
 
-  item = g_menu_item_new (_("Mark Unflag"), "mail.mark-unflag");
-  g_menu_item_set_attribute_value (item, "target", g_variant_new_string (camel_message_info_get_uid (message_info)));
+  item = g_menu_item_new (_("Mark Unflag"), "message-list-item.mark-unflag");
   g_menu_append_item (mark_menu, item);
   g_clear_object (&item);
 
   more_menu = g_menu_new ();
   g_menu_append_section (menu, NULL, G_MENU_MODEL (more_menu));
 
-  item = g_menu_item_new ("Print", "mail.print");
-  g_menu_item_set_attribute_value (item, "target", g_variant_new_string (camel_message_info_get_uid (message_info)));
+  item = g_menu_item_new ("Print", "message-list-item.print");
   g_menu_append_item (more_menu, item);
   g_clear_object (&item);
 
-  item = g_menu_item_new ("View Source", "mail.view-source");
+  item = g_menu_item_new ("View Source", "message-list-item.view-source");
   g_menu_append_item (more_menu, item);
   g_clear_object (&item);
 

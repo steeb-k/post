@@ -272,74 +272,6 @@ stamp_mail_view_class_init (StampMailViewClass *klass)
 }
 
 static void
-on_mark_read (GSimpleAction *action,
-              GVariant      *parameter,
-              gpointer       user_data)
-{
-  StampMailView *self = STAMP_MAIL_VIEW (user_data);
-  GAction *mark_read_action;
-  GAction *mark_unread_action;
-
-  stamp_conversation_list_mark_read (self->conversation_list, NULL);
-
-  mark_read_action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-read");
-  g_simple_action_set_enabled (G_SIMPLE_ACTION (mark_read_action), FALSE);
-  mark_unread_action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-unread");
-  g_simple_action_set_enabled (G_SIMPLE_ACTION (mark_unread_action), TRUE);
-}
-
-static void
-on_mark_unread (GSimpleAction *action,
-                GVariant      *parameter,
-                gpointer       user_data)
-{
-  StampMailView *self = STAMP_MAIL_VIEW (user_data);
-  GAction *mark_read_action;
-  GAction *mark_unread_action;
-
-  stamp_conversation_list_mark_unread (self->conversation_list, NULL);
-
-  mark_read_action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-read");
-  g_simple_action_set_enabled (G_SIMPLE_ACTION (mark_read_action), TRUE);
-  mark_unread_action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-unread");
-  g_simple_action_set_enabled (G_SIMPLE_ACTION (mark_unread_action), FALSE);
-}
-
-static void
-on_mark_unflag (GSimpleAction *action,
-                GVariant      *parameter,
-                gpointer       user_data)
-{
-  StampMailView *self = STAMP_MAIL_VIEW (user_data);
-  GAction *mark_flag_action;
-  GAction *mark_unflag_action;
-
-  stamp_conversation_list_mark_unflag_selected_messages (self->conversation_list);
-
-  mark_flag_action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-flag");
-  g_simple_action_set_enabled (G_SIMPLE_ACTION (mark_flag_action), TRUE);
-  mark_unflag_action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-unflag");
-  g_simple_action_set_enabled (G_SIMPLE_ACTION (mark_unflag_action), FALSE);
-}
-
-static void
-on_mark_flag (GSimpleAction *action,
-              GVariant      *parameter,
-              gpointer       user_data)
-{
-  StampMailView *self = STAMP_MAIL_VIEW (user_data);
-  GAction *mark_flag_action;
-  GAction *mark_unflag_action;
-
-  stamp_conversation_list_mark_flag_selected_messages (self->conversation_list);
-
-  mark_flag_action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-flag");
-  g_simple_action_set_enabled (G_SIMPLE_ACTION (mark_flag_action), FALSE);
-  mark_unflag_action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-unflag");
-  g_simple_action_set_enabled (G_SIMPLE_ACTION (mark_unflag_action), TRUE);
-}
-
-static void
 on_reply (GSimpleAction *action,
           GVariant      *parameter,
           gpointer       user_data)
@@ -386,26 +318,6 @@ on_trash (GSimpleAction *action,
 }
 
 static void
-on_print (GSimpleAction *action,
-          GVariant      *parameter,
-          gpointer       user_data)
-{
-  StampMailView *self = STAMP_MAIL_VIEW (user_data);
-
-  stamp_message_list_print (self->message_list, parameter);
-}
-
-static void
-on_view_source (GSimpleAction *action,
-                GVariant      *parameter,
-                gpointer       user_data)
-{
-  StampMailView *self = STAMP_MAIL_VIEW (user_data);
-
-  stamp_message_list_view_source (self->message_list, parameter);
-}
-
-static void
 on_composer_new (GSimpleAction *action,
                  GVariant      *parameter,
                  gpointer       user_data)
@@ -430,22 +342,11 @@ static const GActionEntry stamp_mail_view_action_entries[] = {
   { .name = "edit", .activate = on_edit },
   { .name = "forward", .activate = on_forward, .parameter_type = "s" },
   { .name = "forward-current", .activate = on_forward },
-  { .name = "mark-flag", .activate = on_mark_flag, .parameter_type = "s" },
-  { .name = "mark-flag-current", .activate = on_mark_flag },
-  { .name = "mark-read", .activate = on_mark_read, .parameter_type = "s" },
-  { .name = "mark-read-current", .activate = on_mark_read },
-  { .name = "mark-unflag", .activate = on_mark_unflag, .parameter_type = "s" },
-  { .name = "mark-unflag-current", .activate = on_mark_unflag },
-  { .name = "mark-unread", .activate = on_mark_unread, .parameter_type = "s" },
-  { .name = "mark-unread-current", .activate = on_mark_unread },
-  { .name = "print", .activate = on_print, .parameter_type = "s" },
-  { .name = "print-current", .activate = on_print },
   { .name = "reply", .activate = on_reply, .parameter_type = "s" },
   { .name = "reply-all", .activate = on_reply_all, .parameter_type = "s" },
   { .name = "reply-all-current", .activate = on_reply_all },
   { .name = "reply-current", .activate = on_reply },
   { .name = "trash", .activate = on_trash },
-  { .name = "view-source", .activate = on_view_source },
 };
 
 static void
