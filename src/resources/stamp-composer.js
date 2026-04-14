@@ -16,7 +16,7 @@ const editor = document.getElementById('editor');
   editor.addEventListener('keydown',(e)=>{
     if(e.key!=='Enter')return;
 
-    /* Shift+Enter bleibt im Quote */
+    /* Shift+Return stays in quote */
     if(e.shiftKey)return;
 
     const sel=window.getSelection();
@@ -34,13 +34,13 @@ const editor = document.getElementById('editor');
 
     const range=sel.getRangeAt(0);
 
-    /* Text vor Cursor */
+    /* text before cursor */
 
     const before=range.cloneRange();
     before.selectNodeContents(p);
     before.setEnd(range.startContainer,range.startOffset);
 
-    /* Text nach Cursor */
+    /* text after cursor */
 
     const after=range.cloneRange();
     after.selectNodeContents(p);
@@ -49,16 +49,16 @@ const editor = document.getElementById('editor');
     const beforeFrag=before.extractContents();
     const afterFrag=after.extractContents();
 
-    /* erster Teil bleibt im Quote */
+    /* first part stays in quote */
 
     p.innerHTML='';
     p.appendChild(beforeFrag);
 
-    /* neue Zeile außerhalb */
+    /* new line */
     const newp=document.createElement('p');
     newp.innerHTML='<br>';
 
-    /* zweites Quote */
+    /* second quote */
     const newQuote=document.createElement('blockquote');
 
     const p2=document.createElement('p');
@@ -66,7 +66,7 @@ const editor = document.getElementById('editor');
 
     newQuote.appendChild(p2);
 
-    /* restliche Zeilen verschieben */
+    /* move remaining lines */
     let next=p.nextSibling;
     while(next){
       let n=next;
@@ -77,7 +77,7 @@ const editor = document.getElementById('editor');
     quote.after(newp);
     newp.after(newQuote);
 
-    /* Cursor setzen */
+    /* set cursor */
     const r=document.createRange();
     r.setStart(newp,0);
     r.collapse(true);

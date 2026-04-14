@@ -144,8 +144,8 @@ on_get_photo (gpointer texture,
   StampContactRow *self = STAMP_CONTACT_ROW (token->self);
 
   if (token->instance_id != self->instance_id || token->generation != token->self->generation) {
-    g_warning ("REALLLY\n");
-    if (texture) g_object_unref (texture);
+    if (texture)
+      g_object_unref (texture);
     return;
   }
 

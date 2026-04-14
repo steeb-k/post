@@ -581,8 +581,8 @@ find_sent_folder (CamelStore *store)
       "Sent",
       "Sent Items",
       "Sent Messages",
-      "Gesendete Elemente",
-      "Gesendete Objekte",
+      "Gesendete Elemente", /* codespell:ignore */
+      "Gesendete Objekte", /* codespell:ignore */
       NULL
     };
 
