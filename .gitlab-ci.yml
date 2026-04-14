@@ -1,13 +1,29 @@
-# You can override the included template(s) by including variable overrides
-# SAST customization: https://docs.gitlab.com/user/application_security/sast/#available-cicd-variables
-# Secret Detection customization: https://docs.gitlab.com/user/application_security/secret_detection/pipeline/configure/
-# Dependency Scanning customization: https://docs.gitlab.com/user/application_security/dependency_scanning/#customizing-analyzer-behavior
-# Container Scanning customization: https://docs.gitlab.com/user/application_security/container_scanning/#customizing-analyzer-behavior
-# Note that environment variables can be set in several places
-# See https://docs.gitlab.com/ci/variables/#cicd-variable-precedence
+image: fedora:latest
+
 stages:
-- test
+- check
+- lint
+
 sast:
-  stage: test
+  stage: check
 include:
 - template: Security/SAST.gitlab-ci.yml
+
+goblint:
+  stage: lint
+  needs: []
+  image:
+    name: ghcr.io/bilelmoussaoui/goblint:latest
+    entrypoint: ['']
+  script:
+    - goblint --format sarif > goblint.sarif
+  artifacts:
+    reports:
+      sast: goblint.sarif
+
+codespell:
+  stage: check
+  script:
+    - dnf install -y codespell
+    - codespell src -L crate -S "*.png,*.po,.git,*.jpg,eff_large_wordlist.txt,.mypy_cache,_build" -f
+
