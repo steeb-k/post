@@ -1,0 +1,94 @@
+.counter {
+  background: alpha(currentColor, .15);
+  border-radius: 999px;
+  padding: 2px;
+  font-size: smaller;
+  font-weight: bold;
+  min-width: 1rem;
+}
+
+.counter.long {
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.counter.needs-attention {
+  background: @accent_bg_color;
+  color: @accent_fg_color;
+}
+
+.circular-spinner {
+  border-radius: 100%;
+  padding: 3px;
+}
+
+.secondary-sidebar-pane {
+  background-color: var(--secondary-sidebar-bg-color);
+  color: var(--sidebar-fg-color);
+}
+
+.secondary-sidebar-pane > toolbarview-top-bars {
+  background-color: var(--secondary-sidebar-bg-color);
+}
+
+.no-focus,
+.no-focus:focus,
+.no-focus:focus-within {
+  outline: none;
+  box-shadow: none;
+  --focus-outline-width: 0;
+}
+
+.listview > row.tree-header {
+  font-weight: bold;
+  font-size: 1em;
+  min-height: 36px;
+  margin-top: 12px;
+}
+
+.listview > row.tree-header:first-child {
+  margin-top: 0px;
+}
+
+.separator-row {
+  padding: 6px;
+  min-height: 0;
+}
+
+.smaller {
+  font-size: .75em;
+}
+
+.collapsible-row {
+  padding: 0;
+}
+
+.entry button,
+.entry entry {
+  border: none;
+  box-shadow: none;
+  background: none;
+  padding: 0;
+}
+
+.entry button label {
+  opacity: 0.6;
+  padding: 0 3px;
+}
+
+.entry button:hover label {
+  opacity: 1;
+}
+
+.entry button:focus {
+  background-color: alpha(@text_color, 0.15);
+}
+
+.entry button:checked label {
+  color: @accent_color;
+  opacity: 1;
+}
+
+.entry button:disabled label {
+  opacity: 0.5;
+}

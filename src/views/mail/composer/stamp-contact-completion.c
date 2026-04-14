@@ -530,7 +530,7 @@ stamp_contact_completion_init (StampContactCompletion *self)
   self->popover = gtk_popover_new ();
   gtk_widget_set_hexpand (self->popover, TRUE);
   gtk_widget_add_css_class (self->popover, "menu");
-  gtk_widget_add_css_class (self->popover, "contact-popover");
+  gtk_widget_add_css_class (self->popover, "contact-completion-popover");
   gtk_widget_set_parent (self->popover, self->wrap_box);
   gtk_widget_set_can_focus (self->popover, FALSE);
   gtk_popover_set_has_arrow (GTK_POPOVER (self->popover), FALSE);

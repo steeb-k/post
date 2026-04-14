@@ -1,0 +1,7 @@
+.event {
+  background-color: color-mix(in srgb, var(--accent-color) 50%, var(--view-bg-color));
+  color: var(--view-fg-color);
+  border-radius: 6px;
+  margin: 1px;
+  font-size: 0.9em;
+}

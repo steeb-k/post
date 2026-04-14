@@ -1,0 +1,8 @@
+.fab {
+  margin: 18px;
+  padding: 6px;
+}
+
+.fab.normal {
+  background-color: grey;
+}

@@ -1,0 +1,23 @@
+.signature-warning label {
+  color: @warning_color;
+}
+
+.signature-warning button label {
+  color: @initial;
+}
+
+.signature-valid label {
+  color: @success_color;
+}
+
+.signature-valid button label {
+  color: @initial;
+}
+
+.signature-bad label {
+  color: @error_color;
+}
+
+.signature-bad button label {
+  color: @initial;
+}

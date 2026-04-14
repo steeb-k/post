@@ -47,5 +47,21 @@
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/sort-order-symbolic.svg">resources/icons/scalable/actions/sort-order-symbolic.svg</file>
     <file>sounds/incoming.wav</file>
     <file>style.css</file>
+    <file>styles/stamp-shared.css</file>
+    <file>styles/stamp-folder-row.css</file>
+    <file>styles/stamp-conversation-row.css</file>
+    <file>styles/stamp-contact-row.css</file>
+    <file>styles/stamp-contact-tag.css</file>
+    <file>styles/stamp-composer.css</file>
+    <file>styles/stamp-contact-completion.css</file>
+    <file>styles/stamp-conversation-list.css</file>
+    <file>styles/stamp-contact-list.css</file>
+    <file>styles/stamp-week-header.css</file>
+    <file>styles/stamp-week-view.css</file>
+    <file>styles/stamp-calendar-view.css</file>
+    <file>styles/stamp-message-list.css</file>
+    <file>styles/stamp-message-header.css</file>
+    <file>styles/stamp-signatures.css</file>
+    <file>styles/stamp-window.css</file>
   </gresource>
 </gresources>

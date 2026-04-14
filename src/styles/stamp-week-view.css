@@ -1,0 +1,8 @@
+.week-view .lines {
+  color: rgb(from var(--window-fg-color) r g b / 15%);
+}
+
+.week-main-content {
+  border: 0 solid var(--border-color);
+  border-width: 1px 0;
+}

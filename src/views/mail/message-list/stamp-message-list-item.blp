@@ -30,6 +30,10 @@ template $StampMessageListItem: ListBoxRow {
 
             Adw.Banner error_banner {
               revealed: false;
+
+              styles [
+                "message-header-banner",
+              ]
             }
 
             Adw.Banner blocked_images_banner {
@@ -37,32 +41,56 @@ template $StampMessageListItem: ListBoxRow {
               button-label: _("Show");
               button-clicked => $on_show_images();
               revealed: false;
+
+              styles [
+                "message-header-banner",
+              ]
             }
 
             Adw.Banner disposition_banner {
               button-label: _("Send");
               button-clicked => $on_send_disposition();
               revealed: false;
+
+              styles [
+                "message-header-banner",
+              ]
             }
 
             Adw.Banner signature_banner {
               button-label: _("Show");
               button-clicked => $on_show_signatures();
               revealed: false;
+
+              styles [
+                "message-header-banner",
+              ]
             }
 
             Adw.Banner encryption_banner {
               revealed: false;
+
+              styles [
+                "message-header-banner",
+              ]
             }
 
             Adw.Banner vcard_banner {
               button-label: _("RSVP");
               button-clicked => $on_rsvp();
               revealed: false;
+
+              styles [
+                "message-header-banner",
+              ]
             }
 
             Adw.Banner external_sender_banner {
               revealed: false;
+
+              styles [
+                "message-header-banner",
+              ]
             }
 
             $StampWebView web_view {

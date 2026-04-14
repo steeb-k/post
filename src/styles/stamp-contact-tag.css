@@ -1,0 +1,19 @@
+.contact-tag {
+  background-color: alpha(currentColor, .1);
+  font-size: .9em;
+  border-radius: 99px;
+  padding: 0 0 0 6px;
+  box-shadow: none;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.contact-tag button {
+  margin-right: -6px;
+  border-radius: 99px;
+  min-height: 12px;
+}
+
+.contact-tag:hover {
+  background-color: alpha(currentColor, .15);
+}

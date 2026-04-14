@@ -1,0 +1,29 @@
+.contact-completion-popover {
+  padding-top: 6px;
+  padding-left: 9px;
+  padding-right: 9px;
+}
+
+.contact-completion-popover listview > row {
+  padding: 0;
+}
+
+.contact-completion-popover listview > row:hover {
+  background-color: alpha(currentColor, .03);
+}
+
+.contact-completion-popover listview > row:active {
+  background-color: alpha(currentColor, .08);
+}
+
+.contact-completion-popover listview > row:selected {
+  background-color: alpha(currentColor, .1);
+}
+
+.contact-completion-popover listview > row:selected:hover {
+  background-color: alpha(currentColor, .13);
+}
+
+.contact-completion-popover listview > row:selected:active {
+  background-color: alpha(currentColor, .19);
+}

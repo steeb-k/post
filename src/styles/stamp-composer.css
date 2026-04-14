@@ -1,0 +1,7 @@
+.composer-dropdown {
+  margin: 0 0 0 -6px;
+}
+
+.composer-dropdown > button {
+  background: transparent;
+}

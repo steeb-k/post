@@ -1,0 +1,14 @@
+.message-header-participant-more {
+  background: transparent;
+  padding: 4px;
+}
+
+.message-header-participant-more:hover {
+  color: @accent_color;
+}
+
+/* card style adds a gap left / right, remove it */
+.message-header-banner {
+  margin-left: -2px;
+  margin-right: -2px;
+}

@@ -1,0 +1,9 @@
+.collapsed {
+  margin-top: -4em;
+  background-color: @theme_bg_color;
+}
+
+.message-list-header {
+  margin-top: 24px;
+  margin-bottom: 32px;
+}

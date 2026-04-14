@@ -1,0 +1,46 @@
+.message-list {
+  background: transparent;
+}
+
+.message-list > row {
+  margin-top: -32px;
+  transition: margin 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+@media (prefers-color-scheme: dark) {
+  .message-list > row {
+    background-color: oklab(from white 0.3 a b);
+  }
+  .message-list > row:not(:first-child) {
+    box-shadow: 0 2px 6px 3px rgba(0,0,0, 0.35);
+  }
+}
+
+.message-list > row:first-child {
+  margin-top: 0;
+}
+
+.message-list > row.expanded:not(:first-child) {
+  margin-top: 6px;
+}
+
+.message-list > row.expanded + row {
+  margin-top: 6px;
+}
+
+.message-list-conversation {
+  margin: 12px 12px;
+  border-spacing: 24px;
+}
+
+.message-list-floating-bar {
+  background: var(--popover-bg-color);
+  color: var(--popover-fg-color);
+  padding: 4px 12px;
+  margin: 4px;
+  border-radius: 8px;
+}
+
+.message-list-header-between {
+  margin-bottom: 48px;
+}

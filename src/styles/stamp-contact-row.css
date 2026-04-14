@@ -1,0 +1,8 @@
+.contact-row {
+  padding: 9px 0;
+  border-spacing: 9px 3px;
+}
+
+.contact-row > box {
+  border-spacing: 6px;
+}
