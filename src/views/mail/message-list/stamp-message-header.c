@@ -281,25 +281,26 @@ parse_custom_address (const gchar *str)
 {
   g_autoptr (GRegex) regex = NULL;
   CamelInternetAddress *addr = camel_internet_address_new ();
-  g_autoptr (GRegex) only_mail = g_regex_new ("^\\(([^)]+)\\)$", 0, 0, NULL);
+  g_autoptr (GRegex) only_mail = g_regex_new ("^\\(([^)]+)\\)$", G_REGEX_DEFAULT, G_REGEX_MATCH_DEFAULT, NULL);
   g_autoptr (GMatchInfo) match = NULL;
+  g_autofree char *tmp = g_strstrip (g_strdup (str));
 
-  if (g_regex_match (only_mail, str, 0, &match)) {
+  if (g_regex_match (only_mail, tmp, G_REGEX_MATCH_DEFAULT, &match)) {
     g_autofree char *email = g_match_info_fetch (match, 1);
 
-    camel_internet_address_add (addr, "", email);
+    camel_internet_address_add (addr, email, email);
     return addr;
   }
 
   regex = g_regex_new ("^(\\S+(?:[,\\s]+\\S+)*)(?:\\s*\\(([^)]+)\\))?\\s*\\(([^)]+)\\)$", 0, 0, NULL);
 
-  if (g_regex_match (regex, str, 0, &match)) {
+  if (g_regex_match (regex, tmp, 0, &match)) {
     g_autofree char *name = g_match_info_fetch (match, 1);
     g_autofree char *email = g_match_info_fetch (match, 3);
 
     camel_internet_address_add (addr, name, email);
   } else {
-    camel_address_decode (CAMEL_ADDRESS (addr), str);
+    camel_address_decode (CAMEL_ADDRESS (addr), tmp);
   }
 
   return addr;
@@ -527,9 +528,14 @@ stamp_message_header_set_mail (StampMessageHeader    *self,
     if (texture) {
       adw_avatar_set_custom_image (ADW_AVATAR (self->avatar), GDK_PAINTABLE (texture));
     } else {
-      g_autofree char *stripped_text = stamp_strip_department (ia_name);
+      if (ia_name && strlen (ia_name) > 0) {
+        g_autofree char *stripped_text = stamp_strip_department (ia_name);
 
-      adw_avatar_set_text (ADW_AVATAR (self->avatar), stripped_text);
+        adw_avatar_set_text (ADW_AVATAR (self->avatar), stripped_text);
+      } else {
+        adw_avatar_set_text (ADW_AVATAR (self->avatar), ia_address);
+      }
+
       adw_avatar_set_show_initials (ADW_AVATAR (self->avatar), TRUE);
     }
 
