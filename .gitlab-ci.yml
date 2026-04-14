@@ -27,3 +27,10 @@ codespell:
     - dnf install -y codespell
     - codespell src -L crate -S "*.png,*.po,.git,*.jpg,eff_large_wordlist.txt,.mypy_cache,_build" -f
 
+check-code-style:
+  stage: check
+  script:
+    - dnf install -y uncrustify
+    - bash data/check-code-style
+  artifacts:
+    when: on_failure
