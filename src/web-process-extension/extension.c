@@ -96,6 +96,11 @@ on_user_message_received (WebKitWebPage     *page,
       if (!value || exception) {
         g_warning ("JavaScript error: %s", jsc_exception_get_message (exception));
         jsc_context_clear_exception (jsc_context);
+      } else {
+        WebKitUserMessage *reply;
+
+        reply = webkit_user_message_new ("set-image-loading-enabled", g_variant_new_boolean (jsc_value_to_boolean (value)));
+        webkit_user_message_send_reply (message, reply);
       }
     }
   } else if (g_strcmp0 (name, "query-command-state") == 0) {

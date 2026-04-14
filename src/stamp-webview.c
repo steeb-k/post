@@ -117,9 +117,9 @@ on_cid_request (WebKitURISchemeRequest *request,
 }
 
 static void
-on_send_message_to_page (GObject      *source,
-                         GAsyncResult *res,
-                         gpointer      user_data)
+on_get_page_size (GObject      *source,
+                  GAsyncResult *res,
+                  gpointer      user_data)
 {
   StampWebView *self = STAMP_WEB_VIEW (user_data);
   g_autoptr (GError) error = NULL;
@@ -143,33 +143,39 @@ on_send_message_to_page (GObject      *source,
 }
 
 static void
+request_page_size (StampWebView *self)
+{
+  WebKitUserMessage *message = webkit_user_message_new ("get-page-size", NULL);
+
+  webkit_web_view_send_message_to_page (WEBKIT_WEB_VIEW (self), message, self->cancellable, on_get_page_size, self);
+}
+
+static void
 on_load_changed (WebKitWebView   *web_view,
                  WebKitLoadEvent  load_event,
                  gpointer         user_data)
 {
   StampWebView *self = STAMP_WEB_VIEW (user_data);
 
+  g_print ("%s: ENTER\n", G_STRFUNC);
   g_signal_emit (self, signals[LOADED], 0, load_event == WEBKIT_LOAD_FINISHED);
-
-  if (load_event == WEBKIT_LOAD_FINISHED || load_event == WEBKIT_LOAD_COMMITTED) {
-    WebKitUserMessage *message = webkit_user_message_new ("get-page-size", NULL);
-
-    webkit_web_view_send_message_to_page (web_view, message, NULL, on_send_message_to_page, self);
-  }
 
   if (load_event == WEBKIT_LOAD_FINISHED) {
     self->loaded = TRUE;
 
-    webkit_web_view_evaluate_javascript (web_view,
-                                         "document.querySelector('[contenteditable]').focus();",
-                                         -1, NULL, NULL, NULL, NULL, NULL);
     if (self->queued_body_content) {
       stamp_web_view_set_body_content (self, self->queued_body_content);
     }
 
     if (self->queued_load_images) {
       stamp_web_view_load_images (self);
+    } else {
+      request_page_size (self);
     }
+
+    webkit_web_view_evaluate_javascript (web_view,
+                                         "document.querySelector('[contenteditable]').focus();",
+                                         -1, NULL, NULL, NULL, NULL, NULL);
   }
 }
 
@@ -503,13 +509,36 @@ stamp_web_view_set_body_content (StampWebView *self,
 #endif
 }
 
+static void
+request_page_size_timeout (gpointer user_data)
+{
+  request_page_size (STAMP_WEB_VIEW (user_data));
+}
+
+static void
+on_set_image_loading_enabled (GObject      *source,
+                              GAsyncResult *res,
+                              gpointer      user_data)
+{
+  g_autoptr (GError) error = NULL;
+
+  webkit_web_view_send_message_to_page_finish (WEBKIT_WEB_VIEW (source), res, &error);
+  if (error) {
+    g_warning ("%s: Could not enable image loading: %s", G_STRFUNC, error->message);
+    return;
+  }
+
+  /* Request page size again so that it can be rescaled */
+  g_timeout_add_once (150, request_page_size_timeout, user_data);
+}
+
 void
 stamp_web_view_load_images (StampWebView *self)
 {
   if (self->loaded) {
     WebKitUserMessage *message = webkit_user_message_new ("set-image-loading-enabled", g_variant_new_boolean (TRUE));
 
-    webkit_web_view_send_message_to_page (WEBKIT_WEB_VIEW (self), message, self->cancellable, NULL, NULL);
+    webkit_web_view_send_message_to_page (WEBKIT_WEB_VIEW (self), message, self->cancellable, on_set_image_loading_enabled, self);
   } else {
     self->queued_load_images = TRUE;
   }
