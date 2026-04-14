@@ -142,25 +142,17 @@ open_message (StampMessageListItem *self,
     if (validation->status != STAMP_MIME_SIGNATURE_NONE) {
       g_autofree char *tmp = NULL;
 
-      switch (validation->status) {
-        case STAMP_MIME_SIGNATURE_GOOD:
-          gtk_widget_add_css_class (self->signature_banner, "signature-valid");
-          break;
-        case STAMP_MIME_SIGNATURE_BAD:
-          gtk_widget_add_css_class (self->signature_banner, "signature-bad");
-          break;
-        case STAMP_MIME_SIGNATURE_UNKNOWN:
-          gtk_widget_add_css_class (self->signature_banner, "signature-warning");
-          break;
-        case STAMP_MIME_SIGNATURE_NONE:
-        default:
-          break;
-      }
-
       if (validation->description) {
+        g_autoptr (GString) str = g_string_new ("");
+
         adw_banner_set_title (ADW_BANNER (self->signature_banner), validation->description);
         adw_banner_set_revealed (ADW_BANNER (self->signature_banner), TRUE);
-        self->signature_details = g_strdup (validation->description);
+
+        for (int idx = 0; idx < validation->n_signers; idx++) {
+          g_string_append_printf (str, "%s\n", validation->signers[idx]);
+        }
+
+        self->signature_details = g_strdup (str->str);
       }
     }
   }

@@ -572,7 +572,7 @@ process_signature_validation (StampMimeParser     *parser,
                                     : STAMP_MIME_ENCRYPTION_NONE;
 
   if (validity->sign.description) {
-    description = g_string_new (validity->sign.description);
+    description = g_string_new (g_strstrip (validity->sign.description));
   } else {
     description = g_string_new ("");
   }
@@ -586,11 +586,6 @@ process_signature_validation (StampMimeParser     *parser,
 
       g_ptr_array_add (signers, g_strdup (info->name ? info->name : ""));
       g_ptr_array_add (signers, g_strdup (info->email ? info->email : ""));
-
-      if (info->name && info->email)
-        g_string_append_printf (description, " %s <%s>", info->name, info->email);
-      else if (info->name)
-        g_string_append_printf (description, " %s", info->name);
     }
 
     parser->validation->signers = (char **)g_ptr_array_free (signers, FALSE);
