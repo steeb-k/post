@@ -1104,7 +1104,7 @@ scroll_to_top_idle (gpointer user_data)
 {
   StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
 
-  gtk_list_view_scroll_to (GTK_LIST_VIEW (self->listview), 0, GTK_LIST_SCROLL_FOCUS, NULL);
+  gtk_list_view_scroll_to (GTK_LIST_VIEW (self->listview), 0, GTK_LIST_SCROLL_NONE, NULL);
   gtk_widget_set_visible (self->scroll_to_top, FALSE);
 }
 
