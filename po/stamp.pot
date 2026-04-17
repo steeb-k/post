@@ -1,0 +1,956 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the stamp package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: stamp\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-04-16 07:53+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: data/org.tabos.stamp.desktop.in:2 data/org.tabos.stamp.metainfo.xml.in:7
+#: src/main.c:42
+msgid "Stamp"
+msgstr ""
+
+#: data/org.tabos.stamp.desktop.in:3
+msgid "Send and receive mail"
+msgstr ""
+
+#: data/org.tabos.stamp.desktop.in:10
+msgid "GTK;"
+msgstr ""
+
+#: data/org.tabos.stamp.desktop.in:16
+msgid "Compose Message"
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:6 data/org.tabos.stamp.gschema.xml:7
+msgid "Whether the window was maximized on last run"
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:11 data/org.tabos.stamp.gschema.xml:12
+msgid "Most recent window width"
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:16 data/org.tabos.stamp.gschema.xml:17
+msgid "Most recent window height"
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:21
+msgid "Background notifications"
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:22
+msgid ""
+"If enabled, application continues running in the background after closing "
+"the window."
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:26
+msgid "Autostart application"
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:27
+msgid "If enabled, application will be autostart during system startup."
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:31
+msgid "Current View"
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:32
+msgid ""
+"Stores current view which will be used during application start to restore "
+"view."
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:36
+msgid "Order of accounts"
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:37
+msgid "Saves account order for sidebars."
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:44 data/org.tabos.stamp.gschema.xml:45
+msgid "The account name and folder name of the last selected folder"
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:49
+msgid "Always show images"
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:50
+msgid "If enabled, all images will be displayed automatically."
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:54
+msgid "Load BIMI images"
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:55
+msgid "If enabled, all avatar images are loaded from BIMI TXT records."
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:59
+msgid "Mark read timeout"
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:60
+msgid "How long it should take until a selected mail is marked read."
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:64
+msgid "Play incoming sound"
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:65
+msgid "Play an sound for new incoming mails."
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:69
+msgid "Show important mails first"
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:70
+msgid "Whether to move important mails on top."
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:74
+msgid "Refresh interval in seconds"
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:75
+msgid ""
+"Defines in which refresh interval mail folders should be checked for changes."
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:82 data/org.tabos.stamp.gschema.xml:83
+msgid "The account name and book name of the last selected book"
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:90 data/org.tabos.stamp.gschema.xml:91
+msgid "Whether the account itself is expanded"
+msgstr ""
+
+#: data/org.tabos.stamp.gschema.xml:95 data/org.tabos.stamp.gschema.xml:96
+msgid "The list of all the expanded folders"
+msgstr ""
+
+#: data/org.tabos.stamp.metainfo.xml.in:8
+msgid "Mails and more"
+msgstr ""
+
+#: data/org.tabos.stamp.metainfo.xml.in:10
+msgid "No description"
+msgstr ""
+
+#: data/org.tabos.stamp.metainfo.xml.in:14
+msgid "Jan-Michael Brummer"
+msgstr ""
+
+#: data/org.tabos.stamp.metainfo.xml.in:49
+msgid "Overview"
+msgstr ""
+
+#: data/org.tabos.stamp.metainfo.xml.in:53
+#: src/views/mail/conversation-list/stamp-conversation-list.blp:19
+#: src/views/mail/stamp-mail-view.blp:143
+msgid "Mail"
+msgstr ""
+
+#: src/views/contact/book-list/stamp-book-row.blp:13
+msgid "Book Type Icon"
+msgstr ""
+
+#: src/views/contact/book-list/stamp-book-row.blp:29
+#: src/views/mail/folder-list/stamp-folder-row.blp:40
+msgid "Error"
+msgstr ""
+
+#: src/views/contact/contact-list/stamp-contact-list.blp:16
+msgid "Contact"
+msgstr ""
+
+#: src/views/contact/contact-list/stamp-contact-list.blp:22
+#: src/views/mail/conversation-list/stamp-conversation-list.blp:25
+msgid "Sidebar Toggle"
+msgstr ""
+
+#: src/views/contact/contact-list/stamp-contact-list.blp:33
+#: src/views/contact/contact-list/stamp-contact-list.blp:40
+#: src/views/mail/conversation-list/stamp-conversation-list.blp:37
+#: src/views/mail/conversation-list/stamp-conversation-list.blp:44
+msgid "Search"
+msgstr ""
+
+#: src/views/contact/contact-list/stamp-contact-list.blp:48
+#: src/views/mail/conversation-list/stamp-conversation-list.blp:58
+msgid "Sort Order"
+msgstr ""
+
+#: src/views/contact/contact-list/stamp-contact-list.blp:70
+msgid "Progress animation"
+msgstr ""
+
+#: src/views/contact/contact-list/stamp-contact-list.blp:73
+msgid " "
+msgstr ""
+
+#: src/views/contact/contact-list/stamp-contact-list.blp:128
+msgid "No Contact Found"
+msgstr ""
+
+#: src/views/contact/stamp-contact-details.blp:20
+msgid "No Contact Selected"
+msgstr ""
+
+#: src/views/contact/stamp-contact-details.c:100
+msgid "Send mail"
+msgstr ""
+
+#: src/views/contact/stamp-contact-details.c:140
+msgid "Start call"
+msgstr ""
+
+#: src/views/contact/stamp-contact-details.c:149
+msgid "Mobile"
+msgstr ""
+
+#: src/views/contact/stamp-contact-details.c:150
+msgid "Business"
+msgstr ""
+
+#: src/views/contact/stamp-contact-details.c:151
+#: src/views/contact/stamp-contact-details.c:338
+msgid "Home"
+msgstr ""
+
+#: src/views/contact/stamp-contact-details.c:152
+msgid "Primary"
+msgstr ""
+
+#: src/views/contact/stamp-contact-details.c:153
+msgid "Other"
+msgstr ""
+
+#: src/views/contact/stamp-contact-details.c:176
+msgid "Company"
+msgstr ""
+
+#: src/views/contact/stamp-contact-details.c:177
+msgid "Unit"
+msgstr ""
+
+#: src/views/contact/stamp-contact-details.c:178
+msgid "Office"
+msgstr ""
+
+#: src/views/contact/stamp-contact-details.c:368
+msgid "Work"
+msgstr ""
+
+#: src/views/contact/stamp-contact-view.blp:135
+msgid "Contacts"
+msgstr ""
+
+#: src/views/contact/stamp-contact-view.blp:163
+msgid "Inhalt"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.blp:18
+#: src/views/mail/composer/stamp-composer.c:766
+#: src/views/mail/conversation-list/stamp-conversation-list.blp:127
+msgid "New Message"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.blp:24
+msgid "Close Composer"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.blp:34
+msgid "Send Message"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.blp:55
+msgid "From"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.blp:92
+msgid "To"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.blp:139
+msgid "Cc"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.blp:174
+msgid "Bcc"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.blp:207
+msgid "Subject"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.blp:278
+msgid "Bold"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.blp:289
+msgid "Italic"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.blp:300
+msgid "Underline"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.blp:311
+msgid "Strike Through"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.blp:329
+msgid "Remove format"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.blp:339
+msgid "Insert Signature"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.blp:349
+msgid "Add Attachment"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.blp:358
+msgid "Request Disposition"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.blp:379
+msgid "PGP"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.blp:388
+#: src/views/mail/composer/stamp-composer.blp:409
+msgid "Sign"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.blp:393
+#: src/views/mail/composer/stamp-composer.blp:414
+msgid "Encrypt"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.blp:400
+msgid "S/MIME"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.c:311
+msgid "Mail sent"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.c:1027
+msgid "Changes detected"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.c:1027
+msgid ""
+"You have modified this mail and closing this window will lead to loss of "
+"those changes. How do you want to proceed?"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.c:1028
+#: src/views/mail/conversation-list/stamp-conversation-list.blp:93
+#: src/views/mail/message-list/stamp-message-list-item.c:423
+msgid "Close"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.c:1029
+msgid "Save Draft"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.c:1030
+msgid "Continue Editing"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.c:1270
+msgid "%a, %b %-e, %Y at %-l:%M %p"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.c:1298
+#, c-format
+msgid "On %s, %s wrote:"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.c:1302
+#, c-format
+msgid "---------- Forwarded message ----------"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.c:1304
+#, c-format
+msgid "From: %s<br/>"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.c:1305
+#, c-format
+msgid "Subject: %s<br/>"
+msgstr ""
+
+#: src/views/mail/composer/stamp-composer.c:1306
+#, c-format
+msgid "Date: %s<br/>"
+msgstr ""
+
+#. impossible time or broken locale settings
+#: src/views/mail/conversation-list/stamp-conversation-item.c:71
+#: src/views/mail/conversation-list/stamp-conversation-item.c:366
+#: src/stamp-time-helpers.c:300
+msgid "Unknown"
+msgstr ""
+
+#: src/views/mail/conversation-list/stamp-conversation-list.blp:51
+msgid "Select Items"
+msgstr ""
+
+#: src/views/mail/conversation-list/stamp-conversation-list.blp:66
+msgid "Selection"
+msgstr ""
+
+#: src/views/mail/conversation-list/stamp-conversation-list.blp:72
+#: src/views/mail/conversation-list/stamp-conversation-row.blp:64
+msgid "Trash"
+msgstr ""
+
+#: src/views/mail/conversation-list/stamp-conversation-list.blp:76
+#: src/views/mail/conversation-list/stamp-conversation-row.blp:57
+#: src/views/mail/conversation-list/stamp-conversation-row.blp:175
+msgid "Move to Trash"
+msgstr ""
+
+#: src/views/mail/conversation-list/stamp-conversation-list.blp:83
+#: src/views/mail/conversation-list/stamp-conversation-list.blp:87
+#: src/views/mail/conversation-list/stamp-conversation-list.c:628
+#: src/views/mail/conversation-list/stamp-conversation-row.blp:26
+#: src/views/mail/conversation-list/stamp-conversation-row.blp:33
+#: src/views/mail/conversation-list/stamp-conversation-row.c:147
+#: src/views/mail/message-list/stamp-message-header.c:693
+msgid "Mark Read"
+msgstr ""
+
+#: src/views/mail/conversation-list/stamp-conversation-list.blp:94
+msgid "Close Selection"
+msgstr ""
+
+#: src/views/mail/conversation-list/stamp-conversation-list.blp:146
+msgid "Scroll To Top"
+msgstr ""
+
+#: src/views/mail/conversation-list/stamp-conversation-list.blp:210
+msgid "No Mails Found"
+msgstr ""
+
+#: src/views/mail/conversation-list/stamp-conversation-list.c:624
+#: src/views/mail/message-list/stamp-message-header.c:678
+#: src/views/mail/message-list/stamp-message-list.blp:24
+msgid "Reply"
+msgstr ""
+
+#: src/views/mail/conversation-list/stamp-conversation-list.c:625
+#: src/views/mail/message-list/stamp-message-header.c:682
+#: src/views/mail/message-list/stamp-message-list.blp:31
+msgid "Reply All"
+msgstr ""
+
+#: src/views/mail/conversation-list/stamp-conversation-list.c:626
+#: src/views/mail/message-list/stamp-message-header.c:686
+#: src/views/mail/message-list/stamp-message-list.blp:38
+msgid "Forward"
+msgstr ""
+
+#: src/views/mail/conversation-list/stamp-conversation-list.c:629
+#: src/views/mail/conversation-list/stamp-conversation-row.c:138
+#: src/views/mail/message-list/stamp-message-header.c:697
+msgid "Mark Unread"
+msgstr ""
+
+#: src/views/mail/conversation-list/stamp-conversation-list.c:662
+msgid "Category"
+msgstr ""
+
+#: src/views/mail/conversation-list/stamp-conversation-list.c:759
+#: src/views/mail/conversation-list/stamp-conversation-list.c:1275
+#, c-format
+msgid "%u selected"
+msgstr ""
+
+#: src/views/mail/conversation-list/stamp-conversation-list.c:1478
+msgid "All Mails"
+msgstr ""
+
+#: src/views/mail/conversation-list/stamp-conversation-list.c:1479
+#: src/views/mail/message-list/stamp-message-header.blp:63
+msgid "Starred"
+msgstr ""
+
+#: src/views/mail/conversation-list/stamp-conversation-list.c:1480
+#: src/views/mail/message-list/stamp-message-header.blp:49
+msgid "Attachment"
+msgstr ""
+
+#: src/views/mail/conversation-list/stamp-conversation-list.c:1481
+msgid "Unread"
+msgstr ""
+
+#: src/views/mail/conversation-list/stamp-conversation-list.c:1482
+msgid "Filter"
+msgstr ""
+
+#: src/views/mail/conversation-list/stamp-conversation-list.c:1486
+msgid "Newest First"
+msgstr ""
+
+#: src/views/mail/conversation-list/stamp-conversation-list.c:1487
+msgid "Oldest First"
+msgstr ""
+
+#: src/views/mail/conversation-list/stamp-conversation-row.blp:184
+msgid "Mail Attachment"
+msgstr ""
+
+#: src/views/mail/conversation-list/stamp-conversation-row.blp:193
+msgid "Flagged Mail"
+msgstr ""
+
+#: src/views/mail/folder-list/stamp-folder-item.c:258
+#: src/views/mail/message-list/stamp-message-list-item.blp:41
+#: src/views/mail/message-list/stamp-message-list-item.blp:61
+msgid "Show"
+msgstr ""
+
+#: src/views/mail/folder-list/stamp-folder-row.blp:13
+msgid "Folder Type Icon"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-attachment-button.blp:17
+msgid "Attachment Button"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-attachment-button.blp:28
+msgid "Attachment Type Icon"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-attachment-button.c:314
+msgid "Save"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-header.blp:39
+msgid "Unknown Sender"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-header.blp:131
+msgid "More Participants"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-header.blp:176
+msgid "More CC Participants"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-header.blp:217
+#: src/views/stamp-tag.blp:42
+msgid "Copy Address"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-header.blp:222
+#: src/views/stamp-tag.blp:47
+msgid "Search Address"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-header.blp:227
+#: src/views/stamp-tag.blp:52
+msgid "Show Contact"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-header.c:701
+msgid "Mark Flag"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-header.c:705
+msgid "Mark Unflag"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list.blp:45
+msgid "Edit"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list.blp:59
+msgid "Delete"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list.blp:66
+msgid "Mark Spam"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list.blp:92
+msgid "No Conversation Selected"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list.blp:160
+msgid "Reply Current"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list.blp:169
+msgid "Reply All Current"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list.blp:178
+msgid "Forward Current"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list.blp:187
+msgid "Mark Junk"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list.blp:196
+msgid "Move To Trash"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list.blp:218
+msgid "No Mail Selected"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list-item.blp:40
+msgid "This message contains remote images."
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list-item.blp:51
+msgid "Send"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list-item.blp:79
+msgid "RSVP"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list-item.c:113
+#, c-format
+msgid "Sender %s wants a read receipt."
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list-item.c:122
+#, c-format
+msgid "The sender is not part of your organization."
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list-item.c:140
+msgid "Valid Encryption"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list-item.c:420
+msgid "Signature Details"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list-item.c:530
+#, c-format
+msgid "%s wants to know whether you can join this meeting"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list-item.c:532
+msgid "RVSP"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list-item.c:534
+#: src/stamp-application.c:203
+msgid "Cancel"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list-item.c:535
+msgid "Decline"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list-item.c:537
+msgid "Tentative"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list-item.c:538
+msgid "Accept"
+msgstr ""
+
+#: src/views/mail/message-list/stamp-message-list-item.c:914
+msgid "E-Mail Message"
+msgstr ""
+
+#: src/views/mail/stamp-mail-view.blp:175
+msgid "Details"
+msgstr ""
+
+#: src/views/mail/stamp-mail-view.c:164 src/views/mail/stamp-mail-view.c:314
+msgid "Conversations moved to trash"
+msgstr ""
+
+#: src/views/mail/stamp-mail-view.c:165 src/views/mail/stamp-mail-view.c:315
+msgid "Undo"
+msgstr ""
+
+#: src/views/stamp-header-bar.blp:23
+msgid "A_ccounts"
+msgstr ""
+
+#: src/views/stamp-header-bar.blp:30
+msgid "_Preferences"
+msgstr ""
+
+#: src/views/stamp-header-bar.blp:35
+msgid "_Keyboard Shortcuts"
+msgstr ""
+
+#: src/views/stamp-header-bar.blp:40
+msgid "_About Stamp"
+msgstr ""
+
+#: src/views/stamp-header-bar.blp:47
+msgid "_Quit"
+msgstr ""
+
+#: src/views/stamp-tag.blp:12
+msgid "Delete Tag"
+msgstr ""
+
+#: src/shortcuts-dialog.blp:6
+msgctxt "Shortcut window description"
+msgid "Application"
+msgstr ""
+
+#: src/shortcuts-dialog.blp:9
+msgctxt "Shortcut window description"
+msgid "Open Preferences"
+msgstr ""
+
+#: src/shortcuts-dialog.blp:14
+msgctxt "Shortcut window description"
+msgid "Quit"
+msgstr ""
+
+#: src/shortcuts-dialog.blp:20
+msgctxt ""
+msgid "Mail"
+msgstr ""
+
+#: src/shortcuts-dialog.blp:23
+msgctxt "Shortcut window description"
+msgid "New Mail"
+msgstr ""
+
+#: src/shortcuts-dialog.blp:28
+msgctxt "Shortcut window description"
+msgid "Reply Current Mail"
+msgstr ""
+
+#: src/shortcuts-dialog.blp:33
+msgctxt "Shortcut window description"
+msgid "Reply All Current Mail"
+msgstr ""
+
+#: src/shortcuts-dialog.blp:38
+msgctxt "Shortcut window description"
+msgid "Forward Current Mail"
+msgstr ""
+
+#: src/shortcuts-dialog.blp:43
+msgctxt "Shortcut window description"
+msgid "Mark Current Mail Read"
+msgstr ""
+
+#: src/shortcuts-dialog.blp:48
+msgctxt "Shortcut window description"
+msgid "Mark Current Mail Unread"
+msgstr ""
+
+#: src/shortcuts-dialog.blp:53
+msgctxt "Shortcut window description"
+msgid "Flag Current Mail"
+msgstr ""
+
+#: src/shortcuts-dialog.blp:58
+msgctxt "Shortcut window description"
+msgid "Unflag Current Mail"
+msgstr ""
+
+#: src/shortcuts-dialog.blp:63
+msgctxt "Shortcut window description"
+msgid "Print Current Mail"
+msgstr ""
+
+#: src/stamp-application.c:198
+#, c-format
+msgid "Enter the password for “%s”, token “%s”"
+msgstr ""
+
+#: src/stamp-application.c:200
+#, c-format
+msgid "Enter the password for “%s”"
+msgstr ""
+
+#: src/stamp-application.c:202
+msgid "Enter Password"
+msgstr ""
+
+#: src/stamp-application.c:204
+msgid "Decrypt"
+msgstr ""
+
+#: src/stamp-application.c:288
+msgid "translator-credits"
+msgstr ""
+
+#: src/stamp-application.c:367
+msgid "Start window hidden"
+msgstr ""
+
+#: src/stamp-preferences.blp:10 src/stamp-preferences.blp:14
+#: src/stamp-preferences.blp:33 src/stamp-preferences.blp:107
+msgid "General"
+msgstr ""
+
+#: src/stamp-preferences.blp:17
+msgid "Background Notifications"
+msgstr ""
+
+#: src/stamp-preferences.blp:18
+msgid "Fetch notifications while the app is closed"
+msgstr ""
+
+#: src/stamp-preferences.blp:22
+msgid "Autostart"
+msgstr ""
+
+#: src/stamp-preferences.blp:23
+msgid "Start during system startup in background"
+msgstr ""
+
+#: src/stamp-preferences.blp:29
+msgid "Reader"
+msgstr ""
+
+#: src/stamp-preferences.blp:36
+msgid "Mark Read Timeout"
+msgstr ""
+
+#: src/stamp-preferences.blp:40 src/stamp-preferences.blp:61
+msgid "sec"
+msgstr ""
+
+#: src/stamp-preferences.blp:56
+msgid "Folder Refresh Interfal"
+msgstr ""
+
+#: src/stamp-preferences.blp:57
+msgid "Interval after which folders should be checked for changes"
+msgstr ""
+
+#: src/stamp-preferences.blp:75
+msgid "Visual"
+msgstr ""
+
+#: src/stamp-preferences.blp:78
+msgid "Always Show Images"
+msgstr ""
+
+#: src/stamp-preferences.blp:79
+msgid "Except for Junk and Trash folders"
+msgstr ""
+
+#: src/stamp-preferences.blp:83
+msgid "Load Verified Company Logos from BIMI"
+msgstr ""
+
+#: src/stamp-preferences.blp:84
+msgid ""
+"Should offer more trust and provide protection against phishing attempts"
+msgstr ""
+
+#: src/stamp-preferences.blp:88
+msgid "Show important mails on top"
+msgstr ""
+
+#: src/stamp-preferences.blp:93
+msgid "Audio"
+msgstr ""
+
+#: src/stamp-preferences.blp:96
+msgid "Play Incoming Sound"
+msgstr ""
+
+#: src/stamp-preferences.blp:97
+msgid "Audio notification for new incoming mails"
+msgstr ""
+
+#: src/stamp-preferences.blp:103
+msgid "Composer"
+msgstr ""
+
+#: src/stamp-preferences.blp:110 src/stamp-preferences-signatures.blp:5
+msgid "Signatures"
+msgstr ""
+
+#: src/stamp-preferences.blp:116
+msgid "Go Next"
+msgstr ""
+
+#: src/stamp-preferences.c:124
+msgid "Notifications"
+msgstr ""
+
+#: src/stamp-preferences-signatures.blp:13
+msgid "_Save"
+msgstr ""
+
+#. Translators: "friendly time" string for the current day, strftime format. like "Today 12∶34 am"
+#: src/stamp-time-helpers.c:229
+msgid "%I∶%M %p"
+msgstr ""
+
+#. Translators: "friendly time" string for the current day, strftime format. like "Today 15∶34"
+#: src/stamp-time-helpers.c:232
+msgid "%H∶%M"
+msgstr ""
+
+#: src/stamp-time-helpers.c:255
+msgid "%a %I∶%M %p"
+msgstr ""
+
+#: src/stamp-time-helpers.c:257 src/stamp-time-helpers.c:265
+#, c-format
+msgid "%a"
+msgstr ""
+
+#: src/stamp-time-helpers.c:263
+msgid "%a %H∶%M"
+msgstr ""
+
+#. Translators: "friendly time" string for a day in the current year,
+#. * strftime format. e.g. "Feb 12 12∶34 am"
+#.
+#: src/stamp-time-helpers.c:279
+msgid "%b %d %I∶%M %p"
+msgstr ""
+
+#. Translators: "friendly time" string for a day in the current year,
+#. * strftime format. e.g. "Feb 12 15∶34"
+#.
+#: src/stamp-time-helpers.c:284
+msgid "%b %d %H∶%M"
+msgstr ""
+
+#. Translators: "friendly time" string for a day in a different year,
+#. * strftime format. e.g. "Feb 12 1997"
+#.
+#: src/stamp-time-helpers.c:290
+msgid "%b %d %Y"
+msgstr ""
