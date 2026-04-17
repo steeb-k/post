@@ -278,21 +278,19 @@ stamp_application_about_action (GSimpleAction *action,
   static const char *designers[] = {"Tobias Bernard", NULL};
   StampApplication *self = STAMP_APPLICATION (user_data);
   GtkWindow *window = NULL;
+  AdwDialog *dialog;
 
   g_assert (STAMP_IS_APPLICATION (self));
 
   window = gtk_application_get_active_window (GTK_APPLICATION (self));
 
-  adw_show_about_dialog (GTK_WIDGET (window),
-                         "application-name", "Stamp",
-                         "application-icon", "org.tabos.stamp",
-                         "developer-name", "Jan-Michael Brummer",
-                         "translator-credits", _("translator-credits"),
-                         "version", PACKAGE_VERSION,
-                         "developers", developers,
-                         "designers", designers,
-                         "copyright", "© 2024-2026 Jan-Michael Brummer",
-                         NULL);
+  dialog = adw_about_dialog_new_from_appdata ("/org/tabos/stamp/org.tabos.stamp.metainfo.xml", PACKAGE_VERSION);
+  adw_about_dialog_set_translator_credits (ADW_ABOUT_DIALOG (dialog), _("translator-credits"));
+  adw_about_dialog_set_developers (ADW_ABOUT_DIALOG (dialog), developers);
+  adw_about_dialog_set_designers (ADW_ABOUT_DIALOG (dialog), designers);
+  adw_about_dialog_set_copyright (ADW_ABOUT_DIALOG (dialog), "© 2024-2026 Jan-Michael Brummer");
+  adw_about_dialog_set_version (ADW_ABOUT_DIALOG (dialog), VERSION);
+  adw_dialog_present (dialog, GTK_WIDGET (window));
 }
 
 static void

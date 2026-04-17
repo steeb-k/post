@@ -1,70 +1,97 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
   <id>org.tabos.stamp</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
-
   <name>Stamp</name>
   <summary>Mails and more</summary>
   <description>
     <p>No description</p>
   </description>
-
   <developer id="org.tabos">
     <name>Jan-Michael Brummer</name>
   </developer>
-
   <url type="homepage">https://www.tabos.org/</url>
   <url type="vcs-browser">https://www.gitlab.com/tabos/stamp</url>
   <url type="bugtracker">https://www.gitlab.com/tabos/stamp/issues</url>
-  <!-- Should link a FAQ page for this software, to answer some of the most-asked questions in detail -->
-  <!-- URLs of this type should point to a webpage where users can submit or modify translations of the upstream project -->
-  <url type="translate">https://example.org/translate</url>
-  <url type="faq">https://example.org/faq</url>
-  <!-- Should provide a web link to an online user's reference, a software manual or help page -->
-  <url type="help">https://example.org/help</url>
-  <!-- URLs of this type should point to a webpage showing information on how to donate to the described software project -->
-  <url type="donation">https://example.org/donate</url>
-  <!-- This could for example be an HTTPS URL to an online form or a page describing how to contact the developer -->
-  <url type="contact">https://example.org/contact</url>
-  <!-- URLs of this type should point to a webpage showing information on how to contribute to the described software project -->
-  <url type="contribute">https://example.org/contribute</url>
-
-  <translation type="gettext">camel</translation>
-  <!-- All graphical applications having a desktop file must have this tag in the MetaInfo.
-     If this is present, appstreamcli compose will pull icons, keywords and categories from the desktop file. -->
+  <translation type="gettext">stamp</translation>
   <launchable type="desktop-id">org.tabos.stamp.desktop</launchable>
-  <!-- Use the OARS website (https://hughsie.github.io/oars/generate.html) to generate these and make sure to use oars-1.1 -->
   <content_rating type="oars-1.1" />
-
-  <!-- Applications should set a brand color in both light and dark variants like so -->
   <branding>
     <color type="primary" scheme_preference="light">#ff00ff</color>
     <color type="primary" scheme_preference="dark">#993d3d</color>
   </branding>
-
   <screenshots>
     <screenshot type="default">
-      <image>https://example.org/example1.png</image>
-      <caption>A caption</caption>
+      <image>https://www.tabos.org/stamp/stamp1.png</image>
+      <caption>Overview</caption>
     </screenshot>
     <screenshot>
-      <image>https://example.org/example2.png</image>
-      <caption>A caption</caption>
+      <image>https://www.tabos.org/stamp/stamp1.png</image>
+      <caption>Mail</caption>
     </screenshot>
   </screenshots>
-
   <releases>
-    <release version="1.0.1" date="2024-01-18">
-      <url type="details">https://example.org/changelog.html#version_1.0.1</url>
-      <description translate="no">
-        <p>Release description</p>
+    <release version="0.4.0" date="2026-04-17">
+      <description>
+        <p># Changelog</p>
+        <p>## [Unreleased]</p>
+        <p>### Features</p>
         <ul>
-          <li>List of changes</li>
-          <li>List of changes</li>
+          <li>Add category support (Jan-Michael Brummer)</li>
+          <li>Add notification action (Jan-Michael Brummer)</li>
+          <li>Add mime parser (Jan-Michael Brummer)</li>
+        </ul>
+        <p>### Bug Fixes</p>
+        <ul>
+          <li>Fix translations (Jan-Michael Brummer)</li>
+          <li>Fix goblint findings (Jan-Michael Brummer)</li>
+          <li>Fix code spelling errors (Jan-Michael Brummer)</li>
+          <li>Fix initial conversation end buton title state (Jan-Michael Brummer)</li>
+          <li>Fix crash during send mail (Jan-Michael Brummer)</li>
+          <li>Fix compiler warnings (Jan-Michael Brummer)</li>
+        </ul>
+        <p>### Other Changes</p>
+        <ul>
+          <li>Remove pkcs11 non working support from flatpak (Jan-Michael Brummer)</li>
+          <li>Remove service (Jan-Michael Brummer)</li>
+          <li>StampFolderRow: Set account row in bold (Jan-Michael Brummer)</li>
+          <li>StampConversationList: Always scroll to top regardless of visibility (Jan-Michael Brummer)</li>
+          <li>wip (Jan-Michael Brummer)</li>
+          <li>CI: Add check-code-style stage (Jan-Michael Brummer)</li>
+          <li>CI: Add new stages (Jan-Michael Brummer)</li>
+          <li>Split style per widgets (Jan-Michael Brummer)</li>
+          <li>StampMessageList: Set new message list header bottom margin (Jan-Michael Brummer)</li>
+          <li>StampWebView: Rerequest page size after loading images (Jan-Michael Brummer)</li>
+          <li>StampConversationList: Scroll to top using list view function (Jan-Michael Brummer)</li>
+          <li>StampMessageListItem: Update banner style (Jan-Michael Brummer)</li>
+          <li>StampMessageHeader: Fix sender information in cases where only mail is provided (Jan-Michael Brummer)</li>
+          <li>StampMessageHeader: Fix actions in popover (Jan-Michael Brummer)</li>
+          <li>StampConversationList: Mark strings as translatable (Jan-Michael Brummer)</li>
+          <li>StampMessageList: Ensure compose item is a message list item (Jan-Michael Brummer)</li>
+          <li>Views: Reduce sidebar width (Jan-Michael Brummer)</li>
+          <li>StampConversationList: Placeholder must be Title Case (Jan-Michael Brummer)</li>
+          <li>StampConversationItem: Fix missing preview (Jan-Michael Brummer)</li>
+          <li>Set runtime to 50 (Jan-Michael Brummer)</li>
+          <li>StampMessageListItem: Add error banner (Jan-Michael Brummer)</li>
+          <li>Clear photo cache after toggling BIMI option (Jan-Michael Brummer)</li>
+          <li>Remove account accent line (Jan-Michael Brummer)</li>
+          <li>StampMessageList: Show changing subjects (Jan-Michael Brummer)</li>
+          <li>StampFolderItem: No notification for draft message (Jan-Michael Brummer)</li>
+          <li>StampComposer: Move actions to composer group (Jan-Michael Brummer)</li>
+          <li>StampMessageListItem: Fix broken row opacity in dark mode (Tobias Bernard)</li>
+          <li>StampFolderItem: Handle noselect folder (Jan-Michael Brummer)</li>
+          <li>StampMessageListItem: Fix cancellable usage (Jan-Michael Brummer)</li>
+          <li>Reenable thread cache (Jan-Michael Brummer)</li>
+          <li>StampMessageListItem: Move click target from header to row (Tobias Bernard)</li>
+          <li>:style: fix message list rounded corner styling and improve spacing when expanded (Tobias Bernard)</li>
+          <li>Refactor backend (Jan-Michael Brummer)</li>
+          <li>contact-completion: fix crash when sending email (Michael Catanzaro)</li>
+          <li>composer: use correct async finish function when getting message body (Michael Catanzaro)</li>
+          <li>composer: create and use cancellable (Michael Catanzaro)</li>
+          <li>Massive update #1 (Jan-Michael Brummer)</li>
+          <li>Initial commit (Jan-Michael Brummer)</li>
         </ul>
       </description>
     </release>
   </releases>
-
 </component>

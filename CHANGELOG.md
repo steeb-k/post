@@ -1,0 +1,57 @@
+# Changelog
+
+## [Unreleased]
+
+### Features
+- Add category support (Jan-Michael Brummer)
+- Add notification action (Jan-Michael Brummer)
+- Add mime parser (Jan-Michael Brummer)
+
+### Bug Fixes
+- Fix translations (Jan-Michael Brummer)
+- Fix goblint findings (Jan-Michael Brummer)
+- Fix code spelling errors (Jan-Michael Brummer)
+- Fix initial conversation end buton title state (Jan-Michael Brummer)
+- Fix crash during send mail (Jan-Michael Brummer)
+- Fix compiler warnings (Jan-Michael Brummer)
+
+### Other Changes
+- Remove pkcs11 non working support from flatpak (Jan-Michael Brummer)
+- Remove service (Jan-Michael Brummer)
+- StampFolderRow: Set account row in bold (Jan-Michael Brummer)
+- StampConversationList: Always scroll to top regardless of visibility (Jan-Michael Brummer)
+- wip (Jan-Michael Brummer)
+- CI: Add check-code-style stage (Jan-Michael Brummer)
+- CI: Add new stages (Jan-Michael Brummer)
+- Split style per widgets (Jan-Michael Brummer)
+- StampMessageList: Set new message list header bottom margin (Jan-Michael Brummer)
+- StampWebView: Rerequest page size after loading images (Jan-Michael Brummer)
+- StampConversationList: Scroll to top using list view function (Jan-Michael Brummer)
+- StampMessageListItem: Update banner style (Jan-Michael Brummer)
+- StampMessageHeader: Fix sender information in cases where only mail is provided (Jan-Michael Brummer)
+- StampMessageHeader: Fix actions in popover (Jan-Michael Brummer)
+- StampConversationList: Mark strings as translatable (Jan-Michael Brummer)
+- StampMessageList: Ensure compose item is a message list item (Jan-Michael Brummer)
+- Views: Reduce sidebar width (Jan-Michael Brummer)
+- StampConversationList: Placeholder must be Title Case (Jan-Michael Brummer)
+- StampConversationItem: Fix missing preview (Jan-Michael Brummer)
+- Set runtime to 50 (Jan-Michael Brummer)
+- StampMessageListItem: Add error banner (Jan-Michael Brummer)
+- Clear photo cache after toggling BIMI option (Jan-Michael Brummer)
+- Remove account accent line (Jan-Michael Brummer)
+- StampMessageList: Show changing subjects (Jan-Michael Brummer)
+- StampFolderItem: No notification for draft message (Jan-Michael Brummer)
+- StampComposer: Move actions to composer group (Jan-Michael Brummer)
+- StampMessageListItem: Fix broken row opacity in dark mode (Tobias Bernard)
+- StampFolderItem: Handle noselect folder (Jan-Michael Brummer)
+- StampMessageListItem: Fix cancellable usage (Jan-Michael Brummer)
+- Reenable thread cache (Jan-Michael Brummer)
+- StampMessageListItem: Move click target from header to row (Tobias Bernard)
+- :style: fix message list rounded corner styling and improve spacing when expanded (Tobias Bernard)
+- Refactor backend (Jan-Michael Brummer)
+- contact-completion: fix crash when sending email (Michael Catanzaro)
+- composer: use correct async finish function when getting message body (Michael Catanzaro)
+- composer: create and use cancellable (Michael Catanzaro)
+- Massive update #1 (Jan-Michael Brummer)
+- Initial commit (Jan-Michael Brummer)
+
