@@ -1,1 +1,1 @@
-i18n.gettext('camel', preset: 'glib')
+i18n.gettext('stamp', preset: 'glib')
