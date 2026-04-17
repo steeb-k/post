@@ -112,8 +112,11 @@ stamp_folder_row_bind (StampFolderRow *self,
   g_object_bind_property (item, "loading", self->spinner, "visible", G_BINDING_SYNC_CREATE);
   g_object_bind_property_full (item, "error", self->error, "visible", G_BINDING_SYNC_CREATE, transform_error_to, NULL, g_object_ref (self), g_object_unref);
 
-  if (STAMP_IS_ACCOUNT_ITEM (item))
+  if (STAMP_IS_ACCOUNT_ITEM (item)) {
+    gtk_widget_add_css_class (GTK_WIDGET (self), "bold");
     gtk_widget_set_visible (GTK_WIDGET (self->unread), FALSE);
-  else
+  } else {
     g_object_bind_property_full (item, "unread", self->unread, "label", G_BINDING_SYNC_CREATE, transform_unread_to, NULL, g_object_ref (self), g_object_unref);
+    gtk_widget_remove_css_class (GTK_WIDGET (self), "bold");
+  }
 }

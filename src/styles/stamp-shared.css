@@ -59,6 +59,10 @@
   font-size: .75em;
 }
 
+.bold {
+  font-weight: bold;
+}
+
 .collapsible-row {
   padding: 0;
 }

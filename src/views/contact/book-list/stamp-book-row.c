@@ -70,10 +70,12 @@ stamp_book_row_bind (StampBookRow *self,
   if (STAMP_IS_BOOK_ACCOUNT_ITEM (item)) {
     gtk_image_set_pixel_size (GTK_IMAGE (self->image), 24);
 
+    gtk_widget_add_css_class (GTK_WIDGET (self), "bold");
     gtk_inscription_set_text (GTK_INSCRIPTION (self->inscription), name);
   } else {
     gtk_image_set_pixel_size (GTK_IMAGE (self->image), -1);
 
+    gtk_widget_remove_css_class (GTK_WIDGET (self), "bold");
     gtk_inscription_set_text (GTK_INSCRIPTION (self->inscription), name);
   }
 
