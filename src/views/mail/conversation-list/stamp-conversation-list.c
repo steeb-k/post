@@ -98,13 +98,15 @@ struct _StampConversationList {
   GMenu *cat_menu;
 };
 
-G_DEFINE_FINAL_TYPE (StampConversationList, stamp_conversation_list, ADW_TYPE_BIN)
+G_DEFINE_FINAL_TYPE (StampConversationList, stamp_conversation_list, ADW_TYPE_BIN);
 
 enum {
   PROP_0,
   PROP_STATE,
   LAST_PROP
 };
+
+static GParamSpec *properties[LAST_PROP];
 
 enum {
   CONVERSATION_SELECTED,
@@ -457,7 +459,7 @@ load_more_items_idle (gpointer user_data)
   const char *service_uid;
 
   if (!self->thread || self->pending_load_count == 0) {
-    return FALSE;
+    return G_SOURCE_REMOVE;
   }
 
   child = camel_folder_thread_get_tree (self->thread);
@@ -488,10 +490,10 @@ load_more_items_idle (gpointer user_data)
   }
 
   if (self->pending_load_count > 0) {
-    return TRUE;
+    return G_SOURCE_CONTINUE;
   }
 
-  return FALSE;
+  return G_SOURCE_REMOVE;
 }
 
 void
@@ -518,10 +520,7 @@ stamp_conversation_list_load_folder (StampConversationList *self,
 
   rebuild_category_actions (self);
 
-  if (self->full_name != full_name) {
-    g_clear_pointer (&self->full_name, g_free);
-    self->full_name = g_strdup (full_name);
-  }
+  g_set_str (&self->full_name, full_name);
 
   camel_store_get_folder (CAMEL_STORE (stamp_mail_service_get_service (mail_service)), full_name, CAMEL_STORE_FOLDER_NONE, G_PRIORITY_DEFAULT, self->cancellable, on_get_folder, self);
 }
@@ -699,7 +698,7 @@ set_selection_active (StampConversationList *self,
   }
   /* gtk_widget_set_visible (self->listview, TRUE); */
 
-  g_object_notify (G_OBJECT (self), "state");
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_STATE]);
 }
 
 static void
@@ -1244,12 +1243,13 @@ stamp_conversation_list_class_init (StampConversationListClass *klass)
                                               G_TYPE_NONE,
                                               1, STAMP_TYPE_CONVERSATION_ITEM);
 
-  g_object_class_install_property (object_class, PROP_STATE,
-                                   g_param_spec_boolean ("state",
-                                                         NULL,
-                                                         NULL,
-                                                         FALSE,
-                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  properties[PROP_STATE] = g_param_spec_boolean ("state",
+                                                 NULL,
+                                                 NULL,
+                                                 FALSE,
+                                                 G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+
+  g_object_class_install_properties (object_class, LAST_PROP, properties);
 }
 
 static void

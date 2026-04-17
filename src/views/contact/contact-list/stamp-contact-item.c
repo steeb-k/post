@@ -28,8 +28,7 @@ struct _StampContactItem {
   EContact *contact;
 };
 
-G_DEFINE_FINAL_TYPE (StampContactItem, stamp_contact_item, G_TYPE_OBJECT)
-
+G_DEFINE_FINAL_TYPE (StampContactItem, stamp_contact_item, G_TYPE_OBJECT);
 
 static void
 stamp_contact_item_dispose (GObject *object)

@@ -9,11 +9,13 @@
 
 .category-pill {
   border-radius: 999px;
-  padding: 3px 10px;
-  font-size: 0.82em;
-  font-weight: 600;
+  padding-left: 6px;
+  padding-right: 6px;
+  font-size: smaller;
+  font-weight: bold;
   border-style: solid;
   border-width: 1px;
+  min-width: 1rem;
 }
 
 .category-pill.light-bg { color: #1a1a1a; }

@@ -74,7 +74,7 @@ struct _StampMessageListItem {
   gboolean loading_done;
 };
 
-G_DEFINE_FINAL_TYPE (StampMessageListItem, stamp_message_list_item, GTK_TYPE_LIST_BOX_ROW)
+G_DEFINE_FINAL_TYPE (StampMessageListItem, stamp_message_list_item, GTK_TYPE_LIST_BOX_ROW);
 
 enum {
   PROP_0,
@@ -84,11 +84,13 @@ enum {
   LAST_PROP
 };
 
+static GParamSpec *properties[LAST_PROP];
+
 static void
 open_message (StampMessageListItem *self,
               CamelMimeMessage     *message)
 {
-  StampMimeParser *parser;
+  g_autoptr (StampMimeParser) parser = NULL;
   StampMimeContent *body;
   StampMimeValidation *validation;
   StampMimeCalendar *calendar;
@@ -201,8 +203,6 @@ open_message (StampMessageListItem *self,
 
     gtk_widget_set_visible (self->attachment_flow_box, TRUE);
   }
-
-  g_clear_pointer (&parser, stamp_mime_parser_free);
 
   if (!self->message_content) {
     self->loading_done = TRUE;
@@ -624,24 +624,26 @@ stamp_message_list_item_class_init (StampMessageListItemClass *klass)
   gobject_class->get_property = stamp_message_list_item_get_property;
   gobject_class->set_property = stamp_message_list_item_set_property;
 
-  g_object_class_install_property (gobject_class, PROP_ACCOUNT,
+  properties[PROP_ACCOUNT] =
                                    g_param_spec_object ("account",
                                                         NULL,
                                                         NULL,
                                                         STAMP_TYPE_ACCOUNT,
-                                                        G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-  g_object_class_install_property (gobject_class, PROP_MESSAGE_INFO,
+                                                        G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+  properties[PROP_MESSAGE_INFO] =
                                    g_param_spec_object ("message-info",
                                                         NULL,
                                                         NULL,
                                                         CAMEL_TYPE_MESSAGE_INFO,
-                                                        G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-  g_object_class_install_property (gobject_class, PROP_EXPANDED,
+                                                        G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+  properties[PROP_EXPANDED] =
                                    g_param_spec_boolean ("expanded",
                                                          NULL,
                                                          NULL,
                                                          TRUE,
-                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+
+  g_object_class_install_properties (gobject_class, LAST_PROP, properties);
 }
 
 static void
@@ -747,8 +749,7 @@ stamp_message_list_item_print (StampMessageListItem *self)
 
     new_string = g_regex_replace (regex, subject, (gssize) - 1, 0, " ", 0, NULL);
     if (strlen (new_string) < 64) {
-      g_clear_pointer (&filename, g_free);
-      filename = g_strdup (new_string);
+      g_set_str (&filename, new_string);
     } else {
       filename = g_strdup_printf ("%60s", new_string);
     }

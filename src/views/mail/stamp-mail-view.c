@@ -49,7 +49,7 @@ struct _StampMailView {
   int saved_paned_pos;
 };
 
-G_DEFINE_FINAL_TYPE (StampMailView, stamp_mail_view, ADW_TYPE_BREAKPOINT_BIN)
+G_DEFINE_FINAL_TYPE (StampMailView, stamp_mail_view, ADW_TYPE_BREAKPOINT_BIN);
 
 enum {
   PROP_0,

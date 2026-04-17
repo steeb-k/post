@@ -32,7 +32,7 @@ struct _StampContactRow {
   guint generation;
 };
 
-G_DEFINE_FINAL_TYPE (StampContactRow, stamp_contact_row, ADW_TYPE_BIN)
+G_DEFINE_FINAL_TYPE (StampContactRow, stamp_contact_row, ADW_TYPE_BIN);
 
 enum {
   PROP_0,

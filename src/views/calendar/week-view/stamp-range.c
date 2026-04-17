@@ -30,7 +30,7 @@ struct _StampRange {
   StampRangeType range_type;
 };
 
-G_DEFINE_BOXED_TYPE (StampRange, stamp_range, stamp_range_ref, stamp_range_unref)
+G_DEFINE_BOXED_TYPE (StampRange, stamp_range, stamp_range_ref, stamp_range_unref);
 
 typedef int (*CompareDateTimeFunc) (GDateTime *a,
                                     GDateTime *b);

@@ -42,7 +42,7 @@ struct _StampTag {
   StampAccount *account;
 };
 
-G_DEFINE_FINAL_TYPE (StampTag, stamp_tag, GTK_TYPE_BOX)
+G_DEFINE_FINAL_TYPE (StampTag, stamp_tag, GTK_TYPE_BOX);
 
 enum {
   PROP_0,
@@ -277,8 +277,7 @@ stamp_tag_set_mail (StampTag   *self,
   if (self->mail == mail)
     return;
 
-  g_clear_pointer (&self->mail, g_free);
-  self->mail = g_strdup (mail);
+  g_set_str (&self->mail, mail);
 
   if (self->cancellable)
     g_cancellable_cancel (self->cancellable);

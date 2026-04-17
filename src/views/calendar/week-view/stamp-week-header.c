@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Jan-Michael Brummer
+ * Copyright 2025-2026 Jan-Michael Brummer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ struct _StampWeekHeader {
   GDateTime *active_date;
 };
 
-G_DEFINE_FINAL_TYPE (StampWeekHeader, stamp_week_header, GTK_TYPE_WIDGET)
+G_DEFINE_FINAL_TYPE (StampWeekHeader, stamp_week_header, GTK_TYPE_WIDGET);
 
 #define ALIGNED(x)      (round (x) + 0.5)
 
@@ -165,7 +165,7 @@ get_first_weekday (void)
 # define GTK_WEEK_START "calendar:week_start:0"
   gtk_week_start = dgettext ("gtk40", GTK_WEEK_START);
 
-  if (strncmp (gtk_week_start, "calendar:week_start:", 20) == 0)
+  if (g_str_has_prefix (gtk_week_start, "calendar:week_start:"))
     week_start = *(gtk_week_start + 20) - '0';
   else
     week_start = -1;
@@ -277,6 +277,8 @@ stamp_week_header_constructed (GObject *object)
 {
   StampWeekHeader *self = STAMP_WEEK_HEADER (object);
   int i;
+
+  G_OBJECT_CLASS (stamp_week_header_parent_class)->constructed (object);
 
   gtk_widget_init_template (GTK_WIDGET (self));
 

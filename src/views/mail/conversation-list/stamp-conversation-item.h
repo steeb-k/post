@@ -25,7 +25,7 @@
 G_BEGIN_DECLS
 
 #define STAMP_TYPE_CONVERSATION_ITEM (stamp_conversation_item_get_type())
-G_DECLARE_FINAL_TYPE (StampConversationItem, stamp_conversation_item, STAMP, CONVERSATION_ITEM, GObject)
+G_DECLARE_FINAL_TYPE (StampConversationItem, stamp_conversation_item, STAMP, CONVERSATION_ITEM, GObject);
 
 StampConversationItem *
 stamp_conversation_item_new (CamelFolderThreadNode *thread_node,

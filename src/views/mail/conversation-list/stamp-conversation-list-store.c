@@ -30,7 +30,7 @@ struct _StampConversationListStore {
 static void stamp_conversation_list_store_list_model_iface_init (GListModelInterface *iface);
 
 G_DEFINE_FINAL_TYPE_WITH_CODE (StampConversationListStore, stamp_conversation_list_store, G_TYPE_OBJECT,
-                               G_IMPLEMENT_INTERFACE (G_TYPE_LIST_MODEL, stamp_conversation_list_store_list_model_iface_init))
+                               G_IMPLEMENT_INTERFACE (G_TYPE_LIST_MODEL, stamp_conversation_list_store_list_model_iface_init));
 
 static void
 stamp_conversation_list_store_finalize (GObject *object)

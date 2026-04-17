@@ -37,7 +37,7 @@ struct _StampConversationItem {
   gboolean hidden;
 };
 
-G_DEFINE_FINAL_TYPE (StampConversationItem, stamp_conversation_item, G_TYPE_OBJECT)
+G_DEFINE_FINAL_TYPE (StampConversationItem, stamp_conversation_item, G_TYPE_OBJECT);
 
 enum {
   PROP_0,
@@ -57,7 +57,7 @@ enum {
   LAST_PROP
 };
 
-static GParamSpec *props[LAST_PROP];
+static GParamSpec *properties[LAST_PROP];
 
 const char *
 stamp_conversation_item_get_subject (StampConversationItem *self)
@@ -78,7 +78,7 @@ stamp_conversation_item_get_subject (StampConversationItem *self)
 void
 stamp_conversation_item_notify_unread (StampConversationItem *self)
 {
-  g_object_notify (G_OBJECT (self), "unread");
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_UNREAD]);
 }
 
 static void
@@ -222,75 +222,75 @@ stamp_conversation_item_class_init (StampConversationItemClass *klass)
   object_class->dispose = stamp_conversation_item_dispose;
   object_class->constructed = stamp_conversation_item_constructed;
 
-  props[PROP_THREAD_NODE] = g_param_spec_pointer ("thread-node",
+  properties[PROP_THREAD_NODE] = g_param_spec_pointer ("thread-node",
+                                                       NULL,
+                                                       NULL,
+                                                       G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+  properties[PROP_UNREAD] = g_param_spec_boolean ("unread",
                                                   NULL,
                                                   NULL,
-                                                  G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-  props[PROP_UNREAD] = g_param_spec_boolean ("unread",
-                                             NULL,
-                                             NULL,
-                                             FALSE,
-                                             G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-  props[PROP_STARRED] = g_param_spec_boolean ("starred",
-                                              NULL,
-                                              NULL,
-                                              FALSE,
-                                              G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-  props[PROP_SERVICE_UID] = g_param_spec_string ("service-uid",
-                                                 NULL,
-                                                 NULL,
-                                                 NULL,
-                                                 G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-  props[PROP_SUBJECT] = g_param_spec_string ("subject",
-                                             NULL,
-                                             NULL,
-                                             NULL,
-                                             G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-  props[PROP_FROM] = g_param_spec_string ("from",
-                                          NULL,
-                                          NULL,
-                                          NULL,
-                                          G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-  props[PROP_PREVIEW] = g_param_spec_string ("preview",
-                                             NULL,
-                                             NULL,
-                                             NULL,
-                                             G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-  props[PROP_HAS_ATTACHMENT] = g_param_spec_boolean ("has-attachment",
-                                                     NULL,
-                                                     NULL,
-                                                     FALSE,
-                                                     G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-  props[PROP_HAS_CALENDAR] = g_param_spec_boolean ("has-calendar",
+                                                  FALSE,
+                                                  G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+  properties[PROP_STARRED] = g_param_spec_boolean ("starred",
                                                    NULL,
                                                    NULL,
                                                    FALSE,
                                                    G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-  props[PROP_IMPORTANT] = g_param_spec_boolean ("important",
-                                                NULL,
-                                                NULL,
-                                                FALSE,
-                                                G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-  props[PROP_DATE] = g_param_spec_ulong ("date",
-                                         NULL,
-                                         NULL,
-                                         0,
-                                         G_MAXULONG,
-                                         0,
-                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-  props[PROP_NUM_MESSAGES] = g_param_spec_ulong ("num-messages",
-                                                 NULL,
-                                                 NULL,
-                                                 0,
-                                                 G_MAXULONG,
-                                                 0,
-                                                 G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-  props[PROP_LABELS] = g_param_spec_pointer ("labels",
-                                             NULL,
-                                             NULL,
-                                             G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+  properties[PROP_SERVICE_UID] = g_param_spec_string ("service-uid",
+                                                      NULL,
+                                                      NULL,
+                                                      NULL,
+                                                      G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+  properties[PROP_SUBJECT] = g_param_spec_string ("subject",
+                                                  NULL,
+                                                  NULL,
+                                                  NULL,
+                                                  G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+  properties[PROP_FROM] = g_param_spec_string ("from",
+                                               NULL,
+                                               NULL,
+                                               NULL,
+                                               G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+  properties[PROP_PREVIEW] = g_param_spec_string ("preview",
+                                                  NULL,
+                                                  NULL,
+                                                  NULL,
+                                                  G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+  properties[PROP_HAS_ATTACHMENT] = g_param_spec_boolean ("has-attachment",
+                                                          NULL,
+                                                          NULL,
+                                                          FALSE,
+                                                          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+  properties[PROP_HAS_CALENDAR] = g_param_spec_boolean ("has-calendar",
+                                                        NULL,
+                                                        NULL,
+                                                        FALSE,
+                                                        G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+  properties[PROP_IMPORTANT] = g_param_spec_boolean ("important",
+                                                     NULL,
+                                                     NULL,
+                                                     FALSE,
+                                                     G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+  properties[PROP_DATE] = g_param_spec_ulong ("date",
+                                              NULL,
+                                              NULL,
+                                              0,
+                                              G_MAXULONG,
+                                              0,
+                                              G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+  properties[PROP_NUM_MESSAGES] = g_param_spec_ulong ("num-messages",
+                                                      NULL,
+                                                      NULL,
+                                                      0,
+                                                      G_MAXULONG,
+                                                      0,
+                                                      G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+  properties[PROP_LABELS] = g_param_spec_pointer ("labels",
+                                                  NULL,
+                                                  NULL,
+                                                  G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_properties (object_class, LAST_PROP, props);
+  g_object_class_install_properties (object_class, LAST_PROP, properties);
 }
 
 void
@@ -477,7 +477,7 @@ stamp_conversation_item_get_preview (StampConversationItem *self)
     if (!info)
       info = camel_folder_thread_node_get_item (self->thread_node);
 
-     preview = camel_message_info_get_preview (info);
+    preview = camel_message_info_get_preview (info);
 
     if (preview && strlen (preview) > 0)
       self->preview = g_markup_escape_text (preview, -1);
@@ -581,8 +581,8 @@ void
 stamp_conversation_item_update (StampConversationItem *self,
                                 CamelMessageInfo      *info)
 {
-  g_object_notify (G_OBJECT (self), "unread");
-  g_object_notify (G_OBJECT (self), "starred");
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_UNREAD]);
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_STARRED]);
 }
 
 gboolean
@@ -637,5 +637,5 @@ stamp_conversation_item_set_label (StampConversationItem *self,
   info = camel_folder_thread_node_get_item (self->thread_node);
   camel_message_info_set_user_flag (info, label, state);
 
-  g_object_notify (G_OBJECT (self), "labels");
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_LABELS]);
 }

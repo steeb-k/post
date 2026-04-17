@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Jan-Michael Brummer
+ * Copyright 2025-2026 Jan-Michael Brummer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@ struct _StampWeekView {
   GCancellable *cancellable;
 };
 
-G_DEFINE_FINAL_TYPE (StampWeekView, stamp_week_view, GTK_TYPE_BOX)
+G_DEFINE_FINAL_TYPE (StampWeekView, stamp_week_view, GTK_TYPE_BOX);
 
 static void
 stamp_week_view_init (StampWeekView *self)
@@ -49,6 +49,8 @@ static void
 stamp_week_view_constructed (GObject *object)
 {
   StampWeekView *self = STAMP_WEEK_VIEW (object);
+
+  G_OBJECT_CLASS (stamp_week_view_parent_class)->constructed (object);
 
   gtk_widget_init_template (GTK_WIDGET (self));
 

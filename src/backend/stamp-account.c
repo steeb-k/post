@@ -65,7 +65,7 @@ struct _StampAccount {
   GList *categories;
 };
 
-G_DEFINE_FINAL_TYPE (StampAccount, stamp_account, G_TYPE_OBJECT)
+G_DEFINE_FINAL_TYPE (StampAccount, stamp_account, G_TYPE_OBJECT);
 
 typedef struct {
   StampAccount *account;
@@ -696,11 +696,12 @@ stamp_account_init_async (StampAccount        *self,
                           GAsyncReadyCallback  callback,
                           gpointer             user_data)
 {
-  GTask *task = g_task_new (self, cancellable, callback, user_data);
+  g_autoptr (GTask) task = g_task_new (self, cancellable, callback, user_data);
   gboolean mail_enabled = self->mail && e_source_get_enabled (self->mail->source);
   InitContext *ctx;
   guint pending = 1;
 
+  g_task_set_source_tag (task, stamp_account_init_async);
   g_task_set_task_data (task, self, NULL);
   if (mail_enabled) {
     /* pending += 2; */
@@ -712,14 +713,13 @@ stamp_account_init_async (StampAccount        *self,
   if (pending == 0) {
     g_print ("%s: No active services (%s)\n", G_STRFUNC, self->display_name);
     g_task_return_boolean (task, TRUE);
-    g_clear_object (&task);
     return;
   }
   g_print ("%s: %d pending\n", G_STRFUNC, pending);
 
   ctx = g_new0 (InitContext, 1);
   ctx->account = self;
-  ctx->parent_task = task;
+  ctx->parent_task = g_object_ref (task);
   ctx->pending = pending;
   g_mutex_init (&ctx->lock);
 
@@ -853,8 +853,7 @@ stamp_account_set_name (StampAccount *self,
   if (!name || self->display_name == name)
     return;
 
-  g_clear_pointer (&self->display_name, g_free);
-  self->display_name = g_strdup (name);
+  g_set_str (&self->display_name, name);
 }
 
 void
@@ -1011,6 +1010,7 @@ stamp_account_send_mail (StampAccount         *self,
   data->pgp_sign = pgp_sign;
   data->pgp_encrypt = pgp_encrypt;
 
+  g_task_set_source_tag (task, stamp_account_send_mail);
   g_task_set_task_data (task, data, send_mail_data_free);
   g_task_run_in_thread (task, send_mail);
 }
@@ -1192,6 +1192,7 @@ stamp_account_save_draft_async (StampAccount         *self,
   data->sender = g_object_ref (sender);
   data->recipient = g_object_ref (recipient);
 
+  g_task_set_source_tag (task, stamp_account_save_draft_async);
   g_task_set_task_data (task, data, save_draft_data_free);
   g_task_run_in_thread (task, save_draft_thread);
 }
@@ -1245,6 +1246,7 @@ stamp_account_remove_draft_async (StampAccount        *self,
   data->account = g_object_ref (self);
   data->uid = g_strdup (uid);
 
+  g_task_set_source_tag (task, stamp_account_remove_draft_async);
   g_task_set_task_data (task, data, remove_draft_data_free);
   g_task_run_in_thread (task, remove_draft_thread);
 }

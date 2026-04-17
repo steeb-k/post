@@ -369,8 +369,8 @@ stamp_notify_waiters (StampPendingLookup *pending,
 
     g_free (waiter);
   }
-  g_slist_free (pending->waiters);
-  pending->waiters = NULL;
+
+  g_clear_slist (&pending->waiters, NULL);
 
   stamp_pending_lookup_unref (pending);
 }
@@ -384,7 +384,7 @@ stamp_on_contacts_received (GObject      *source,
   StampPhotoCache *cache = pending->cache;
   g_autoslist (EContact) contacts = NULL;
   g_autoptr (GError) error = NULL;
-  GdkTexture *texture = NULL;
+  g_autoptr (GdkTexture) texture = NULL;
   g_autofree char *domain = NULL;
 
   if (pending->pending_books == 0) {
@@ -434,7 +434,6 @@ stamp_on_contacts_received (GObject      *source,
     g_hash_table_insert (cache->positive_cache, g_strdup (pending->email), g_object_ref (texture));
     g_hash_table_remove (cache->pending, pending->email);
     stamp_notify_waiters (pending, texture);
-    g_object_unref (texture);
     stamp_pending_lookup_unref (pending);
     return;
   }
@@ -448,7 +447,6 @@ book_done:
                          g_strdup (pending->email), g_object_ref (texture));
     g_hash_table_remove (cache->pending, pending->email);
     stamp_notify_waiters (pending, texture);
-    g_object_unref (texture);
     stamp_pending_lookup_unref (pending);
     return;
   }
@@ -634,6 +632,7 @@ stamp_photo_cache_lookup_async (StampPhotoCache *self,
       g_cancellable_connect (cancellable, G_CALLBACK (stamp_on_waiter_cancelled), stamp_cancel_data_new (self, search_string, waiter->id), (GDestroyNotify)stamp_cancel_data_free);
 
     task = g_task_new (NULL, pending->cancellable, on_bimi, NULL);
+    g_task_set_source_tag (task, stamp_photo_cache_lookup_async);
     stamp_pending_lookup_ref (pending);
     g_task_set_task_data (task, pending, NULL);
     g_task_run_in_thread (task, load_bimi);

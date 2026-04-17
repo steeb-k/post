@@ -25,7 +25,7 @@ G_BEGIN_DECLS
 
 #define STAMP_TYPE_FOLDER_LIST (stamp_folder_list_get_type())
 
-G_DECLARE_FINAL_TYPE (StampFolderList, stamp_folder_list, STAMP, FOLDER_LIST, AdwBin)
+G_DECLARE_FINAL_TYPE (StampFolderList, stamp_folder_list, STAMP, FOLDER_LIST, AdwBin);
 
 GtkWidget *
 stamp_folder_list_new (void);

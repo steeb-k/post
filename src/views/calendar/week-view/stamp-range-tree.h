@@ -84,6 +84,6 @@ guint64              stamp_range_tree_count_entries_at_range      (StampRangeTre
 
 void                 stamp_range_tree_print                       (StampRangeTree      *self);
 
-G_DEFINE_AUTOPTR_CLEANUP_FUNC (StampRangeTree, stamp_range_tree_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (StampRangeTree, stamp_range_tree_unref);
 
 G_END_DECLS

@@ -39,7 +39,7 @@ enum {
 
 static GParamSpec *props[N_PROPS];
 
-G_DEFINE_FINAL_TYPE (StampCategory, stamp_category, G_TYPE_OBJECT)
+G_DEFINE_FINAL_TYPE (StampCategory, stamp_category, G_TYPE_OBJECT);
 
 static void
 stamp_category_finalize (GObject *object)
@@ -375,7 +375,7 @@ stamp_m365_get_categories_async (ESource             *source,
                                  GAsyncReadyCallback  callback,
                                  gpointer             user_data)
 {
-  GTask *task;
+  g_autoptr (GTask) task = NULL;
   CategoriesTaskData *data;
 
   g_return_if_fail (E_IS_SOURCE (source));
@@ -385,9 +385,9 @@ stamp_m365_get_categories_async (ESource             *source,
   data->cancellable = cancellable ? g_object_ref (cancellable) : NULL;
 
   task = g_task_new (source, cancellable, callback, user_data);
+  g_task_set_source_tag (task, stamp_m365_get_categories_async);
   g_task_set_task_data (task, data, (GDestroyNotify)categories_task_data_free);
   g_task_run_in_thread (task, categories_thread_func);
-  g_object_unref (task);
 }
 
 GList *

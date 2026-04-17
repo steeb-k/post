@@ -51,7 +51,7 @@ struct _StampContactList {
   StampSortMode sort_mode;
 };
 
-G_DEFINE_FINAL_TYPE (StampContactList, stamp_contact_list, ADW_TYPE_BREAKPOINT_BIN)
+G_DEFINE_FINAL_TYPE (StampContactList, stamp_contact_list, ADW_TYPE_BREAKPOINT_BIN);
 
 enum {
   PROP_0,
@@ -59,7 +59,7 @@ enum {
   LAST_PROP
 };
 
-static GParamSpec *props[LAST_PROP];
+static GParamSpec *properties[LAST_PROP];
 
 enum {
   CONTACT_SELECTED,
@@ -373,14 +373,14 @@ stamp_contact_list_class_init (StampContactListClass *klass)
                                             G_TYPE_NONE,
                                             2, G_TYPE_OBJECT, G_TYPE_POINTER);
 
-  props[PROP_SORT_MODE] = g_param_spec_enum ("sort-mode",
-                                             NULL,
-                                             NULL,
-                                             STAMP_TYPE_SORT_MODE,
-                                             SORT_MODE_GIVEN_NAME,
-                                             G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+  properties[PROP_SORT_MODE] = g_param_spec_enum ("sort-mode",
+                                                  NULL,
+                                                  NULL,
+                                                  STAMP_TYPE_SORT_MODE,
+                                                  SORT_MODE_GIVEN_NAME,
+                                                  G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_properties (object_class, LAST_PROP, props);
+  g_object_class_install_properties (object_class, LAST_PROP, properties);
 }
 
 
@@ -404,7 +404,7 @@ on_sort_activate (GSimpleAction *action,
     self->sort_mode = SORT_MODE_GIVEN_NAME;
   else
     self->sort_mode = SORT_MODE_FAMILY_NAME;
-  g_object_notify (G_OBJECT (self), "sort-mode");
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_SORT_MODE]);
 
   gtk_sorter_changed (self->sorter, GTK_SORTER_CHANGE_INVERTED);
 }

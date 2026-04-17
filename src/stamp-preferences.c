@@ -45,7 +45,7 @@ struct _StampPreferences {
   GCancellable *cancellable;
 };
 
-G_DEFINE_FINAL_TYPE (StampPreferences, stamp_preferences, ADW_TYPE_PREFERENCES_DIALOG)
+G_DEFINE_FINAL_TYPE (StampPreferences, stamp_preferences, ADW_TYPE_PREFERENCES_DIALOG);
 
 static void
 on_signature_row_activated (GtkWidget *button,

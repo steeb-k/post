@@ -113,7 +113,7 @@ g_strv_remove (const char * const *strv,
   s = strv;
 
   while (*s != NULL) {
-    if (strcmp (*s, str) != 0) {
+    if (!g_str_equal (*s, str)) {
       *n = g_strdup (*s);
       n++;
     }

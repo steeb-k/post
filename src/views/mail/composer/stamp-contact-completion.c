@@ -44,7 +44,7 @@ struct _StampContactCompletion {
   StampAccount *account;
 };
 
-G_DEFINE_FINAL_TYPE (StampContactCompletion, stamp_contact_completion, ADW_TYPE_BIN)
+G_DEFINE_FINAL_TYPE (StampContactCompletion, stamp_contact_completion, ADW_TYPE_BIN);
 
 #define PAGE_STEP 20
 
@@ -54,7 +54,7 @@ enum {
   LAST_PROP
 };
 
-static GParamSpec *obj_properties[LAST_PROP];
+static GParamSpec *properties[LAST_PROP];
 
 static void
 on_tag_destroy (GtkWidget *obj,
@@ -65,7 +65,7 @@ on_tag_destroy (GtkWidget *obj,
 
   self->receivers = g_list_remove (self->receivers, tag);
   self->has_entries = g_list_length (self->receivers) > 0;
-  g_object_notify (G_OBJECT (self), "has-entries");
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_HAS_ENTRIES]);
 
   self->has_entries = g_list_length (self->receivers) > 0;
 }
@@ -354,7 +354,7 @@ stamp_contact_completion_set_property (GObject      *object,
   switch (property_id) {
     case PROP_HAS_ENTRIES:
       self->has_entries = g_value_get_boolean (value);
-      g_object_notify (G_OBJECT (self), "has-entries");
+      g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_HAS_ENTRIES]);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -400,13 +400,13 @@ stamp_contact_completion_class_init (StampContactCompletionClass *klass)
   object_class->set_property = stamp_contact_completion_set_property;
   object_class->get_property = stamp_contact_completion_get_property;
 
-  obj_properties[PROP_HAS_ENTRIES] =
+  properties[PROP_HAS_ENTRIES] =
     g_param_spec_boolean ("has-entries",
                           NULL, NULL,
                           FALSE,
                           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_properties (object_class, LAST_PROP, obj_properties);
+  g_object_class_install_properties (object_class, LAST_PROP, properties);
 }
 
 static int
@@ -585,7 +585,7 @@ stamp_contact_completion_add_tag (StampContactCompletion *self,
   adw_wrap_box_append (ADW_WRAP_BOX (self->wrap_box), GTK_WIDGET (tag));
   self->receivers = g_list_append (self->receivers, tag);
   self->has_entries = TRUE;
-  g_object_notify (G_OBJECT (self), "has-entries");
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_HAS_ENTRIES]);
 
   adw_wrap_box_reorder_child_after (ADW_WRAP_BOX (self->wrap_box), self->entry, GTK_WIDGET (tag));
 }

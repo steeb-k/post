@@ -27,7 +27,7 @@ G_BEGIN_DECLS
 
 #define STAMP_TYPE_CONTACT_LIST_STORE (stamp_contact_list_store_get_type())
 
-G_DECLARE_FINAL_TYPE (StampContactListStore, stamp_contact_list_store, STAMP, CONTACT_LIST_STORE, GListStore)
+G_DECLARE_FINAL_TYPE (StampContactListStore, stamp_contact_list_store, STAMP, CONTACT_LIST_STORE, GListStore);
 
 void
 stamp_contact_list_store_add (StampContactListStore *self,

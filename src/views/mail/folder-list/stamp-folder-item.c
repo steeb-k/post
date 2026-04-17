@@ -36,7 +36,7 @@ struct _StampFolderItem {
   char *notification;
 };
 
-G_DEFINE_FINAL_TYPE (StampFolderItem, stamp_folder_item, STAMP_TYPE_ITEM)
+G_DEFINE_FINAL_TYPE (StampFolderItem, stamp_folder_item, STAMP_TYPE_ITEM);
 
 enum {
   PROP_0,
@@ -45,7 +45,7 @@ enum {
   LAST_PROP
 };
 
-static GParamSpec *obj_properties[LAST_PROP];
+static GParamSpec *properties[LAST_PROP];
 
 enum {
   FOLDER_ITEM_ADDED,
@@ -139,7 +139,7 @@ stamp_folder_item_set_folder_info (StampFolderItem *self,
   if (self->folder) {
     summary = camel_folder_get_folder_summary (self->folder);
     self->unread = camel_folder_summary_get_unread_count (summary);
-    g_object_notify (G_OBJECT (self), "unread");
+    g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_UNREAD]);
   }
 }
 
@@ -206,7 +206,7 @@ on_folder_item_folder_changed (CamelFolder           *folder,
 
   summary = camel_folder_get_folder_summary (folder);
   self->unread = camel_folder_summary_get_unread_count (summary);
-  g_object_notify (G_OBJECT (self), "unread");
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_UNREAD]);
 
   if (changes->uid_added) {
     GPtrArray *added = changes->uid_added;
@@ -293,7 +293,7 @@ on_get_folder (GObject      *source,
 
   summary = camel_folder_get_folder_summary (self->folder);
   self->unread = camel_folder_summary_get_unread_count (summary);
-  g_object_notify (G_OBJECT (self), "unread");
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_UNREAD]);
 }
 
 static void
@@ -373,12 +373,12 @@ stamp_folder_item_class_init (StampFolderItemClass *klass)
   object_class->get_property = stamp_folder_item_get_property;
   object_class->dispose = stamp_folder_item_dispose;
 
-  obj_properties[PROP_FOLDER_INFO] =
+  properties[PROP_FOLDER_INFO] =
     g_param_spec_boxed ("folder-info",
                         NULL, NULL,
                         camel_folder_info_get_type (),
                         G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
-  obj_properties[PROP_UNREAD] =
+  properties[PROP_UNREAD] =
     g_param_spec_uint ("unread",
                        NULL, NULL,
                        0,
@@ -386,7 +386,7 @@ stamp_folder_item_class_init (StampFolderItemClass *klass)
                        0,
                        G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_properties (object_class, LAST_PROP, obj_properties);
+  g_object_class_install_properties (object_class, LAST_PROP, properties);
 
   signals[FOLDER_ITEM_ADDED] = g_signal_new ("folder-item-added", G_OBJECT_CLASS_TYPE (klass),
                                              G_SIGNAL_RUN_FIRST | G_SIGNAL_RUN_LAST,

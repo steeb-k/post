@@ -26,7 +26,7 @@ struct _StampContactView {
   int saved_paned_pos;
 };
 
-G_DEFINE_FINAL_TYPE (StampContactView, stamp_contact_view, ADW_TYPE_BREAKPOINT_BIN)
+G_DEFINE_FINAL_TYPE (StampContactView, stamp_contact_view, ADW_TYPE_BREAKPOINT_BIN);
 
 static AdwOverlaySplitView *
 get_current_osv (StampContactView *self)

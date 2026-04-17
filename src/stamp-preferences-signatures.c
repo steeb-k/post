@@ -34,7 +34,7 @@ struct _StampPreferencesSignatures {
   GCancellable *cancellable;
 };
 
-G_DEFINE_FINAL_TYPE (StampPreferencesSignatures, stamp_preferences_signatures, ADW_TYPE_NAVIGATION_PAGE)
+G_DEFINE_FINAL_TYPE (StampPreferencesSignatures, stamp_preferences_signatures, ADW_TYPE_NAVIGATION_PAGE);
 
 static void
 on_get_body_html (GObject      *source,

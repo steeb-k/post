@@ -23,7 +23,7 @@ struct _StampHeaderBar {
   AdwBin parent_instance;
 };
 
-G_DEFINE_FINAL_TYPE (StampHeaderBar, stamp_header_bar, ADW_TYPE_BIN)
+G_DEFINE_FINAL_TYPE (StampHeaderBar, stamp_header_bar, ADW_TYPE_BIN);
 
 static void
 stamp_header_bar_init (StampHeaderBar *self)

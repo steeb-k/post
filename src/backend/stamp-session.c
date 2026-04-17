@@ -48,7 +48,7 @@ typedef struct _TryCredentialsData {
   const char *mechanism;
 } TryCredentialsData;
 
-G_DEFINE_FINAL_TYPE (StampSession, stamp_session, CAMEL_TYPE_SESSION)
+G_DEFINE_FINAL_TYPE (StampSession, stamp_session, CAMEL_TYPE_SESSION);
 
 enum {
   ACCOUNT_ADDED,
@@ -345,6 +345,7 @@ stamp_session_init (StampSession *self)
   camel_session_set_online (CAMEL_SESSION (self), TRUE);
 
   task = g_task_new (self, self->cancellable, on_accounts_loaded, self);
+  g_task_set_source_tag (task, stamp_session_init);
   e_source_registry_new (self->cancellable, on_registry_ready_for_load, task);
 }
 

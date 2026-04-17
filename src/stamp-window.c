@@ -48,7 +48,7 @@ struct _StampWindow {
   guint is_maximized : 1;
 };
 
-G_DEFINE_FINAL_TYPE (StampWindow, stamp_window, ADW_TYPE_APPLICATION_WINDOW)
+G_DEFINE_FINAL_TYPE (StampWindow, stamp_window, ADW_TYPE_APPLICATION_WINDOW);
 
 static void
 on_open_settings_clicked (GtkWidget     *listbox,
@@ -170,4 +170,3 @@ stamp_window_show_mail_view (StampWindow *self)
 {
   adw_view_stack_set_visible_child_name (self->main_view_stack, "mail");
 }
-

@@ -40,7 +40,7 @@ struct _StampAttachmentButton {
   GtkWidget *context_menu;
 };
 
-G_DEFINE_FINAL_TYPE (StampAttachmentButton, stamp_attachment_button, GTK_TYPE_BOX)
+G_DEFINE_FINAL_TYPE (StampAttachmentButton, stamp_attachment_button, GTK_TYPE_BOX);
 
 enum {
   PROP_0,
@@ -52,6 +52,8 @@ enum {
   PROP_DATA,
   LAST_PROP
 };
+
+static GParamSpec *properties[LAST_PROP];
 
 static void
 stamp_attachment_button_get_property (GObject    *object,
@@ -388,6 +390,8 @@ stamp_attachment_button_constructed (GObject *object)
   const char *filename = NULL;
   gsize size = 0;
 
+  G_OBJECT_CLASS (stamp_attachment_button_parent_class)->constructed (object);
+
   self->cancellable = g_cancellable_new ();
   gtk_widget_init_template (GTK_WIDGET (self));
 
@@ -482,47 +486,48 @@ stamp_attachment_button_class_init (StampAttachmentButtonClass *klass)
 
   gtk_widget_class_bind_template_callback (widget_class, on_attachment_clicked);
 
-  g_object_class_install_property (object_class, PROP_MIME_PART,
-                                   g_param_spec_object ("mime-part",
-                                                        NULL,
-                                                        NULL,
-                                                        CAMEL_TYPE_MIME_PART,
-                                                        G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  properties[PROP_MIME_PART] = g_param_spec_object ("mime-part",
+                                                    NULL,
+                                                    NULL,
+                                                    CAMEL_TYPE_MIME_PART,
+                                                    G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_property (object_class, PROP_FILE,
-                                   g_param_spec_object ("file",
-                                                        NULL,
-                                                        NULL,
-                                                        G_TYPE_FILE,
-                                                        G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  properties[PROP_FILE] =
+    g_param_spec_object ("file",
+                         NULL,
+                         NULL,
+                         G_TYPE_FILE,
+                         G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_property (object_class, PROP_FILENAME,
-                                   g_param_spec_string ("filename",
-                                                        NULL,
-                                                        NULL,
-                                                        NULL,
-                                                        G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  properties[PROP_FILENAME] =
+    g_param_spec_string ("filename",
+                         NULL,
+                         NULL,
+                         NULL,
+                         G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_property (object_class, PROP_CONTENT_TYPE,
-                                   g_param_spec_string ("content-type",
-                                                        NULL,
-                                                        NULL,
-                                                        NULL,
-                                                        G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  properties[PROP_CONTENT_TYPE] =
+    g_param_spec_string ("content-type",
+                         NULL,
+                         NULL,
+                         NULL,
+                         G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_property (object_class, PROP_SIZE,
-                                   g_param_spec_uint64 ("size",
-                                                        NULL,
-                                                        NULL,
-                                                        0, G_MAXUINT64, 0,
-                                                        G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  properties[PROP_SIZE] =
+    g_param_spec_uint64 ("size",
+                         NULL,
+                         NULL,
+                         0, G_MAXUINT64, 0,
+                         G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_property (object_class, PROP_DATA,
-                                   g_param_spec_boxed ("data",
-                                                       NULL,
-                                                       NULL,
-                                                       G_TYPE_BYTES,
-                                                       G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  properties[PROP_DATA] =
+    g_param_spec_boxed ("data",
+                        NULL,
+                        NULL,
+                        G_TYPE_BYTES,
+                        G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+
+  g_object_class_install_properties (object_class, LAST_PROP, properties);
 }
 
 GtkWidget *

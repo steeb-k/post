@@ -41,7 +41,7 @@ struct _StampMessageList {
   char *subject;
 };
 
-G_DEFINE_FINAL_TYPE (StampMessageList, stamp_message_list, ADW_TYPE_BREAKPOINT_BIN)
+G_DEFINE_FINAL_TYPE (StampMessageList, stamp_message_list, ADW_TYPE_BREAKPOINT_BIN);
 
 enum {
   HOVERING_OVER_LINK,
@@ -167,8 +167,8 @@ update_header (GtkListBoxRow *row,
     gtk_widget_add_css_class (label, "title-2");
     gtk_widget_add_css_class (label, "message-list-header");
     gtk_widget_add_css_class (label, "message-list-header-between");
-    g_clear_pointer (&self->subject, g_free);
-    self->subject = g_strdup (subject);
+
+    g_set_str (&self->subject, subject);
 
     gtk_list_box_row_set_header (row, label);
   } else {

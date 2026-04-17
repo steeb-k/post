@@ -41,7 +41,7 @@ struct _StampBookList {
   GSettings *settings;
 };
 
-G_DEFINE_FINAL_TYPE (StampBookList, stamp_book_list, ADW_TYPE_BIN)
+G_DEFINE_FINAL_TYPE (StampBookList, stamp_book_list, ADW_TYPE_BIN);
 
 enum {
   BOOK_SELECTED,

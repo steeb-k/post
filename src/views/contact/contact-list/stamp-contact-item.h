@@ -25,7 +25,7 @@
 G_BEGIN_DECLS
 
 #define STAMP_TYPE_CONTACT_ITEM (stamp_contact_item_get_type())
-G_DECLARE_FINAL_TYPE (StampContactItem, stamp_contact_item, STAMP, CONTACT_ITEM, GObject)
+G_DECLARE_FINAL_TYPE (StampContactItem, stamp_contact_item, STAMP, CONTACT_ITEM, GObject);
 
 StampContactItem *
 stamp_contact_item_new (EContact *c);

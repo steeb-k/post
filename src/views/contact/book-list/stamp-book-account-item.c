@@ -30,7 +30,7 @@ struct _StampBookAccountItem {
   StampAccount *account;
 };
 
-G_DEFINE_FINAL_TYPE (StampBookAccountItem, stamp_book_account_item, STAMP_TYPE_ITEM)
+G_DEFINE_FINAL_TYPE (StampBookAccountItem, stamp_book_account_item, STAMP_TYPE_ITEM);
 
 enum {
   ACCOUNT_ITEM_CHANGED,

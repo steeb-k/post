@@ -11,7 +11,7 @@ struct _StampWeekHourBar {
   /* StampContext        *context; */
 };
 
-G_DEFINE_FINAL_TYPE (StampWeekHourBar, stamp_week_hour_bar, GTK_TYPE_BOX)
+G_DEFINE_FINAL_TYPE (StampWeekHourBar, stamp_week_hour_bar, GTK_TYPE_BOX);
 
 typedef enum {
   STAMP_TIME_FORMAT_12H,

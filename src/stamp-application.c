@@ -37,7 +37,7 @@ struct _StampApplication {
   char *password;
 };
 
-G_DEFINE_FINAL_TYPE (StampApplication, stamp_application, ADW_TYPE_APPLICATION)
+G_DEFINE_FINAL_TYPE (StampApplication, stamp_application, ADW_TYPE_APPLICATION);
 
 StampApplication *
 stamp_application_new (const char        *application_id,

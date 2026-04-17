@@ -40,7 +40,7 @@ struct _StampContactDetails {
   GCancellable *cancellable;
 };
 
-G_DEFINE_FINAL_TYPE (StampContactDetails, stamp_contact_details, GTK_TYPE_BOX)
+G_DEFINE_FINAL_TYPE (StampContactDetails, stamp_contact_details, GTK_TYPE_BOX);
 
 static void
 stamp_contact_details_init (StampContactDetails *self)

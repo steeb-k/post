@@ -27,7 +27,7 @@ struct _StampBookItem {
   EClient *client;
 };
 
-G_DEFINE_FINAL_TYPE (StampBookItem, stamp_book_item, STAMP_TYPE_ITEM)
+G_DEFINE_FINAL_TYPE (StampBookItem, stamp_book_item, STAMP_TYPE_ITEM);
 
 enum {
   PROP_0,

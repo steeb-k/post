@@ -140,3 +140,5 @@ char *
 stamp_mime_parser_embed_inline_images (StampMimeParser *self,
                                        const char      *html_content);
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (StampMimeParser, stamp_mime_parser_free);
+

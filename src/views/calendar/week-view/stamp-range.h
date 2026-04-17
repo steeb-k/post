@@ -89,6 +89,6 @@ gchar*               stamp_range_to_string                        (StampRange   
 gboolean             stamp_range_contains_datetime                (StampRange          *self,
                                                                   GDateTime          *datetime);
 
-G_DEFINE_AUTOPTR_CLEANUP_FUNC (StampRange, stamp_range_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (StampRange, stamp_range_unref);
 
 G_END_DECLS

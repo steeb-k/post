@@ -17,7 +17,7 @@ struct _StampCalendarView {
   StampAccount *account;
 };
 
-G_DEFINE_FINAL_TYPE (StampCalendarView, stamp_calendar_view, ADW_TYPE_BREAKPOINT_BIN)
+G_DEFINE_FINAL_TYPE (StampCalendarView, stamp_calendar_view, ADW_TYPE_BREAKPOINT_BIN);
 
 void
 stamp_calendar_view_class_init (StampCalendarViewClass *klass)

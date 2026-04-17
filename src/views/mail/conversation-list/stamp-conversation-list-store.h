@@ -27,7 +27,7 @@ G_BEGIN_DECLS
 
 #define STAMP_TYPE_CONVERSATION_LIST_STORE (stamp_conversation_list_store_get_type())
 
-G_DECLARE_FINAL_TYPE (StampConversationListStore, stamp_conversation_list_store, STAMP, CONVERSATION_LIST_STORE, GListStore)
+G_DECLARE_FINAL_TYPE (StampConversationListStore, stamp_conversation_list_store, STAMP, CONVERSATION_LIST_STORE, GListStore);
 
 void
 stamp_conversation_list_store_add (StampConversationListStore *self,

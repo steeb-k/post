@@ -34,13 +34,15 @@ struct _StampWebView {
   gboolean body_html_changed;
 };
 
-G_DEFINE_FINAL_TYPE (StampWebView, stamp_webview, WEBKIT_TYPE_WEB_VIEW)
+G_DEFINE_FINAL_TYPE (StampWebView, stamp_webview, WEBKIT_TYPE_WEB_VIEW);
 
 enum {
   PROP_0,
   PROP_SIZE_REQUEST,
   LAST_PROP
 };
+
+static GParamSpec *properties[LAST_PROP];
 
 enum {
   IMAGE_LOAD_BLOCKED,
@@ -139,7 +141,7 @@ on_get_page_size (GObject      *source,
   self->width_request = width;
   self->height_request = height;
 
-  g_object_notify (G_OBJECT (self), "size-request");
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_SIZE_REQUEST]);
 }
 
 static void
@@ -377,12 +379,13 @@ stamp_webview_class_init (StampWebViewClass *klass)
                                   G_TYPE_NONE,
                                   1, G_TYPE_BOOLEAN);
 
-  g_object_class_install_property (gobject_class, PROP_SIZE_REQUEST,
-                                   g_param_spec_boolean ("size-request",
-                                                         NULL,
-                                                         NULL,
-                                                         FALSE,
-                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  properties[PROP_SIZE_REQUEST] = g_param_spec_boolean ("size-request",
+                                                        NULL,
+                                                        NULL,
+                                                        FALSE,
+                                                        G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+
+  g_object_class_install_properties (gobject_class, LAST_PROP, properties);
 }
 
 static void
@@ -492,8 +495,7 @@ stamp_web_view_set_body_content (StampWebView *self,
     if (self->queued_body_content == content)
       return;
 
-    g_clear_pointer (&self->queued_body_content, g_free);
-    self->queued_body_content = g_strdup (content);
+    g_set_str (&self->queued_body_content, content);
   }
 #else
   g_autoptr (GBytes) template = g_resources_lookup_data ("/org/tabos/stamp/blank-message-template.html", G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);

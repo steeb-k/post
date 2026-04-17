@@ -37,7 +37,7 @@ struct _StampAccountItem {
   gboolean first_refresh;
 };
 
-G_DEFINE_FINAL_TYPE (StampAccountItem, stamp_account_item, STAMP_TYPE_ITEM)
+G_DEFINE_FINAL_TYPE (StampAccountItem, stamp_account_item, STAMP_TYPE_ITEM);
 
 static void
 stamp_account_item_connect_to_account (StampAccountItem *self);

@@ -34,7 +34,7 @@ typedef struct {
   GError *error;
 } StampItemPrivate;
 
-G_DEFINE_TYPE_WITH_CODE (StampItem, stamp_item, G_TYPE_OBJECT, G_ADD_PRIVATE (StampItem))
+G_DEFINE_TYPE_WITH_CODE (StampItem, stamp_item, G_TYPE_OBJECT, G_ADD_PRIVATE (StampItem));
 
 enum {
   PROP_0,
@@ -45,7 +45,7 @@ enum {
   LAST_PROP
 };
 
-static GParamSpec *obj_properties[LAST_PROP];
+static GParamSpec *properties[LAST_PROP];
 
 void
 stamp_item_init (StampItem *self)
@@ -134,30 +134,30 @@ stamp_item_class_init (StampItemClass *klass)
   object_class->set_property = stamp_item_set_property;
   object_class->get_property = stamp_item_get_property;
 
-  obj_properties[PROP_ACCOUNT] =
+  properties[PROP_ACCOUNT] =
     g_param_spec_object ("account",
                          NULL, NULL,
                          STAMP_TYPE_ACCOUNT,
                          G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
 
-  obj_properties[PROP_LOADING] =
+  properties[PROP_LOADING] =
     g_param_spec_boolean ("loading",
                           NULL, NULL,
                           FALSE,
                           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  obj_properties[PROP_NAME] =
+  properties[PROP_NAME] =
     g_param_spec_string ("name",
                          NULL, NULL,
                          "",
                          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  obj_properties[PROP_ERROR] =
+  properties[PROP_ERROR] =
     g_param_spec_pointer ("error",
                           NULL, NULL,
                           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_properties (object_class, LAST_PROP, obj_properties);
+  g_object_class_install_properties (object_class, LAST_PROP, properties);
 }
 
 void
@@ -167,9 +167,7 @@ stamp_item_set_icon_name (StampItem  *self,
   StampItemPrivate *priv = stamp_item_get_instance_private (self);
 
   if (g_strcmp0 (priv->icon_name, icon_name) != 0) {
-    g_clear_pointer (&priv->icon_name, g_free);
-
-    priv->icon_name = g_strdup (icon_name);
+    g_set_str (&priv->icon_name, icon_name);
   }
 }
 
@@ -188,10 +186,9 @@ stamp_item_set_name (StampItem  *self,
   StampItemPrivate *priv = stamp_item_get_instance_private (self);
 
   if (g_strcmp0 (priv->name, name) != 0) {
-    g_clear_pointer (&priv->name, g_free);
-    priv->name = g_strdup (name);
+    g_set_str (&priv->name, name);
 
-    g_object_notify (G_OBJECT (self), "name");
+    g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_NAME]);
   }
 }
 
@@ -243,7 +240,7 @@ stamp_item_set_loading (StampItem *self,
   StampItemPrivate *priv = stamp_item_get_instance_private (self);
 
   priv->loading = loading;
-  g_object_notify (G_OBJECT (self), "loading");
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_LOADING]);
 }
 
 void
@@ -253,5 +250,5 @@ stamp_item_set_error (StampItem *self,
   StampItemPrivate *priv = stamp_item_get_instance_private (self);
 
   priv->error = error;
-  g_object_notify (G_OBJECT (self), "error");
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_ERROR]);
 }

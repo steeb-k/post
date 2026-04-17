@@ -60,7 +60,7 @@ struct _StampRangeTree {
   Node *root;
 };
 
-G_DEFINE_BOXED_TYPE (StampRangeTree, stamp_range_tree, stamp_range_tree_ref, stamp_range_tree_unref)
+G_DEFINE_BOXED_TYPE (StampRangeTree, stamp_range_tree, stamp_range_tree_ref, stamp_range_tree_unref);
 
 /* Auxiliary methods */
 static inline gint32

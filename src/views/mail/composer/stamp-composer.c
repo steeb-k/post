@@ -72,7 +72,7 @@ struct _StampComposer {
   gint autosave_source_id;
 };
 
-G_DEFINE_FINAL_TYPE (StampComposer, stamp_composer, ADW_TYPE_APPLICATION_WINDOW)
+G_DEFINE_FINAL_TYPE (StampComposer, stamp_composer, ADW_TYPE_APPLICATION_WINDOW);
 
 enum {
   PROP_0,
@@ -342,8 +342,7 @@ apply_crypto (CamelSession         *session,
       if (!success || error) {
         if (error) {
           g_warning ("PGP signing failed: %s", error->message);
-          g_error_free (error);
-          error = NULL;
+          g_clear_error (&error);
         }
       } else {
         g_object_unref (mime_message);
@@ -372,8 +371,7 @@ apply_crypto (CamelSession         *session,
       if (!success || error) {
         if (error) {
           g_warning ("PGP encryption failed: %s", error->message);
-          g_error_free (error);
-          error = NULL;
+          g_clear_error (&error);
         }
       } else {
         g_object_unref (mime_message);
@@ -404,8 +402,7 @@ apply_crypto (CamelSession         *session,
       if (!success || error) {
         if (error) {
           g_warning ("S/MIME signing failed: %s", error->message);
-          g_error_free (error);
-          error = NULL;
+          g_clear_error (&error);
         }
       } else {
         g_object_unref (mime_message);
@@ -434,8 +431,7 @@ apply_crypto (CamelSession         *session,
       if (!success || error) {
         if (error) {
           g_warning ("S/MIME encryption failed: %s", error->message);
-          g_error_free (error);
-          error = NULL;
+          g_clear_error (&error);
         }
       } else {
         g_object_unref (mime_message);

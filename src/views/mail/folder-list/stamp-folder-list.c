@@ -38,7 +38,7 @@ struct _StampFolderList {
   GListStore *list_store;
 };
 
-G_DEFINE_FINAL_TYPE (StampFolderList, stamp_folder_list, ADW_TYPE_BIN)
+G_DEFINE_FINAL_TYPE (StampFolderList, stamp_folder_list, ADW_TYPE_BIN);
 
 enum {
   FOLDER_SELECTED,
@@ -513,9 +513,9 @@ on_drag_begin (GtkDragSource  *source,
                StampFolderRow *self)
 {
   /* Set the widget as the drag icon */
-  GdkPaintable *paintable = gtk_widget_paintable_new (GTK_WIDGET (self));
+  g_autoptr (GdkPaintable) paintable = gtk_widget_paintable_new (GTK_WIDGET (self));
+
   gtk_drag_source_set_icon (source, paintable, 0, 0);
-  g_object_unref (paintable);
 }
 
 static void

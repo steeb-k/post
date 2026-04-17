@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Jan-Michael Brummer
+ * Copyright 2025-2026 Jan-Michael Brummer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,9 +32,6 @@ G_DECLARE_FINAL_TYPE (StampBookAccountItem, stamp_book_account_item, STAMP, BOOK
 
 StampBookAccountItem *
 stamp_book_account_item_new (StampAccount *account);
-
-void
-stamp_book_account_item_load (StampBookAccountItem *self);
 
 G_END_DECLS
 

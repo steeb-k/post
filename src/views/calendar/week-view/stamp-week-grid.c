@@ -26,7 +26,7 @@ typedef struct {
 } ChildData;
 
 
-G_DEFINE_TYPE (StampWeekGrid, stamp_week_grid, GTK_TYPE_WIDGET);
+G_DEFINE_FINAL_TYPE (StampWeekGrid, stamp_week_grid, GTK_TYPE_WIDGET);
 
 static void
 stamp_week_grid_measure (GtkWidget      *widget,
@@ -404,6 +404,7 @@ stamp_week_grid_init (StampWeekGrid *self)
 {
   GtkDropTarget *drop_target;
   GtkGesture *click_gesture;
+  StampEvent *event = g_new0 (StampEvent, 1);
 
   self->events = stamp_range_tree_new_with_free_func (child_data_free);
 
@@ -433,6 +434,5 @@ stamp_week_grid_init (StampWeekGrid *self)
 
   self->active_date = g_date_time_new_now_local ();
 
-  StampEvent *event = g_malloc0 (sizeof (StampEvent));
   stamp_week_grid_add_event (self, event);
 }

@@ -70,7 +70,7 @@ struct _StampMessageHeader {
   StampAccount *account;
 };
 
-G_DEFINE_FINAL_TYPE (StampMessageHeader, stamp_message_header, GTK_TYPE_GRID)
+G_DEFINE_FINAL_TYPE (StampMessageHeader, stamp_message_header, GTK_TYPE_GRID);
 
 enum {
   PROP_0,
@@ -81,6 +81,8 @@ enum {
   PROP_IS_READ,
   LAST_PROP
 };
+
+static GParamSpec *properties[LAST_PROP];
 
 static void
 update_visibility (StampMessageHeader *self);
@@ -378,37 +380,39 @@ stamp_message_header_class_init (StampMessageHeaderClass *klass)
   gtk_widget_class_bind_template_callback (widget_class, on_cc_more_button_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_released);
 
-  g_object_class_install_property (object_class, PROP_ACCOUNT,
+  properties[PROP_ACCOUNT] =
                                    g_param_spec_object ("account",
                                                         NULL,
                                                         NULL,
                                                         STAMP_TYPE_ACCOUNT,
-                                                        G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+                                                        G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_property (object_class, PROP_COLLAPSED,
+  properties[PROP_COLLAPSED] =
                                    g_param_spec_boolean ("collapsed",
                                                          NULL,
                                                          NULL,
                                                          FALSE,
-                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-  g_object_class_install_property (object_class, PROP_COMPACT,
+                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+  properties[PROP_COMPACT] =
                                    g_param_spec_boolean ("compact",
                                                          NULL,
                                                          NULL,
                                                          FALSE,
-                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-  g_object_class_install_property (object_class, PROP_IS_UNREAD,
+                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+  properties[PROP_IS_UNREAD] =
                                    g_param_spec_boolean ("is-unread",
                                                          NULL,
                                                          NULL,
                                                          FALSE,
-                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-  g_object_class_install_property (object_class, PROP_IS_READ,
+                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+  properties[PROP_IS_READ] =
                                    g_param_spec_boolean ("is-read",
                                                          NULL,
                                                          NULL,
                                                          FALSE,
-                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+
+  g_object_class_install_properties (object_class, LAST_PROP, properties);
 }
 
 GtkWidget *
@@ -483,11 +487,11 @@ void
 stamp_message_header_set_mail (StampMessageHeader    *self,
                                CamelFolderThreadNode *thread_node)
 {
+  g_autoptr (CamelInternetAddress) address = camel_internet_address_new ();
   const CamelMessageInfo *message_info = camel_folder_thread_node_get_item (thread_node);
   g_autofree char *markup = NULL;
   const char *sender = NULL;
   const char *to = NULL;
-  g_autoptr (CamelInternetAddress) address = camel_internet_address_new ();
   const char *ia_name;
   const char *ia_address;
   g_autofree char *tmp = NULL;
@@ -495,11 +499,11 @@ stamp_message_header_set_mail (StampMessageHeader    *self,
   g_autoptr (GString) tmp_addresses = g_string_new (NULL);
   g_autoptr (GString) tmp_cc = g_string_new (NULL);
   g_autoptr (GString) tmp_cc_addresses = g_string_new (NULL);
+  g_autoptr (GMenuItem) item = NULL;
+  g_autofree char *time = NULL;
   GMenu *menu;
   GMenu *mark_menu;
   GMenu *more_menu;
-  GMenuItem *item;
-  g_autofree char *time = NULL;
 
   if (camel_address_decode (CAMEL_ADDRESS (address), camel_message_info_get_from (message_info)) > 0) {
     camel_internet_address_get (address, 0, &ia_name, &ia_address);

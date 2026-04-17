@@ -25,12 +25,9 @@ G_BEGIN_DECLS
 
 #define STAMP_TYPE_APPLICATION (stamp_application_get_type())
 
-G_DECLARE_FINAL_TYPE (StampApplication, stamp_application, STAMP, APPLICATION, AdwApplication)
+G_DECLARE_FINAL_TYPE (StampApplication, stamp_application, STAMP, APPLICATION, AdwApplication);
 
 StampApplication *stamp_application_new (const char        *application_id,
                                          GApplicationFlags  flags);
-
-StampApplication *
-stamp_application_get_default (void);
 
 G_END_DECLS

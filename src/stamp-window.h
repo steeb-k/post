@@ -27,7 +27,7 @@ G_BEGIN_DECLS
 
 #define STAMP_TYPE_WINDOW (stamp_window_get_type())
 
-G_DECLARE_FINAL_TYPE (StampWindow, stamp_window, STAMP, WINDOW, AdwApplicationWindow)
+G_DECLARE_FINAL_TYPE (StampWindow, stamp_window, STAMP, WINDOW, AdwApplicationWindow);
 
 void
 stamp_window_search_contact (StampWindow *self,

@@ -29,7 +29,7 @@ G_BEGIN_DECLS
 
 #define STAMP_TYPE_MESSAGE_LIST (stamp_message_list_get_type())
 
-G_DECLARE_FINAL_TYPE (StampMessageList, stamp_message_list, STAMP, MESSAGE_LIST, AdwBreakpointBin)
+G_DECLARE_FINAL_TYPE (StampMessageList, stamp_message_list, STAMP, MESSAGE_LIST, AdwBreakpointBin);
 
 GtkWidget *
 stamp_message_list_new (void);

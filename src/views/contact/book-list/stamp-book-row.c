@@ -28,7 +28,7 @@ struct _StampBookRow {
   GtkWidget *spinner;
 };
 
-G_DEFINE_FINAL_TYPE (StampBookRow, stamp_book_row, GTK_TYPE_BOX)
+G_DEFINE_FINAL_TYPE (StampBookRow, stamp_book_row, GTK_TYPE_BOX);
 
 static void
 stamp_book_row_init (StampBookRow *self)

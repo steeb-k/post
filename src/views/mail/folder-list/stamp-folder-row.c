@@ -34,7 +34,7 @@ struct _StampFolderRow {
   GtkImage *error;
 };
 
-G_DEFINE_FINAL_TYPE (StampFolderRow, stamp_folder_row, GTK_TYPE_BOX)
+G_DEFINE_FINAL_TYPE (StampFolderRow, stamp_folder_row, GTK_TYPE_BOX);
 
 static void
 stamp_folder_row_init (StampFolderRow *self)

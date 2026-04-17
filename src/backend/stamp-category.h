@@ -26,7 +26,7 @@ G_BEGIN_DECLS
 
 #define STAMP_TYPE_CATEGORY (stamp_category_get_type ())
 
-G_DECLARE_FINAL_TYPE (StampCategory, stamp_category, STAMP, CATEGORY, GObject)
+G_DECLARE_FINAL_TYPE (StampCategory, stamp_category, STAMP, CATEGORY, GObject);
 
 StampCategory *
 stamp_category_new (const char *id,

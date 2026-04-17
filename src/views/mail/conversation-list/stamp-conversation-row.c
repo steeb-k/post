@@ -60,7 +60,7 @@ struct _StampConversationRow {
   StampAccount *account;
 };
 
-G_DEFINE_FINAL_TYPE (StampConversationRow, stamp_conversation_row, GTK_TYPE_BOX)
+G_DEFINE_FINAL_TYPE (StampConversationRow, stamp_conversation_row, GTK_TYPE_BOX);
 
 static guint next_instance_id = 1;
 
@@ -71,6 +71,8 @@ enum {
   PROP_UNREAD,
   LAST_PROP
 };
+
+static GParamSpec *properties[LAST_PROP];
 
 enum {
   MARK_READ,
@@ -259,7 +261,7 @@ on_check_button_toggled (GtkCheckButton *check,
   StampConversationRow *self = STAMP_CONVERSATION_ROW (user_data);
 
   self->selected = gtk_check_button_get_active (check);
-  g_object_notify (G_OBJECT (self), "selected");
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_SELECTED]);
 }
 
 void
@@ -295,26 +297,25 @@ stamp_conversation_row_class_init (StampConversationRowClass *klass)
   gtk_widget_class_bind_template_callback (widget_class, on_drag_end);
   gtk_widget_class_bind_template_callback (widget_class, on_check_button_toggled);
 
-  g_object_class_install_property (object_class, PROP_SELECTED,
-                                   g_param_spec_boolean ("selected",
-                                                         NULL,
-                                                         NULL,
-                                                         FALSE,
-                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  properties[PROP_SELECTED] = g_param_spec_boolean ("selected",
+                                                    NULL,
+                                                    NULL,
+                                                    FALSE,
+                                                    G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_property (object_class, PROP_IMPORTANT,
-                                   g_param_spec_boolean ("important",
-                                                         NULL,
-                                                         NULL,
-                                                         FALSE,
-                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  properties[PROP_IMPORTANT] = g_param_spec_boolean ("important",
+                                                     NULL,
+                                                     NULL,
+                                                     FALSE,
+                                                     G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_property (object_class, PROP_UNREAD,
-                                   g_param_spec_boolean ("unread",
-                                                         NULL,
-                                                         NULL,
-                                                         FALSE,
-                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  properties[PROP_UNREAD] = g_param_spec_boolean ("unread",
+                                                  NULL,
+                                                  NULL,
+                                                  FALSE,
+                                                  G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+
+  g_object_class_install_properties (object_class, LAST_PROP, properties);
 
   signals[MARK_READ] = g_signal_new ("mark-read", G_OBJECT_CLASS_TYPE (klass),
                                      G_SIGNAL_RUN_FIRST | G_SIGNAL_RUN_LAST,
@@ -387,9 +388,9 @@ transform_flagged_to (GBinding     *binding,
   gint flagged = g_value_get_boolean (from_value);
 
   if (flagged)
-    g_value_set_string (to_value, "starred-symbolic");
+    g_value_set_static_string (to_value, "starred-symbolic");
   else
-    g_value_set_string (to_value, "non-starred-symbolic");
+    g_value_set_static_string (to_value, "non-starred-symbolic");
 
   return TRUE;
 }
@@ -494,7 +495,7 @@ transfer_labels_to_box (GBinding     *binding,
     }
   }
 
-  g_value_set_boolean (to, labels && labels->len > 0);
+  g_value_set_boolean (to, TRUE);
 
   return TRUE;
 }

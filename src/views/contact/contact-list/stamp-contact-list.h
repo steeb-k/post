@@ -28,7 +28,7 @@ G_BEGIN_DECLS
 
 #define STAMP_TYPE_CONTACT_LIST (stamp_contact_list_get_type())
 
-G_DECLARE_FINAL_TYPE (StampContactList, stamp_contact_list, STAMP, CONTACT_LIST, AdwBreakpointBin)
+G_DECLARE_FINAL_TYPE (StampContactList, stamp_contact_list, STAMP, CONTACT_LIST, AdwBreakpointBin);
 
 typedef enum {
   SORT_MODE_GIVEN_NAME,

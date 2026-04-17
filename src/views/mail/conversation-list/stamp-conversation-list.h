@@ -29,7 +29,7 @@ G_BEGIN_DECLS
 
 #define STAMP_TYPE_CONVERSATION_LIST (stamp_conversation_list_get_type())
 
-G_DECLARE_FINAL_TYPE (StampConversationList, stamp_conversation_list, STAMP, CONVERSATION_LIST, AdwBin)
+G_DECLARE_FINAL_TYPE (StampConversationList, stamp_conversation_list, STAMP, CONVERSATION_LIST, AdwBin);
 
 GtkWidget *
 stamp_conversation_list_new (void);
