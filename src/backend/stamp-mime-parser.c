@@ -275,6 +275,8 @@ handle_text_content (StampMimeParser  *parser,
   GMemoryOutputStream *os;
   g_autoptr (GError) error = NULL;
   g_autofree char *text = NULL;
+  g_autofree char *body = NULL;
+  gsize body_len = 0;
   gboolean is_html;
 
   if (!content || !content_type)
@@ -300,15 +302,15 @@ handle_text_content (StampMimeParser  *parser,
 
   is_html = g_strcmp0 (content_type->subtype, "html") == 0;
 
-  parser->body->content = NULL;
-  parser->body->length = 0;
-
-  if (!is_html)
-    parser->body->content = strip_headers (text, &parser->body->length);
-
-  if (!parser->body->content || parser->body->length == 0) {
-    parser->body->content = g_strdup (text);
-    parser->body->length = strlen (parser->body->content);
+  if (!is_html) {
+    body = strip_headers (text, &body_len);
+    if (!body || body_len == 0) {
+      body = g_strdup (text);
+      body_len = strlen (body);
+    }
+  } else {
+    body = g_strdup (text);
+    body_len = text ? strlen (text) : 0;
   }
 
   if (!parser->body)
@@ -316,6 +318,9 @@ handle_text_content (StampMimeParser  *parser,
   else
     g_clear_pointer (&parser->body->content, g_free);
 
+
+  parser->body->content = g_strndup (body, body_len);
+  parser->body->length = body_len;
   parser->body->charset = g_strdup (camel_content_type_param (content_type, "charset"));
   parser->body->is_html = is_html;
 
@@ -1157,3 +1162,4 @@ done_src:
 
   return g_string_free_and_steal (result);
 }
+
