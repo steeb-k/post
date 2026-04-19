@@ -368,11 +368,11 @@ stamp_message_list_item_set_property (GObject      *object,
 }
 
 static void
-on_row_clicked (GObject  *object,
-                gint      n_press,
-                gdouble   x,
-                gdouble   y,
-                gpointer  user_data)
+on_header_clicked (GObject  *object,
+                   gint      n_press,
+                   gdouble   x,
+                   gdouble   y,
+                   gpointer  user_data)
 {
   StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
 
@@ -612,7 +612,7 @@ stamp_message_list_item_class_init (StampMessageListItemClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, attachment_flow_box);
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, external_sender_banner);
 
-  gtk_widget_class_bind_template_callback (widget_class, on_row_clicked);
+  gtk_widget_class_bind_template_callback (widget_class, on_header_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_show_images);
   gtk_widget_class_bind_template_callback (widget_class, on_show_signatures);
   gtk_widget_class_bind_template_callback (widget_class, on_rsvp);

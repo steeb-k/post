@@ -4,10 +4,6 @@ using Adw 1;
 template $StampMessageListItem: ListBoxRow {
   activatable: false;
 
-  GestureClick {
-    released => $on_row_clicked();
-  }
-
   styles [
     "card",
   ]
@@ -15,7 +11,11 @@ template $StampMessageListItem: ListBoxRow {
   child: Box {
     orientation: vertical;
 
-    $StampMessageHeader header {}
+    $StampMessageHeader header {
+      GestureClick {
+        released => $on_header_clicked();
+      }
+    }
 
     Stack stack {
       transition-type: crossfade;
