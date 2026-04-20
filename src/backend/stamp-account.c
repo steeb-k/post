@@ -453,6 +453,13 @@ on_book_client_ready (GObject      *src,
       service->client = E_BOOK_CLIENT (client);
       service->enabled = TRUE;
       g_print ("Book '%s' connected\n", e_source_get_display_name (service->source));
+
+      /* TODO: Currently we are deleting everything once a book is connected due to the fact
+       * that books are loaded async. Therefore it might have happen that an existing avatar
+       * is marked as negative. Check for a better alternative.
+       */
+      stamp_disk_cache_purge_negative (ctx->account->photo_cache);
+
       g_signal_emit (ctx->account, signals[BOOK_ADDED], 0, ctx->account, service);
     } else {
       g_clear_object (&client);
