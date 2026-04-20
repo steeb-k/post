@@ -215,6 +215,8 @@ stamp_disk_cache_purge_negative (StampPhotoCache *cache)
   }
 
   g_dir_close (dir);
+
+  g_hash_table_remove_all (cache->negative_cache);
 }
 
 StampPhotoCache *
