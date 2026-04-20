@@ -93,20 +93,15 @@ template $StampMessageListItem: ListBoxRow {
               ]
             }
 
+            Adw.WrapBox attachment_flow_box {
+              visible: false;
+            }
+
             $StampWebView web_view {
               margin-bottom: 2;
               image-load-blocked => $on_image_load_blocked();
               loaded => $on_loaded();
               mouse-target-changed => $on_mouse_target_changed();
-            }
-
-            Separator separator {
-              orientation: horizontal;
-              visible: bind attachment_flow_box.visible;
-            }
-
-            Adw.WrapBox attachment_flow_box {
-              visible: false;
             }
           };
         };
