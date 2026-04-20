@@ -228,7 +228,7 @@ stamp_photo_cache_new (StampAccount *account)
   cache->negative_cache = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
   cache->pending = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
   cache->account = account;
-  cache->cache_dir = g_strdup (stamp_get_cache_dir ());
+  cache->cache_dir = g_build_path (G_DIR_SEPARATOR_S, stamp_get_cache_dir (), "avatars", stamp_account_get_uid (account), NULL);
   cache->next_waiter_id = 1;
 
   if (g_mkdir_with_parents (cache->cache_dir, 0700) != 0) {
