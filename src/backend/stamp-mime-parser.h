@@ -80,6 +80,11 @@ typedef struct {
   ICalComponent *ical;
 } StampMimeCalendar;
 
+typedef struct {
+  char *url;
+  gboolean one_click;
+} StampMimeListUnsubscribe;
+
 typedef void (*StampMimeParserCallback) (StampMimeParser *self,
                                         gpointer user_data);
 
@@ -96,6 +101,7 @@ struct _StampMimeParser {
   GPtrArray *inline_parts;
   StampMimeContent *body;
   StampMimeCalendar *calendar;
+  StampMimeListUnsubscribe *list_unsubscribe;
 
   gboolean is_multipart;
   gboolean decryption_attempted;
@@ -139,6 +145,13 @@ stamp_mime_parser_get_inline_parts (StampMimeParser *self);
 char *
 stamp_mime_parser_embed_inline_images (StampMimeParser *self,
                                        const char      *html_content);
+
+StampMimeListUnsubscribe *
+stamp_mime_parser_get_list_unsubscribe (StampMimeParser *self);
+
+void
+stamp_mime_parser_send_unsubscribe (StampMimeParser *self,
+                                   GCancellable    *cancellable);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (StampMimeParser, stamp_mime_parser_free);
 

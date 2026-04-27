@@ -19,6 +19,7 @@
 
 #include "stamp-mime-parser.h"
 
+#include <libsoup/soup.h>
 #include <libecal/libecal.h>
 
 static void
@@ -95,6 +96,21 @@ stamp_mime_calendar_new (void)
 }
 
 static void
+stamp_mime_list_unsubscribe_free (StampMimeListUnsubscribe *list_unsubscribe)
+{
+  g_assert (list_unsubscribe);
+
+  g_clear_pointer (&list_unsubscribe->url, g_free);
+  g_clear_pointer (&list_unsubscribe, g_free);
+}
+
+static StampMimeListUnsubscribe *
+stamp_mime_list_unsubscribe_new (void)
+{
+  return g_new0 (StampMimeListUnsubscribe, 1);
+}
+
+static void
 stamp_mime_inline_part_free (StampMimeInlinePart *part)
 {
   g_assert (part);
@@ -139,6 +155,7 @@ stamp_mime_parser_free (StampMimeParser *parser)
   g_clear_pointer (&parser->validation, stamp_mime_validation_free);
   g_clear_pointer (&parser->body, stamp_mime_content_free);
   g_clear_pointer (&parser->calendar, stamp_mime_calendar_free);
+  g_clear_pointer (&parser->list_unsubscribe, stamp_mime_list_unsubscribe_free);
 
   g_clear_pointer (&parser->attachments, g_ptr_array_unref);
   g_clear_pointer (&parser->inline_parts, g_ptr_array_unref);
@@ -967,6 +984,30 @@ check_root_encryption (StampMimeParser *parser)
   }
 }
 
+static void
+parse_list_unsubscribe (StampMimeParser *parser)
+{
+  const char *list_unsubscribe;
+  const char *list_unsubscribe_post;
+
+  list_unsubscribe = camel_medium_get_header (CAMEL_MEDIUM (parser->message), "List-Unsubscribe");
+  if (!list_unsubscribe)
+    return;
+
+  list_unsubscribe_post = camel_medium_get_header (CAMEL_MEDIUM (parser->message), "List-Unsubscribe-Post");
+  if (list_unsubscribe_post && g_str_equal (list_unsubscribe_post, "List-Unsubscribe=One-Click")) {
+    char *url_start = strchr (list_unsubscribe, '<');
+    char *url_end = url_start ? strchr (url_start, '>') : NULL;
+
+    if (url_start && url_end) {
+      url_start++;
+      parser->list_unsubscribe = stamp_mime_list_unsubscribe_new ();
+      parser->list_unsubscribe->url = g_strndup (url_start, url_end - url_start);
+      parser->list_unsubscribe->one_click = TRUE;
+    }
+  }
+}
+
 gboolean
 stamp_mime_parser_parse (StampMimeParser *parser)
 {
@@ -975,6 +1016,7 @@ stamp_mime_parser_parse (StampMimeParser *parser)
   g_return_val_if_fail (parser != NULL, FALSE);
 
   check_root_encryption (parser);
+  parse_list_unsubscribe (parser);
 
   if (!parser->decryption_succeeded) {
     content = camel_medium_get_content (CAMEL_MEDIUM (parser->message));
@@ -1038,6 +1080,58 @@ stamp_mime_parser_has_attachments (StampMimeParser *parser)
 {
   g_return_val_if_fail (parser != NULL, FALSE);
   return parser->attachments->len > 0;
+}
+
+StampMimeListUnsubscribe *
+stamp_mime_parser_get_list_unsubscribe (StampMimeParser *parser)
+{
+  g_return_val_if_fail (parser != NULL, NULL);
+  return parser->list_unsubscribe;
+}
+
+static void
+send_unsubscribe_callback (GObject      *source,
+                           GAsyncResult *res,
+                           gpointer      user_data)
+{
+  g_autoptr (GBytes) bytes = NULL;
+  g_autoptr (GError) error = NULL;
+
+  bytes = soup_session_send_and_read_finish (SOUP_SESSION (source), res, &error);
+  if (error) {
+    g_warning ("%s: Failed to unsubscribe: %s", G_STRFUNC, error->message);
+  } else {
+    g_print ("%s: Successfully unsubscribed\n", G_STRFUNC);
+  }
+}
+
+void
+stamp_mime_parser_send_unsubscribe (StampMimeParser *parser,
+                                     GCancellable    *cancellable)
+{
+  g_autoptr (SoupSession) session = NULL;
+  g_autoptr (SoupMessage) msg = NULL;
+
+  g_return_if_fail (parser != NULL);
+  g_return_if_fail (parser->list_unsubscribe != NULL);
+  g_return_if_fail (parser->list_unsubscribe->url != NULL);
+
+  session = soup_session_new ();
+  msg = soup_message_new ("POST", parser->list_unsubscribe->url);
+
+  if (!msg) {
+    g_warning ("%s: Could not create SoupMessage for %s", G_STRFUNC, parser->list_unsubscribe->url);
+    return;
+  }
+
+  soup_message_headers_replace (soup_message_get_request_headers (msg), "Content-Type", "application/x-www-form-urlencoded");
+
+  soup_session_send_and_read_async (session,
+                                     msg,
+                                     G_PRIORITY_DEFAULT,
+                                     cancellable,
+                                     send_unsubscribe_callback,
+                                     NULL);
 }
 
 GPtrArray *
