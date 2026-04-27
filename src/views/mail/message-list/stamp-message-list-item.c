@@ -947,7 +947,7 @@ stamp_message_list_item_view_source (StampMessageListItem *self)
   g_autoptr (GError) error = NULL;
   g_autofree char *filename = g_build_filename (g_get_tmp_dir (), "mail-source.txt", NULL);
   GFile *file = g_file_new_for_path (filename);
-  g_autoptr (GByteArray) array = NULL;
+  GByteArray *array = NULL;
   g_autoptr (CamelStream) stream = NULL;
 
   array = g_byte_array_new ();
