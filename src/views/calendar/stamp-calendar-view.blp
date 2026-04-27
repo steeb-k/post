@@ -36,10 +36,6 @@ template $StampCalendarView: Adw.BreakpointBin {
 
           ScrolledWindow {
             hscrollbar-policy: never;
-            // child: $StampCalendarList calendar_list {
-            //   vexpand: true;
-            // calendar-selected => $on_calendar_selected();
-            // };
             child: Label calendar_list {
               vexpand: true;
             };
@@ -55,7 +51,6 @@ template $StampCalendarView: Adw.BreakpointBin {
 
     content: Adw.NavigationPage week_page {
       tag: "week";
-      // hiding => $on_details_hidden();
       title: _("Week");
 
       child: $StampWeekView week_view {};
