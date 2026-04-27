@@ -70,6 +70,7 @@ struct _StampComposer {
   GCancellable *cancellable;
   gboolean discard_draft;
   gint autosave_source_id;
+  gboolean ignore_missing_attachments;
 };
 
 G_DEFINE_FINAL_TYPE (StampComposer, stamp_composer, ADW_TYPE_APPLICATION_WINDOW);
@@ -445,6 +446,75 @@ apply_crypto (CamelSession         *session,
   }
 }
 
+static void on_get_body_html (GObject      *source_object,
+                              GAsyncResult *res,
+                              gpointer      user_data);
+
+static gboolean
+check_attachment_reminder (StampComposer *self,
+                           const char    *body)
+{
+  const char *keywords[] = {
+    "attachment",
+    "anhang",
+    "attached",
+    "beigefügt",
+    "anbei",
+    "file attached",
+    "siehe anhang",
+    "see attachment",
+    "see attached",
+    NULL
+  };
+
+  if (self->attachments != NULL)
+    return FALSE;
+
+  for (int i = 0; keywords[i] != NULL; i++) {
+    g_autofree char *body_lower = g_ascii_strdown (body, -1);
+
+    if (g_strrstr (body_lower, keywords[i]))
+      return TRUE;
+  }
+
+  return FALSE;
+}
+
+static void
+on_attachment_reminder_response (GtkWidget *dialog,
+                                  char      *response,
+                                  gpointer   user_data)
+{
+  StampComposer *self = STAMP_COMPOSER (user_data);
+
+  if (g_strcmp0 (response, "send-anyway") == 0) {
+    self->ignore_missing_attachments = TRUE;
+    stamp_webview_get_body_html (self->webview, NULL, on_get_body_html, self);
+  } else {
+    gtk_widget_set_sensitive (self->send_button, TRUE);
+  }
+}
+
+static void
+show_attachment_reminder (StampComposer *self)
+{
+  AdwDialog *dialog;
+
+  dialog = adw_alert_dialog_new (_("Missing Attachment"), _("Your message mentions an attachment, but none has been added. Do you want to send anyway?"));
+
+  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "cancel", _("_Cancel"));
+  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "send-anyway", _("Send Anyway"));
+
+  adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "send-anyway", ADW_RESPONSE_DESTRUCTIVE);
+
+  adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "cancel");
+  adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "cancel");
+
+  g_signal_connect (dialog, "response", G_CALLBACK (on_attachment_reminder_response), self);
+
+  adw_dialog_present (dialog, GTK_WIDGET (self));
+}
+
 static void
 on_get_body_html (GObject      *source_object,
                   GAsyncResult *res,
@@ -468,6 +538,11 @@ on_get_body_html (GObject      *source_object,
   if (!body) {
     if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
       g_warning ("Failed to get HTML content for mail: %s", error->message);
+    return;
+  }
+
+  if (!self->ignore_missing_attachments && check_attachment_reminder (self, body)) {
+    show_attachment_reminder (self);
     return;
   }
 
