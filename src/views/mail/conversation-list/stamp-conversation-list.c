@@ -187,7 +187,7 @@ get_thread (StampConversationList *self,
 
     thread = camel_folder_thread_new (folder, uids, CAMEL_FOLDER_THREAD_FLAG_SORT);
     if (thread)
-      g_hash_table_insert (self->thread_cache, g_strdup (uri), thread);
+      g_hash_table_insert (self->thread_cache, g_strdup (uri), g_object_ref (thread));
   }
 
   return thread;
