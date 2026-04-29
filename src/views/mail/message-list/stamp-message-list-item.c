@@ -313,6 +313,7 @@ void
 stamp_message_list_item_set_expanded (StampMessageListItem *self,
                                       gboolean              expanded)
 {
+  gtk_widget_set_visible (self->secondary_revealer, TRUE);
   gtk_revealer_set_reveal_child (GTK_REVEALER (self->secondary_revealer), expanded);
 
   self->expanded = expanded;

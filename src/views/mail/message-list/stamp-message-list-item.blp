@@ -25,6 +25,8 @@ template $StampMessageListItem: ListBoxRow {
         name: "webview";
 
         child: Revealer secondary_revealer {
+          visible: false;
+
           child: Box {
             orientation: vertical;
 
@@ -121,7 +123,10 @@ template $StampMessageListItem: ListBoxRow {
       StackPage {
         name: "progress";
 
-        child: Adw.Spinner {};
+        child: Adw.Spinner {
+          margin-top: 12;
+          margin-bottom: 12;
+        };
       }
     }
   };
