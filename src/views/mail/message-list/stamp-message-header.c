@@ -384,36 +384,36 @@ stamp_message_header_class_init (StampMessageHeaderClass *klass)
   gtk_widget_class_bind_template_callback (widget_class, on_released);
 
   properties[PROP_ACCOUNT] =
-                                   g_param_spec_object ("account",
-                                                        NULL,
-                                                        NULL,
-                                                        STAMP_TYPE_ACCOUNT,
-                                                        G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+    g_param_spec_object ("account",
+                         NULL,
+                         NULL,
+                         STAMP_TYPE_ACCOUNT,
+                         G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
   properties[PROP_COLLAPSED] =
-                                   g_param_spec_boolean ("collapsed",
-                                                         NULL,
-                                                         NULL,
-                                                         FALSE,
-                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+    g_param_spec_boolean ("collapsed",
+                          NULL,
+                          NULL,
+                          FALSE,
+                          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
   properties[PROP_COMPACT] =
-                                   g_param_spec_boolean ("compact",
-                                                         NULL,
-                                                         NULL,
-                                                         FALSE,
-                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+    g_param_spec_boolean ("compact",
+                          NULL,
+                          NULL,
+                          FALSE,
+                          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
   properties[PROP_IS_UNREAD] =
-                                   g_param_spec_boolean ("is-unread",
-                                                         NULL,
-                                                         NULL,
-                                                         FALSE,
-                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+    g_param_spec_boolean ("is-unread",
+                          NULL,
+                          NULL,
+                          FALSE,
+                          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
   properties[PROP_IS_READ] =
-                                   g_param_spec_boolean ("is-read",
-                                                         NULL,
-                                                         NULL,
-                                                         FALSE,
-                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+    g_param_spec_boolean ("is-read",
+                          NULL,
+                          NULL,
+                          FALSE,
+                          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
   g_object_class_install_properties (object_class, LAST_PROP, properties);
 }

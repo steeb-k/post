@@ -1107,7 +1107,7 @@ send_unsubscribe_callback (GObject      *source,
 
 void
 stamp_mime_parser_send_unsubscribe (StampMimeParser *parser,
-                                     GCancellable    *cancellable)
+                                    GCancellable    *cancellable)
 {
   g_autoptr (SoupSession) session = NULL;
   g_autoptr (SoupMessage) msg = NULL;
@@ -1127,11 +1127,11 @@ stamp_mime_parser_send_unsubscribe (StampMimeParser *parser,
   soup_message_headers_replace (soup_message_get_request_headers (msg), "Content-Type", "application/x-www-form-urlencoded");
 
   soup_session_send_and_read_async (session,
-                                     msg,
-                                     G_PRIORITY_DEFAULT,
-                                     cancellable,
-                                     send_unsubscribe_callback,
-                                     NULL);
+                                    msg,
+                                    G_PRIORITY_DEFAULT,
+                                    cancellable,
+                                    send_unsubscribe_callback,
+                                    NULL);
 }
 
 GPtrArray *
@@ -1256,4 +1256,3 @@ done_src:
 
   return g_string_free_and_steal (result);
 }
-

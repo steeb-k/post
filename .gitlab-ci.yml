@@ -30,7 +30,7 @@ codespell:
 check-code-style:
   stage: check
   script:
-    - dnf install -y uncrustify
+    - dnf install -y uncrustify diff blueprint-compiler
     - bash data/check-code-style
   artifacts:
     when: on_failure

@@ -686,23 +686,23 @@ stamp_message_list_item_class_init (StampMessageListItemClass *klass)
   gobject_class->set_property = stamp_message_list_item_set_property;
 
   properties[PROP_ACCOUNT] =
-                                   g_param_spec_object ("account",
-                                                        NULL,
-                                                        NULL,
-                                                        STAMP_TYPE_ACCOUNT,
-                                                        G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+    g_param_spec_object ("account",
+                         NULL,
+                         NULL,
+                         STAMP_TYPE_ACCOUNT,
+                         G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
   properties[PROP_MESSAGE_INFO] =
-                                   g_param_spec_object ("message-info",
-                                                        NULL,
-                                                        NULL,
-                                                        CAMEL_TYPE_MESSAGE_INFO,
-                                                        G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+    g_param_spec_object ("message-info",
+                         NULL,
+                         NULL,
+                         CAMEL_TYPE_MESSAGE_INFO,
+                         G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
   properties[PROP_EXPANDED] =
-                                   g_param_spec_boolean ("expanded",
-                                                         NULL,
-                                                         NULL,
-                                                         TRUE,
-                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+    g_param_spec_boolean ("expanded",
+                          NULL,
+                          NULL,
+                          TRUE,
+                          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
   g_object_class_install_properties (gobject_class, LAST_PROP, properties);
 }

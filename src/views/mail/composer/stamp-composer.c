@@ -482,8 +482,8 @@ check_attachment_reminder (StampComposer *self,
 
 static void
 on_attachment_reminder_response (GtkWidget *dialog,
-                                  char      *response,
-                                  gpointer   user_data)
+                                 char      *response,
+                                 gpointer   user_data)
 {
   StampComposer *self = STAMP_COMPOSER (user_data);
 
