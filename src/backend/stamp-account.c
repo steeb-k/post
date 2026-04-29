@@ -31,8 +31,11 @@ struct _StampMailService {
   CamelFolder *drafts_folder;
   ESource *source;
   ESource *transport_source;
+  ESource *identity_source;
   CamelInternetAddress *address;
   gboolean enabled;
+  GHashTable *aliases;
+  ESourceRegistry *registry;
 };
 
 struct _StampContactsService {
@@ -362,6 +365,7 @@ stamp_account_add_mail (StampAccount *self,
   if (!self->mail)
     self->mail = g_new0 (StampMailService, 1);
   self->mail->source = g_object_ref (source);
+  self->mail->registry = self->registry;
 }
 
 void
@@ -879,12 +883,67 @@ stamp_account_add_mail_identity (StampAccount *self,
   ESourceMailIdentity *identity = e_source_get_extension (source, E_SOURCE_EXTENSION_MAIL_IDENTITY);
   const char *name = e_source_mail_identity_get_name (identity);
   const char *address = e_source_mail_identity_get_address (identity);
+  GHashTable *aliases = e_source_mail_identity_get_aliases_as_hash_table (identity);
 
+  g_print ("%s: Setting own address to name %s, address %s, aliases %p\n", G_STRFUNC, name, address, aliases);
   if (!self->mail)
     self->mail = g_new0 (StampMailService, 1);
 
   self->mail->address = camel_internet_address_new ();
   camel_internet_address_add (self->mail->address, name, address);
+
+  self->mail->aliases = aliases;
+  self->mail->identity_source = g_object_ref (source);
+}
+
+static char *
+alias_to_string (GHashTable *aliases)
+{
+  GString *str = g_string_new ("");
+  GList *keys = g_hash_table_get_keys (aliases);
+  GList *iter;
+
+  for (iter = keys; iter; iter = g_list_next (iter)) {
+    const char *mail = iter->data;
+    const char *name = g_hash_table_lookup (aliases, mail);
+    g_autofree char *encoded = NULL;
+
+    encoded = camel_internet_address_encode_address (NULL, name, mail);
+    if (encoded && *encoded) {
+      if (str->len > 0)
+        g_string_append (str, ",");
+
+      g_string_append (str, encoded);
+    }
+  }
+
+  g_list_free (keys);
+
+  return g_string_free (str, FALSE);
+}
+
+void
+stamp_mail_service_set_aliases (StampMailService *self,
+                                GHashTable       *aliases)
+{
+  ESource *source;
+  ESourceMailIdentity *identity;
+  g_autofree char *alias_str = NULL;
+  g_autoptr (GError) error = NULL;
+
+  source = self->identity_source;
+  if (!source)
+    return;
+
+  identity = e_source_get_extension (source, E_SOURCE_EXTENSION_MAIL_IDENTITY);
+  alias_str = alias_to_string (aliases);
+  e_source_mail_identity_set_aliases (identity, alias_str);
+
+  e_source_registry_commit_source_sync (self->registry, source, NULL, &error);
+  if (error)
+    g_warning ("Could not commit alias: %s", error->message);
+
+  self->aliases = e_source_mail_identity_get_aliases_as_hash_table (identity);
 }
 
 CamelInternetAddress *
@@ -1314,4 +1373,10 @@ GList *
 stamp_account_get_categories (StampAccount *self)
 {
   return self->categories;
+}
+
+GHashTable *
+stamp_mail_service_get_aliases (StampMailService *self)
+{
+  return self->aliases;
 }

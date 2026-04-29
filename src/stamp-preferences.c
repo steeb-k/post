@@ -23,6 +23,7 @@
 #include <libportal-gtk4/portal-gtk4.h>
 
 #include "stamp-account.h"
+#include "stamp-preferences-account.h"
 #include "stamp-preferences-signatures.h"
 #include "stamp-session.h"
 #include "stamp-settings.h"
@@ -39,6 +40,7 @@ struct _StampPreferences {
   AdwSwitchRow *play_incoming_sound;
   AdwSpinRow *refresh_interval;
   AdwSwitchRow *important_first;
+  AdwPreferencesGroup *accounts_group;
 
   gboolean autostart_failed;
 
@@ -88,6 +90,7 @@ stamp_preferences_class_init (StampPreferencesClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, play_incoming_sound);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, refresh_interval);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, important_first);
+  gtk_widget_class_bind_template_child (widget_class, StampPreferences, accounts_group);
 
   gtk_widget_class_bind_template_callback (widget_class, on_signature_row_activated);
 }
@@ -144,6 +147,41 @@ on_bimi_images (GtkWidget  *row,
   }
 }
 
+static void
+on_account_activated (GtkWidget *row,
+                      gpointer   user_data)
+{
+  StampPreferences *self = STAMP_PREFERENCES (user_data);
+  StampAccount *account = STAMP_ACCOUNT (g_object_get_data (G_OBJECT (row), "account"));
+  AdwNavigationPage *page = ADW_NAVIGATION_PAGE (stamp_preferences_account_new (account));
+
+  adw_preferences_dialog_push_subpage (ADW_PREFERENCES_DIALOG (self), page);
+}
+
+static void
+init_accounts (StampPreferences *self)
+{
+  GList *accounts = stamp_session_get_accounts (stamp_session_get_default ());
+
+  for (GList *iter = accounts; iter && iter->data; iter = g_list_next (iter)) {
+    StampAccount *account = STAMP_ACCOUNT (iter->data);
+    GtkWidget *row = adw_action_row_new ();
+    GtkWidget *image = gtk_image_new_from_icon_name ("go-next-symbolic");
+    StampMailService *service = stamp_account_get_mail_service (account);
+    gboolean enabled = FALSE;
+
+    gtk_list_box_row_set_activatable (GTK_LIST_BOX_ROW (row), TRUE);
+    enabled = service && stamp_mail_service_get_enabled (service);
+
+    g_object_set_data_full (G_OBJECT (row), "account", g_object_ref (account), g_object_unref);
+    g_signal_connect_object (row, "activated", G_CALLBACK (on_account_activated), self, 0);
+    adw_preferences_row_set_title (ADW_PREFERENCES_ROW (row), stamp_account_get_name (account));
+    adw_action_row_set_subtitle (ADW_ACTION_ROW (row), enabled ? _("Enabled") : _("Disabled"));
+    adw_action_row_add_suffix (ADW_ACTION_ROW (row), image);
+    adw_preferences_group_add (self->accounts_group, row);
+  }
+}
+
 void
 stamp_preferences_init (StampPreferences *self)
 {
@@ -164,6 +202,7 @@ stamp_preferences_init (StampPreferences *self)
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_REFRESH_INTERVAL, self->refresh_interval, "value", G_SETTINGS_BIND_DEFAULT);
 
   g_signal_connect_object (self->bimi_images, "notify::active", G_CALLBACK (on_bimi_images), self, 0);
+  init_accounts (self);
 }
 
 GtkWidget *

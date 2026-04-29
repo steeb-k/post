@@ -22,6 +22,7 @@
 #include "stamp-account.h"
 #include "stamp-attachment-button.h"
 #include "stamp-contact-completion.h"
+#include "stamp-composer-from.h"
 #include "stamp-mail-view.h"
 #include "stamp-session.h"
 #include "stamp-signature.h"
@@ -65,7 +66,7 @@ struct _StampComposer {
   AdwToastOverlay *toast_overlay;
 
   GList *attachments;
-  StampAccount *account;
+  StampComposerFrom *composer_from;
   gboolean is_dirty;
 
   GCancellable *cancellable;
@@ -233,12 +234,9 @@ build_message (StampComposer *self,
   camel_medium_set_content (CAMEL_MEDIUM (message), CAMEL_DATA_WRAPPER (body));
 
   if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->request_disposition))) {
-    CamelInternetAddress *address = stamp_account_get_address (self->account);
-    const char *name;
-    const char *email;
+    const char *mail = stamp_composer_from_get_mail (self->composer_from);
 
-    camel_internet_address_get (address, 0, &name, &email);
-    camel_medium_set_header (CAMEL_MEDIUM (message), "Disposition-Notification-To", email);
+    camel_medium_set_header (CAMEL_MEDIUM (message), "Disposition-Notification-To", mail);
   }
 
   return message;
@@ -537,7 +535,6 @@ on_get_body_html (GObject      *source_object,
   CamelInternetAddress *recipient;
   const char *name;
   const char *mail;
-  CamelInternetAddress *addresses;
   gboolean do_pgp_sign;
   gboolean do_pgp_encrypt;
   gboolean do_smime_sign;
@@ -556,9 +553,9 @@ on_get_body_html (GObject      *source_object,
 
   mime_message = build_message (self, body);
 
-  addresses = stamp_account_get_address (self->account);
+  name = stamp_composer_from_get_name (self->composer_from);
+  mail = stamp_composer_from_get_mail (self->composer_from);
 
-  camel_internet_address_get (addresses, 0, &name, &mail);
   sender = build_sender (mime_message, name, mail);
   recipient = build_recipients (self, mime_message);
 
@@ -606,13 +603,13 @@ on_get_body_html (GObject      *source_object,
     apply_crypto (session, mime_message, recipient, do_pgp_sign, do_pgp_encrypt, do_smime_sign, do_smime_encrypt, self->cancellable);
   }
 
-  stamp_account_send_mail (self->account, mime_message, sender, recipient,
+  stamp_account_send_mail (stamp_composer_from_get_account (self->composer_from), mime_message, sender, recipient,
                            do_pgp_sign || do_smime_sign, do_pgp_encrypt || do_smime_encrypt, self->cancellable, on_send_mail, self);
 }
 
 static void
-stamp_composer_set_account (StampComposer *self,
-                            StampAccount  *account)
+stamp_composer_set_composer_from (StampComposer     *self,
+                                  StampComposerFrom *from)
 {
   GListModel *model = gtk_drop_down_get_model (GTK_DROP_DOWN (self->from));
 
@@ -620,14 +617,18 @@ stamp_composer_set_account (StampComposer *self,
     return;
 
   for (guint idx = 0; idx < g_list_model_get_n_items (model); idx++) {
-    StampAccount *acc = STAMP_ACCOUNT (g_list_model_get_item (model, idx));
+    StampComposerFrom *cur_from = STAMP_COMPOSER_FROM (g_list_model_get_item (model, idx));
 
-    if (acc == account) {
+    if (from == cur_from) {
+      StampAccount *account = stamp_composer_from_get_account (from);
+
       gtk_drop_down_set_selected (GTK_DROP_DOWN (self->from), idx);
-      self->account = account;
-      stamp_contact_completion_set_account (STAMP_CONTACT_COMPLETION (self->to), self->account);
-      stamp_contact_completion_set_account (STAMP_CONTACT_COMPLETION (self->cc), self->account);
-      stamp_contact_completion_set_account (STAMP_CONTACT_COMPLETION (self->bcc), self->account);
+      self->composer_from = from;
+
+      stamp_contact_completion_set_account (STAMP_CONTACT_COMPLETION (self->to), account);
+      stamp_contact_completion_set_account (STAMP_CONTACT_COMPLETION (self->cc), account);
+      stamp_contact_completion_set_account (STAMP_CONTACT_COMPLETION (self->bcc), account);
+      return;
     }
   }
 }
@@ -733,20 +734,43 @@ load_from_combobox (StampComposer *self)
 
   accounts = stamp_session_get_accounts (stamp_session_get_default ());
 
-  store = g_list_store_new (STAMP_TYPE_ACCOUNT);
+  store = g_list_store_new (STAMP_TYPE_COMPOSER_FROM);
 
   for (GList *iter = accounts; iter && iter->data; iter = g_list_next (iter)) {
     StampAccount *account = STAMP_ACCOUNT (iter->data);
     StampMailService *service = stamp_account_get_mail_service (account);
+    CamelInternetAddress *addresses = stamp_account_get_address (account);
+    StampComposerFrom *from;
+    GHashTable *aliases;
+    const char *name;
+    const char *mail;
 
     if (!service || !stamp_mail_service_get_enabled (service))
       continue;
 
-    g_list_store_append (store, account);
+    camel_internet_address_get (addresses, 0, &name, &mail);
+    from = stamp_composer_from_new (account, name, mail);
+
+    g_list_store_append (store, from);
+    if (!self->composer_from)
+      stamp_composer_set_composer_from (self, from);
+
+    aliases = stamp_mail_service_get_aliases (service);
+    if (aliases) {
+      GList *mails = g_hash_table_get_keys (aliases);
+
+      for (GList *mail_iter = mails; mail_iter && mail_iter->data; mail_iter = g_list_next (mail_iter)) {
+        mail = mail_iter->data;
+        name = g_hash_table_lookup (aliases, mail);
+
+        from = stamp_composer_from_new (account, name, mail);
+        g_list_store_append (store, from);
+      }
+
+      g_list_free (mails);
+    }
   }
 
-  if (!self->account && accounts)
-    stamp_composer_set_account (self, accounts->data);
 
   gtk_drop_down_set_model (GTK_DROP_DOWN (self->from), G_LIST_MODEL (store));
 }
@@ -788,18 +812,15 @@ on_from_bind (GtkSignalListItemFactory *f,
               GtkListItem              *item,
               gpointer                  user_data)
 {
-  StampAccount *account = STAMP_ACCOUNT (gtk_list_item_get_item (item));
-  CamelInternetAddress *address = stamp_account_get_address (account);
+  StampComposerFrom *from = STAMP_COMPOSER_FROM (gtk_list_item_get_item (item));
   GtkWidget *box = gtk_list_item_get_child (item);
   GtkWidget *name = g_object_get_data (G_OBJECT (box), "name");
   GtkWidget *email = g_object_get_data (G_OBJECT (box), "email");
-  const char *name_str;
-  const char *email_str;
+  const char *name_str = stamp_composer_from_get_name (from);
+  const char *mail_str = stamp_composer_from_get_mail (from);
 
-  camel_internet_address_get (address, 0, &name_str, &email_str);
-  name_str = stamp_account_get_name (account);
-  gtk_label_set_text (GTK_LABEL (name), name_str ? name_str : email_str);
-  gtk_label_set_text (GTK_LABEL (email), email_str);
+  gtk_label_set_text (GTK_LABEL (name), name_str ? name_str : mail_str);
+  gtk_label_set_text (GTK_LABEL (email), mail_str);
 }
 
 static void
@@ -818,14 +839,10 @@ on_bind_selected (GtkSignalListItemFactory *f,
                   GtkListItem              *item,
                   gpointer                  user_data)
 {
-  StampAccount *account = STAMP_ACCOUNT (gtk_list_item_get_item (item));
-  CamelInternetAddress *address = stamp_account_get_address (account);
+  StampComposerFrom *from = STAMP_COMPOSER_FROM (gtk_list_item_get_item (item));
   GtkWidget *name = gtk_list_item_get_child (item);
-  const char *name_str;
-  const char *email_str;
+  const char *name_str = stamp_composer_from_get_name (from);
 
-  camel_internet_address_get (address, 0, &name_str, &email_str);
-  name_str = stamp_account_get_name (account);
   gtk_label_set_text (GTK_LABEL (name), name_str);
 }
 
@@ -854,12 +871,12 @@ on_from_selected_item (GObject    *source,
                        gpointer    user_data)
 {
   StampComposer *self = STAMP_COMPOSER (user_data);
-  StampAccount *account = STAMP_ACCOUNT (gtk_drop_down_get_selected_item (GTK_DROP_DOWN (self->from)));
+  StampComposerFrom *from = STAMP_COMPOSER_FROM (gtk_drop_down_get_selected_item (GTK_DROP_DOWN (self->from)));
 
-  if (!account)
+  if (!from)
     return;
 
-  stamp_composer_set_account (self, account);
+  stamp_composer_set_composer_from (self, from);
 }
 
 static void
@@ -876,7 +893,6 @@ on_auto_save_get_body_html (GObject      *source_object,
   CamelInternetAddress *recipient;
   const char *name;
   const char *mail;
-  CamelInternetAddress *addresses;
 
   if (!body) {
     if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
@@ -886,13 +902,13 @@ on_auto_save_get_body_html (GObject      *source_object,
 
   mime_message = build_message (self, body);
 
-  addresses = stamp_account_get_address (self->account);
+  name = stamp_composer_from_get_name (self->composer_from);
+  mail = stamp_composer_from_get_mail (self->composer_from);
 
-  camel_internet_address_get (addresses, 0, &name, &mail);
   sender = build_sender (mime_message, name, mail);
   recipient = build_recipients (self, mime_message);
 
-  self->draft_uid = stamp_account_save_draft (self->account, self->draft_uid, mime_message, sender, recipient);
+  self->draft_uid = stamp_account_save_draft (stamp_composer_from_get_account (self->composer_from), self->draft_uid, mime_message, sender, recipient);
   if (self->draft_uid) {
     g_autofree char *save_str = NULL;
     GDateTime *dt = g_date_time_new_now_local ();
@@ -1052,7 +1068,6 @@ on_draft_get_body_html (GObject      *source_object,
   CamelInternetAddress *recipient;
   const char *name;
   const char *mail;
-  CamelInternetAddress *addresses;
 
   if (!body) {
     if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
@@ -1062,13 +1077,13 @@ on_draft_get_body_html (GObject      *source_object,
 
   mime_message = build_message (self, body);
 
-  addresses = stamp_account_get_address (self->account);
+  name = stamp_composer_from_get_name (self->composer_from);
+  mail = stamp_composer_from_get_mail (self->composer_from);
 
-  camel_internet_address_get (addresses, 0, &name, &mail);
   sender = build_sender (mime_message, name, mail);
   recipient = build_recipients (self, mime_message);
 
-  if (stamp_account_save_draft (self->account, self->draft_uid, mime_message, sender, recipient)) {
+  if (stamp_account_save_draft (stamp_composer_from_get_account (self->composer_from), self->draft_uid, mime_message, sender, recipient)) {
     gtk_window_destroy (GTK_WINDOW (self));
   }
 }
@@ -1086,7 +1101,7 @@ on_draft_response (AdwAlertDialog *dialog,
     else
       gtk_window_destroy (GTK_WINDOW (self));
   } else if (g_strcmp0 (response, "close") == 0) {
-    stamp_account_remove_draft (self->account, self->draft_uid);
+    stamp_account_remove_draft (stamp_composer_from_get_account (self->composer_from), self->draft_uid);
     gtk_window_destroy (GTK_WINDOW (self));
   }
 }
@@ -1129,7 +1144,7 @@ stamp_composer_get_property (GObject    *object,
 
   switch (property_id) {
     case PROP_ACCOUNT:
-      g_value_set_object (value, self->account);
+      g_value_set_object (value, self->composer_from);
       break;
     default:
       /* We don't have any other property... */
@@ -1148,7 +1163,7 @@ stamp_composer_set_property (GObject      *object,
 
   switch (property_id) {
     case PROP_ACCOUNT:
-      stamp_composer_set_account (self, g_value_get_object (value));
+      stamp_composer_set_composer_from (self, g_value_get_object (value));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -1234,7 +1249,7 @@ stamp_add_addresses_to_completion (StampComposer        *self,
   len = camel_address_length (CAMEL_ADDRESS (address));
 
   for (int idx = 0; idx < len; idx++) {
-    GtkWidget *tag = stamp_tag_new (self->account);
+    GtkWidget *tag = stamp_tag_new (stamp_composer_from_get_account (self->composer_from));
     const char *ia_name;
     const char *ia_address;
     const char *to = NULL;
@@ -1260,16 +1275,14 @@ static void
 remove_own_address (StampComposer        *self,
                     CamelInternetAddress *address)
 {
-  CamelInternetAddress *own_address = stamp_account_get_address (self->account);
-  const char *own_name;
   const char *own_mail;
   int len;
   int idx;
 
-  if (!own_address)
+  if (!self->composer_from)
     return;
 
-  camel_internet_address_get (own_address, 0, &own_name, &own_mail);
+  own_mail = stamp_composer_from_get_mail (self->composer_from);
 
   len = camel_address_length (CAMEL_ADDRESS (address));
 

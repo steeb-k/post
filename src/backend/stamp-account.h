@@ -232,6 +232,13 @@ StampCategory *
 stamp_account_find_category (StampAccount *self,
                              const char   *name);
 
+GHashTable *
+stamp_mail_service_get_aliases (StampMailService *self);
+
+void
+stamp_mail_service_set_aliases (StampMailService *self,
+                         GHashTable      *aliases);
+
 /*
  * Contacts Service Getter
  */

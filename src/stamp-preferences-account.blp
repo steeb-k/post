@@ -1,0 +1,33 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampPreferencesAccount: Adw.NavigationPage {
+  title: _("Account");
+
+  child: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {
+      title-widget: Adw.WindowTitle window_title {
+        title: _("Account");
+      };
+    }
+
+    content: Adw.PreferencesPage page {
+      Adw.PreferencesGroup alias_group {
+        title: _("Aliases");
+        description: _("Add different names or email addresses to your account");
+
+        accessibility {
+          label: _("Alias Preferences");
+        }
+      }
+
+      Adw.PreferencesGroup {
+        Adw.ButtonRow add_alias {
+          title: _("Add Alias");
+          activated => $on_add_alias_clicked();
+        }
+      }
+    };
+  };
+}

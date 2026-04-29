@@ -1,0 +1,51 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampPreferencesAccountEditor: Adw.NavigationPage {
+  title: _("Alias");
+
+  child: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {
+      title-widget: Adw.WindowTitle editor_window_title {
+        title: _("Alias");
+      };
+    }
+
+    content: Adw.PreferencesPage editor_page {
+      Adw.PreferencesGroup {
+        title: _("Alias");
+
+        Adw.EntryRow mail_row {
+          title: _("Email");
+        }
+
+        Adw.EntryRow name_row {
+          title: _("Name");
+        }
+      }
+
+      Adw.PreferencesGroup {
+        Adw.ButtonRow save {
+          title: _("Save");
+          visible: false;
+          activated => $on_save_clicked();
+
+          styles [
+            "suggested-action",
+          ]
+        }
+
+        Adw.ButtonRow remove {
+          title: _("Remove");
+          visible: false;
+          activated => $on_remove_clicked();
+
+          styles [
+            "destructive-action",
+          ]
+        }
+      }
+    };
+  };
+}

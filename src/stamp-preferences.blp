@@ -26,7 +26,7 @@ template $StampPreferences: Adw.PreferencesDialog {
   }
 
   Adw.PreferencesPage {
-    title: _("Reader");
+    title: _("Mail");
     icon-name: "view-paged-symbolic";
 
     Adw.PreferencesGroup reader_group {
@@ -97,14 +97,9 @@ template $StampPreferences: Adw.PreferencesDialog {
         subtitle: _("Audio notification for new incoming mails");
       }
     }
-  }
-
-  Adw.PreferencesPage {
-    title: _("Composer");
-    icon-name: "document-edit-symbolic";
 
     Adw.PreferencesGroup composer_group {
-      title: _("General");
+      title: _("Signatures");
 
       Adw.ActionRow signature {
         title: _("Signatures");
@@ -119,6 +114,15 @@ template $StampPreferences: Adw.PreferencesDialog {
           icon-name: "go-next-symbolic";
         }
       }
+    }
+  }
+
+  Adw.PreferencesPage {
+    title: _("Accounts");
+    icon-name: "avatar-default-symbolic";
+
+    Adw.PreferencesGroup accounts_group {
+      title: _("Accounts");
     }
   }
 }
