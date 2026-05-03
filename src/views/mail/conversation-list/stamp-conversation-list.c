@@ -1685,15 +1685,15 @@ on_transfer_messages_to (GObject      *source,
 {
   CamelFolder *folder = CAMEL_FOLDER (source);
   g_autoptr (GError) error = NULL;
-  g_autoptr (GPtrArray) uid_array = user_data;
 
   if (!camel_folder_transfer_messages_to_finish (folder, res, NULL, &error)) {
     g_warning ("%s: Could not move message: %s", G_STRFUNC, error->message);
     return;
   }
 
-  for (guint idx = 0; idx < uid_array->len; idx++) {
-    camel_folder_delete_message (folder, uid_array->pdata[idx]);
+  camel_folder_synchronize_sync (folder, FALSE, NULL, &error);
+  if (error) {
+    g_warning ("%s: Could not synchronize folder: %s", G_STRFUNC, error->message);
   }
 }
 
@@ -1758,8 +1758,9 @@ stamp_conversation_list_trash (StampConversationList *self,
 
     info = camel_folder_thread_node_get_item (child_node);
     g_ptr_array_add (uid_array, g_strdup (camel_message_info_get_uid (info)));
-  }
 
+    camel_folder_set_message_flags (folder, camel_message_info_get_uid (info), CAMEL_MESSAGE_SEEN, CAMEL_MESSAGE_SEEN);
+  }
 
   if (self->transfer_cancellable) {
     g_cancellable_cancel (self->transfer_cancellable);
@@ -1767,7 +1768,7 @@ stamp_conversation_list_trash (StampConversationList *self,
   }
   self->transfer_cancellable = g_cancellable_new ();
 
-  camel_folder_transfer_messages_to (folder, uid_array, trash_folder, FALSE, G_PRIORITY_DEFAULT, self->transfer_cancellable, on_transfer_messages_to, uid_array);
+  camel_folder_transfer_messages_to (folder, uid_array, trash_folder, TRUE, G_PRIORITY_DEFAULT, self->transfer_cancellable, on_transfer_messages_to, uid_array);
 
   stamp_conversation_list_unselect (self);
 }
