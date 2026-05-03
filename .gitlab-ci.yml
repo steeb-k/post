@@ -11,15 +11,22 @@ include:
 
 goblint:
   stage: lint
-  needs: []
+  allow_failure: true
   image:
-    name: ghcr.io/bilelmoussaoui/goblint:latest
-    entrypoint: ['']
+    name: "ghcr.io/bilelmoussaoui/goblint:latest"
+    entrypoint: [""]
   script:
+    # Only available in Enterprise Edition
     - goblint --format sarif > goblint.sarif
+    # Available in the Community Edition
+    - goblint --format gitlab-codequality > goblint-codequality.json
   artifacts:
+    expire_in: "1 week"
     reports:
-      sast: goblint.sarif
+      # Only available in Enterprise Edition
+      sarif: goblint.sarif
+      # Available in the Community Edition
+      codequality: goblint-codequality.json
 
 codespell:
   stage: check
