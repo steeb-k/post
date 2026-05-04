@@ -32,6 +32,7 @@ struct _StampContactList {
   GtkWidget *stack;
   GtkWidget *sort_button;
   GtkWidget *sidebar_button;
+  GtkWidget *normal_headerbar;
 
   StampContactListStore *list_store;
   GtkSortListModel *sort_list_model;
@@ -360,6 +361,8 @@ stamp_contact_list_class_init (StampContactListClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampContactList, stack);
   gtk_widget_class_bind_template_child (widget_class, StampContactList, sort_button);
   gtk_widget_class_bind_template_child (widget_class, StampContactList, sidebar_button);
+  gtk_widget_class_bind_template_child (widget_class, StampContactList, normal_headerbar);
+
 
   gtk_widget_class_bind_template_callback (widget_class, on_setup_list_item);
   gtk_widget_class_bind_template_callback (widget_class, on_bind_list_item);
@@ -472,4 +475,11 @@ stamp_contact_list_search_contact (StampContactList *self,
 {
   gtk_editable_set_text (GTK_EDITABLE (self->search_entry), mail);
   gtk_search_bar_set_search_mode (GTK_SEARCH_BAR (self->search_bar), TRUE);
+}
+
+void
+stamp_contact_list_set_show_buttons (StampContactList *self,
+                                     gboolean          show)
+{
+  adw_header_bar_set_show_end_title_buttons (ADW_HEADER_BAR (self->normal_headerbar), show);
 }

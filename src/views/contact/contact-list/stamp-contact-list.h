@@ -56,4 +56,8 @@ void
 stamp_contact_list_search_contact (StampContactList *self,
                                    const char       *mail);
 
+void
+stamp_contact_list_set_show_buttons (StampContactList *self,
+                                     gboolean          show);
+
 G_END_DECLS

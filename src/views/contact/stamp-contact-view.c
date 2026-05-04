@@ -147,6 +147,22 @@ stamp_contact_view_set_property (GObject      *object,
     G_OBJECT_WARN_INVALID_PROPERTY_ID (object, id, ps);
 }
 
+static gboolean
+is_mobile_view (StampContactView *self)
+{
+  return g_strcmp0 (adw_multi_layout_view_get_layout_name (self->contacts_layout), "mobile") == 0;
+}
+
+static
+void
+on_apply_view (AdwBreakpoint *breakpoint,
+               gpointer       user_data)
+{
+  StampContactView *self = STAMP_CONTACT_VIEW (user_data);
+  gboolean show = is_mobile_view (self);
+
+  stamp_contact_list_set_show_buttons (STAMP_CONTACT_LIST (self->contact_list), show);
+}
 
 void
 stamp_contact_view_class_init (StampContactViewClass *klass)
@@ -179,6 +195,7 @@ stamp_contact_view_class_init (StampContactViewClass *klass)
   gtk_widget_class_bind_template_callback (widget_class, on_contact_selected);
   gtk_widget_class_bind_template_callback (widget_class, on_contacts_hidden);
   gtk_widget_class_bind_template_callback (widget_class, on_details_hidden);
+  gtk_widget_class_bind_template_callback (widget_class, on_apply_view);
 }
 
 static void

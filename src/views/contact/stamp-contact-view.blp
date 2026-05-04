@@ -7,6 +7,8 @@ template $StampContactView: Adw.BreakpointBin {
 
   Adw.Breakpoint bp_tablet {
     condition ("max-width: 860sp")
+    apply => $on_apply_view();
+    unapply => $on_apply_view();
 
     setters {
       contacts_layout.layout-name: "tablet";
@@ -15,6 +17,8 @@ template $StampContactView: Adw.BreakpointBin {
 
   Adw.Breakpoint bp_mobile {
     condition ("max-width: 550sp")
+    apply => $on_apply_view();
+    unapply => $on_apply_view();
 
     setters {
       contacts_layout.layout-name: "mobile";
