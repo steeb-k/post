@@ -481,12 +481,6 @@ has_attachment (CamelFolderThreadNode *thread_node)
 }
 
 static gboolean
-has_starred (CamelFolderThreadNode *thread_node)
-{
-  return camel_message_info_get_flags (camel_folder_thread_node_get_item (thread_node)) & CAMEL_MESSAGE_FLAGGED;
-}
-
-static gboolean
 transfer_flags_to_icon (GBinding     *binding,
                         const GValue *from_value,
                         GValue       *to_value,
@@ -664,12 +658,7 @@ stamp_message_header_set_mail (StampMessageHeader    *self,
 
   gtk_widget_set_visible (self->attachment_icon, has_attachment (thread_node));
 
-  g_object_bind_property_full (message_info, "flags", self->starred_icon, "icon-name", G_BINDING_SYNC_CREATE, transfer_flags_to_icon, NULL, NULL, NULL);
-  /* if (has_starred (thread_node)) { */
-  /*   gtk_image_set_from_icon_name (GTK_IMAGE (self->starred_icon), "starred-symbolic"); */
-  /* } else { */
-  /*   gtk_image_set_from_icon_name (GTK_IMAGE (self->starred_icon), "non-starred-symbolic"); */
-  /* } */
+  g_object_bind_property_full (G_OBJECT (message_info), "flags", self->starred_icon, "icon-name", G_BINDING_SYNC_CREATE, transfer_flags_to_icon, NULL, NULL, NULL);
 
   time = stamp_time_helpers_utf_friendly_time (camel_message_info_get_date_received (message_info), FALSE);
   gtk_label_set_text (GTK_LABEL (self->date), time);

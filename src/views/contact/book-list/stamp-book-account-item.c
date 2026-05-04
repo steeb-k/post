@@ -54,7 +54,7 @@ on_book_added (GObject              *source,
     return;
 
   src = e_client_get_source (E_CLIENT (client));
-  g_print ("%s: New book added %s\n", G_STRFUNC, e_source_get_display_name (src));
+  g_debug ("%s: New book added %s", G_STRFUNC, e_source_get_display_name (src));
 
   list_store = stamp_item_get_list_store (STAMP_ITEM (self));
   g_list_store_append (list_store, stamp_book_item_new (account, E_CLIENT (client)));
@@ -89,7 +89,7 @@ on_book_removed (GObject              *source,
   GListStore *list_store;
   guint position = 0;
 
-  g_print ("%s: Book removed %s\n", G_STRFUNC, e_source_get_display_name (src));
+  g_debug ("%s: Book removed %s", G_STRFUNC, e_source_get_display_name (src));
 
   list_store = stamp_item_get_list_store (STAMP_ITEM (self));
 

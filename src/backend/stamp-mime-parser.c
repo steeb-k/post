@@ -1101,7 +1101,7 @@ send_unsubscribe_callback (GObject      *source,
   if (error) {
     g_warning ("%s: Failed to unsubscribe: %s", G_STRFUNC, error->message);
   } else {
-    g_print ("%s: Successfully unsubscribed\n", G_STRFUNC);
+    g_debug ("%s: Successfully unsubscribed", G_STRFUNC);
   }
 }
 

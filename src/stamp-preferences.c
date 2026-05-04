@@ -129,9 +129,7 @@ on_bimi_images (GtkWidget  *row,
                 GParamSpec *pspec,
                 gpointer    user_data)
 {
-  StampPreferences *self = STAMP_PREFERENCES (user_data);
   gboolean enabled = adw_switch_row_get_active (ADW_SWITCH_ROW (row));
-  g_print ("%s: changed to %d\n", G_STRFUNC, enabled);
 
   if (enabled) {
     StampSession *session = stamp_session_get_default ();

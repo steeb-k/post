@@ -79,7 +79,6 @@ on_folder_item_changed (GtkWidget *folder,
 {
   StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data);
 
-  g_print ("%s: ENTER\n", G_STRFUNC);
   g_signal_emit (self, signals[ACCOUNT_ITEM_CHANGED], 0);
 }
 
@@ -144,7 +143,6 @@ on_get_folder_info (GObject      *source,
   }
 
   if (folder_info) {
-    g_print ("%s: %s\n", G_STRFUNC, folder_info->full_name);
     show_info (self, folder_info);
     stamp_account_item_connect_to_account (self);
 
@@ -262,7 +260,6 @@ on_offline_store_folder_changed (CamelOfflineStore *store,
 {
   /* StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data); */
 
-  g_print ("%s: ENTER\n", G_STRFUNC);
   /* stamp_account_item_load (self); */
 }
 
@@ -298,7 +295,6 @@ on_offline_store_folder_created (CamelOfflineStore *store,
                                  CamelFolderInfo   *object,
                                  gpointer           user_data)
 {
-  g_print ("%s: folder %s\n", G_STRFUNC, object->full_name);
   /* on_offline_store_folder_changed (store, user_data); */
 }
 
@@ -311,7 +307,6 @@ on_offline_store_folder_deleted (CamelOfflineStore *store,
   const char *full_name = object->full_name;
   GListStore *list_store = stamp_item_get_list_store (STAMP_ITEM (self));
 
-  g_print ("%s: folder %s\n", G_STRFUNC, full_name);
   stamp_account_item_find_and_delete_item (self, list_store, full_name);
 }
 
@@ -319,7 +314,6 @@ static void
 on_offline_store_folder_info_stale (CamelOfflineStore *store,
                                     gpointer           user_data)
 {
-  g_print ("%s: ENTER\n", G_STRFUNC);
   on_offline_store_folder_changed (store, user_data);
 }
 
@@ -350,7 +344,6 @@ on_account_changed (StampSession *session,
   if (stamp_item_get_account (STAMP_ITEM (self)) != account)
     return;
 
-  g_print ("%s: ENTER %s", G_STRFUNC, stamp_account_get_name (account));
   stamp_item_set_name (STAMP_ITEM (self), stamp_account_get_name (account));
 }
 
@@ -514,7 +507,7 @@ refresh_folder_main (gpointer user_data)
     if (self->first_refresh) {
       self->first_refresh = FALSE;
       folder_item = find_priority_folder_item (self);
-      g_print ("%s: First refresh - looking for INBOX, found: %p\n", G_STRFUNC, folder_item);
+      g_debug ("%s: First refresh - looking for INBOX, found: %p", G_STRFUNC, folder_item);
     }
 
     /* If no priority folder found or not first refresh, use first in queue */
@@ -532,11 +525,11 @@ refresh_folder_main (gpointer user_data)
       self->refresh_queue_running = TRUE;
       stamp_item_set_loading (STAMP_ITEM (folder_item), TRUE);
 
-      g_print ("%s: Starting refresh for: %s\n", G_STRFUNC, camel_folder_get_display_name (folder));
+      g_debug ("%s: Starting refresh for: %s", G_STRFUNC, camel_folder_get_display_name (folder));
       camel_folder_refresh_info (folder, G_PRIORITY_DEFAULT, self->cancellable, on_refresh, self);
     }
   } else {
-    g_print ("%s: Refresh already running, queue updated for next iteration\n", G_STRFUNC);
+    g_debug ("%s: Refresh already running, queue updated for next iteration", G_STRFUNC);
   }
 
   return G_SOURCE_REMOVE;
@@ -607,7 +600,6 @@ stamp_account_item_constructed (GObject *object)
   mail_service = stamp_account_get_mail_service (stamp_item_get_account (STAMP_ITEM (self)));
   g_assert (mail_service);
 
-  g_print ("%s: Set name to %s\n", G_STRFUNC, stamp_account_get_name (stamp_item_get_account (STAMP_ITEM (self))));
   stamp_item_set_name (STAMP_ITEM (self), stamp_account_get_name (stamp_item_get_account (STAMP_ITEM (self))));
 
   stamp_item_set_list_store_type (STAMP_ITEM (self), STAMP_TYPE_FOLDER_ITEM);

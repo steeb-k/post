@@ -197,14 +197,12 @@ on_book_added (GObject              *source,
     g_autoptr (StampBookAccountItem) item = STAMP_BOOK_ACCOUNT_ITEM (g_list_model_get_item (model, idx));
 
     if (stamp_item_get_account (STAMP_ITEM (item)) == account) {
-      g_print ("%s: Account already added, abort\n", G_STRFUNC);
+      g_warning ("%s: Account already added, abort", G_STRFUNC);
       return;
     }
   }
 
-  g_print ("%s: Adding account\n", G_STRFUNC);
-
-  g_print ("%s: New book added %s\n", G_STRFUNC, e_source_get_display_name (stamp_contacts_service_get_source (service)));
+  g_debug ("%s: New book added %s", G_STRFUNC, e_source_get_display_name (stamp_contacts_service_get_source (service)));
   account_item = stamp_book_account_item_new (account);
   g_list_store_append (self->list_store, account_item);
 }

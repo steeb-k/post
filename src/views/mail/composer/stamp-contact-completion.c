@@ -184,7 +184,6 @@ on_key_pressed (GtkEventControllerKey  *controller,
 {
   gint selected, matches;
 
-  g_print ("%s: ENTER\n", G_STRFUNC);
   if (state & (GDK_SHIFT_MASK | GDK_ALT_MASK | GDK_CONTROL_MASK))
     return FALSE;
 
@@ -196,7 +195,6 @@ on_key_pressed (GtkEventControllerKey  *controller,
   if (keyval == GDK_KEY_BackSpace) {
     StampTag *tag;
 
-    g_print ("%s: BACKSPACE\n", G_STRFUNC);
     if (!self->receivers)
       return TRUE;
 
@@ -289,7 +287,6 @@ on_search_contacts (GObject      *source,
   g_autoptr (GPtrArray) array = NULL;
   GSList *contacts;
 
-  g_print ("%s: ENTER\n", G_STRFUNC);
   contacts = stamp_account_search_contacts_finish (self->account, NULL, res, &error);
   if (error) {
     g_warning ("%s: Could not search contacts: %s", G_STRFUNC, error->message);
@@ -594,6 +591,5 @@ void
 stamp_contact_completion_set_account (StampContactCompletion *self,
                                       StampAccount           *account)
 {
-  g_print ("%s: Account %s\n", G_STRFUNC, stamp_account_get_name (account));
   self->account = account;
 }

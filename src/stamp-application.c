@@ -341,7 +341,6 @@ stamp_application_show_message (GSimpleAction *action,
                                 gpointer       user_data)
 {
   StampWindow *window = stamp_get_main_window ();
-  const gchar *uid = g_variant_get_string (parameter, NULL);
 
   stamp_window_show_mail_view (window);
   /* TODO: Select folder and message? */

@@ -226,7 +226,6 @@ stamp_contact_row_bind_mail (StampContactRow  *self,
   token->instance_id = self->instance_id;
   token->generation = self->generation;
 
-  /* g_print ("%s: Mail %s %s\n", G_STRFUNC, mail, name); */
   if (mail) {
     stamp_account_get_photo (stamp_contact_list_get_account (list), mail, self->cancellable, on_get_photo, token);
   } else {
@@ -237,6 +236,5 @@ stamp_contact_row_bind_mail (StampContactRow  *self,
     name = mail;
 
   g_object_bind_property_full (list, "sort-mode", self->name, "text", G_BINDING_SYNC_CREATE, transfer_sort_mode_to, NULL, item, NULL);
-  /* gtk_inscription_set_text (GTK_INSCRIPTION (self->name), name); */
   adw_avatar_set_text (ADW_AVATAR (self->avatar), name);
 }

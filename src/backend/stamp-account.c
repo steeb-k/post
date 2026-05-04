@@ -313,7 +313,7 @@ stamp_account_search_contacts (StampAccount        *self,
   if (!book_client)
     return;
 
-  g_print ("%s: Query for %s in %s\n", G_STRFUNC, search_text, e_source_get_display_name (e_client_get_source (E_CLIENT (book_client))));
+  g_debug ("%s: Query for %s in %s", G_STRFUNC, search_text, e_source_get_display_name (e_client_get_source (E_CLIENT (book_client))));
 
   query[0] = e_book_query_field_test (E_CONTACT_EMAIL, E_BOOK_QUERY_CONTAINS, search_text);
   query[1] = e_book_query_field_test (E_CONTACT_FULL_NAME, E_BOOK_QUERY_CONTAINS, search_text);
@@ -452,7 +452,7 @@ on_book_client_ready (GObject      *src,
     if (service) {
       service->client = E_BOOK_CLIENT (client);
       service->enabled = TRUE;
-      g_print ("Book '%s' connected\n", e_source_get_display_name (service->source));
+      g_debug ("%s: Book '%s' connected", G_STRFUNC, e_source_get_display_name (service->source));
 
       /* TODO: Currently we are deleting everything once a book is connected due to the fact
        * that books are loaded async. Therefore it might have happen that an existing avatar
@@ -488,7 +488,7 @@ on_cal_client_ready (GObject      *src,
     if (service) {
       service->client = E_CAL_CLIENT (g_object_ref (client));
       service->enabled = TRUE;
-      g_print ("Calendar '%s' connected\n", e_source_get_display_name (service->source));
+      g_debug ("%s: Calendar '%s' connected", G_STRFUNC, e_source_get_display_name (service->source));
       g_signal_emit (ctx->account, signals[CALENDAR_ADDED], 0, ctx->account, service);
     } else {
       g_clear_object (&client);
@@ -718,11 +718,11 @@ stamp_account_init_async (StampAccount        *self,
   pending += self->calendars->len;
 
   if (pending == 0) {
-    g_print ("%s: No active services (%s)\n", G_STRFUNC, self->display_name);
+    g_debug ("%s: No active services (%s)", G_STRFUNC, self->display_name);
     g_task_return_boolean (task, TRUE);
     return;
   }
-  g_print ("%s: %d pending\n", G_STRFUNC, pending);
+  g_debug ("%s: %d pending", G_STRFUNC, pending);
 
   ctx = g_new0 (InitContext, 1);
   ctx->account = self;
@@ -739,7 +739,7 @@ stamp_account_init_async (StampAccount        *self,
     StampCalendarService *service = g_ptr_array_index (self->calendars, i);
 
     if (is_goa_disabled (self, service->source)) {
-      g_print ("%s: Calendar '%s' in account '%s' disabled\n", G_STRFUNC, e_source_get_display_name (service->source), self->display_name);
+      g_debug ("%s: Calendar '%s' in account '%s' disabled", G_STRFUNC, e_source_get_display_name (service->source), self->display_name);
       service->enabled = FALSE;
       g_mutex_lock (&ctx->lock);
       ctx->pending--;
@@ -747,7 +747,7 @@ stamp_account_init_async (StampAccount        *self,
       continue;
     }
 
-    g_print ("%s: Connecting to calendar '%s' in account '%s'\n", G_STRFUNC, e_source_get_display_name (service->source), self->display_name);
+    g_debug ("%s: Connecting to calendar '%s' in account '%s'", G_STRFUNC, e_source_get_display_name (service->source), self->display_name);
 #ifdef CALENDAR_ASYNC
     e_cal_client_connect (service->source, E_CAL_CLIENT_SOURCE_TYPE_EVENTS, 10, cancellable, on_cal_client_ready, ctx);
 #else
@@ -760,7 +760,7 @@ stamp_account_init_async (StampAccount        *self,
       } else {
         service->client = E_CAL_CLIENT (g_object_ref (client));
         service->enabled = TRUE;
-        g_print ("Calendar '%s' connected\n", e_source_get_display_name (service->source));
+        g_debug ("Calendar '%s' connected", e_source_get_display_name (service->source));
         g_signal_emit (ctx->account, signals[CALENDAR_ADDED], 0, ctx->account, service);
       }
       init_context_finish_one (ctx);
@@ -774,14 +774,14 @@ stamp_account_init_async (StampAccount        *self,
 
     enabled = !is_goa_disabled (self, service->source);
     if (!enabled) {
-      g_print ("%s: Address book '%s' in account '%s' disabled\n", G_STRFUNC, e_source_get_display_name (service->source), self->display_name);
+      g_debug ("%s: Address book '%s' in account '%s' disabled", G_STRFUNC, e_source_get_display_name (service->source), self->display_name);
       service->enabled = FALSE;
       g_mutex_lock (&ctx->lock);
       ctx->pending--;
       g_mutex_unlock (&ctx->lock);
       continue;
     }
-    g_print ("%s: Address book '%s' in account '%s' enabled\n", G_STRFUNC, e_source_get_display_name (service->source), self->display_name);
+    g_debug ("%s: Address book '%s' in account '%s' enabled", G_STRFUNC, e_source_get_display_name (service->source), self->display_name);
 
     e_book_client_connect (service->source, 10, cancellable, on_book_client_ready, ctx);
   }
@@ -822,13 +822,13 @@ stamp_account_contacts_changed (StampAccount *self,
     return;
 
   if (!enabled && cal->client) {
-    g_print ("%s: Address book '%s' from '%s' disabled\n", G_STRFUNC, e_source_get_display_name (source), self->display_name);
+    g_debug ("%s: Address book '%s' from '%s' disabled\n", G_STRFUNC, e_source_get_display_name (source), self->display_name);
     g_ptr_array_remove (self->address_books, cal);
     g_signal_emit (self, signals[BOOK_REMOVED], 0, self, cal);
     e_client_cancel_all (E_CLIENT (cal->client));
     g_clear_object (&cal->client);
   } else if (enabled && !cal->client) {
-    g_print ("%s: Address book '%s' from '%s' enabled\n", G_STRFUNC, e_source_get_display_name (source), self->display_name);
+    g_debug ("%s: Address book '%s' from '%s' enabled\n", G_STRFUNC, e_source_get_display_name (source), self->display_name);
 
     e_book_client_connect (source, 10, NULL, on_cal_client_ready, self);
   }
@@ -841,13 +841,13 @@ stamp_account_mail_changed (StampAccount *self,
   gboolean enabled = e_source_get_enabled (source);
 
   if (!enabled) {
-    g_print ("%s: Mail '%s' from '%s' disabled\n", G_STRFUNC, e_source_get_display_name (source), self->display_name);
+    g_debug ("%s: Mail '%s' from '%s' disabled\n", G_STRFUNC, e_source_get_display_name (source), self->display_name);
     g_signal_emit (self, signals[MAIL_REMOVED], 0, self, self->mail);
     camel_service_disconnect_sync (self->mail->service, TRUE, NULL, NULL);
     g_clear_object (&self->mail->service);
     g_clear_object (&self->mail->transport);
   } else if (enabled) {
-    g_print ("%s: Mail '%s' from '%s' enabled\n", G_STRFUNC, e_source_get_display_name (source), self->display_name);
+    g_debug ("%s: Mail '%s' from '%s' enabled\n", G_STRFUNC, e_source_get_display_name (source), self->display_name);
     stamp_account_enable_mail (self);
     g_signal_emit (self, signals[MAIL_ADDED], 0, self, self->mail->service);
   }
@@ -880,7 +880,6 @@ stamp_account_add_mail_identity (StampAccount *self,
   const char *name = e_source_mail_identity_get_name (identity);
   const char *address = e_source_mail_identity_get_address (identity);
 
-  g_print ("%s: Setting own address to %s / %s\n", G_STRFUNC, name, address);
   if (!self->mail)
     self->mail = g_new0 (StampMailService, 1);
 
@@ -917,15 +916,12 @@ stamp_account_append_to_sent_folder (StampAccount      *self,
     return;
   }
 
-  g_print ("%s: Append to sent folder %s\n", G_STRFUNC, camel_folder_get_display_name (sent_folder));
   info = camel_message_info_new (NULL);
   camel_message_info_set_flags (info, CAMEL_MESSAGE_SEEN, CAMEL_MESSAGE_SEEN);
 
   ok = camel_folder_append_message_sync (sent_folder, message, info, NULL, cancellable, error);
   if (ok)
     camel_folder_synchronize_sync (sent_folder, FALSE, cancellable, NULL);
-
-  g_print ("%s: EXIT\n", G_STRFUNC);
 }
 
 gpointer
@@ -1114,7 +1110,6 @@ stamp_account_save_draft (StampAccount         *self,
   camel_folder_append_message_sync (self->mail->drafts_folder, message, info, &uid, NULL, NULL);
 
   if (draft_uid) {
-    g_print ("%s: Previous draft, removing old one %s\n", G_STRFUNC, draft_uid);
     camel_folder_delete_message (self->mail->drafts_folder, draft_uid);
     camel_folder_refresh_info_sync (self->mail->drafts_folder, NULL, NULL);
     camel_folder_expunge_sync (self->mail->drafts_folder, NULL, &error);

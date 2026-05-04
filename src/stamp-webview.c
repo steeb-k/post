@@ -159,7 +159,6 @@ on_load_changed (WebKitWebView   *web_view,
 {
   StampWebView *self = STAMP_WEB_VIEW (user_data);
 
-  g_print ("%s: ENTER\n", G_STRFUNC);
   g_signal_emit (self, signals[LOADED], 0, load_event == WEBKIT_LOAD_FINISHED);
 
   if (load_event == WEBKIT_LOAD_FINISHED) {
@@ -621,7 +620,6 @@ stamp_webview_set_editable (StampWebView *self)
   /* if (error) */
   /*   g_warning ("%s: Could not load css: %s", G_STRFUNC, error->message); */
 
-  /* g_print ("%s: %s\n", G_STRFUNC, (char *)g_bytes_get_data (css, NULL)); */
   /* WebKitUserStyleSheet *style_sheet = webkit_user_style_sheet_new (g_bytes_get_data (css, NULL), WEBKIT_USER_CONTENT_INJECT_ALL_FRAMES, WEBKIT_USER_STYLE_LEVEL_USER, NULL, NULL); */
   /* WebKitUserContentManager *manager = webkit_web_view_get_user_content_manager (WEBKIT_WEB_VIEW (self)); */
   /* webkit_user_content_manager_add_style_sheet (manager, style_sheet); */

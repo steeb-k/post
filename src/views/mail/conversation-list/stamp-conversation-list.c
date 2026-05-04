@@ -164,7 +164,6 @@ on_conversation_list_folder_changed (CamelFolder           *folder,
 
       message_info = camel_folder_summary_get (camel_folder_get_folder_summary (folder), uid);
 
-      g_print ("%s: %p\n", G_STRFUNC, item);
       if (item)
         stamp_conversation_item_update (item, message_info);
     }
@@ -1656,7 +1655,6 @@ stamp_conversation_list_mark_unflag_selected_messages (StampConversationList *se
   CamelFolderThreadNode *node;
 
   node = stamp_conversation_item_get_node (item);
-  g_print ("%s: Marking %s as unflagged\n", G_STRFUNC, stamp_conversation_item_get_subject (item));
   camel_message_info_set_flags (CAMEL_MESSAGE_INFO (camel_folder_thread_node_get_item (node)), CAMEL_MESSAGE_FLAGGED, 0);
 }
 
@@ -1667,7 +1665,6 @@ stamp_conversation_list_mark_flag_selected_messages (StampConversationList *self
   CamelFolderThreadNode *node;
 
   node = stamp_conversation_item_get_node (item);
-  g_print ("%s: Marking %s as flagged\n", G_STRFUNC, stamp_conversation_item_get_subject (item));
   camel_message_info_set_flags (CAMEL_MESSAGE_INFO (camel_folder_thread_node_get_item (node)), CAMEL_MESSAGE_FLAGGED, ~0);
 }
 
