@@ -252,13 +252,15 @@ template $StampComposer: Adw.ApplicationWindow {
         }
       }
 
-      ScrolledWindow {
-        hscrollbar-policy: never;
-        propagate-natural-height: true;
+      Adw.ToastOverlay toast_overlay {
+        child: ScrolledWindow {
+          hscrollbar-policy: never;
+          propagate-natural-height: true;
 
-        child: Adw.Bin webview_bin {
-          hexpand: true;
-          vexpand: true;
+          child: Adw.Bin webview_bin {
+            hexpand: true;
+            vexpand: true;
+          };
         };
       }
     };

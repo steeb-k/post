@@ -62,6 +62,7 @@ struct _StampComposer {
   CamelMimeMessage *orig_message;
   char *draft_uid;
   GSimpleActionGroup *actions;
+  AdwToastOverlay *toast_overlay;
 
   GList *attachments;
   StampAccount *account;
@@ -303,8 +304,15 @@ on_send_mail (GObject      *account,
   g_autoptr (GError) error = NULL;
 
   if (!stamp_account_send_mail_finish (STAMP_ACCOUNT (account), res, &error)) {
-    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
-      g_warning ("Failed to send mail: %s", error->message);
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+      g_autofree char *tmp = g_strdup_printf (_("Failed to send mail: %s"), error->message);
+      AdwToast *toast;
+
+      g_warning ("%s", tmp);
+      toast = adw_toast_new (tmp);
+      adw_toast_overlay_add_toast (self->toast_overlay, toast);
+      gtk_widget_set_sensitive (self->send_button, TRUE);
+    }
     return;
   }
 
@@ -1194,6 +1202,7 @@ stamp_composer_class_init (StampComposerClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampComposer, smime_encrypt);
   gtk_widget_class_bind_template_child (widget_class, StampComposer, security_menu);
   gtk_widget_class_bind_template_child (widget_class, StampComposer, toggle);
+  gtk_widget_class_bind_template_child (widget_class, StampComposer, toast_overlay);
 
   gtk_widget_class_bind_template_callback (widget_class, on_close_button_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_close_request);
