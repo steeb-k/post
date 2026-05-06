@@ -1157,6 +1157,8 @@ stamp_composer_dispose (GObject *object)
   g_cancellable_cancel (self->cancellable);
   g_clear_object (&self->cancellable);
 
+  g_clear_object (&self->orig_message);
+
   g_cancellable_cancel (self->cancellable);
   g_clear_object (&self->cancellable);
 
@@ -1289,7 +1291,7 @@ stamp_composer_set_quote_content (StampComposer          *self,
   const char *subject = camel_message_info_get_subject (info);
 
   self->type = type;
-  self->orig_message = message;
+  self->orig_message = g_object_ref (message);
 
   if (subject) {
     g_autofree char *new_subject = NULL;
