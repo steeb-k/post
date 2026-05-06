@@ -62,15 +62,21 @@ static GParamSpec *properties[LAST_PROP];
 const char *
 stamp_conversation_item_get_subject (StampConversationItem *self)
 {
-  const CamelMessageInfo *info = camel_folder_thread_node_get_item (self->thread_node);
+  if (!self->subject) {
+    const CamelMessageInfo *info = NULL;
 
-  if (self->subject)
-    return self->subject;
+    for (CamelFolderThreadNode *child = camel_folder_thread_node_get_child (self->thread_node); child; child = camel_folder_thread_node_get_next (child)) {
+      info = camel_folder_thread_node_get_item (child);
+    }
 
-  if (!info)
-    return _("Unknown");
+    if (!info)
+      info = camel_folder_thread_node_get_item (self->thread_node);
 
-  self->subject = g_strdup (camel_message_info_get_subject (info));
+    if (!info)
+      return _("Unknown");
+
+    self->subject = g_strdup (camel_message_info_get_subject (info));
+  }
 
   return self->subject;
 }
