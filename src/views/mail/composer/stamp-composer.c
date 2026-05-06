@@ -748,13 +748,6 @@ load_from_combobox (StampComposer *self)
     if (!service || !stamp_mail_service_get_enabled (service))
       continue;
 
-    camel_internet_address_get (addresses, 0, &name, &mail);
-    from = stamp_composer_from_new (account, name, mail);
-
-    g_list_store_append (store, from);
-    if (!self->composer_from)
-      stamp_composer_set_composer_from (self, from);
-
     aliases = stamp_mail_service_get_aliases (service);
     if (aliases) {
       GList *mails = g_hash_table_get_keys (aliases);
@@ -765,9 +758,18 @@ load_from_combobox (StampComposer *self)
 
         from = stamp_composer_from_new (account, name, mail);
         g_list_store_append (store, from);
-      }
 
+        if (!self->composer_from)
+          stamp_composer_set_composer_from (self, from);
+      }
       g_list_free (mails);
+    } else {
+      camel_internet_address_get (addresses, 0, &name, &mail);
+      from = stamp_composer_from_new (account, name, mail);
+
+      g_list_store_append (store, from);
+      if (!self->composer_from)
+        stamp_composer_set_composer_from (self, from);
     }
   }
 
