@@ -39,7 +39,7 @@ template $StampMessageListItem: ListBoxRow {
             }
 
             Adw.Banner blocked_images_banner {
-              title: _("This message contains remote images.");
+              title: _("This message contains remote images");
               button-label: _("Show");
               button-clicked => $on_show_images();
               revealed: false;
@@ -96,7 +96,7 @@ template $StampMessageListItem: ListBoxRow {
             }
 
             Adw.Banner unsubscribe_banner {
-              title: _("This mailing list supports one-click unsubscribe.");
+              title: _("This mailing list supports one-click unsubscribe");
               button-label: _("Unsubscribe");
               button-clicked => $on_unsubscribe();
               revealed: false;

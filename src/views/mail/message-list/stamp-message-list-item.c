@@ -116,7 +116,7 @@ open_message (StampMessageListItem *self,
     g_autofree char *tmp = NULL;
 
     self->disposition_notification_to = g_strdup (address);
-    tmp = g_strdup_printf (_("Sender %s wants a read receipt."), self->disposition_notification_to);
+    tmp = g_strdup_printf (_("Sender %s wants a read receipt"), self->disposition_notification_to);
     adw_banner_set_title (ADW_BANNER (self->disposition_banner), tmp);
 
     adw_banner_set_revealed (ADW_BANNER (self->disposition_banner), TRUE);
@@ -125,7 +125,7 @@ open_message (StampMessageListItem *self,
   if (auth_as && g_strcmp0 (auth_as, "Internal") != 0) {
     g_autofree char *tmp = NULL;
 
-    tmp = g_strdup_printf (_("The sender is not part of your organization."));
+    tmp = g_strdup_printf (_("The sender is not part of your organization"));
     adw_banner_set_title (ADW_BANNER (self->external_sender_banner), tmp);
 
     adw_banner_set_revealed (ADW_BANNER (self->external_sender_banner), TRUE);
