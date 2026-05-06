@@ -64,6 +64,7 @@ struct _StampConversationList {
   GtkWidget *mail_list_stack;
   GtkBitset *selected;
   GtkToggleButton *sidebar_button;
+  GtkBox *sort_is_active;
 
   GListStore *list_store;
   GtkSingleSelection *single_selection;
@@ -1234,6 +1235,7 @@ stamp_conversation_list_class_init (StampConversationListClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, sort_button);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, mail_list_stack);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, sidebar_button);
+  gtk_widget_class_bind_template_child (widget_class, StampConversationList, sort_is_active);
 
   gtk_widget_class_bind_template_callback (widget_class, on_mail_search_entry_changed);
   gtk_widget_class_bind_template_callback (widget_class, on_new_message);
@@ -1386,6 +1388,8 @@ on_filter_activate (GSimpleAction *action,
     self->filter_mode = FILTER_MODE_ATTACHMENT;
   else if (g_strcmp0 (value, "unread") == 0)
     self->filter_mode = FILTER_MODE_UNREAD;
+
+  gtk_widget_set_visible (GTK_WIDGET (self->sort_is_active), g_strcmp0 (value, "all-mails") != 0);
 
   if (self->filter)
     gtk_filter_changed (self->filter, GTK_FILTER_CHANGE_DIFFERENT);

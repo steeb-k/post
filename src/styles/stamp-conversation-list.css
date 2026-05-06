@@ -6,3 +6,10 @@
 .fab.normal {
   background-color: grey;
 }
+
+.circle-overlay {
+    border-radius: 50px;
+    background-color: var(--accent-bg-color);
+    padding: 4px;
+}
+

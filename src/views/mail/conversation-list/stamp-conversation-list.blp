@@ -53,9 +53,26 @@ template $StampConversationList: Adw.Bin {
         }
 
         [end]
-        MenuButton sort_button {
-          icon-name: "sort-order-symbolic";
-          tooltip-text: _("Sort Order");
+        Overlay {
+          [overlay]
+          Box sort_is_active {
+            halign: end;
+            valign: start;
+            margin-end: 5;
+            margin-top: 5;
+            can-focus: false;
+            can-target: false;
+            visible: false;
+
+            styles [
+              "circle-overlay",
+            ]
+          }
+
+          child: MenuButton sort_button {
+            icon-name: "sort-order-symbolic";
+            tooltip-text: _("Sort Order");
+          };
         }
       }
 
