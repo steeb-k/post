@@ -1730,6 +1730,9 @@ stamp_conversation_list_trash (StampConversationList *self,
     if (!item)
       item = STAMP_CONVERSATION_ITEM (gtk_single_selection_get_selected_item (GTK_SINGLE_SELECTION (self->single_selection)));
 
+    if (!item)
+      return;
+
     g_ptr_array_add (node_array, item);
   }
 
