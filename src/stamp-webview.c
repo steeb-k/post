@@ -614,15 +614,7 @@ stamp_web_view_changed (StampWebView *self)
 void
 stamp_webview_set_editable (StampWebView *self)
 {
-  /* g_autoptr (GError) error = NULL; */
-  /* g_autoptr (GBytes) css = g_resources_lookup_data("/org/tabos/stamp/views/mail/composer/stamp-composer.css", G_RESOURCE_LOOKUP_FLAGS_NONE, &error); */
-
-  /* if (error) */
-  /*   g_warning ("%s: Could not load css: %s", G_STRFUNC, error->message); */
-
-  /* WebKitUserStyleSheet *style_sheet = webkit_user_style_sheet_new (g_bytes_get_data (css, NULL), WEBKIT_USER_CONTENT_INJECT_ALL_FRAMES, WEBKIT_USER_STYLE_LEVEL_USER, NULL, NULL); */
-  /* WebKitUserContentManager *manager = webkit_web_view_get_user_content_manager (WEBKIT_WEB_VIEW (self)); */
-  /* webkit_user_content_manager_add_style_sheet (manager, style_sheet); */
+  webkit_web_view_set_editable (WEBKIT_WEB_VIEW (self), TRUE);
 }
 
 void
