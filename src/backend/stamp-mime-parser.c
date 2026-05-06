@@ -606,6 +606,7 @@ process_signature_validation (StampMimeParser     *parser,
       g_ptr_array_add (signers, g_strdup (info->email ? info->email : ""));
     }
 
+    g_ptr_array_add (signers, NULL);
     parser->validation->signers = (char **)g_ptr_array_free (signers, FALSE);
     parser->validation->n_signers = signer_list->length;
   } else {
