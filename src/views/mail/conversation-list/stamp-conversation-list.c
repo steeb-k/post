@@ -695,13 +695,25 @@ on_released (GtkEventController *controller,
 }
 
 static void
+update_selection_title (StampConversationList *self)
+{
+  guint n_selected = gtk_bitset_get_size (self->selected);
+  char buf[64];
+
+  g_snprintf (buf, sizeof buf, _("%u selected"), n_selected);
+
+  adw_window_title_set_title (ADW_WINDOW_TITLE (self->selection_label), buf);
+}
+
+static void
 set_selection_active (StampConversationList *self,
                       gboolean               selection_active)
 {
   self->selection_mode = selection_active;
 
-  /* gtk_widget_set_visible (self->listview, FALSE); */
   if (self->selection_mode) {
+    gtk_bitset_remove_all (self->selected);
+    update_selection_title (self);
     gtk_stack_set_visible_child (GTK_STACK (self->header_stack), self->selection_headerbar);
     gtk_list_view_set_model (GTK_LIST_VIEW (self->listview), GTK_SELECTION_MODEL (self->multi_selection));
   } else {
@@ -709,7 +721,6 @@ set_selection_active (StampConversationList *self,
     gtk_list_view_set_model (GTK_LIST_VIEW (self->listview), GTK_SELECTION_MODEL (self->single_selection));
     stamp_conversation_list_unselect (self);
   }
-  /* gtk_widget_set_visible (self->listview, TRUE); */
 
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_STATE]);
 }
@@ -733,17 +744,6 @@ refresh_checkboxes (StampConversationList *self)
     gtk_check_button_set_active (GTK_CHECK_BUTTON (check),
                                  gtk_bitset_contains (self->selected, pos));
   }
-}
-
-static void
-update_selection_title (StampConversationList *self)
-{
-  guint n_selected = gtk_bitset_get_size (self->selected);
-  char buf[64];
-
-  g_snprintf (buf, sizeof buf, _("%u selected"), n_selected);
-
-  adw_window_title_set_title (ADW_WINDOW_TITLE (self->selection_label), buf);
 }
 
 static void
