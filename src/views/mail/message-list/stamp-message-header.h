@@ -41,5 +41,9 @@ void
 stamp_message_header_set_collapsed (StampMessageHeader *self,
                                     gboolean            collapsed);
 
+void
+stamp_message_header_set_extern (StampMessageHeader *self,
+                                 gboolean            is_extern);
+
 G_END_DECLS
 

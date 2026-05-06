@@ -52,7 +52,6 @@ struct _StampMessageListItem {
   GtkWidget *stack;
   GtkWidget *attachment_flow_box;
   GtkWidget *disposition_banner;
-  GtkWidget *external_sender_banner;
   AdwBanner *unsubscribe_banner;
 
 
@@ -122,14 +121,7 @@ open_message (StampMessageListItem *self,
     adw_banner_set_revealed (ADW_BANNER (self->disposition_banner), TRUE);
   }
 
-  if (auth_as && g_strcmp0 (auth_as, "Internal") != 0) {
-    g_autofree char *tmp = NULL;
-
-    tmp = g_strdup_printf (_("The sender is not part of your organization"));
-    adw_banner_set_title (ADW_BANNER (self->external_sender_banner), tmp);
-
-    adw_banner_set_revealed (ADW_BANNER (self->external_sender_banner), TRUE);
-  }
+  stamp_message_header_set_extern (STAMP_MESSAGE_HEADER (self->header), auth_as && g_strcmp0 (auth_as, "Internal") != 0);
 
   parser = stamp_mime_parser_new (message, CAMEL_SESSION (stamp_session_get_default ()), self->cancellable);
   stamp_mime_parser_parse (parser);
@@ -667,7 +659,6 @@ stamp_message_list_item_class_init (StampMessageListItemClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, web_view);
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, secondary_revealer);
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, attachment_flow_box);
-  gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, external_sender_banner);
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, unsubscribe_banner);
 
   gtk_widget_class_bind_template_callback (widget_class, on_header_clicked);

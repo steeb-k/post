@@ -34,14 +34,30 @@ template $StampMessageHeader: Grid {
       column-span: 2;
     }
 
-    Label from_full {
-      visible: bind template.collapsed inverted;
-      label: _("Unknown Sender");
-      use-markup: true;
+    Box {
       hexpand: true;
-      ellipsize: end;
-      xalign: 0;
-      valign: baseline_fill;
+      spacing: 6;
+
+      Label from_full {
+        visible: bind template.collapsed inverted;
+        label: _("Unknown Sender");
+        use-markup: true;
+        ellipsize: end;
+        xalign: 0;
+        valign: fill;
+      }
+
+      Label external {
+        label: _("External");
+        tooltip-text: _("The sender is not part of your organization");
+        visible: false;
+        valign: center;
+
+        styles [
+          "message-header-external-pill",
+          "warning",
+        ]
+      }
     }
 
     Image attachment_icon {
