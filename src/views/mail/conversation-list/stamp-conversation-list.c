@@ -714,23 +714,6 @@ set_selection_active (StampConversationList *self,
 }
 
 static void
-on_long_press_pressed (GtkGestureLongPress *controller,
-                       gdouble              x,
-                       gdouble              y,
-                       gpointer             user_data)
-{
-  RowData *row_data = g_object_get_data (G_OBJECT (controller), "row-data");
-  StampConversationList *self = STAMP_CONVERSATION_LIST (row_data->self);
-  guint position = gtk_list_item_get_position (row_data->list_item);
-  GtkSelectionModel *model;
-
-  set_selection_active (self, TRUE);
-  model = gtk_list_view_get_model (GTK_LIST_VIEW (row_data->self->listview));
-
-  gtk_selection_model_select_item (model, position, TRUE);
-}
-
-static void
 on_selection_changed (GtkCheckButton *check,
                       GParamSpec     *pspec,
                       GtkListItem    *list_item);
@@ -760,6 +743,23 @@ update_selection_title (StampConversationList *self)
   g_snprintf (buf, sizeof buf, _("%u selected"), n_selected);
 
   adw_window_title_set_title (ADW_WINDOW_TITLE (self->selection_label), buf);
+}
+
+static void
+on_long_press_pressed (GtkGestureLongPress *controller,
+                       gdouble              x,
+                       gdouble              y,
+                       gpointer             user_data)
+{
+  RowData *row_data = g_object_get_data (G_OBJECT (controller), "row-data");
+  StampConversationList *self = STAMP_CONVERSATION_LIST (row_data->self);
+  guint position = gtk_list_item_get_position (row_data->list_item);
+
+  set_selection_active (self, TRUE);
+
+  gtk_bitset_add (self->selected, position);
+  update_selection_title (self);
+  refresh_checkboxes (self);
 }
 
 static void
