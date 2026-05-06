@@ -143,12 +143,15 @@ on_conversation_selected (GtkWidget *object,
 }
 
 static void
-on_dismiss_button_clicked (AdwToast *toast,
-                           gpointer  user_data)
+trash (StampMailView         *self,
+       StampConversationItem *item)
 {
-  StampMailView *self = STAMP_MAIL_VIEW (user_data);
+  AdwToast *toast;
 
-  stamp_conversation_list_undo_trash (self->conversation_list);
+  stamp_conversation_list_trash (self->conversation_list, item);
+
+  toast = adw_toast_new (_("Conversations moved to trash"));
+  adw_toast_overlay_add_toast (self->toast_overlay, toast);
 }
 
 static void
@@ -157,14 +160,8 @@ on_conversation_trash (GtkWidget             *object,
                        gpointer               user_data)
 {
   StampMailView *self = STAMP_MAIL_VIEW (user_data);
-  AdwToast *toast;
 
-  stamp_conversation_list_trash (self->conversation_list, item);
-
-  toast = adw_toast_new (_("Conversations moved to trash"));
-  adw_toast_set_button_label (toast, _("Undo"));
-  g_signal_connect (toast, "button-clicked", G_CALLBACK (on_dismiss_button_clicked), self);
-  adw_toast_overlay_add_toast (self->toast_overlay, toast);
+  trash (self, item);
 }
 
 static void
@@ -307,14 +304,8 @@ on_trash (GSimpleAction *action,
           gpointer       user_data)
 {
   StampMailView *self = STAMP_MAIL_VIEW (user_data);
-  AdwToast *toast;
 
-  stamp_conversation_list_trash (self->conversation_list, NULL);
-
-  toast = adw_toast_new (_("Conversations moved to trash"));
-  adw_toast_set_button_label (toast, _("Undo"));
-  g_signal_connect (toast, "button-clicked", G_CALLBACK (on_dismiss_button_clicked), self);
-  adw_toast_overlay_add_toast (self->toast_overlay, toast);
+  trash (self, NULL);
 }
 
 static void
