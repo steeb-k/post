@@ -831,6 +831,7 @@ on_setup_selected (GtkSignalListItemFactory *f,
   GtkWidget *name;
 
   name = gtk_label_new (NULL);
+  gtk_label_set_ellipsize (GTK_LABEL (name), PANGO_ELLIPSIZE_END);
   gtk_list_item_set_child (item, name);
 }
 
@@ -842,8 +843,11 @@ on_bind_selected (GtkSignalListItemFactory *f,
   StampComposerFrom *from = STAMP_COMPOSER_FROM (gtk_list_item_get_item (item));
   GtkWidget *name = gtk_list_item_get_child (item);
   const char *name_str = stamp_composer_from_get_name (from);
+  const char *mail_str = stamp_composer_from_get_mail (from);
+  g_autofree char *label = g_strdup_printf ("%s <%s>", name_str, mail_str);
 
-  gtk_label_set_text (GTK_LABEL (name), name_str);
+  gtk_widget_set_tooltip_text (name, label);
+  gtk_label_set_text (GTK_LABEL (name), label);
 }
 
 static void
