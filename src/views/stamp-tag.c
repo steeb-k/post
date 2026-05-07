@@ -286,6 +286,7 @@ stamp_tag_set_mail (StampTag   *self,
   self->cancellable = g_cancellable_new ();
 
   gtk_label_set_text (self->popover_email, mail);
+  gtk_widget_set_tooltip_text (GTK_WIDGET (self), mail);
 }
 
 const char *
