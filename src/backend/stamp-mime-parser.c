@@ -997,11 +997,11 @@ parse_list_unsubscribe (StampMimeParser *parser)
 
   list_unsubscribe_post = camel_medium_get_header (CAMEL_MEDIUM (parser->message), "List-Unsubscribe-Post");
   if (list_unsubscribe_post && g_str_equal (list_unsubscribe_post, "List-Unsubscribe=One-Click")) {
-    char *url_start = strchr (list_unsubscribe, '<');
+    char *url_start = strstr (list_unsubscribe, "<http");
     char *url_end = url_start ? strchr (url_start, '>') : NULL;
 
     if (url_start && url_end) {
-      url_start++;
+      url_start += 1;
       parser->list_unsubscribe = stamp_mime_list_unsubscribe_new ();
       parser->list_unsubscribe->url = g_strndup (url_start, url_end - url_start);
       parser->list_unsubscribe->one_click = TRUE;

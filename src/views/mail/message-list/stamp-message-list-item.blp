@@ -87,17 +87,6 @@ template $StampMessageListItem: ListBoxRow {
               ]
             }
 
-            Adw.Banner unsubscribe_banner {
-              title: _("This mailing list supports one-click unsubscribe");
-              button-label: _("Unsubscribe");
-              button-clicked => $on_unsubscribe();
-              revealed: false;
-
-              styles [
-                "message-header-banner",
-              ]
-            }
-
             Adw.WrapBox attachment_flow_box {
               visible: false;
             }

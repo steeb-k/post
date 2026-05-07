@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Jan-Michael Brummer
+ * Copyright 2025-2026 Jan-Michael Brummer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,5 +56,11 @@ stamp_message_list_print (StampMessageList *self,
 void
 stamp_message_list_view_source (StampMessageList *self,
                                 GVariant         *parameter);
+
+void
+stamp_message_list_set_unsubscribe (StampMessageList *self,
+                                    const char       *sender,
+                                    const char       *url,
+                                    CamelMimeMessage *message);
 
 G_END_DECLS

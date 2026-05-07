@@ -52,8 +52,6 @@ struct _StampMessageListItem {
   GtkWidget *stack;
   GtkWidget *attachment_flow_box;
   GtkWidget *disposition_banner;
-  AdwBanner *unsubscribe_banner;
-
 
   StampWebView *web_view;
   StampAccount *account;
@@ -64,7 +62,6 @@ struct _StampMessageListItem {
   char *signature_details;
   CamelCipherValiditySign signature_status;
   char *disposition_notification_to;
-  StampMimeListUnsubscribe *list_unsubscribe;
   gboolean message_is_html;
   gboolean expanded;
   gboolean message_loaded;
@@ -178,10 +175,9 @@ open_message (StampMessageListItem *self,
 
   list_unsubscribe = stamp_mime_parser_get_list_unsubscribe (parser);
   if (list_unsubscribe && list_unsubscribe->one_click) {
-    self->list_unsubscribe = g_new0 (StampMimeListUnsubscribe, 1);
-    self->list_unsubscribe->url = g_strdup (list_unsubscribe->url);
-    self->list_unsubscribe->one_click = list_unsubscribe->one_click;
-    adw_banner_set_revealed (self->unsubscribe_banner, TRUE);
+    StampMessageList *message_list = STAMP_MESSAGE_LIST (gtk_widget_get_ancestor (GTK_WIDGET (self), STAMP_TYPE_MESSAGE_LIST));
+
+    stamp_message_list_set_unsubscribe (message_list, camel_message_info_get_from (self->message_info), list_unsubscribe->url, self->message);
   }
 
   body = stamp_mime_parser_get_body (parser);
@@ -551,45 +547,6 @@ on_rsvp (AdwBanner *banner,
 }
 
 static void
-on_unsubscribe_response (GtkWidget *dialog,
-                         char      *response,
-                         gpointer   user_data)
-{
-  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
-
-  if (g_strcmp0 (response, "confirm") == 0) {
-    g_autoptr (StampMimeParser) parser = NULL;
-
-    parser = stamp_mime_parser_new (self->message, CAMEL_SESSION (stamp_session_get_default ()), self->cancellable);
-    stamp_mime_parser_parse (parser);
-    stamp_mime_parser_send_unsubscribe (parser, self->cancellable);
-    adw_banner_set_revealed (ADW_BANNER (self->unsubscribe_banner), FALSE);
-  }
-}
-
-static void
-on_unsubscribe (AdwBanner *banner,
-                gpointer   user_data)
-{
-  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
-  AdwDialog *dialog;
-  const char *sender = camel_message_info_get_from (self->message_info);
-  g_autofree char *body = g_strdup_printf (_("Are you sure you want to unsubscribe from the mailing list?\n\nSender: %s\nUnsubscribe URL: %s"), sender, self->list_unsubscribe->url);
-
-  dialog = adw_alert_dialog_new (_("Unsubscribe"), body);
-
-  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "cancel", _("Cancel"));
-  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "confirm", _("Unsubscribe"));
-  adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "confirm", ADW_RESPONSE_DESTRUCTIVE);
-
-  adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "cancel");
-  adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "cancel");
-  g_signal_connect (dialog, "response", G_CALLBACK (on_unsubscribe_response), self);
-
-  adw_dialog_present (dialog, GTK_WIDGET (self));
-}
-
-static void
 on_loaded (GtkWidget *web_view,
            gboolean   loaded,
            gpointer   user_data)
@@ -618,11 +575,6 @@ stamp_message_list_item_dispose (GObject *object)
   g_clear_pointer (&self->message_content, g_free);
   g_clear_pointer (&self->signature_details, g_free);
   g_clear_pointer (&self->disposition_notification_to, g_free);
-
-  if (self->list_unsubscribe) {
-    g_clear_pointer (&self->list_unsubscribe->url, g_free);
-    g_clear_pointer (&self->list_unsubscribe, g_free);
-  }
 
   g_clear_object (&self->message);
   g_clear_object (&self->calendar);
@@ -659,7 +611,6 @@ stamp_message_list_item_class_init (StampMessageListItemClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, web_view);
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, secondary_revealer);
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, attachment_flow_box);
-  gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, unsubscribe_banner);
 
   gtk_widget_class_bind_template_callback (widget_class, on_header_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_show_images);
@@ -669,7 +620,6 @@ stamp_message_list_item_class_init (StampMessageListItemClass *klass)
   gtk_widget_class_bind_template_callback (widget_class, on_loaded);
   gtk_widget_class_bind_template_callback (widget_class, on_mouse_target_changed);
   gtk_widget_class_bind_template_callback (widget_class, on_send_disposition);
-  gtk_widget_class_bind_template_callback (widget_class, on_unsubscribe);
 
   gobject_class->dispose = stamp_message_list_item_dispose;
 

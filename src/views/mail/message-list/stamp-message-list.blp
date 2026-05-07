@@ -123,15 +123,32 @@ template $StampMessageList: Adw.BreakpointBin {
                           "message-list-conversation",
                         ]
 
-                        Label message_title {
-                          xalign: 0;
-                          wrap: true;
-                          wrap-mode: word_char;
-                          selectable: true;
+                        Box {
+                          orientation: horizontal;
+                          spacing: 12;
 
-                          styles [
-                            "title-2",
-                          ]
+                          Label message_title {
+                            xalign: 0;
+                            wrap: true;
+                            wrap-mode: word_char;
+                            selectable: true;
+                            hexpand: true;
+
+                            styles [
+                              "title-2",
+                            ]
+                          }
+
+                          Button unsubscribe_button {
+                            label: _("Unsubscribe");
+                            visible: false;
+                            clicked => $on_unsubscribe_clicked();
+
+                            styles [
+                              "caption",
+                              "flat",
+                            ]
+                          }
                         }
 
                         ListBox list_box {
