@@ -330,11 +330,13 @@ handle_text_content (StampMimeParser  *parser,
     body_len = text ? strlen (text) : 0;
   }
 
+  if (parser->body && parser->body->is_html && !is_html)
+    return TRUE;
+
   if (!parser->body)
     parser->body = stamp_mime_content_new ();
   else
     g_clear_pointer (&parser->body->content, g_free);
-
 
   parser->body->content = g_strndup (body, body_len);
   parser->body->length = body_len;
@@ -868,7 +870,7 @@ process_multipart (StampMimeParser *parser,
     }
 
     if (!content_type)
-      return;
+      continue;
 
     if (g_strcmp0 (content_type->type, "multipart") == 0) {
       if (g_strcmp0 (content_type->subtype, "encrypted") == 0) {
