@@ -45,7 +45,7 @@ on_get_body_html (GObject      *source,
   g_autoptr (GError) error = NULL;
   g_autofree char *html = NULL;
 
-  html = stamp_webview_get_body_html_finish (self->web_view, res, &error);
+  html = stamp_webview_get_body_html_finish (self->web_view, res, NULL, &error);
   if (error) {
     g_warning ("%s: Could not load body html: %s", G_STRFUNC, error->message);
     return;

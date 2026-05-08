@@ -892,7 +892,7 @@ stamp_message_list_item_get_message_body_html_finish (StampMessageListItem  *sel
                                                       GAsyncResult          *res,
                                                       GError               **error)
 {
-  return stamp_webview_get_body_html_finish (self->web_view, res, error);
+  return stamp_webview_get_body_html_finish (self->web_view, res, NULL, error);
 }
 
 CamelMimeMessage *

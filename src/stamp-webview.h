@@ -54,6 +54,7 @@ stamp_webview_get_body_html (StampWebView        *self,
 char *
 stamp_webview_get_body_html_finish (StampWebView  *self,
                                     GAsyncResult  *res,
+                                    char         **out_plain_text,
                                     GError       **error);
 
 void

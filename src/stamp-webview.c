@@ -441,12 +441,14 @@ stamp_webview_get_body_html (StampWebView        *self,
 char *
 stamp_webview_get_body_html_finish (StampWebView  *self,
                                     GAsyncResult  *res,
+                                    char         **out_plain_text,
                                     GError       **error)
 {
   g_autoptr (GError) local_error = NULL;
   g_autoptr (WebKitUserMessage) response = webkit_web_view_send_message_to_page_finish (WEBKIT_WEB_VIEW (self), res, &local_error);
   GVariant *parameters;
-  const char *out;
+  const char *html;
+  const char *plain;
 
   if (local_error) {
     g_propagate_error (error, g_steal_pointer (&local_error));
@@ -454,9 +456,12 @@ stamp_webview_get_body_html_finish (StampWebView  *self,
   }
 
   parameters = webkit_user_message_get_parameters (response);
-  out = g_variant_get_string (parameters, NULL);
+  g_variant_get (parameters, "(&s&s)", &html, &plain);
 
-  return g_strdup (out);
+  if (out_plain_text)
+    *out_plain_text = g_strdup (plain);
+
+  return g_strdup (html);
 }
 
 static void

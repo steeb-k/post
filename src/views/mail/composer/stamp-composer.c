@@ -158,32 +158,53 @@ on_edit_activate (GSimpleAction *action,
 
 static CamelMimeMessage *
 build_message (StampComposer *self,
-               const char    *body_html)
+               const char    *body_html,
+               const char    *body_plain)
 {
-  CamelStream *stream_mem = camel_stream_mem_new_with_buffer (body_html, strlen (body_html));
-  CamelStream *stream_filter = camel_stream_filter_new (stream_mem);
-  CamelDataWrapper *html = camel_data_wrapper_new ();
   CamelMimePart *part;
   CamelMultipart *body;
   CamelMimeMessage *message;
+  g_autoptr (CamelStream) stream_mem = camel_stream_mem_new_with_buffer (body_html, strlen (body_html));
+  g_autoptr (CamelStream) stream_filter = camel_stream_filter_new (stream_mem);
+  g_autoptr (CamelDataWrapper) html = camel_data_wrapper_new ();
 
+  body = camel_multipart_new ();
+  camel_data_wrapper_set_mime_type (CAMEL_DATA_WRAPPER (body), "multipart/alternative");
+  camel_multipart_set_boundary (body, NULL);
+
+  /* Plain text part */
+  if (body_plain && *body_plain) {
+    g_autoptr (CamelMimePart) plain_text_part = NULL;
+    g_autoptr (CamelStream) plain_mem = camel_stream_mem_new_with_buffer (body_plain, strlen (body_plain));
+    g_autoptr (CamelStream) plain_filter = camel_stream_filter_new (plain_mem);
+    g_autoptr (CamelDataWrapper) plain = camel_data_wrapper_new ();
+
+    camel_data_wrapper_construct_from_stream_sync (plain, plain_filter, self->cancellable, NULL);
+    camel_data_wrapper_set_mime_type (plain, "text/plain; charset=utf-8");
+
+    plain_text_part = camel_mime_part_new ();
+    camel_medium_set_content (CAMEL_MEDIUM (plain_text_part), CAMEL_DATA_WRAPPER (plain));
+    camel_mime_part_set_encoding (plain_text_part, CAMEL_TRANSFER_ENCODING_QUOTEDPRINTABLE);
+    camel_multipart_add_part (body, plain_text_part);
+  }
+
+  /* HTML part */
   camel_data_wrapper_construct_from_stream_sync (html, stream_filter, self->cancellable, NULL);
   camel_data_wrapper_set_mime_type (html, "text/html; charset=utf-8");
 
   part = camel_mime_part_new ();
   camel_medium_set_content (CAMEL_MEDIUM (part), CAMEL_DATA_WRAPPER (html));
   camel_mime_part_set_encoding (part, CAMEL_TRANSFER_ENCODING_QUOTEDPRINTABLE);
-
-  body = camel_multipart_new ();
-  camel_data_wrapper_set_mime_type (CAMEL_DATA_WRAPPER (body), "multipart/alternative");
-  camel_multipart_set_boundary (body, NULL);
   camel_multipart_add_part (body, part);
+
+  g_clear_object (&part);
 
   for (GList *attachment = self->attachments; attachment && attachment->data; attachment = g_list_next (attachment)) {
     StampAttachmentButton *button = STAMP_ATTACHMENT_BUTTON (attachment->data);
 
     part = stamp_attachment_button_get_mime_part (button);
     camel_multipart_add_part (body, part);
+    g_clear_object (&part);
   }
 
   message = camel_mime_message_new ();
@@ -207,6 +228,7 @@ build_message (StampComposer *self,
         if (ctype) {
           if (g_strcmp0 (ctype->type, "multipart") == 0 && g_strcmp0 (ctype->subtype, "related") == 0) {
             int nr;
+
             nr = camel_multipart_get_number (CAMEL_MULTIPART (camel_medium_get_content (CAMEL_MEDIUM (multi_part))));
             for (int j = 0; j < nr; j++) {
               CamelMimePart *img = camel_multipart_get_part (CAMEL_MULTIPART (camel_medium_get_content (CAMEL_MEDIUM (multi_part))), j);
@@ -529,7 +551,8 @@ on_get_body_html (GObject      *source_object,
   StampComposer *self = user_data;
   StampWebView *web_view = STAMP_WEB_VIEW (source_object);
   g_autoptr (GError) error = NULL;
-  g_autofree char *body = stamp_webview_get_body_html_finish (web_view, res, &error);
+  g_autofree char *body_plain = NULL;
+  g_autofree char *body = stamp_webview_get_body_html_finish (web_view, res, &body_plain, &error);
   CamelMimeMessage *mime_message;
   CamelInternetAddress *sender;
   CamelInternetAddress *recipient;
@@ -551,7 +574,7 @@ on_get_body_html (GObject      *source_object,
     return;
   }
 
-  mime_message = build_message (self, body);
+  mime_message = build_message (self, body, body_plain);
 
   name = stamp_composer_from_get_name (self->composer_from);
   mail = stamp_composer_from_get_mail (self->composer_from);
@@ -893,7 +916,8 @@ on_auto_save_get_body_html (GObject      *source_object,
   StampComposer *self = user_data;
   StampWebView *web_view = STAMP_WEB_VIEW (source_object);
   g_autoptr (GError) error = NULL;
-  g_autofree char *body = stamp_webview_get_body_html_finish (web_view, res, &error);
+  g_autofree char *body_plain = NULL;
+  g_autofree char *body = stamp_webview_get_body_html_finish (web_view, res, &body_plain, &error);
   CamelMimeMessage *mime_message;
   CamelInternetAddress *sender;
   CamelInternetAddress *recipient;
@@ -906,7 +930,7 @@ on_auto_save_get_body_html (GObject      *source_object,
     return;
   }
 
-  mime_message = build_message (self, body);
+  mime_message = build_message (self, body, body_plain);
 
   name = stamp_composer_from_get_name (self->composer_from);
   mail = stamp_composer_from_get_mail (self->composer_from);
@@ -1062,7 +1086,8 @@ on_draft_get_body_html (GObject      *source_object,
   StampComposer *self = user_data;
   StampWebView *web_view = STAMP_WEB_VIEW (source_object);
   g_autoptr (GError) error = NULL;
-  g_autofree char *body = stamp_webview_get_body_html_finish (web_view, res, &error);
+  g_autofree char *body_plain = NULL;
+  g_autofree char *body = stamp_webview_get_body_html_finish (web_view, res, &body_plain, &error);
   CamelMimeMessage *mime_message;
   CamelInternetAddress *sender;
   CamelInternetAddress *recipient;
@@ -1075,7 +1100,7 @@ on_draft_get_body_html (GObject      *source_object,
     return;
   }
 
-  mime_message = build_message (self, body);
+  mime_message = build_message (self, body, body_plain);
 
   name = stamp_composer_from_get_name (self->composer_from);
   mail = stamp_composer_from_get_mail (self->composer_from);

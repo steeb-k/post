@@ -39,16 +39,21 @@ on_user_message_received (WebKitWebPage     *page,
   if (g_strcmp0 (name, "get-body-html") == 0) {
     GVariant *parameters = webkit_user_message_get_parameters (message);
     WebKitUserMessage *reply;
-    g_autoptr (JSCValue) value = NULL;
+    g_autoptr (JSCValue) html_value = NULL;
+    g_autoptr (JSCValue) plain_value = NULL;
 
     if (g_variant_get_boolean (parameters)) {
-      value = jsc_context_evaluate (jsc_context, "", -1);
-      g_clear_object (&value);
+      g_autoptr (JSCValue) flush = jsc_context_evaluate (jsc_context, "", -1);
+      (void)flush;
     }
 
-    value = jsc_context_evaluate (jsc_context, "document.querySelector('body').innerHTML;", -1);
+    html_value = jsc_context_evaluate (jsc_context, "document.querySelector('body').innerHTML;", -1);
+    plain_value = jsc_context_evaluate (jsc_context, "document.querySelector('body').innerText;", -1);
 
-    reply = webkit_user_message_new ("get-body-html", g_variant_new_take_string (jsc_value_to_string (value)));
+    reply = webkit_user_message_new ("get-body-html",
+                                     g_variant_new ("(ss)",
+                                                    jsc_value_to_string (html_value),
+                                                    jsc_value_to_string (plain_value)));
     webkit_user_message_send_reply (message, reply);
   } else if (g_strcmp0 (name, "get-page-height") == 0) {
     g_autoptr (JSCValue) value = NULL;
