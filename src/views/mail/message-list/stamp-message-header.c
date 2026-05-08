@@ -666,53 +666,6 @@ stamp_message_header_set_mail (StampMessageHeader    *self,
   gtk_label_set_text (GTK_LABEL (self->date), time);
 
   update_visibility (self);
-
-  /* We need to do it here as blueprint does not handled target options */
-  menu = g_menu_new ();
-
-  item = g_menu_item_new (_("Reply"), "message-list-item.reply");
-  g_menu_append_item (menu, item);
-  g_clear_object (&item);
-
-  item = g_menu_item_new (_("Reply All"), "message-list-item.reply-all");
-  g_menu_append_item (menu, item);
-  g_clear_object (&item);
-
-  item = g_menu_item_new (_("Forward"), "message-list-item.forward");
-  g_menu_append_item (menu, item);
-  g_clear_object (&item);
-
-  mark_menu = g_menu_new ();
-  g_menu_append_section (menu, NULL, G_MENU_MODEL (mark_menu));
-
-  item = g_menu_item_new (_("Mark Read"), "message-list-item.mark-read");
-  g_menu_append_item (mark_menu, item);
-  g_clear_object (&item);
-
-  item = g_menu_item_new (_("Mark Unread"), "message-list-item.mark-unread");
-  g_menu_append_item (mark_menu, item);
-  g_clear_object (&item);
-
-  item = g_menu_item_new (_("Mark Flag"), "message-list-item.mark-flag");
-  g_menu_append_item (mark_menu, item);
-  g_clear_object (&item);
-
-  item = g_menu_item_new (_("Mark Unflag"), "message-list-item.mark-unflag");
-  g_menu_append_item (mark_menu, item);
-  g_clear_object (&item);
-
-  more_menu = g_menu_new ();
-  g_menu_append_section (menu, NULL, G_MENU_MODEL (more_menu));
-
-  item = g_menu_item_new ("Print", "message-list-item.print");
-  g_menu_append_item (more_menu, item);
-  g_clear_object (&item);
-
-  item = g_menu_item_new ("View Source", "message-list-item.view-source");
-  g_menu_append_item (more_menu, item);
-  g_clear_object (&item);
-
-  gtk_menu_button_set_menu_model (GTK_MENU_BUTTON (self->menu_button), G_MENU_MODEL (menu));
 }
 
 void

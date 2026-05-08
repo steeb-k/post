@@ -49,11 +49,19 @@ stamp_conversation_item_get_num_messages (StampConversationItem *self);
 gboolean
 stamp_conversation_item_get_unread (StampConversationItem *self);
 
+void
+stamp_conversation_item_set_unread (StampConversationItem *self,
+                                    gboolean               unread);
+
 gboolean
 stamp_conversation_item_has_attachment (StampConversationItem *self);
 
 gboolean
 stamp_conversation_item_get_flagged (StampConversationItem *self);
+
+void
+stamp_conversation_item_set_flagged (StampConversationItem *self,
+                                     gboolean               flagged);
 
 const char *
 stamp_conversation_item_get_preview (StampConversationItem *self);

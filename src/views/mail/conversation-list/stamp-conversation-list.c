@@ -78,6 +78,7 @@ struct _StampConversationList {
   GtkSorter *sorter;
   GtkFilter *filter;
   char *full_name;
+  GMenuModel *context_menu_model;
 
   StampAccount *account;
   CamelFolder *folder;
@@ -664,7 +665,9 @@ handle_popover (RowData *row_data,
     g_menu_append_submenu (menu, _("Category"), G_MENU_MODEL (sub_menu));
   }
 
-  popover = gtk_popover_menu_new_from_model (G_MENU_MODEL (menu));
+  popover = gtk_popover_menu_new_from_model (G_MENU_MODEL (row_data->self->context_menu_model));
+  gtk_widget_set_halign (popover, GTK_ALIGN_START);
+  gtk_widget_set_valign (popover, GTK_ALIGN_START);
   gtk_popover_set_has_arrow (GTK_POPOVER (popover), FALSE);
   gtk_widget_set_parent (popover, row_data->self->listview);
 
@@ -1236,6 +1239,7 @@ stamp_conversation_list_class_init (StampConversationListClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, mail_list_stack);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, sidebar_button);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, sort_is_active);
+  gtk_widget_class_bind_template_child (widget_class, StampConversationList, context_menu_model);
 
   gtk_widget_class_bind_template_callback (widget_class, on_mail_search_entry_changed);
   gtk_widget_class_bind_template_callback (widget_class, on_new_message);
@@ -1445,8 +1449,83 @@ on_mark_category (GSimpleAction *action,
   stamp_conversation_item_set_label (item, value, TRUE);
 }
 
+static void
+update_actions (StampConversationList *self)
+{
+  GAction *action;
+  guint32 flags = 0;
+  /* guint32 flags = camel_message_info_get_flags (self->message_info); */
+  gboolean flagged = (flags & CAMEL_MESSAGE_FLAGGED) != 0;
+  gboolean read = (flags & CAMEL_MESSAGE_SEEN) != 0;
+
+  return;
+
+  action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-unflag");
+  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), flagged);
+  action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-flag");
+  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), !flagged);
+
+  action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-unread");
+  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), read);
+  action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-read");
+  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), !read);
+}
+
+static void
+on_mark_read (GSimpleAction *action,
+              GVariant      *parameter,
+              gpointer       user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+
+  stamp_conversation_list_mark_read (self, NULL);
+}
+
+static void
+on_mark_unread (GSimpleAction *action,
+                GVariant      *parameter,
+                gpointer       user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+
+  stamp_conversation_list_mark_unread (self, NULL);
+}
+
+static void
+on_mark_starred (GSimpleAction *action,
+                 GVariant      *parameter,
+                 gpointer       user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+  StampConversationItem *item = NULL;
+
+  item = STAMP_CONVERSATION_ITEM (gtk_single_selection_get_selected_item (GTK_SINGLE_SELECTION (self->single_selection)));
+
+  stamp_conversation_item_set_flagged (item, TRUE);
+  update_actions (self);
+}
+
+static void
+on_mark_unstarred (GSimpleAction *action,
+                   GVariant      *parameter,
+                   gpointer       user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+  StampConversationItem *item = NULL;
+
+  item = STAMP_CONVERSATION_ITEM (gtk_single_selection_get_selected_item (GTK_SINGLE_SELECTION (self->single_selection)));
+
+  stamp_conversation_item_set_flagged (item, FALSE);
+  update_actions (self);
+}
+
+
 static const GActionEntry stamp_conversation_list_action_entries[] = {
   { .name = "mark-category", .activate = on_mark_category, .parameter_type = "s" },
+  { .name = "mark-read", .activate = on_mark_read },
+  { .name = "mark-unread", .activate = on_mark_unread },
+  { .name = "mark-starred", .activate = on_mark_starred },
+  { .name = "mark-unstarred", .activate = on_mark_unstarred },
 };
 
 static void

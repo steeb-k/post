@@ -448,6 +448,20 @@ stamp_conversation_item_get_unread (StampConversationItem *self)
   return !has_thread_flag_all (self->thread_node, CAMEL_MESSAGE_SEEN);
 }
 
+void
+stamp_conversation_item_set_unread (StampConversationItem *self,
+                                    gboolean               unread)
+{
+  CamelMessageInfo *message;
+
+  if (!self->thread_node)
+    return;
+
+  message = camel_folder_thread_node_get_item (self->thread_node);
+
+  camel_message_info_set_flags (message, CAMEL_MESSAGE_SEEN, unread ? ~0 : 0);
+}
+
 /* Check if one node has an ATTACHMENT */
 gboolean
 stamp_conversation_item_has_attachment (StampConversationItem *self)
@@ -460,6 +474,20 @@ gboolean
 stamp_conversation_item_get_flagged (StampConversationItem *self)
 {
   return has_thread_flag_one (self->thread_node, CAMEL_MESSAGE_FLAGGED);
+}
+
+void
+stamp_conversation_item_set_flagged (StampConversationItem *self,
+                                     gboolean               flagged)
+{
+  CamelMessageInfo *message;
+
+  if (!self->thread_node)
+    return;
+
+  message = camel_folder_thread_node_get_item (self->thread_node);
+
+  camel_message_info_set_flags (message, CAMEL_MESSAGE_FLAGGED, flagged ? ~0 : 0);
 }
 
 /* Check if last node has been answered */

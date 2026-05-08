@@ -100,7 +100,7 @@ template $StampConversationList: Adw.Bin {
             label: _("Mark Read");
           }
 
-          action-name: "mail.mark-read-current";
+          action-name: "conversation-list.mark-read";
           tooltip-text: _("Mark Read");
           icon-name: "mark-read-symbolic";
         }
@@ -229,4 +229,47 @@ template $StampConversationList: Adw.Bin {
       }
     };
   };
+}
+
+menu context_menu_model {
+  item {
+    label: _("Reply");
+    action: "mail.reply-current";
+  }
+
+  item {
+    label: _("Reply All");
+    action: "mail.reply-all-current";
+  }
+
+  item {
+    label: _("Forward");
+    action: "mail.forward-current";
+  }
+
+  section {
+    item {
+      label: _("Mark Read");
+      action: "conversation-list.mark-read";
+      hidden-when: "action-disabled";
+    }
+
+    item {
+      label: _("Mark Unread");
+      action: "conversation-list.mark-unread";
+      hidden-when: "action-disabled";
+    }
+
+    item {
+      label: _("Mark Starred");
+      action: "conversation-list.mark-starred";
+      hidden-when: "action-disabled";
+    }
+
+    item {
+      label: _("Mark Unstarred");
+      action: "conversation-list.mark-unstarred";
+      hidden-when: "action-disabled";
+    }
+  }
 }

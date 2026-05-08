@@ -102,6 +102,7 @@ template $StampMessageHeader: Grid {
     icon-name: "view-more-horizontal-symbolic";
     halign: end;
     valign: start;
+    menu-model: menu_model;
 
     styles [
       "flat",
@@ -279,6 +280,61 @@ PopoverMenu popover {
         valign: start;
         vexpand: true;
       }
+    }
+  }
+}
+
+menu menu_model {
+  item {
+    label: _("Reply");
+    action: "message-list-item.reply";
+  }
+
+  item {
+    label: _("Reply All");
+    action: "message-list-item.reply-all";
+  }
+
+  item {
+    label: _("Forward");
+    action: "message-list-item.forward";
+  }
+
+  section {
+    item {
+      label: _("Mark Read");
+      action: "message-list-item.mark-read";
+      hidden-when: "action-disabled";
+    }
+
+    item {
+      label: _("Mark Unread");
+      action: "message-list-item.mark-unread";
+      hidden-when: "action-disabled";
+    }
+
+    item {
+      label: _("Mark Starred");
+      action: "message-list-item.mark-flag";
+      hidden-when: "action-disabled";
+    }
+
+    item {
+      label: _("Mark Unstarred");
+      action: "message-list-item.mark-unflag";
+      hidden-when: "action-disabled";
+    }
+  }
+
+  section {
+    item {
+      label: _("Print…");
+      action: "message-list-item.print";
+    }
+
+    item {
+      label: _("View Source");
+      action: "message-list-item.view-source";
     }
   }
 }
