@@ -473,12 +473,11 @@ authenticate_sync (CamelSession  *session,
 
   g_clear_error (&local_error);
 
-  /* Find a matching ESource for this CamelService. */
   uid = camel_service_get_uid (service);
   source = e_source_registry_ref_source (self->registry, uid);
 
   if (!source) {
-    g_set_error (error, CAMEL_SERVICE_ERROR, CAMEL_SERVICE_ERROR_CANT_AUTHENTICATE, ("No data source found for UID “%s”"), uid);
+    g_set_error (error, CAMEL_SERVICE_ERROR, CAMEL_SERVICE_ERROR_CANT_AUTHENTICATE, ("No data source found for UID '%s'"), uid);
     return FALSE;
   }
 
@@ -608,7 +607,7 @@ get_oauth2_access_token_sync (CamelSession  *session,
   cred_source = e_source_registry_find_extension (self->registry, source, E_SOURCE_EXTENSION_COLLECTION);
   if (!cred_source || !e_util_can_use_collection_as_credential_source (cred_source, source)) {
     g_clear_object (&cred_source);
-    cred_source = source;
+    cred_source = g_object_ref (source);
   }
 
   success = e_source_get_oauth2_access_token_sync (cred_source, cancellable, out_access_token, out_expires_in, &local_error);
