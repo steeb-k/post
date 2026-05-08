@@ -1166,6 +1166,7 @@ stamp_account_save_draft (StampAccount         *self,
   }
 
   camel_message_info_set_flags (info, CAMEL_MESSAGE_DRAFT, CAMEL_MESSAGE_DRAFT);
+  camel_message_info_set_flags (info, CAMEL_MESSAGE_SEEN, CAMEL_MESSAGE_SEEN);
   camel_folder_append_message_sync (self->mail->drafts_folder, message, info, &uid, NULL, NULL);
 
   if (draft_uid) {
