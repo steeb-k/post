@@ -657,6 +657,31 @@ stamp_composer_set_composer_from (StampComposer     *self,
 }
 
 static void
+stamp_composer_set_composer_from_by_account (StampComposer *self,
+                                             StampAccount  *account)
+{
+  GListModel *model = gtk_drop_down_get_model (GTK_DROP_DOWN (self->from));
+
+  if (!model)
+    return;
+
+  for (guint idx = 0; idx < g_list_model_get_n_items (model); idx++) {
+    StampComposerFrom *cur_from = STAMP_COMPOSER_FROM (g_list_model_get_item (model, idx));
+    StampAccount *cur_account = stamp_composer_from_get_account (cur_from);
+
+    if (account == cur_account) {
+      gtk_drop_down_set_selected (GTK_DROP_DOWN (self->from), idx);
+      self->composer_from = cur_from;
+
+      stamp_contact_completion_set_account (STAMP_CONTACT_COMPLETION (self->to), account);
+      stamp_contact_completion_set_account (STAMP_CONTACT_COMPLETION (self->cc), account);
+      stamp_contact_completion_set_account (STAMP_CONTACT_COMPLETION (self->bcc), account);
+      return;
+    }
+  }
+}
+
+static void
 on_send_activated (GSimpleAction *action,
                    GVariant      *parameter,
                    gpointer       user_data)
@@ -1188,7 +1213,7 @@ stamp_composer_set_property (GObject      *object,
 
   switch (property_id) {
     case PROP_ACCOUNT:
-      stamp_composer_set_composer_from (self, g_value_get_object (value));
+      stamp_composer_set_composer_from_by_account (self, g_value_get_object (value));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
