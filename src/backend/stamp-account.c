@@ -1167,14 +1167,20 @@ stamp_account_save_draft (StampAccount         *self,
 
   camel_message_info_set_flags (info, CAMEL_MESSAGE_DRAFT, CAMEL_MESSAGE_DRAFT);
   camel_message_info_set_flags (info, CAMEL_MESSAGE_SEEN, CAMEL_MESSAGE_SEEN);
-  camel_folder_append_message_sync (self->mail->drafts_folder, message, info, &uid, NULL, NULL);
+  if (!camel_folder_append_message_sync (self->mail->drafts_folder, message, info, &uid, self->cancellable, &error)) {
+    if (error)
+      g_warning ("%s: Could not append message to drafts folder: %s", G_STRFUNC, error->message);
+
+    return NULL;
+  }
 
   if (draft_uid) {
     camel_folder_delete_message (self->mail->drafts_folder, draft_uid);
-    camel_folder_refresh_info_sync (self->mail->drafts_folder, NULL, NULL);
-    camel_folder_expunge_sync (self->mail->drafts_folder, NULL, &error);
+    camel_folder_synchronize_sync (self->mail->drafts_folder, TRUE, self->cancellable, &error);
     if (error)
-      g_warning ("%s: Could not expunge folder: %s", G_STRFUNC, error->message);
+      g_warning ("%s: Could not synchronize drafts folder: %s", G_STRFUNC, error->message);
+
+    return uid;
   }
 
   return uid;
