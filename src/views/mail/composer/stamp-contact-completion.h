@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Jan-Michael Brummer
+ * Copyright 2025-2026 Jan-Michael Brummer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,6 +42,10 @@ stamp_contact_completion_add_tag (StampContactCompletion *self,
 void
 stamp_contact_completion_set_account (StampContactCompletion *self,
                                       StampAccount           *account);
+
+gboolean
+stamp_contact_completion_contains_address (StampContactCompletion *self,
+                                           const char             *mail);
 
 G_END_DECLS
 

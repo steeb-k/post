@@ -1267,11 +1267,13 @@ stamp_add_addresses_to_completion (StampComposer        *self,
       to = ia_address;
     }
 
-    stamp_tag_set_label (STAMP_TAG (tag), to);
-    stamp_tag_set_mail (STAMP_TAG (tag), ia_address);
-    stamp_tag_set_show_button (STAMP_TAG (tag), TRUE);
+    if (!stamp_contact_completion_contains_address (STAMP_CONTACT_COMPLETION (wrap_box), ia_address)) {
+      stamp_tag_set_label (STAMP_TAG (tag), to);
+      stamp_tag_set_mail (STAMP_TAG (tag), ia_address);
+      stamp_tag_set_show_button (STAMP_TAG (tag), TRUE);
 
-    stamp_contact_completion_add_tag (STAMP_CONTACT_COMPLETION (wrap_box), STAMP_TAG (tag));
+      stamp_contact_completion_add_tag (STAMP_CONTACT_COMPLETION (wrap_box), STAMP_TAG (tag));
+    }
   }
 
   return len != 0;

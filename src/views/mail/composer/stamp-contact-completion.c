@@ -593,3 +593,17 @@ stamp_contact_completion_set_account (StampContactCompletion *self,
 {
   self->account = account;
 }
+
+gboolean
+stamp_contact_completion_contains_address (StampContactCompletion *self,
+                                           const char             *mail)
+{
+  for (GList *iter = self->receivers; iter && iter->data; iter = g_list_next (iter)) {
+    StampTag *tag = STAMP_TAG (iter->data);
+
+    if (g_strcmp0 (stamp_tag_get_mail (tag), mail) == 0)
+      return TRUE;
+  }
+
+  return FALSE;
+}
