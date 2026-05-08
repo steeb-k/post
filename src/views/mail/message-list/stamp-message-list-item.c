@@ -118,7 +118,12 @@ open_message (StampMessageListItem *self,
     adw_banner_set_revealed (ADW_BANNER (self->disposition_banner), TRUE);
   }
 
-  stamp_message_header_set_extern (STAMP_MESSAGE_HEADER (self->header), auth_as && g_strcmp0 (auth_as, "Internal") != 0);
+  if (auth_as) {
+    if (g_strcmp0 (auth_as, "Internal") == 0)
+      stamp_web_view_load_images (self->web_view);
+    else
+      stamp_message_header_set_extern (STAMP_MESSAGE_HEADER (self->header), TRUE);
+  }
 
   parser = stamp_mime_parser_new (message, CAMEL_SESSION (stamp_session_get_default ()), self->cancellable);
   stamp_mime_parser_parse (parser);
