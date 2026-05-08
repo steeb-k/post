@@ -411,13 +411,11 @@ stamp_webview_load_plain_text (StampWebView *self,
                                char         *content)
 {
   if (content) {
-    g_autoptr (GBytes) template = g_resources_lookup_data ("/org/tabos/stamp/plain-message-template.html", G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wformat-nonliteral"
-    g_autofree char *html = g_strdup_printf (g_bytes_get_data (template, NULL), content);
-#pragma GCC diagnostic pop
+    g_autoptr (GBytes) template = g_resources_lookup_data ("/org/tabos/stamp/blank-message-template.html", G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
 
-    webkit_web_view_load_html (WEBKIT_WEB_VIEW (self), html, NULL);
+    webkit_web_view_load_html (WEBKIT_WEB_VIEW (self), g_bytes_get_data (template, NULL), NULL);
+
+    stamp_web_view_set_body_content (self, content);
   }
 }
 
@@ -461,25 +459,27 @@ stamp_webview_get_body_html_finish (StampWebView  *self,
   return g_strdup (out);
 }
 
-/* static void */
-/* on_set_body_html (GObject      *source, */
-/*                   GAsyncResult *res, */
-/*                   gpointer      user_data) */
-/* { */
-/*   WebKitWebView *web_view = WEBKIT_WEB_VIEW (source); */
-/*   StampWebView *self = STAMP_WEB_VIEW (source); */
+static void
+on_set_body_html (GObject      *source,
+                  GAsyncResult *res,
+                  gpointer      user_data)
+{
+  StampWebView *self = STAMP_WEB_VIEW (source);
+  WebKitWebView *web_view = WEBKIT_WEB_VIEW (source);
+  g_autoptr (GBytes) js = g_resources_lookup_data ("/org/tabos/stamp/stamp-composer.js", G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
+  WebKitUserScript *script = webkit_user_script_new (g_bytes_get_data (js, NULL), WEBKIT_USER_CONTENT_INJECT_TOP_FRAME, WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_END, NULL, NULL);
 
-/*   webkit_web_view_send_message_to_page_finish (web_view, res, NULL); */
-/*   gtk_widget_grab_focus (GTK_WIDGET (self)); */
-/* } */
+  webkit_web_view_send_message_to_page_finish (web_view, res, NULL);
+
+  webkit_user_content_manager_add_script (webkit_web_view_get_user_content_manager (WEBKIT_WEB_VIEW (self)), script);
+
+  gtk_widget_grab_focus (GTK_WIDGET (self));
+}
 
 void
 stamp_web_view_set_body_content (StampWebView *self,
                                  char         *content)
 {
-#if 0
-  StampWebViewPrivate *self = stamp_webview_get_instance_private (self);
-
   if (self->loaded) {
     WebKitUserMessage *message = webkit_user_message_new ("set-body-html", g_variant_new_string (content));
 
@@ -496,18 +496,6 @@ stamp_web_view_set_body_content (StampWebView *self,
 
     g_set_str (&self->queued_body_content, content);
   }
-#else
-  g_autoptr (GBytes) template = g_resources_lookup_data ("/org/tabos/stamp/blank-message-template.html", G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
-  g_autoptr (GBytes) js = g_resources_lookup_data ("/org/tabos/stamp/stamp-composer.js", G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wformat-nonliteral"
-  g_autofree char *html = g_strdup_printf (g_bytes_get_data (template, NULL), content);
-#pragma GCC diagnostic pop
-  WebKitUserScript *script = webkit_user_script_new (g_bytes_get_data (js, NULL), WEBKIT_USER_CONTENT_INJECT_TOP_FRAME, WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_END, NULL, NULL);
-
-  webkit_web_view_load_html (WEBKIT_WEB_VIEW (self), html, NULL);
-  webkit_user_content_manager_add_script (webkit_web_view_get_user_content_manager (WEBKIT_WEB_VIEW (self)), script);
-#endif
 }
 
 static void

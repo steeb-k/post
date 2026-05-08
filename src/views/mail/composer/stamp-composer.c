@@ -1002,13 +1002,7 @@ stamp_composer_init (StampComposer *self)
   adw_bin_set_child (ADW_BIN (self->webview_bin), GTK_WIDGET (self->webview));
 
   template = g_resources_lookup_data ("/org/tabos/stamp/blank-message-template.html", G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wformat-nonliteral"
-  tmp = g_strdup_printf (g_bytes_get_data (template, NULL), "");
-#pragma GCC diagnostic pop
-
-  webkit_web_view_load_html (WEBKIT_WEB_VIEW (self->webview), tmp, NULL);
-  /* g_signal_connect_object (self->webview, "selection-changed", G_CALLBACK (on_selection_changed), self, 0); */
+  webkit_web_view_load_html (WEBKIT_WEB_VIEW (self->webview), g_bytes_get_data (template, NULL), NULL);
 
   factory = gtk_signal_list_item_factory_new ();
   g_signal_connect (factory, "setup", G_CALLBACK (on_setup_selected), self);

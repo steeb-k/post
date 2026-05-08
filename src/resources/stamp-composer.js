@@ -1,4 +1,4 @@
-const editor = document.getElementById('editor');
+const editor = document.getElementById('message-body');
   /* Undo / Redo */
   document.addEventListener('keydown',(e)=>{
     if(e.ctrlKey && e.key==='z' && !e.shiftKey){
