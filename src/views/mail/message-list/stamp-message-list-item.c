@@ -950,21 +950,26 @@ void
 stamp_message_list_item_view_source (StampMessageListItem *self)
 {
   g_autoptr (GError) error = NULL;
-  g_autofree char *filename = g_build_filename (g_get_tmp_dir (), "mail-source.txt", NULL);
-  GFile *file = g_file_new_for_path (filename);
-  GByteArray *array = NULL;
+  g_autofree char *path = NULL;
+  g_autoptr (GFile) file = NULL;
   g_autoptr (CamelStream) stream = NULL;
+  GByteArray *array = NULL;
+  int fd;
+
+  fd = g_file_open_tmp ("stamp-XXXXXX.txt", &path, &error);
+  if (fd == -1) {
+    g_warning ("%s: Temp file failed: %s", G_STRFUNC, error->message);
+    return;
+  }
 
   array = g_byte_array_new ();
   stream = camel_stream_mem_new_with_byte_array (array);
   camel_data_wrapper_write_to_stream_sync (CAMEL_DATA_WRAPPER (self->message), stream, self->cancellable, &error);
 
-  g_file_set_contents (filename, (char *)array->data, array->len, &error);
-  if (error) {
-    g_warning ("%s: Could not set view source content: %s", G_STRFUNC, error->message);
-    return;
-  }
+  write (fd, (char *)array->data, array->len);
+  close (fd);
 
+  file = g_file_new_for_path (path);
   if (!g_app_info_launch_default_for_uri (g_file_get_uri (file), NULL, &error))
     g_warning ("%s: Launch failed: %s", G_STRFUNC, error->message);
 }
