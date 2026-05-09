@@ -1010,12 +1010,19 @@ on_load_changed (WebKitWebView   *view,
                  WebKitLoadEvent  load_event,
                  gpointer         user_data)
 {
+  g_autoptr (GBytes) js = NULL;
+
   if (load_event != WEBKIT_LOAD_FINISHED)
     return;
 
   webkit_web_view_evaluate_javascript (view, "document.body.addEventListener('input', () => {"
                                        "    window.webkit.messageHandlers.dirty.postMessage('');"
                                        "});",
+                                       -1, NULL, NULL, NULL, NULL, NULL);
+
+  js = g_resources_lookup_data ("/org/tabos/stamp/stamp-composer.js", G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
+  webkit_web_view_evaluate_javascript (view,
+                                       g_bytes_get_data (js, NULL),
                                        -1, NULL, NULL, NULL, NULL, NULL);
 }
 

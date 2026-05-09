@@ -80,9 +80,13 @@ on_user_message_received (WebKitWebPage     *page,
     GVariant *parameters = webkit_user_message_get_parameters (message);
     const char *body_html = g_variant_get_string (parameters, NULL);
     g_autoptr (JSCValue) body = NULL;
+    WebKitUserMessage *reply;
 
     body = jsc_context_evaluate (jsc_context, "document.querySelector('#message-body')", -1);
     jsc_value_object_set_property (body, "innerHTML", jsc_value_new_string (jsc_context, body_html));
+
+    reply = webkit_user_message_new ("set-body-html", NULL);
+    webkit_user_message_send_reply (message, reply);
   } else if (g_strcmp0 (name, "set-image-loading-enabled") == 0) {
     GVariant *parameters = webkit_user_message_get_parameters (message);
     g_autoptr (JSCValue) value = NULL;

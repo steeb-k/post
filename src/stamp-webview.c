@@ -471,12 +471,8 @@ on_set_body_html (GObject      *source,
 {
   StampWebView *self = STAMP_WEB_VIEW (source);
   WebKitWebView *web_view = WEBKIT_WEB_VIEW (source);
-  g_autoptr (GBytes) js = g_resources_lookup_data ("/org/tabos/stamp/stamp-composer.js", G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
-  WebKitUserScript *script = webkit_user_script_new (g_bytes_get_data (js, NULL), WEBKIT_USER_CONTENT_INJECT_TOP_FRAME, WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_END, NULL, NULL);
 
   webkit_web_view_send_message_to_page_finish (web_view, res, NULL);
-
-  webkit_user_content_manager_add_script (webkit_web_view_get_user_content_manager (WEBKIT_WEB_VIEW (self)), script);
 
   gtk_widget_grab_focus (GTK_WIDGET (self));
 }
