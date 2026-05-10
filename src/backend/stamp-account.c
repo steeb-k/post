@@ -1149,6 +1149,19 @@ stamp_calendar_service_get_source (StampCalendarService *self)
   return self->source;
 }
 
+static void
+on_folder_synchronized (GObject      *source,
+                        GAsyncResult *res,
+                        gpointer      user_data)
+{
+  CamelFolder *folder = CAMEL_FOLDER (source);
+  g_autoptr (GError) error = NULL;
+
+  if (!camel_folder_synchronize_finish (folder, res, &error)) {
+    g_warning ("%s: Could not synchronize folder %s: %s", G_STRFUNC, camel_folder_get_display_name (folder), error->message);
+  }
+}
+
 char *
 stamp_account_save_draft (StampAccount         *self,
                           const char           *draft_uid,
@@ -1165,8 +1178,7 @@ stamp_account_save_draft (StampAccount         *self,
     return NULL;
   }
 
-  camel_message_info_set_flags (info, CAMEL_MESSAGE_DRAFT, CAMEL_MESSAGE_DRAFT);
-  camel_message_info_set_flags (info, CAMEL_MESSAGE_SEEN, CAMEL_MESSAGE_SEEN);
+  camel_message_info_set_flags (info, CAMEL_MESSAGE_DRAFT | CAMEL_MESSAGE_SEEN, CAMEL_MESSAGE_DRAFT | CAMEL_MESSAGE_SEEN);
   if (!camel_folder_append_message_sync (self->mail->drafts_folder, message, info, &uid, self->cancellable, &error)) {
     if (error)
       g_warning ("%s: Could not append message to drafts folder: %s", G_STRFUNC, error->message);
@@ -1176,11 +1188,7 @@ stamp_account_save_draft (StampAccount         *self,
 
   if (draft_uid) {
     camel_folder_delete_message (self->mail->drafts_folder, draft_uid);
-    camel_folder_synchronize_sync (self->mail->drafts_folder, TRUE, self->cancellable, &error);
-    if (error)
-      g_warning ("%s: Could not synchronize drafts folder: %s", G_STRFUNC, error->message);
-
-    return uid;
+    camel_folder_synchronize (self->mail->drafts_folder, TRUE, G_PRIORITY_DEFAULT, self->cancellable, on_folder_synchronized, self);
   }
 
   return uid;
@@ -1192,14 +1200,13 @@ stamp_account_remove_draft (StampAccount *self,
 {
   g_autoptr (GError) error = NULL;
 
-  if (!uid)
+  if (!uid) {
+    g_warning ("%s: Called with uid = NULL", G_STRFUNC);
     return;
+  }
 
   camel_folder_delete_message (self->mail->drafts_folder, uid);
-  camel_folder_refresh_info_sync (self->mail->drafts_folder, NULL, NULL);
-  camel_folder_expunge_sync (self->mail->drafts_folder, NULL, &error);
-  if (error)
-    g_warning ("%s: Could not expunge folder: %s", G_STRFUNC, error->message);
+  camel_folder_synchronize (self->mail->drafts_folder, TRUE, G_PRIORITY_DEFAULT, self->cancellable, on_folder_synchronized, self);
 }
 
 typedef struct {
