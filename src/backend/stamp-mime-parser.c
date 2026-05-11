@@ -197,69 +197,54 @@ convert_content_to_utf8 (const char *data,
 }
 
 static char *
-strip_headers (const char *data,
-               gsize      *out_len)
+unpack_flowed_format (const char *text,
+                      gsize       len)
 {
-  const char *body_start = data;
-  const char *header_end = NULL;
-  const char *p;
-  gboolean has_headers = FALSE;
+  GString *result;
+  const char *line_start;
+  const char *line_end;
+  gboolean trailing_space;
+  gsize line_len;
 
-  if (!data || *data == '\0')
-    return NULL;
+  if (!text || len == 0)
+    return g_strdup (text);
 
-  p = data;
-  while (*p) {
-    if (*p == '\r' || *p == '\n') {
-      if (p == data || *(p - 1) == '\n' || *(p - 1) == '\r') {
-        const char *next = p + 1;
+  result = g_string_sized_new (len);
+  line_start = text;
+  trailing_space = FALSE;
 
-        if (*next == '\r' || *next == '\n') {
-          next++;
-        }
+  while (line_start < text + len) {
+    line_end = line_start;
 
-        if (*next == '\r' || *next == '\n') {
-          header_end = p;
-          has_headers = TRUE;
-          break;
-        }
+    while (line_end < text + len && *line_end != '\r' && *line_end != '\n')
+      line_end++;
 
-        if (*next == '\0' || g_ascii_isprint (*next)) {
-          if (p == data || (*(p - 1) == '\n' && (*(p + 1) == ' ' || *(p + 1) == '\t'))) {
-            p++;
-            continue;
-          }
+    line_len = line_end - line_start;
 
-          if (!has_headers) {
-            header_end = p;
-            has_headers = TRUE;
-          }
+    if (line_len > 0) {
+      if (line_start[line_len - 1] == ' ' || line_start[line_len - 1] == '\t') {
+        trailing_space = TRUE;
+      } else {
+        trailing_space = FALSE;
+      }
 
-          if (*(p - 1) == '\n') {
-            header_end = p - 1;
-            break;
-          }
-        }
+      g_string_append_len (result, line_start, line_len);
+
+      if (trailing_space && line_end < text + len) {
+        g_string_append_c (result, ' ');
+      } else if (!trailing_space && line_end < text + len) {
+        g_string_append_c (result, '\n');
       }
     }
-    p++;
-  }
 
-  if (!header_end && has_headers)
-    header_end = p;
-
-  if (header_end) {
-    body_start = header_end;
-
-    while (*body_start == '\r' || *body_start == '\n') {
-      body_start++;
+    while (line_end < text + len && (*line_end == '\r' || *line_end == '\n')) {
+      line_end++;
     }
+
+    line_start = line_end;
   }
 
-  if (out_len)
-    *out_len = strlen (body_start);
-
-  return g_strdup (body_start);
+  return g_string_free_and_steal (result);
 }
 
 static void
@@ -320,10 +305,16 @@ handle_text_content (StampMimeParser  *parser,
   is_html = g_strcmp0 (content_type->subtype, "html") == 0;
 
   if (!is_html) {
-    body = strip_headers (text, &body_len);
-    if (!body || body_len == 0) {
-      body = g_strdup (text);
-      body_len = strlen (body);
+    body = g_strdup (text);
+    body_len = strlen (body);
+
+    if (g_strcmp0 (camel_content_type_param (content_type, "format"), "flowed") == 0) {
+      g_autofree char *unpacked = unpack_flowed_format (body, body_len);
+      if (unpacked) {
+        g_clear_pointer (&body, g_free);
+        body = g_steal_pointer (&unpacked);
+        body_len = strlen (body);
+      }
     }
   } else {
     body = g_strdup (text);
@@ -736,10 +727,16 @@ handle_smime_encrypted (StampMimeParser *parser,
                                           camel_content_type_param (body_ct, "charset"));
 
           if (text) {
-            body_str = strip_headers (text, &body_len);
-            if (!body_str || body_len == 0) {
-              body_str = g_strdup (text);
-              body_len = strlen (body_str);
+            body_str = g_strdup (text);
+            body_len = strlen (body_str);
+
+            if (g_strcmp0 (camel_content_type_param (body_ct, "format"), "flowed") == 0) {
+              g_autofree char *unpacked = unpack_flowed_format (body_str, body_len);
+              if (unpacked) {
+                g_clear_pointer (&body_str, g_free);
+                body_str = g_steal_pointer (&unpacked);
+                body_len = strlen (body_str);
+              }
             }
 
             if (!parser->body) {
