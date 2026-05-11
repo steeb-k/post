@@ -1432,10 +1432,13 @@ stamp_composer_set_quote_content (StampComposer          *self,
       if (type == STAMP_COMPOSER_REPLY || type == STAMP_COMPOSER_REPLY_ALL) {
         CamelInternetAddress *reply_to = camel_mime_message_get_reply_to (message);
 
-        if (reply_to)
+        if (reply_to) {
+          remove_own_address (self, reply_to);
           stamp_add_addresses_to_completion (self, self->to, reply_to);
-        else
+        } else {
+          remove_own_address (self, from);
           stamp_add_addresses_to_completion (self, self->to, from);
+        }
 
         if (type == STAMP_COMPOSER_REPLY_ALL) {
           remove_own_address (self, to);
