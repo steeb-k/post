@@ -417,9 +417,6 @@ create_queue (StampAccountItem *self,
   GPtrArray *priority_folders = g_ptr_array_new ();
   GPtrArray *normal_folders = g_ptr_array_new ();
 
-  /* Clear the queue before adding new items */
-  g_queue_clear (self->refresh_queue);
-
   for (guint idx = 0; idx < len; idx++) {
     g_autoptr (StampFolderItem) folder_item = STAMP_FOLDER_ITEM (g_list_model_get_item (G_LIST_MODEL (store), idx));
     GListStore *child_store = stamp_item_get_list_store (STAMP_ITEM (folder_item));
@@ -454,13 +451,14 @@ create_queue (StampAccountItem *self,
     StampFolderItem *folder_item = priority_folders->pdata[idx];
     g_queue_push_tail (self->refresh_queue, g_object_ref (folder_item));
   }
-  g_ptr_array_free (priority_folders, TRUE);
 
   /* Then normal folders */
   for (guint idx = 0; idx < normal_folders->len; idx++) {
     StampFolderItem *folder_item = normal_folders->pdata[idx];
     g_queue_push_tail (self->refresh_queue, g_object_ref (folder_item));
   }
+
+  g_ptr_array_free (priority_folders, TRUE);
   g_ptr_array_free (normal_folders, TRUE);
 }
 
@@ -497,11 +495,14 @@ refresh_folder_main (gpointer user_data)
 
   store = stamp_item_get_list_store (STAMP_ITEM (self));
 
-  create_queue (self, store);
-
   /* Always refresh the first folder in the queue (which is now prioritized) */
   if (!self->refresh_queue_running) {
     CamelFolder *folder;
+
+    /* Clear the queue before adding new items */
+    g_queue_clear (self->refresh_queue);
+
+    create_queue (self, store);
 
     /* On first refresh, prioritize INBOX/Posteingang */
     if (self->first_refresh) {
@@ -560,34 +561,6 @@ refresh_folder (gpointer user_data)
   return NULL;
 }
 
-/* static gboolean */
-/* refresh_timeout (gpointer user_data) */
-/* { */
-/*   StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data); */
-/*   g_autoptr (GSettings) settings = g_settings_new ("org.tabos.stamp.mail"); */
-/*   GListStore *store; */
-
-/*   store = stamp_item_get_list_store (STAMP_ITEM (self)); */
-
-/*   create_queue (self, store); */
-
-/*   if (!self->refresh_queue_running) { */
-/*     StampFolderItem *folder_item = g_queue_pop_head (self->refresh_queue); */
-/*     CamelFolder *folder; */
-
-/*     if (folder_item) { */
-/*       folder = stamp_folder_item_get_folder (folder_item); */
-/*       self->refresh_queue_running = TRUE; */
-/*       stamp_item_set_loading (STAMP_ITEM (folder_item), TRUE); */
-
-/*       g_debug ("%s: Refreshing %s\n", G_STRFUNC, camel_folder_get_display_name (folder)); */
-/*       camel_folder_refresh_info (folder, G_PRIORITY_DEFAULT, self->cancellable, on_refresh, self); */
-/*     } */
-/*   } */
-
-/*   return G_SOURCE_CONTINUE; */
-/* } */
-
 static void
 stamp_account_item_constructed (GObject *object)
 {
@@ -623,7 +596,6 @@ stamp_account_item_constructed (GObject *object)
 
   /* We need to serialize refresh requests per store as it tend to lock up */
   self->refresh_thread = g_thread_new ("Refresh Folder", refresh_folder, self);
-  /* g_timeout_add_seconds (10, refresh_timeout, self); */
 }
 
 static void
