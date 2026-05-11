@@ -426,16 +426,16 @@ create_queue (StampAccountItem *self,
     CamelFolder *folder = stamp_folder_item_get_folder (folder_item);
     const char *full_name;
 
+    /* First process child folders if present */
+    if (child_store) {
+      create_queue (self, child_store);
+    }
+
     if (!CAMEL_IS_FOLDER (folder)) {
       continue;
     }
 
     full_name = stamp_folder_item_get_full_name (folder_item);
-
-    /* First process child folders if present */
-    if (child_store) {
-      create_queue (self, child_store);
-    }
 
     /* Prioritize INBOX and its subfolders (including German names) */
     if (g_str_has_prefix (full_name, "INBOX") ||
