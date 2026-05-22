@@ -1194,19 +1194,57 @@ stamp_account_save_draft (StampAccount         *self,
   return uid;
 }
 
+static void
+on_draft_transferred (GObject      *source,
+                      GAsyncResult *res,
+                      gpointer      user_data)
+{
+  StampAccount *self;
+  g_autoptr (GError) error = NULL;
+
+  camel_folder_transfer_messages_to_finish (CAMEL_FOLDER (source), res, NULL, &error);
+  if (error) {
+    g_warning ("%s: Could not transfer draft message to trash: %s", G_STRFUNC, error->message);
+    return;
+  }
+
+  self = STAMP_ACCOUNT (user_data);
+  camel_folder_synchronize_sync (self->mail->drafts_folder, FALSE, self->cancellable, &error);
+  if (error) {
+    g_warning ("%s: Could not synchronize drafts folder: %s", G_STRFUNC, error->message);
+  }
+
+  camel_folder_synchronize_sync (self->mail->trash_folder, FALSE, self->cancellable, &error);
+  if (error) {
+    g_warning ("%s: Could not synchronize trash folder: %s", G_STRFUNC, error->message);
+  }
+}
+
 void
 stamp_account_remove_draft (StampAccount *self,
                             const char   *uid)
 {
+  g_autoptr (CamelMessageInfo) info = NULL;
   g_autoptr (GError) error = NULL;
+  g_autoptr (GPtrArray) uids = NULL;
 
   if (!uid) {
     g_warning ("%s: Called with uid = NULL", G_STRFUNC);
     return;
   }
 
+  info = camel_folder_get_message_info (self->mail->drafts_folder, uid);
+  if (info) {
+    /* Ensure DRAFT flag has been removed */
+    camel_message_info_set_flags (info, CAMEL_MESSAGE_DRAFT, 0);
+  }
+
   camel_folder_delete_message (self->mail->drafts_folder, uid);
-  camel_folder_synchronize (self->mail->drafts_folder, TRUE, G_PRIORITY_DEFAULT, self->cancellable, on_folder_synchronized, self);
+
+  uids = g_ptr_array_new ();
+  g_ptr_array_add (uids, (gpointer) uid);
+
+  camel_folder_transfer_messages_to (self->mail->drafts_folder, uids, self->mail->trash_folder, TRUE, G_PRIORITY_DEFAULT, self->cancellable, on_draft_transferred, self);
 }
 
 typedef struct {
