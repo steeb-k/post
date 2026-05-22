@@ -76,6 +76,7 @@ struct _StampMessageListItem {
   gboolean loading_done;
   GSimpleActionGroup *actions;
   StampComposerType type;
+  char *save_img;
 };
 
 G_DEFINE_FINAL_TYPE (StampMessageListItem, stamp_message_list_item, GTK_TYPE_LIST_BOX_ROW);
@@ -594,6 +595,7 @@ stamp_message_list_item_dispose (GObject *object)
   g_clear_pointer (&self->message_content, g_free);
   g_clear_pointer (&self->signature_details, g_free);
   g_clear_pointer (&self->disposition_notification_to, g_free);
+  g_clear_pointer (&self->save_img, g_free);
 
   g_clear_object (&self->message);
   g_clear_object (&self->calendar);
@@ -895,6 +897,108 @@ on_cid_request (WebKitURISchemeRequest *request,
   return NULL;
 }
 
+static void
+on_save_as (GObject      *source_object,
+            GAsyncResult *res,
+            gpointer      user_data)
+{
+  StampMimeAttachment *att = user_data;
+  g_autoptr (GtkFileDialog) dialog = GTK_FILE_DIALOG (source_object);
+  g_autoptr (GError) error = NULL;
+  g_autoptr (GFile) file = NULL;
+  g_autoptr (GFileOutputStream) file_output_stream = NULL;
+  g_autoptr (GFileIOStream) file_io_stream = NULL;
+  GOutputStream *stream = NULL;
+
+  file = gtk_file_dialog_save_finish (dialog, res, &error);
+  if (error) {
+    g_warning ("%s: Could not save attachment file: %s", G_STRFUNC, error->message);
+    return;
+  }
+
+  file_output_stream = g_file_create (file, G_FILE_CREATE_NONE, NULL, &error);
+  if (error) {
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_EXISTS)) {
+      g_warning ("%s: Could not create file: %s", G_STRFUNC, error->message);
+      return;
+    }
+
+    g_clear_error (&error);
+    file_io_stream = g_file_open_readwrite (file, NULL, &error);
+    if (error) {
+      g_warning ("%s: Could not open file: %s", G_STRFUNC, error->message);
+      return;
+    }
+
+    stream = g_io_stream_get_output_stream (G_IO_STREAM (file_io_stream));
+  } else {
+    stream = G_OUTPUT_STREAM (file_output_stream);
+  }
+
+  g_output_stream_write_all (stream, g_bytes_get_data (att->data, NULL), g_bytes_get_size (att->data), NULL, NULL, &error);
+  if (error) {
+    g_warning ("%s: Could not write file, abort: %s", G_STRFUNC, error->message);
+    return;
+  }
+}
+
+static void
+save_image_cb (GSimpleAction *action,
+               GVariant      *parameter,
+               gpointer       user_data)
+{
+  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
+  GList *attachments;
+  int offset = 0;
+
+  if (g_str_has_prefix (self->save_img, "cid:"))
+    offset += 4;
+
+  attachments = stamp_mime_parser_get_inline_images (self->parser);
+  for (GList *iter = attachments; iter && iter->data; iter = g_list_next (iter)) {
+    StampMimeAttachment *att = iter->data;
+
+    if (g_strcmp0 (att->content_id, self->save_img + offset) == 0) {
+      GtkRoot *root = gtk_widget_get_root (GTK_WIDGET (self));
+      GtkFileDialog *dialog = gtk_file_dialog_new ();
+      g_autofree char *tmp = g_strdup_printf ("Save `%s`?", att->filename);
+
+      gtk_file_dialog_set_accept_label (dialog, _("Save"));
+      gtk_file_dialog_set_initial_name (dialog, att->filename);
+      gtk_file_dialog_set_title (dialog, tmp);
+
+      gtk_file_dialog_save (dialog, GTK_WINDOW (root), NULL, on_save_as, att);
+      return;
+    }
+  }
+}
+
+static gboolean
+on_context_menu (WebKitWebView       *web_view,
+                 WebKitContextMenu   *context_menu,
+                 WebKitHitTestResult *hit_test_result,
+                 gpointer             user_data)
+{
+  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
+
+  if (webkit_hit_test_result_context_is_image (hit_test_result)) {
+    GSimpleAction *action;
+    WebKitContextMenuItem *item;
+    const char *image_uri = webkit_hit_test_result_get_image_uri (hit_test_result);
+
+    webkit_context_menu_remove_all (context_menu);
+
+    action = g_simple_action_new ("save-image", NULL);
+    g_set_str (&self->save_img, image_uri);
+    g_signal_connect (action, "activate", G_CALLBACK (save_image_cb), self);
+
+    item = webkit_context_menu_item_new_from_gaction (G_ACTION (action), _("Save Image As…"), NULL);
+    webkit_context_menu_append (context_menu, item);
+  }
+
+  return FALSE;
+}
+
 void
 stamp_message_list_item_init (StampMessageListItem *self)
 {
@@ -912,6 +1016,7 @@ stamp_message_list_item_init (StampMessageListItem *self)
   gtk_widget_insert_action_group (GTK_WIDGET (self), "message-list-item", G_ACTION_GROUP (self->actions));
 
   stamp_webview_set_cid_handler (self->web_view, on_cid_request, self);
+  g_signal_connect (self->web_view, "context-menu", G_CALLBACK (on_context_menu), self);
 }
 
 GtkWidget *
