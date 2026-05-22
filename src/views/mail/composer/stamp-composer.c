@@ -1026,6 +1026,64 @@ on_load_changed (WebKitWebView   *view,
                                        -1, NULL, NULL, NULL, NULL, NULL);
 }
 
+static void
+undo_cb (GSimpleAction *action,
+         GVariant      *parameter,
+         gpointer       user_data)
+{
+  StampComposer *self = STAMP_COMPOSER (user_data);
+
+  webkit_web_view_evaluate_javascript (WEBKIT_WEB_VIEW (self->webview), "document.execCommand('undo');", -1, NULL, NULL, NULL, NULL, NULL);
+}
+
+static void
+redo_cb (GSimpleAction *action,
+         GVariant      *parameter,
+         gpointer       user_data)
+{
+  StampComposer *self = STAMP_COMPOSER (user_data);
+
+  webkit_web_view_evaluate_javascript (WEBKIT_WEB_VIEW (self->webview), "document.execCommand('redo');", -1, NULL, NULL, NULL, NULL, NULL);
+}
+
+static gboolean
+on_context_menu (WebKitWebView       *web_view,
+                 WebKitContextMenu   *context_menu,
+                 WebKitHitTestResult *hit_test_result,
+                 gpointer             user_data)
+{
+  StampComposer *self = STAMP_COMPOSER (user_data);
+
+  if (webkit_hit_test_result_context_is_editable (hit_test_result)) {
+    WebKitEditorState *state;
+    WebKitContextMenuItem *item;
+    GSimpleAction *action;
+    gboolean can_undo, can_redo;
+
+    state = webkit_web_view_get_editor_state (WEBKIT_WEB_VIEW (self->webview));
+    can_undo = webkit_editor_state_is_undo_available (state);
+    can_redo = webkit_editor_state_is_redo_available (state);
+
+    webkit_context_menu_prepend (context_menu, webkit_context_menu_item_new_separator ());
+
+    action = g_simple_action_new ("redo", NULL);
+    g_signal_connect (action, "activate", G_CALLBACK (redo_cb), self);
+    g_simple_action_set_enabled (G_SIMPLE_ACTION (action), can_redo);
+    item = webkit_context_menu_item_new_from_gaction (G_ACTION (action), _("Redo"), NULL);
+    webkit_context_menu_prepend (context_menu, item);
+
+    action = g_simple_action_new ("undo", NULL);
+    g_signal_connect (action, "activate", G_CALLBACK (undo_cb), self);
+    g_simple_action_set_enabled (G_SIMPLE_ACTION (action), can_undo);
+    item = webkit_context_menu_item_new_from_gaction (G_ACTION (action), _("Undo"), NULL);
+    webkit_context_menu_prepend (context_menu, item);
+
+    return FALSE;
+  }
+
+  return FALSE;
+}
+
 static const GActionEntry stamp_composer_action_entries[] = {
   { "bold", on_edit_activate, "s", "''", NULL},
   { "italic", on_edit_activate, "s", "''", NULL},
@@ -1053,6 +1111,9 @@ stamp_composer_init (StampComposer *self)
   self->type = STAMP_COMPOSER_NEW;
   self->cancellable = g_cancellable_new ();
   self->webview = stamp_webview_new ();
+
+  g_signal_connect (self->webview, "context-menu", G_CALLBACK (on_context_menu), self);
+
   stamp_webview_set_editable (self->webview);
   gtk_widget_set_focusable (GTK_WIDGET (self->webview), TRUE);
   adw_bin_set_child (ADW_BIN (self->webview_bin), GTK_WIDGET (self->webview));
