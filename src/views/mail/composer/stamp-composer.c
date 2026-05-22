@@ -49,7 +49,6 @@ struct _StampComposer {
   GtkWidget *toggle;
   GtkWidget *send_button;
   GtkWidget *subject;
-  GActionMap *action_map;
   GtkWidget *window_title;
   GtkWidget *attachment_revealer;
   GtkWidget *attachment_box;
@@ -100,7 +99,7 @@ on_query_command (GObject      *source,
     return;
   }
 
-  g_action_group_change_action_state (G_ACTION_GROUP (self->action_map), command, g_variant_new_string (ret ? command : ""));
+  g_action_group_change_action_state (G_ACTION_GROUP (self->actions), command, g_variant_new_string (ret ? command : ""));
 }
 
 static void
