@@ -177,6 +177,31 @@ on_load_changed (WebKitWebView   *web_view,
     webkit_web_view_evaluate_javascript (web_view,
                                          "document.querySelector('[contenteditable]').focus();",
                                          -1, NULL, NULL, NULL, NULL, NULL);
+
+
+    webkit_web_view_evaluate_javascript (
+      web_view,
+      "const style = document.createElement('style');"
+      "style.innerHTML = `"
+
+      "@media (prefers-color-scheme: dark) {"
+      "  * {"
+      "    background-color: transparent !important;"
+      "    color: inherit !important;"
+      "  }"
+      "  html, body {"
+      "    background:#3a3a3a !important;"
+      "    color:#ffffff !important;"
+      "  }"
+
+      "  a {"
+      "    color:#8ab4f8 !important;"
+      "  }"
+      "}"
+      "`;"
+      "document.head.appendChild(style);",
+      -1, NULL, NULL, NULL, NULL, NULL
+      );
   }
 }
 
