@@ -56,6 +56,7 @@ struct _StampMessageHeader {
   GtkWidget *popover_name;
   GtkWidget *popover_email;
   GtkWidget *external;
+  GtkWidget *internal;
 
   gboolean to_filled;
   gboolean cc_filled;
@@ -380,6 +381,7 @@ stamp_message_header_class_init (StampMessageHeaderClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampMessageHeader, popover_name);
   gtk_widget_class_bind_template_child (widget_class, StampMessageHeader, popover_email);
   gtk_widget_class_bind_template_child (widget_class, StampMessageHeader, external);
+  gtk_widget_class_bind_template_child (widget_class, StampMessageHeader, internal);
 
   gtk_widget_class_bind_template_callback (widget_class, on_more_button_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_cc_more_button_clicked);
@@ -688,4 +690,11 @@ stamp_message_header_set_extern (StampMessageHeader *self,
                                  gboolean            is_extern)
 {
   gtk_widget_set_visible (self->external, is_extern);
+}
+
+void
+stamp_message_header_set_internal (StampMessageHeader *self,
+                                   gboolean            is_internal)
+{
+  gtk_widget_set_visible (self->internal, is_internal);
 }

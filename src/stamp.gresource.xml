@@ -41,6 +41,7 @@
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/outbox-symbolic.svg">resources/icons/scalable/actions/outbox-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/sent-symbolic.svg">resources/icons/scalable/actions/sent-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/search-global-symbolic.svg">resources/icons/scalable/actions/search-global-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/shield-safe-symbolic.svg">resources/icons/scalable/actions/shield-safe-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/signature-symbolic.svg">resources/icons/scalable/actions/signature-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/top-symbolic.svg">resources/icons/scalable/actions/top-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/sort-order-symbolic.svg">resources/icons/scalable/actions/sort-order-symbolic.svg</file>

@@ -74,6 +74,22 @@ template $StampMessageHeader: Grid {
       ]
     }
 
+    Image internal {
+      accessibility {
+        label: _("Internal");
+      }
+
+      visible: false;
+      valign: baseline_fill;
+      icon-name: "shield-safe-symbolic";
+      tooltip-text: _("Information that are for company employee only");
+
+      styles [
+        "success",
+        "dim-label",
+      ]
+    }
+
     Image starred_icon {
       accessibility {
         label: _("Starred");

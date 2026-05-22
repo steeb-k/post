@@ -1242,7 +1242,7 @@ stamp_account_remove_draft (StampAccount *self,
   camel_folder_delete_message (self->mail->drafts_folder, uid);
 
   uids = g_ptr_array_new ();
-  g_ptr_array_add (uids, (gpointer) uid);
+  g_ptr_array_add (uids, (gpointer)uid);
 
   camel_folder_transfer_messages_to (self->mail->drafts_folder, uids, self->mail->trash_folder, TRUE, G_PRIORITY_DEFAULT, self->cancellable, on_draft_transferred, self);
 }
