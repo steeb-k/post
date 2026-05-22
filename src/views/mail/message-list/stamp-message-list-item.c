@@ -29,6 +29,7 @@
 
 #include <camel/camel.h>
 #include <glib/gi18n.h>
+#include <glib/gstdio.h>
 #include <libecal/libecal.h>
 #include <nss.h>
 
@@ -946,21 +947,60 @@ stamp_message_list_item_get_uid (StampMessageListItem *self)
   return camel_message_info_get_uid (self->message_info);
 }
 
+#define VIEW_SOURCE_TMP_DIR "/tmp/stamp-view-source"
+
+static void
+cleanup_view_source_dir (void)
+{
+  GDir *dir = g_dir_open (VIEW_SOURCE_TMP_DIR, 0, NULL);
+  const char *name;
+
+  if (!dir)
+    return;
+
+  while ((name = g_dir_read_name (dir)) != NULL) {
+    g_autofree char *child = g_build_filename (VIEW_SOURCE_TMP_DIR, name, NULL);
+    g_remove (child);
+  }
+
+  g_dir_close (dir);
+  g_remove (VIEW_SOURCE_TMP_DIR);
+}
+
 void
 stamp_message_list_item_view_source (StampMessageListItem *self)
 {
+  static gboolean initialized = FALSE;
   g_autoptr (GError) error = NULL;
   g_autofree char *path = NULL;
   g_autoptr (GFile) file = NULL;
   g_autoptr (CamelStream) stream = NULL;
+  g_autofree char *tmpl = NULL;
   GByteArray *array = NULL;
   int fd;
 
-  fd = g_file_open_tmp ("stamp-XXXXXX.txt", &path, &error);
+  if (!initialized) {
+    initialized = TRUE;
+
+    cleanup_view_source_dir ();
+
+    if (g_mkdir (VIEW_SOURCE_TMP_DIR, 0700) != 0) {
+      g_warning ("%s: Could not create temp directory %s", G_STRFUNC, VIEW_SOURCE_TMP_DIR);
+      return;
+    }
+
+    atexit (cleanup_view_source_dir);
+  }
+
+  tmpl = g_build_filename (VIEW_SOURCE_TMP_DIR, "stamp-XXXXXX", NULL);
+  fd = g_mkstemp (tmpl);
   if (fd == -1) {
-    g_warning ("%s: Temp file failed: %s", G_STRFUNC, error->message);
+    g_warning ("%s: Temp file failed: %s", G_STRFUNC, g_strerror (errno));
     return;
   }
+
+  path = g_strdup_printf ("%s.txt", tmpl);
+  g_rename (tmpl, path);
 
   array = g_byte_array_new ();
   stream = camel_stream_mem_new_with_byte_array (array);
