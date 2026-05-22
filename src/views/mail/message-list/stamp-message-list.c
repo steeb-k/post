@@ -279,6 +279,20 @@ scroll_to_bottom (gpointer user_data)
   gtk_adjustment_set_value (adj, gtk_adjustment_get_upper (adj));
 }
 
+static GtkWidget *
+find_last_of_type (GtkListBox *listbox,
+                   GType       type)
+{
+  GtkWidget *result = NULL;
+
+  for (GtkWidget *row = gtk_widget_get_first_child (GTK_WIDGET (listbox)); row != NULL; row = gtk_widget_get_next_sibling (row)) {
+    if (G_TYPE_CHECK_INSTANCE_TYPE (row, type))
+      result = row;
+  }
+
+  return result;
+}
+
 void
 stamp_message_list_set_conversation (StampMessageList      *self,
                                      StampAccount          *account,
@@ -362,7 +376,7 @@ stamp_message_list_set_conversation (StampMessageList      *self,
   if (camel_folder_thread_node_get_child (node))
     go_down (self, camel_folder_thread_node_get_child (node));
 
-  child = gtk_widget_get_last_child (self->list_box);
+  child = find_last_of_type (GTK_LIST_BOX (self->list_box), STAMP_TYPE_MESSAGE_LIST_ITEM);
   if (child && STAMP_IS_MESSAGE_LIST_ITEM (child) && STAMP_MESSAGE_LIST_ITEM (child)) {
     StampMessageListItem *list_item = STAMP_MESSAGE_LIST_ITEM (child);
 
