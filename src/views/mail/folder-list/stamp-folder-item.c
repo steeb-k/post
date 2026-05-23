@@ -33,7 +33,6 @@ struct _StampFolderItem {
   GCancellable *cancellable;
 
   gint unread;
-  char *notification;
 };
 
 G_DEFINE_FINAL_TYPE (StampFolderItem, stamp_folder_item, STAMP_TYPE_ITEM);
@@ -181,6 +180,12 @@ stamp_folder_item_get_property (GObject    *object,
   }
 }
 
+static gint pending_new_mail_count = 0;
+static char *pending_first_uid = NULL;
+static char *pending_first_subject = NULL;
+static char *pending_first_sender = NULL;
+static guint pending_debounce_id = 0;
+
 static void
 play_incoming_sound (void)
 {
@@ -191,15 +196,50 @@ play_incoming_sound (void)
   gst_element_set_state (player, GST_STATE_PLAYING);
 }
 
+static gboolean
+send_pending_notification (gpointer user_data)
+{
+  GNotification *notification;
+  g_autofree char *title = NULL;
+
+  pending_debounce_id = 0;
+
+  if (pending_new_mail_count == 0)
+    return G_SOURCE_REMOVE;
+
+  if (pending_new_mail_count == 1) {
+    title = g_strdup_printf ("%s", pending_first_sender ? pending_first_sender : _("New message"));
+  } else {
+    title = g_strdup_printf (ngettext ("%d new message", "%d new messages", pending_new_mail_count),
+                             pending_new_mail_count);
+  }
+
+  notification = g_notification_new (title);
+
+  if (pending_first_subject)
+    g_notification_set_body (notification, pending_first_subject);
+
+  if (pending_first_uid) {
+    g_notification_add_button_with_target (notification, _("Show"), "app.show-message", "s", pending_first_uid);
+    g_notification_set_default_action_and_target (notification, "app.show-message", "s", pending_first_uid);
+  }
+
+  g_application_send_notification (g_application_get_default (), "new-mail", notification);
+
+  pending_new_mail_count = 0;
+  g_clear_pointer (&pending_first_uid, g_free);
+  g_clear_pointer (&pending_first_subject, g_free);
+  g_clear_pointer (&pending_first_sender, g_free);
+
+  return G_SOURCE_REMOVE;
+}
+
 static void
 on_folder_item_folder_changed (CamelFolder           *folder,
                                CamelFolderChangeInfo *changes,
                                gpointer               user_data)
 {
   StampFolderItem *self = STAMP_FOLDER_ITEM (user_data);
-  g_autolist (CamelMessageInfo) unseen_message_infos = NULL;
-  GList *sender_names = NULL;
-  gint unseen_message_infos_length;
   CamelFolderSummary *summary;
   CamelFolder *trash_folder = stamp_account_get_mail_trash_folder (stamp_item_get_account (STAMP_ITEM (self)));
   CamelFolder *draft_folder = stamp_account_get_mail_drafts_folder (stamp_item_get_account (STAMP_ITEM (self)));
@@ -208,65 +248,47 @@ on_folder_item_folder_changed (CamelFolder           *folder,
   self->unread = camel_folder_summary_get_unread_count (summary);
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_UNREAD]);
 
-  if (changes->uid_added) {
-    GPtrArray *added = changes->uid_added;
+  if (!changes->uid_added || folder == trash_folder || folder == draft_folder)
+    return;
 
-    if (self->notification) {
-      g_application_withdraw_notification (g_application_get_default (), self->notification);
-      g_clear_pointer (&self->notification, g_free);
-    }
+  for (int idx = 0; idx < (int)changes->uid_added->len; idx++) {
+    CamelMessageInfo *message_info;
+    char *uid = (char *)changes->uid_added->pdata[idx];
+    guint32 flags;
 
-    for (int idx = 0; idx < added->len; idx++) {
-      CamelMessageInfo *message_info;
-      char *uid = (char *)added->pdata[idx];
-      guint32 flags;
+    message_info = camel_folder_summary_get (summary, uid);
+    if (!message_info)
+      continue;
 
-      message_info = camel_folder_summary_get (summary, uid);
-      flags = camel_message_info_get_flags (message_info);
+    flags = camel_message_info_get_flags (message_info);
+    if (flags & CAMEL_MESSAGE_SEEN)
+      continue;
 
-      if (!(flags & CAMEL_MESSAGE_SEEN)) {
-        CamelInternetAddress *address = camel_internet_address_new ();
-        const char *sender_address;
-        const char *sender_name;
+    pending_new_mail_count++;
 
-        camel_address_unformat (CAMEL_ADDRESS (address), camel_message_info_get_from (message_info));
-        camel_internet_address_get (address, 0, &sender_name, &sender_address);
+    if (pending_new_mail_count == 1) {
+      g_autoptr (CamelInternetAddress) address = camel_internet_address_new ();
+      const char *sender_address = NULL;
+      const char *sender_name = NULL;
 
-        if (!sender_name)
-          sender_name = sender_address;
+      camel_address_unformat (CAMEL_ADDRESS (address), camel_message_info_get_from (message_info));
+      camel_internet_address_get (address, 0, &sender_name, &sender_address);
 
-        sender_names = g_list_append (sender_names, g_strdup (sender_name));
-        unseen_message_infos = g_list_append (unseen_message_infos, message_info);
-      }
-    }
-
-    unseen_message_infos_length = g_list_length (unseen_message_infos);
-    if (folder != trash_folder && folder != draft_folder && unseen_message_infos_length && unseen_message_infos && unseen_message_infos->data) {
-      CamelMessageInfo *unseen_message_info;
-      GNotification *notification;
-      g_autofree char *title = NULL;
-
-      unseen_message_info = CAMEL_MESSAGE_INFO (unseen_message_infos->data);
-
-      if (unseen_message_infos_length == 1)
-        title = g_strdup_printf ("%s to %s", (char *)sender_names->data, stamp_account_get_name (stamp_item_get_account (STAMP_ITEM (self))));
-      else
-        title = g_strdup_printf ("%d new message", unseen_message_infos_length);
-
-      notification = g_notification_new (title);
-      g_notification_set_body (notification, camel_message_info_get_subject (unseen_message_info));
-      g_notification_add_button_with_target (notification, _("Show"), "app.show-message", "s", camel_message_info_get_uid (unseen_message_info));
-      g_notification_set_default_action_and_target (notification, "app.show-message", "s", camel_message_info_get_uid (unseen_message_info));
-
-      self->notification = g_strdup (camel_message_info_get_uid (unseen_message_info));
-      g_application_send_notification (g_application_get_default (), self->notification, notification);
-
-      if (g_settings_get_boolean (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_PLAY_INCOMING_SOUND))
-        play_incoming_sound ();
+      g_set_str (&pending_first_uid, camel_message_info_get_uid (message_info));
+      g_set_str (&pending_first_subject, camel_message_info_get_subject (message_info));
+      g_set_str (&pending_first_sender, sender_name ? sender_name : sender_address);
     }
   }
 
-  g_clear_list (&sender_names, g_free);
+  if (pending_new_mail_count == 0)
+    return;
+
+  g_clear_handle_id (&pending_debounce_id, g_source_remove);
+
+  pending_debounce_id = g_timeout_add (500, send_pending_notification, NULL);
+
+  if (g_settings_get_boolean (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_PLAY_INCOMING_SOUND))
+    play_incoming_sound ();
 }
 
 static void
@@ -357,8 +379,6 @@ stamp_folder_item_dispose (GObject *object)
   g_clear_object (&self->folder);
 
   g_boxed_free (camel_folder_info_get_type (), self->folder_info);
-
-  g_clear_pointer (&self->notification, g_free);
 
   G_OBJECT_CLASS (stamp_folder_item_parent_class)->dispose (object);
 }
