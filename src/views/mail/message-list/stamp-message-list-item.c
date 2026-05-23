@@ -99,6 +99,7 @@ open_message (StampMessageListItem *self,
   StampMimeListUnsubscribe *list_unsubscribe;
   const char *address = camel_medium_get_header (CAMEL_MEDIUM (message), "Disposition-Notification-To");
   const char *auth_as = camel_medium_get_header (CAMEL_MEDIUM (message), "X-MS-Exchange-Organization-AuthAs");
+  const char *sender = camel_medium_get_header (CAMEL_MEDIUM (message), "Sender");
   GPtrArray *attachments;
 
   if (!address)
@@ -127,6 +128,8 @@ open_message (StampMessageListItem *self,
       stamp_message_header_set_extern (STAMP_MESSAGE_HEADER (self->header), TRUE);
     }
   }
+
+  stamp_message_header_set_sender (STAMP_MESSAGE_HEADER (self->header), sender);
 
   parser = stamp_mime_parser_new (message, CAMEL_SESSION (stamp_session_get_default ()), self->cancellable);
   stamp_mime_parser_parse (parser);

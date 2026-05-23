@@ -49,5 +49,9 @@ void
 stamp_message_header_set_internal (StampMessageHeader *self,
                                    gboolean            is_internal);
 
+void
+stamp_message_header_set_sender (StampMessageHeader *self,
+                                 const char         *sender);
+
 G_END_DECLS
 

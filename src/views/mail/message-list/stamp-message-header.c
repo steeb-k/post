@@ -72,6 +72,11 @@ struct _StampMessageHeader {
   const CamelMessageInfo *message_info;
 
   StampAccount *account;
+
+  char *from_mail;
+  char *from_name;
+  char *sender_name;
+  char *sender_mail;
 };
 
 G_DEFINE_FINAL_TYPE (StampMessageHeader, stamp_message_header, GTK_TYPE_GRID);
@@ -500,6 +505,59 @@ transfer_flags_to_icon (GBinding     *binding,
   return TRUE;
 }
 
+static void
+update_from (StampMessageHeader *self)
+{
+  GdkTexture *texture = NULL;
+  g_autofree char *tmp_name = NULL;
+  g_autofree char *markup = NULL;
+
+  if (!self->from_mail)
+    return;
+
+  if (self->cancellable) {
+    g_cancellable_cancel (self->cancellable);
+    g_clear_object (&self->cancellable);
+  }
+
+  self->cancellable = g_cancellable_new ();
+
+  stamp_account_get_photo (self->account,
+                           self->from_mail,
+                           self->cancellable,
+                           on_get_photo,
+                           g_object_ref (self));
+  if (texture) {
+    adw_avatar_set_custom_image (ADW_AVATAR (self->avatar), GDK_PAINTABLE (texture));
+  } else {
+    if (self->from_name && strlen (self->from_name) > 0) {
+      g_autofree char *stripped_text = stamp_strip_department (self->from_name);
+
+      adw_avatar_set_text (ADW_AVATAR (self->avatar), stripped_text);
+    } else {
+      adw_avatar_set_text (ADW_AVATAR (self->avatar), self->from_mail);
+    }
+
+    adw_avatar_set_show_initials (ADW_AVATAR (self->avatar), TRUE);
+  }
+
+  if (self->sender_mail) {
+    g_autofree char *tmp_sender_name = g_markup_escape_text (self->sender_name, -1);
+    g_autofree char *tmp_sender_mail = g_markup_escape_text (self->sender_mail, -1);
+
+    markup = g_strdup_printf (_("<b>%s</b> <small>(%s)</small>\non behalf of <small>%s (%s)</small>"),
+                              tmp_sender_name,
+                              tmp_sender_mail,
+                              self->from_name,
+                              self->from_mail);
+  } else {
+    markup = g_strdup_printf ("<b>%s</b> <small>(%s)</small>", self->from_name, self->from_mail);
+  }
+
+  gtk_label_set_markup (GTK_LABEL (self->from_full), markup);
+  gtk_widget_set_tooltip_text (self->from_full, self->from_mail);
+}
+
 void
 stamp_message_header_set_mail (StampMessageHeader    *self,
                                CamelFolderThreadNode *thread_node)
@@ -507,7 +565,6 @@ stamp_message_header_set_mail (StampMessageHeader    *self,
   g_autoptr (CamelInternetAddress) address = camel_internet_address_new ();
   const CamelMessageInfo *message_info = camel_folder_thread_node_get_item (thread_node);
   g_autofree char *markup = NULL;
-  const char *sender = NULL;
   const char *to = NULL;
   const char *ia_name;
   const char *ia_address;
@@ -518,55 +575,35 @@ stamp_message_header_set_mail (StampMessageHeader    *self,
   g_autoptr (GString) tmp_cc_addresses = g_string_new (NULL);
   g_autoptr (GMenuItem) item = NULL;
   g_autofree char *time = NULL;
-  GMenu *menu;
-  GMenu *mark_menu;
-  GMenu *more_menu;
 
   self->message_info = message_info;
 
   if (camel_address_decode (CAMEL_ADDRESS (address), camel_message_info_get_from (message_info)) > 0) {
     camel_internet_address_get (address, 0, &ia_name, &ia_address);
-    sender = ia_address;
+
+    g_print ("%s: %s %s\n", G_STRFUNC, ia_name, ia_address);
+
+    if (ia_name && strlen (ia_name) > 0) {
+      g_autofree char *tmp_name = NULL;
+      int offset = 0;
+
+      if (ia_name[0] == '<')
+        offset = 1;
+
+      tmp_name = g_strdup (ia_name + offset);
+      if (tmp_name && tmp_name[strlen (tmp_name) - 1 ] == '>')
+        tmp_name[strlen (tmp_name) - 1] = '\0';
+
+      g_set_str (&self->from_name, tmp_name);
+    } else {
+      g_set_str (&self->from_name, ia_address);
+    }
+
+    g_set_str (&self->from_mail, ia_address);
   }
 
   gtk_inscription_set_text (GTK_INSCRIPTION (self->body_preview), camel_message_info_get_preview (message_info));
-
-  /* Avatar */
-  if (sender) {
-    GdkTexture *texture = NULL;
-    g_autofree char *tmp_name = NULL;
-
-    if (self->cancellable) {
-      g_cancellable_cancel (self->cancellable);
-      g_clear_object (&self->cancellable);
-    }
-
-    self->cancellable = g_cancellable_new ();
-
-    stamp_account_get_photo (self->account,
-                             ia_address,
-                             self->cancellable,
-                             on_get_photo,
-                             g_object_ref (self));
-    if (texture) {
-      adw_avatar_set_custom_image (ADW_AVATAR (self->avatar), GDK_PAINTABLE (texture));
-    } else {
-      if (ia_name && strlen (ia_name) > 0) {
-        g_autofree char *stripped_text = stamp_strip_department (ia_name);
-
-        adw_avatar_set_text (ADW_AVATAR (self->avatar), stripped_text);
-      } else {
-        adw_avatar_set_text (ADW_AVATAR (self->avatar), ia_address);
-      }
-
-      adw_avatar_set_show_initials (ADW_AVATAR (self->avatar), TRUE);
-    }
-
-    tmp_name = g_markup_escape_text (ia_name, -1);
-    markup = g_strdup_printf ("<b>%s</b> <small>(%s)</small>", tmp_name, ia_address);
-    gtk_label_set_markup (GTK_LABEL (self->from_full), markup);
-    gtk_widget_set_tooltip_text (self->from_full, ia_address);
-  }
+  update_from (self);
 
   g_clear_object (&address);
   address = camel_internet_address_new ();
@@ -697,4 +734,22 @@ stamp_message_header_set_internal (StampMessageHeader *self,
                                    gboolean            is_internal)
 {
   gtk_widget_set_visible (self->internal, is_internal);
+}
+
+void
+stamp_message_header_set_sender (StampMessageHeader *self,
+                                 const char         *sender)
+{
+  g_autoptr (CamelInternetAddress) address = camel_internet_address_new ();
+  const char *ia_name;
+  const char *ia_address;
+
+  if (camel_address_decode (CAMEL_ADDRESS (address), sender) <= 0)
+    return;
+
+  camel_internet_address_get (address, 0, &ia_name, &ia_address);
+  g_set_str (&self->sender_name, ia_name);
+  g_set_str (&self->sender_mail, ia_address);
+
+  update_from (self);
 }
