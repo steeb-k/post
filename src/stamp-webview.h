@@ -29,6 +29,9 @@ G_BEGIN_DECLS
 
 G_DECLARE_FINAL_TYPE (StampWebView, stamp_webview, STAMP, WEB_VIEW, WebKitWebView);
 
+typedef GInputStream *(*cid_handler_func)(WebKitURISchemeRequest *request,
+                                          gpointer                user_data);
+
 StampWebView *
 stamp_webview_new (void);
 
@@ -95,6 +98,11 @@ stamp_webview_set_editable (StampWebView *self);
 void
 stamp_webview_copy_resources (StampWebView *src,
                               StampWebView *dst);
+
+void
+stamp_webview_set_cid_handler (StampWebView     *self,
+                               cid_handler_func  cid_handler,
+                               gpointer          user_data);
 
 G_END_DECLS
 

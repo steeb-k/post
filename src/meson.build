@@ -103,6 +103,7 @@ stamp_deps = [
   dependency('libedata-book-1.2'),
   dependency('libebook-contacts-1.2'),
   dependency('libportal-gtk4', version: '>= 0.6'),
+  dependency('libpsl'),
   dependency('nss'),
   dependency('webkitgtk-6.0'),
   cc.find_library('resolv'),

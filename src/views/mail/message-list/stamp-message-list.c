@@ -101,9 +101,9 @@ on_unsubscribe_response (GtkWidget *dialog,
   if (g_strcmp0 (response, "confirm") == 0) {
     g_autoptr (StampMimeParser) parser = NULL;
 
-    parser = stamp_mime_parser_new (self->unsubscribe_message, CAMEL_SESSION (stamp_session_get_default ()), self->cancellable);
-    stamp_mime_parser_parse (parser);
-    stamp_mime_parser_send_unsubscribe (parser, self->cancellable);
+    parser = stamp_mime_parser_new (CAMEL_SESSION (stamp_session_get_default ()));
+    stamp_mime_parser_parse (parser, self->unsubscribe_message, self->cancellable, NULL);
+    stamp_mime_parser_send_unsubscribe (parser, NULL, self->cancellable);
     gtk_widget_set_visible (GTK_WIDGET (self->unsubscribe_button), FALSE);
   }
 }
@@ -301,12 +301,10 @@ stamp_message_list_set_conversation (StampMessageList      *self,
   GtkWidget *item;
   GtkWidget *child;
   CamelMessageInfo *message;
-  /* GtkListBoxRow *row; */
   GAction *action;
   GSimpleActionGroup *action_group;
   StampWindow *window = STAMP_WINDOW (stamp_get_main_window ());
   StampMailView *mail_view = stamp_window_get_mail_view (window);
-  /* int idx = 0; */
   CamelFolderSummary *summary;
   CamelFolder *folder;
   const char *fname;
@@ -319,19 +317,13 @@ stamp_message_list_set_conversation (StampMessageList      *self,
   g_clear_pointer (&self->messages, g_hash_table_unref);
   action_group = stamp_mail_view_get_action_group (mail_view);
 
-  /* Reply */
-  action = g_action_map_lookup_action (G_ACTION_MAP (action_group),
-                                       "reply-current");
+  action = g_action_map_lookup_action (G_ACTION_MAP (action_group), "reply-current");
   g_simple_action_set_enabled (G_SIMPLE_ACTION (action), node != NULL);
 
-  /* Reply All */
-  action = g_action_map_lookup_action (G_ACTION_MAP (action_group),
-                                       "reply-all-current");
+  action = g_action_map_lookup_action (G_ACTION_MAP (action_group), "reply-all-current");
   g_simple_action_set_enabled (G_SIMPLE_ACTION (action), node != NULL);
 
-  /* Forward */
-  action = g_action_map_lookup_action (G_ACTION_MAP (action_group),
-                                       "forward-current");
+  action = g_action_map_lookup_action (G_ACTION_MAP (action_group), "forward-current");
   g_simple_action_set_enabled (G_SIMPLE_ACTION (action), node != NULL);
 
   if (!node) {
@@ -340,7 +332,7 @@ stamp_message_list_set_conversation (StampMessageList      *self,
     return;
   }
 
-  /* TODO: E-D-S does not mark messages as DRAFT nor the folder as TYPE_DRAFTS for MS365…, check full name for the moment
+  /* E-D-S does not mark messages as DRAFT nor the folder as TYPE_DRAFTS for MS365…, check full name for the moment
    */
   message = camel_folder_thread_node_get_item (node);
   g_object_get (G_OBJECT (message), "summary", &summary, NULL);
@@ -420,6 +412,17 @@ on_message_body (GObject      *source,
   if (error) {
     if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
       g_warning ("Could not get message body html: %s", error->message);
+    g_clear_object (&data->self);
+    g_clear_object (&data->item);
+    g_clear_pointer (&data, g_free);
+    return;
+  }
+
+  if (!body) {
+    g_warning ("Could not get message body html: empty response");
+    g_clear_object (&data->self);
+    g_clear_object (&data->item);
+    g_clear_pointer (&data, g_free);
     return;
   }
 

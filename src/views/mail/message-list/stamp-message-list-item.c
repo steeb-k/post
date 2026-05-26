@@ -57,6 +57,8 @@ struct _StampMessageListItem {
   StampWebView *web_view;
   StampAccount *account;
 
+  StampMimeParser *parser;
+
   const CamelMessageInfo *message_info;
   char *calendar_content;
   char *message_content;
@@ -92,15 +94,18 @@ static void
 open_message (StampMessageListItem *self,
               CamelMimeMessage     *message)
 {
-  g_autoptr (StampMimeParser) parser = NULL;
-  StampMimeContent *body;
-  StampMimeValidation *validation;
+  StampMimeBody *body;
+  const GList *signatures;
+  const GList *encryptions;
   StampMimeCalendar *calendar;
-  StampMimeListUnsubscribe *list_unsubscribe;
+  GList *list_unsubscribe;
   const char *address = camel_medium_get_header (CAMEL_MEDIUM (message), "Disposition-Notification-To");
   const char *auth_as = camel_medium_get_header (CAMEL_MEDIUM (message), "X-MS-Exchange-Organization-AuthAs");
   const char *sender = camel_medium_get_header (CAMEL_MEDIUM (message), "Sender");
-  GPtrArray *attachments;
+  GList *attachments;
+  StampMessageList *message_list = STAMP_MESSAGE_LIST (gtk_widget_get_ancestor (GTK_WIDGET (self), STAMP_TYPE_MESSAGE_LIST));
+
+  g_clear_object (&self->parser);
 
   if (!address)
     address = camel_medium_get_header (CAMEL_MEDIUM (message), "Return-Receipt-To");
@@ -131,33 +136,27 @@ open_message (StampMessageListItem *self,
 
   stamp_message_header_set_sender (STAMP_MESSAGE_HEADER (self->header), sender);
 
-  parser = stamp_mime_parser_new (message, CAMEL_SESSION (stamp_session_get_default ()), self->cancellable);
-  stamp_mime_parser_parse (parser);
+  self->parser = stamp_mime_parser_new (CAMEL_SESSION (stamp_session_get_default ()));
+  stamp_mime_parser_parse (self->parser, message, self->cancellable, NULL);
 
-  if (parser->error) {
-    g_warning ("ERROR: %s", parser->error->message);
-    adw_banner_set_title (ADW_BANNER (self->error_banner), parser->error->message);
-    adw_banner_set_revealed (ADW_BANNER (self->error_banner), TRUE);
-  }
+  signatures = stamp_mime_parser_get_signatures (self->parser);
+  encryptions = stamp_mime_parser_get_encryptions (self->parser);
+  if (signatures) {
+    StampMimeSignature *signature = signatures->data;
 
-  validation = stamp_mime_parser_get_validation (parser);
-  if (validation) {
-    if (validation->encryption == STAMP_MIME_ENCRYPTION_VALID) {
-      adw_banner_set_title (ADW_BANNER (self->encryption_banner), _("Valid Encryption"));
-      adw_banner_set_revealed (ADW_BANNER (self->encryption_banner), TRUE);
-    }
-
-    if (validation->status != STAMP_MIME_SIGNATURE_NONE) {
+    if (signature->status != STAMP_MIME_SIGNATURE_NONE) {
       g_autofree char *tmp = NULL;
 
-      if (validation->description) {
+      if (signature->description) {
         g_autoptr (GString) str = g_string_new ("");
 
-        adw_banner_set_title (ADW_BANNER (self->signature_banner), validation->description);
+        adw_banner_set_title (ADW_BANNER (self->signature_banner), signature->description);
         adw_banner_set_revealed (ADW_BANNER (self->signature_banner), TRUE);
 
-        for (int idx = 0; idx < validation->n_signers; idx++) {
-          g_string_append_printf (str, "%s\n", validation->signers[idx]);
+        for (GList *iter = signature->signers; iter && iter->data; iter = g_list_next (iter)) {
+          StampMimeSignerInfo *info = iter->data;
+
+          g_string_append_printf (str, "%s <%s>\n", info->name, info->email);
         }
 
         self->signature_details = g_strdup (str->str);
@@ -165,8 +164,17 @@ open_message (StampMessageListItem *self,
     }
   }
 
-  calendar = stamp_mime_parser_get_calendar (parser);
-  if (calendar && calendar->ical) {
+  if (encryptions) {
+    StampMimeEncryption *encryption = encryptions->data;
+
+    if (encryption->status != STAMP_MIME_ENCRYPTION_VALID) {
+      adw_banner_set_title (ADW_BANNER (self->encryption_banner), _("Valid Encryption"));
+      adw_banner_set_revealed (ADW_BANNER (self->encryption_banner), TRUE);
+    }
+  }
+
+  calendar = stamp_mime_parser_get_invitations (self->parser);
+  if (calendar) {
     ICalTime *time;
 
     self->calendar = g_object_ref (calendar->ical);
@@ -181,41 +189,41 @@ open_message (StampMessageListItem *self,
                                               i_cal_time_get_minute (time));
       adw_banner_set_title (ADW_BANNER (self->vcard_banner), tmp);
       adw_banner_set_revealed (ADW_BANNER (self->vcard_banner), TRUE);
+
+      if (g_strcmp0 (calendar->method, "REPLY") == 0)
+        adw_banner_set_button_label (ADW_BANNER (self->vcard_banner), NULL);
     }
   }
 
-  list_unsubscribe = stamp_mime_parser_get_list_unsubscribe (parser);
-  if (list_unsubscribe && list_unsubscribe->one_click) {
-    StampMessageList *message_list = STAMP_MESSAGE_LIST (gtk_widget_get_ancestor (GTK_WIDGET (self), STAMP_TYPE_MESSAGE_LIST));
+  list_unsubscribe = stamp_mime_parser_get_list_unsubscribe (self->parser);
+  if (list_unsubscribe) {
+    StampMimeListUnsubscribe *unsubscribe = list_unsubscribe->data;
 
-    stamp_message_list_set_unsubscribe (message_list, camel_message_info_get_from (self->message_info), list_unsubscribe->url, self->message);
+    stamp_message_list_set_unsubscribe (message_list, camel_message_info_get_from (self->message_info), unsubscribe->uri, self->message);
   }
 
-  body = stamp_mime_parser_get_body (parser);
-  if (body && body->content) {
-    self->message_content = g_strdup (body->content);
+  body = stamp_mime_parser_get_body (self->parser);
+  if (body && body->text) {
+    self->message_content = g_strdup (body->text);
     self->message_is_html = body->is_html;
 
     if (self->message_is_html && body->is_html) {
-      char *html_with_images = stamp_mime_parser_embed_inline_images (parser, self->message_content);
+      /*char *html_with_images = stamp_mime_parser_embed_inline_images (parser, self->message_content);
       if (html_with_images) {
         g_clear_pointer (&self->message_content, g_free);
         self->message_content = html_with_images;
-      }
+      }*/
     }
   }
 
-  attachments = stamp_mime_parser_get_attachments (parser);
-  if (attachments && attachments->len > 0) {
-    for (guint i = 0; i < attachments->len; i++) {
-      StampMimeAttachment *att = g_ptr_array_index (attachments, i);
-      GtkWidget *button = stamp_attachment_button_new_from_data (att->filename, att->content_type, att->size, att->data);
+  attachments = stamp_mime_parser_get_attachments (self->parser);
+  for (GList *iter = attachments; iter && iter->data; iter = g_list_next (iter)) {
+    StampMimeAttachment *att = iter->data;
+    GtkWidget *button = stamp_attachment_button_new_from_data (att->filename, att->mime_type, att->size, att->data);
 
-      adw_wrap_box_append (ADW_WRAP_BOX (self->attachment_flow_box), button);
-    }
-
-    gtk_widget_set_visible (self->attachment_flow_box, TRUE);
+    adw_wrap_box_append (ADW_WRAP_BOX (self->attachment_flow_box), button);
   }
+  gtk_widget_set_visible (self->attachment_flow_box, attachments != NULL);
 
   if (!self->message_content) {
     self->loading_done = TRUE;
@@ -782,6 +790,11 @@ on_message_body (GObject      *source,
     return;
   }
 
+  if (!body) {
+    g_warning ("Could not get message body html: empty response");
+    return;
+  }
+
   composer = stamp_composer_new_with_quote (self->type,
                                             stamp_message_list_item_get_uid (self),
                                             self->account,
@@ -850,6 +863,38 @@ static const GActionEntry actions[] = {
   { "view-source", on_view_source_activate},
 };
 
+static GInputStream *
+on_cid_request (WebKitURISchemeRequest *request,
+                gpointer                user_data)
+{
+  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
+  g_autofree char *path = g_uri_unescape_string (webkit_uri_scheme_request_get_path (request), NULL);
+  GList *attachments;
+
+  attachments = stamp_mime_parser_get_inline_images (self->parser);
+  for (GList *iter = attachments; iter && iter->data; iter = g_list_next (iter)) {
+    StampMimeAttachment *att = iter->data;
+
+    if (g_strcmp0 (att->content_id, path) == 0) {
+      GInputStream *stream = g_memory_input_stream_new_from_bytes (att->data);
+      return stream;
+    }
+  }
+
+  /* Mail clients are stupid and often declare inline images as attachments… */
+  attachments = stamp_mime_parser_get_attachments (self->parser);
+  for (GList *iter = attachments; iter && iter->data; iter = g_list_next (iter)) {
+    StampMimeAttachment *att = iter->data;
+
+    if (g_strcmp0 (att->content_id, path) == 0) {
+      GInputStream *stream = g_memory_input_stream_new_from_bytes (att->data);
+      return stream;
+    }
+  }
+
+  return NULL;
+}
+
 void
 stamp_message_list_item_init (StampMessageListItem *self)
 {
@@ -865,6 +910,8 @@ stamp_message_list_item_init (StampMessageListItem *self)
   self->actions = g_simple_action_group_new ();
   g_action_map_add_action_entries (G_ACTION_MAP (self->actions), actions, G_N_ELEMENTS (actions), self);
   gtk_widget_insert_action_group (GTK_WIDGET (self), "message-list-item", G_ACTION_GROUP (self->actions));
+
+  stamp_webview_set_cid_handler (self->web_view, on_cid_request, self);
 }
 
 GtkWidget *

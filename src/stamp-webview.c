@@ -32,6 +32,9 @@ struct _StampWebView {
   gboolean queued_load_images;
   GCancellable *cancellable;
   gboolean body_html_changed;
+
+  cid_handler_func cid_handler;
+  gpointer cid_handler_user_data;
 };
 
 G_DEFINE_FINAL_TYPE (StampWebView, stamp_webview, WEBKIT_TYPE_WEB_VIEW);
@@ -87,34 +90,24 @@ stamp_web_view_set_property (GObject      *object,
   }
 }
 
-static gboolean
-handle_internal_response (StampWebView           *self,
-                          WebKitURISchemeRequest *request)
-{
-  g_autofree char *path = g_uri_unescape_string (webkit_uri_scheme_request_get_path (request), NULL);
-  GInputStream *stream = g_hash_table_lookup (self->internal_resources, path);
-
-  if (stream) {
-    if (G_IS_SEEKABLE (stream)) {
-      GSeekable *seekable = G_SEEKABLE (stream);
-      g_seekable_seek (seekable, 0, G_SEEK_SET, NULL, NULL);
-    }
-    webkit_uri_scheme_request_finish (request, stream, -1, NULL);
-    return TRUE;
-  }
-
-  return FALSE;
-}
-
 static void
 on_cid_request (WebKitURISchemeRequest *request,
                 gpointer                user_data)
 {
   StampWebView *self = STAMP_WEB_VIEW (webkit_uri_scheme_request_get_web_view (request));
+  GInputStream *stream;
 
-  if (!handle_internal_response (self, request)) {
+  stream = self->cid_handler ? self->cid_handler (request, self->cid_handler_user_data) : NULL;
+  if (!stream) {
     GError *error = g_error_new_literal (g_quark_from_string ("Stamp"), 1, "Failed to handle internal response");
     webkit_uri_scheme_request_finish_error (request, error);
+  } else {
+    if (G_IS_SEEKABLE (stream)) {
+      GSeekable *seekable = G_SEEKABLE (stream);
+      g_seekable_seek (seekable, 0, G_SEEK_SET, NULL, NULL);
+    }
+
+    webkit_uri_scheme_request_finish (request, stream, -1, NULL);
   }
 }
 
@@ -177,7 +170,6 @@ on_load_changed (WebKitWebView   *web_view,
     webkit_web_view_evaluate_javascript (web_view,
                                          "document.querySelector('[contenteditable]').focus();",
                                          -1, NULL, NULL, NULL, NULL, NULL);
-
 
     webkit_web_view_evaluate_javascript (
       web_view,
@@ -480,7 +472,19 @@ stamp_webview_get_body_html_finish (StampWebView  *self,
     return NULL;
   }
 
+  if (!response) {
+    g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_FAILED,
+                         "No response from WebKit page");
+    return NULL;
+  }
+
   parameters = webkit_user_message_get_parameters (response);
+  if (!parameters) {
+    g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_FAILED,
+                         "WebKit response carries no parameters");
+    return NULL;
+  }
+
   g_variant_get (parameters, "(&s&s)", &html, &plain);
 
   if (out_plain_text)
@@ -636,4 +640,13 @@ stamp_webview_copy_resources (StampWebView *src,
                               StampWebView *dst)
 {
   dst->internal_resources = g_hash_table_ref (src->internal_resources);
+}
+
+void
+stamp_webview_set_cid_handler (StampWebView     *self,
+                               cid_handler_func  cid_handler,
+                               gpointer          user_data)
+{
+  self->cid_handler = cid_handler;
+  self->cid_handler_user_data = user_data;
 }

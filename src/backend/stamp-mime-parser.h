@@ -25,15 +25,17 @@
 #define LIBICAL_GLIB_UNSTABLE_API 1
 #include <libical-glib/libical-glib.h>
 
+G_BEGIN_DECLS
+
 typedef struct _ICalComponent ICalComponent;
 
 typedef struct _StampMimeParser StampMimeParser;
 
 typedef enum {
   STAMP_MIME_SIGNATURE_NONE,
+  STAMP_MIME_SIGNATURE_UNKNOWN,
   STAMP_MIME_SIGNATURE_GOOD,
   STAMP_MIME_SIGNATURE_BAD,
-  STAMP_MIME_SIGNATURE_UNKNOWN,
 } StampMimeSignatureStatus;
 
 typedef enum {
@@ -42,30 +44,62 @@ typedef enum {
   STAMP_MIME_ENCRYPTION_INVALID,
 } StampMimeEncryptionStatus;
 
-typedef struct {
-  StampMimeSignatureStatus status;
-  StampMimeEncryptionStatus encryption;
-  char *description;
-  char **signers;
-  guint n_signers;
-} StampMimeValidation;
+typedef enum {
+  STAMP_MIME_ATTACHMENT_GENERIC = 0x01,
+  STAMP_MIME_ATTACHMENT_IMAGE = 0x02,
+  STAMP_MIME_ATTACHMENT_CALENDAR = 0x04,
+  STAMP_MIME_ATTACHMENT_PGP_KEY = 0x08,
+  STAMP_MIME_ATTACHMENT_INVITATION = 0x10,
+} StampMimeAttachmentKind;
 
 typedef struct {
-  char *content;
+  char *name;
+  char *email;
+} StampMimeSignerInfo;
+
+typedef struct {
+  StampMimeSignatureStatus status;
+  GList *signers;
+  char *description;
+  gboolean is_smime;
+  gboolean is_inline;
+} StampMimeSignature;
+
+typedef enum {
+  STAMP_MIME_PGP_INLINE_NONE       = 0,
+  STAMP_MIME_PGP_INLINE_SIGNED     = 1,
+  STAMP_MIME_PGP_INLINE_ENCRYPTED  = 2,
+} StampMimePgpInlineType;
+
+typedef struct {
+  StampMimeEncryptionStatus status;
+  char *error_message;
+  gboolean success;
+  gboolean is_smime;
+  gboolean is_inline;
+} StampMimeEncryption;
+
+typedef struct {
+  char *text;
   gsize length;
   char *charset;
   gboolean is_html;
+
   gboolean is_signed;
   gboolean is_encrypted;
-} StampMimeContent;
+} StampMimeBody;
 
 typedef struct {
   char *filename;
-  char *content_type;
-  char *content_id;
+  char *mime_type;
   char *disposition;
   GBytes *data;
   gsize size;
+  gboolean is_inline;
+  StampMimeAttachmentKind  kind;
+  char *content_id;
+  char *image_format;
+  char *calendar_method;
 } StampMimeAttachment;
 
 typedef struct {
@@ -80,78 +114,67 @@ typedef struct {
   ICalComponent *ical;
 } StampMimeCalendar;
 
+typedef enum {
+  STAMP_MIME_UNSUBSCRIBE_MAILTO = 1,
+  STAMP_MIME_UNSUBSCRIBE_HTTP   = 2,
+} StampMimeUnsubscribeMethod;
+
 typedef struct {
-  char *url;
+  StampMimeUnsubscribeMethod method;
+  char *uri;
+  char *mailto;
   gboolean one_click;
 } StampMimeListUnsubscribe;
 
 typedef void (*StampMimeParserCallback) (StampMimeParser *self,
                                         gpointer user_data);
 
-struct _StampMimeParser {
-  CamelMimeMessage *message;
-  CamelSession *session;
-  GCancellable *cancellable;
-
-  CamelDataWrapper *root_content;
-  CamelMimePart *current_part;
-
-  StampMimeValidation *validation;
-  GPtrArray *attachments;
-  GPtrArray *inline_parts;
-  StampMimeContent *body;
-  StampMimeCalendar *calendar;
-  StampMimeListUnsubscribe *list_unsubscribe;
-
-  gboolean is_multipart;
-  gboolean decryption_attempted;
-  gboolean decryption_succeeded;
-
-  GError *error;
-};
+#define STAMP_TYPE_MIME_PARSER (stamp_mime_parser_get_type())
+G_DECLARE_FINAL_TYPE(StampMimeParser, stamp_mime_parser, STAMP, MIME_PARSER, GObject)
 
 StampMimeParser *
-stamp_mime_parser_new (CamelMimeMessage *message,
-                       CamelSession     *session,
-                       GCancellable     *cancellable);
+stamp_mime_parser_new (CamelSession *session);
 
 void
 stamp_mime_parser_free (StampMimeParser *self);
 
 gboolean
-stamp_mime_parser_parse (StampMimeParser *self);
+stamp_mime_parser_parse (StampMimeParser   *self,
+                         CamelMimeMessage  *message,
+                         GCancellable      *cancellable,
+                         GError           **error);
 
-StampMimeContent *
+StampMimeBody *
 stamp_mime_parser_get_body (StampMimeParser *self);
 
-GPtrArray *
+GList *
 stamp_mime_parser_get_attachments (StampMimeParser *self);
 
-StampMimeValidation *
-stamp_mime_parser_get_validation (StampMimeParser *self);
+const GList *
+stamp_mime_parser_get_signatures (StampMimeParser *self);
 
-StampMimeCalendar *
-stamp_mime_parser_get_calendar (StampMimeParser *self);
+const GList *
+stamp_mime_parser_get_encryptions (StampMimeParser *self);
 
-gboolean
-stamp_mime_parser_has_calendar (StampMimeParser *self);
+GList *
+stamp_mime_parser_get_calendars (StampMimeParser *self);
 
-gboolean
-stamp_mime_parser_has_attachments (StampMimeParser *self);
-
-GPtrArray *
-stamp_mime_parser_get_inline_parts (StampMimeParser *self);
+GList *
+stamp_mime_parser_get_inline_images (StampMimeParser *self);
 
 char *
 stamp_mime_parser_embed_inline_images (StampMimeParser *self,
                                        const char      *html_content);
 
-StampMimeListUnsubscribe *
+GList *
 stamp_mime_parser_get_list_unsubscribe (StampMimeParser *self);
 
 void
-stamp_mime_parser_send_unsubscribe (StampMimeParser *self,
-                                   GCancellable    *cancellable);
+stamp_mime_parser_send_unsubscribe (StampMimeParser          *parser,
+                                    StampMimeListUnsubscribe *unsubscribe,
+                                    GCancellable             *cancellable);
 
-G_DEFINE_AUTOPTR_CLEANUP_FUNC (StampMimeParser, stamp_mime_parser_free);
+StampMimeCalendar *
+stamp_mime_parser_get_invitations (StampMimeParser *self);
 
+G_END_DECLS

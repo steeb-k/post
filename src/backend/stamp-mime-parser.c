@@ -22,41 +22,69 @@
 #include <libsoup/soup.h>
 #include <libecal/libecal.h>
 
+struct _StampMimeParser {
+  GObject parent_instance;
+
+  CamelSession *session;
+
+  StampMimeBody *html_body;
+  StampMimeBody *plain_body;
+  StampMimeCalendar *calendar;
+
+  GList *attachments;
+  GList *signatures;
+  GList *encryption;
+
+  GList *list_unsubscribe;
+
+  gboolean found_encrypted;
+  gboolean unsubscribe_one_click;
+
+  guint depth;
+};
+
+G_DEFINE_FINAL_TYPE (StampMimeParser, stamp_mime_parser, G_TYPE_OBJECT)
+
+#define HELPER(fmt, ...) g_print (fmt "%s\n", __VA_ARGS__)
+#define PARSER_LOG(...) do { \
+          g_print ("%s: ", G_STRFUNC); \
+          for (guint idx = 0; idx < self->depth; idx++) \
+          g_print (" "); \
+          HELPER (__VA_ARGS__, ""); \
+} while (0)
+
+typedef gboolean (*StampPartHandlerFunc)(StampMimeParser *self,
+                                         CamelMimePart   *part,
+                                         gconstpointer    user_data,
+                                         GCancellable    *cancellable,
+                                         GError         **error);
+
+typedef struct {
+  const char *type;
+  const char *subtype;
+  StampPartHandlerFunc handler;
+  gconstpointer user_data;
+} StampPartDispatchEntry;
+
+static gboolean dispatch_part (StampMimeParser *self,
+                               CamelMimePart   *part,
+                               GCancellable    *cancellable,
+                               GError         **error);
+
 static void
-stamp_mime_validation_free (StampMimeValidation *validation)
+stamp_mime_body_free (StampMimeBody *body)
 {
-  g_assert (validation);
+  g_assert (body);
 
-  g_clear_pointer (&validation->description, g_free);
-  g_clear_pointer (&validation->signers, g_strfreev);
-  g_clear_pointer (&validation, g_free);
+  g_clear_pointer (&body->text, g_free);
+  g_clear_pointer (&body->charset, g_free);
+  g_clear_pointer (&body, g_free);
 }
 
-static StampMimeValidation *
-stamp_mime_validation_new (void)
+static StampMimeBody *
+stamp_mime_body_new (void)
 {
-  StampMimeValidation *validation = g_new0 (StampMimeValidation, 1);
-
-  validation->status = STAMP_MIME_SIGNATURE_NONE;
-  validation->encryption = STAMP_MIME_ENCRYPTION_NONE;
-
-  return validation;
-}
-
-static void
-stamp_mime_content_free (StampMimeContent *content)
-{
-  g_assert (content);
-
-  g_clear_pointer (&content->content, g_free);
-  g_clear_pointer (&content->charset, g_free);
-  g_clear_pointer (&content, g_free);
-}
-
-static StampMimeContent *
-stamp_mime_content_new (void)
-{
-  return g_new0 (StampMimeContent, 1);
+  return g_new0 (StampMimeBody, 1);
 }
 
 static void
@@ -65,8 +93,7 @@ stamp_mime_attachment_free (StampMimeAttachment *attachment)
   g_assert (attachment);
 
   g_clear_pointer (&attachment->filename, g_free);
-  g_clear_pointer (&attachment->content_type, g_free);
-  g_clear_pointer (&attachment->content_id, g_free);
+  g_clear_pointer (&attachment->mime_type, g_free);
   g_clear_pointer (&attachment->disposition, g_free);
   g_clear_pointer (&attachment->data, g_bytes_unref);
   g_clear_pointer (&attachment, g_free);
@@ -76,6 +103,22 @@ static StampMimeAttachment *
 stamp_mime_attachment_new (void)
 {
   return g_new0 (StampMimeAttachment, 1);
+}
+
+static void
+stamp_mime_list_unsubscribe_free (StampMimeListUnsubscribe *list_unsubscribe)
+{
+  g_assert (list_unsubscribe);
+
+  g_clear_pointer (&list_unsubscribe->uri, g_free);
+  g_clear_pointer (&list_unsubscribe->mailto, g_free);
+  g_clear_pointer (&list_unsubscribe, g_free);
+}
+
+static StampMimeListUnsubscribe *
+stamp_mime_list_unsubscribe_new (void)
+{
+  return g_new0 (StampMimeListUnsubscribe, 1);
 }
 
 static void
@@ -96,157 +139,55 @@ stamp_mime_calendar_new (void)
 }
 
 static void
-stamp_mime_list_unsubscribe_free (StampMimeListUnsubscribe *list_unsubscribe)
+stamp_mime_parser_clear (StampMimeParser *self)
 {
-  g_assert (list_unsubscribe);
+  g_clear_pointer (&self->html_body, stamp_mime_body_free);
+  g_clear_pointer (&self->plain_body, stamp_mime_body_free);
 
-  g_clear_pointer (&list_unsubscribe->url, g_free);
-  g_clear_pointer (&list_unsubscribe, g_free);
-}
+  g_clear_list (&self->attachments, (GDestroyNotify)stamp_mime_attachment_free);
+  g_clear_list (&self->list_unsubscribe, (GDestroyNotify)stamp_mime_list_unsubscribe_free);
 
-static StampMimeListUnsubscribe *
-stamp_mime_list_unsubscribe_new (void)
-{
-  return g_new0 (StampMimeListUnsubscribe, 1);
+  self->found_encrypted = FALSE;
+  self->unsubscribe_one_click = FALSE;
+  self->depth = 0;
 }
 
 static void
-stamp_mime_inline_part_free (StampMimeInlinePart *part)
+stamp_mime_parser_dispose (GObject *object)
 {
-  g_assert (part);
+  StampMimeParser *self = STAMP_MIME_PARSER (object);
 
-  g_clear_pointer (&part->content_id, g_free);
-  g_clear_pointer (&part->content_type, g_free);
-  g_clear_pointer (&part->data, g_bytes_unref);
-  g_clear_pointer (&part, g_free);
+  g_clear_object (&self->session);
+  stamp_mime_parser_clear (self);
+
+  G_OBJECT_CLASS (stamp_mime_parser_parent_class)->dispose (object);
+}
+
+static void
+stamp_mime_parser_class_init (StampMimeParserClass *klass)
+{
+  GObjectClass *object_class = G_OBJECT_CLASS (klass);
+
+  object_class->dispose = stamp_mime_parser_dispose;
+}
+
+static void
+stamp_mime_parser_init (StampMimeParser *self)
+{
 }
 
 StampMimeParser *
-stamp_mime_parser_new (CamelMimeMessage *message,
-                       CamelSession     *session,
-                       GCancellable     *cancellable)
+stamp_mime_parser_new (CamelSession *session)
 {
-  StampMimeParser *parser;
+  StampMimeParser *self;
 
-  g_return_val_if_fail (CAMEL_IS_MIME_MESSAGE (message), NULL);
+  g_return_val_if_fail (CAMEL_IS_SESSION (session), NULL);
 
-  parser = g_new0 (StampMimeParser, 1);
-  parser->message = g_object_ref (message);
-  parser->session = session ? g_object_ref (session) : NULL;
-  parser->cancellable = cancellable ? g_object_ref (cancellable) : NULL;
-  parser->attachments = g_ptr_array_new_with_free_func ((GDestroyNotify)stamp_mime_attachment_free);
-  parser->inline_parts = g_ptr_array_new_with_free_func ((GDestroyNotify)stamp_mime_inline_part_free);
-  parser->root_content = CAMEL_DATA_WRAPPER (message);
+  self = g_object_new (STAMP_TYPE_MIME_PARSER, NULL);
+  self->session = g_object_ref (session);
 
-  return parser;
+  return self;
 }
-
-void
-stamp_mime_parser_free (StampMimeParser *parser)
-{
-  g_assert (parser);
-
-  g_clear_object (&parser->message);
-  g_clear_object (&parser->session);
-  g_clear_object (&parser->cancellable);
-  g_clear_object (&parser->root_content);
-  g_clear_object (&parser->current_part);
-
-  g_clear_pointer (&parser->validation, stamp_mime_validation_free);
-  g_clear_pointer (&parser->body, stamp_mime_content_free);
-  g_clear_pointer (&parser->calendar, stamp_mime_calendar_free);
-  g_clear_pointer (&parser->list_unsubscribe, stamp_mime_list_unsubscribe_free);
-
-  g_clear_pointer (&parser->attachments, g_ptr_array_unref);
-  g_clear_pointer (&parser->inline_parts, g_ptr_array_unref);
-  g_clear_error (&parser->error);
-
-  g_clear_pointer (&parser, g_free);
-}
-
-static char *
-convert_content_to_utf8 (const char *data,
-                         gsize       len,
-                         const char *encoding)
-{
-  g_autofree char *utf8 = NULL;
-  g_autoptr (GError) error = NULL;
-  const char *iconv_encoding;
-
-  if (!data || len == 0)
-    return NULL;
-
-  if (encoding) {
-    iconv_encoding = camel_iconv_charset_name (encoding);
-
-    if (iconv_encoding) {
-      utf8 = g_convert (data, len, "UTF-8", iconv_encoding, NULL, NULL, &error);
-      if (error)
-        g_clear_pointer (&utf8, g_free);
-    }
-  }
-
-  if (!utf8 || !g_utf8_validate (utf8, -1, NULL)) {
-    g_clear_pointer (&utf8, g_free);
-    utf8 = g_convert (data, len, "UTF-8", "ISO-8859-1", NULL, NULL, &error);
-    if (error)
-      g_clear_pointer (&utf8, g_free);
-  }
-
-  return g_steal_pointer (&utf8);
-}
-
-static char *
-unpack_flowed_format (const char *text,
-                      gsize       len)
-{
-  GString *result;
-  const char *line_start;
-  const char *line_end;
-  gboolean trailing_space;
-  gsize line_len;
-
-  if (!text || len == 0)
-    return g_strdup (text);
-
-  result = g_string_sized_new (len);
-  line_start = text;
-  trailing_space = FALSE;
-
-  while (line_start < text + len) {
-    line_end = line_start;
-
-    while (line_end < text + len && *line_end != '\r' && *line_end != '\n')
-      line_end++;
-
-    line_len = line_end - line_start;
-
-    if (line_len > 0) {
-      if (line_start[line_len - 1] == ' ' || line_start[line_len - 1] == '\t') {
-        trailing_space = TRUE;
-      } else {
-        trailing_space = FALSE;
-      }
-
-      g_string_append_len (result, line_start, line_len);
-
-      if (trailing_space && line_end < text + len) {
-        g_string_append_c (result, ' ');
-      } else if (!trailing_space && line_end < text + len) {
-        g_string_append_c (result, '\n');
-      }
-    }
-
-    while (line_end < text + len && (*line_end == '\r' || *line_end == '\n')) {
-      line_end++;
-    }
-
-    line_start = line_end;
-  }
-
-  return g_string_free_and_steal (result);
-}
-
 static void
 convert_newlines_to_br (char **content)
 {
@@ -269,280 +210,90 @@ convert_newlines_to_br (char **content)
   }
 }
 
-static gboolean
-handle_text_content (StampMimeParser  *parser,
-                     CamelDataWrapper *content,
-                     CamelContentType *content_type)
+static GByteArray *
+decode_part_to_bytes (CamelMimePart  *part,
+                      GError        **error)
 {
-  GMemoryOutputStream *os;
-  g_autoptr (GError) error = NULL;
-  g_autofree char *text = NULL;
-  g_autofree char *body = NULL;
-  gsize body_len = 0;
-  gboolean is_html;
+  CamelDataWrapper *data_wrapper = camel_medium_get_content (CAMEL_MEDIUM (part));
+  g_autoptr (CamelStream) out = NULL;
+  GByteArray *result = NULL;
+  gboolean ok;
 
-  if (!content || !content_type)
-    return FALSE;
+  if (!data_wrapper)
+    return NULL;
 
-  os = G_MEMORY_OUTPUT_STREAM (g_memory_output_stream_new_resizable ());
+  out = camel_stream_mem_new ();
+  ok = camel_data_wrapper_decode_to_stream_sync (data_wrapper, out, NULL, error) >= 0;
+  if (ok) {
+    GByteArray *internal = camel_stream_mem_get_byte_array (CAMEL_STREAM_MEM (out));
 
-  if (!camel_data_wrapper_decode_to_output_stream_sync (content, G_OUTPUT_STREAM (os), parser->cancellable, &error)) {
-    g_warning ("%s: Could not decode text content: %s", G_STRFUNC, error ? error->message : "unknown error");
-    return FALSE;
-  }
-
-  if (!g_output_stream_close (G_OUTPUT_STREAM (os), parser->cancellable, &error)) {
-    g_warning ("%s: Could not close stream: %s", G_STRFUNC, error->message);
-    return FALSE;
-  }
-
-  text = convert_content_to_utf8 (g_memory_output_stream_get_data (os),
-                                  g_memory_output_stream_get_size (os),
-                                  camel_content_type_param (content_type, "charset"));
-  if (!text)
-    return FALSE;
-
-  is_html = g_strcmp0 (content_type->subtype, "html") == 0;
-
-  if (!is_html) {
-    body = g_strdup (text);
-    body_len = strlen (body);
-
-    if (g_strcmp0 (camel_content_type_param (content_type, "format"), "flowed") == 0) {
-      g_autofree char *unpacked = unpack_flowed_format (body, body_len);
-      if (unpacked) {
-        g_clear_pointer (&body, g_free);
-        body = g_steal_pointer (&unpacked);
-        body_len = strlen (body);
-      }
-    }
-  } else {
-    body = g_strdup (text);
-    body_len = text ? strlen (text) : 0;
-  }
-
-  if (parser->body && parser->body->is_html && !is_html)
-    return TRUE;
-
-  if (!parser->body)
-    parser->body = stamp_mime_content_new ();
-  else
-    g_clear_pointer (&parser->body->content, g_free);
-
-  parser->body->content = g_strndup (body, body_len);
-  parser->body->length = body_len;
-  parser->body->charset = g_strdup (camel_content_type_param (content_type, "charset"));
-  parser->body->is_html = is_html;
-
-  if (!is_html) {
-    static GRegex *email_regex = NULL;
-    static GRegex *url_regex = NULL;
-    g_autofree char *linked_content = NULL;
-
-    if (!email_regex) {
-      email_regex = g_regex_new (
-        "([a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,})",
-        0,
-        0,
-        NULL);
-    }
-
-    if (!url_regex) {
-      url_regex = g_regex_new (
-        "((https?://|ftp://|git://)[^[:space:]<>\"]+)",
-        0,
-        0,
-        NULL);
-    }
-
-    if (parser->body->content) {
-      if (email_regex) {
-        linked_content = g_regex_replace (email_regex, parser->body->content, -1, 0, "<a href=\"mailto:\\1\">\\1</a>", 0, NULL);
-
-        if (linked_content) {
-          g_free (parser->body->content);
-          parser->body->content = g_steal_pointer (&linked_content);
-        }
-      }
-
-      if (url_regex) {
-        linked_content = g_regex_replace (url_regex, parser->body->content, -1, 0, "<a href=\"\\1\">\\1</a>", 0, NULL);
-
-        if (linked_content) {
-          g_free (parser->body->content);
-          parser->body->content = g_steal_pointer (&linked_content);
-        }
-      }
-
-      convert_newlines_to_br (&parser->body->content);
-      parser->body->length = strlen (parser->body->content);
+    if (internal && internal->len > 0) {
+      result = g_byte_array_new_take (internal->data, internal->len);
+      internal->data = NULL;
+      internal->len = 0;
+    } else {
+      result = g_byte_array_new ();
     }
   }
 
-  return TRUE;
+  return result;
 }
 
-static gboolean
-handle_calendar_content (StampMimeParser  *parser,
-                         CamelDataWrapper *content,
-                         CamelContentType *content_type)
+static char *
+convert_to_utf8 (guint8     *data,
+                 gsize       len,
+                 const char *charset,
+                 gsize      *out_len)
 {
-  g_autoptr (GMemoryOutputStream) os = NULL;
-  g_autoptr (GError) error = NULL;
-  g_autofree char *ical_text = NULL;
-  ICalComponent *ical = NULL;
-  const char *ical_start = NULL;
-  const char *body = NULL;
+  gsize written = 0;
+  g_autoptr (GError) err = NULL;
+  char *utf8;
 
-  if (!content)
-    return FALSE;
+  if (!data || len == 0) {
+    if (out_len)
+      *out_len = 0;
 
-  os = G_MEMORY_OUTPUT_STREAM (g_memory_output_stream_new_resizable ());
-
-  if (!camel_data_wrapper_decode_to_output_stream_sync (content, G_OUTPUT_STREAM (os), parser->cancellable, &error)) {
-    g_warning ("%s: Could not decode calendar content: %s", G_STRFUNC, error ? error->message : "unknown error");
-    return FALSE;
+    return g_strdup ("");
   }
 
-  if (!g_output_stream_close (G_OUTPUT_STREAM (os), parser->cancellable, &error)) {
-    g_warning ("%s: Could not close stream: %s", G_STRFUNC, error->message);
-    return FALSE;
-  }
+  if (!charset || g_ascii_strcasecmp (charset, "utf-8") == 0 || g_ascii_strcasecmp (charset, "utf8") == 0) {
+    char *valid;
 
-  ical_text = convert_content_to_utf8 (g_memory_output_stream_get_data (os),
-                                       g_memory_output_stream_get_size (os),
-                                       camel_content_type_param (content_type, "charset"));
-  if (!ical_text)
-    return FALSE;
+    if (g_utf8_validate ((const char *)data, (gssize)len, NULL)) {
+      data = g_realloc (data, len + 1);
+      data[len] = '\0';
 
-  ical_start = strstr (ical_text, "BEGIN:VCALENDAR");
-  if (!ical_start)
-    ical_start = strstr (ical_text, "BEGIN:VCARD");
+      if (out_len)
+        *out_len = len;
 
-  if (!ical_start) {
-    body = strstr (ical_text, "\r\n\r\n");
-
-    if (!body)
-      body = strstr (ical_text, "\n\n");
-
-    if (body) {
-      body += (body[0] == '\r') ? 4 : 2;
-      ical_start = strstr (body, "BEGIN:VCALENDAR");
-
-      if (!ical_start)
-        ical_start = strstr (body, "BEGIN:VCARD");
+      return (char *)data;
     }
+
+    valid = g_utf8_make_valid ((const char *)data, (gssize)len);
+    g_free (data);
+
+    if (out_len)
+      *out_len = valid ? strlen (valid) : 0;
+
+    return valid;
   }
 
-  if (ical_start) {
-    g_autofree char *tmp = g_strdup (ical_start);
+  utf8 = g_convert ((const char *)data, (gssize)len, "UTF-8", charset, NULL, &written, &err);
+  g_free (data);
 
-    ical = e_cal_util_parse_ics_string (tmp);
-  } else {
-    ical = e_cal_util_parse_ics_string (ical_text);
+  if (err) {
+    g_warning ("%s: Error during charset conversion '%s': %s", G_STRFUNC, charset, err->message);
+
+    if (out_len)
+      *out_len = 0;
+
+    return g_strdup ("");
   }
 
-  if (!ical)
-    return FALSE;
+  if (out_len)
+    *out_len = written;
 
-  if (parser->calendar)
-    stamp_mime_calendar_free (parser->calendar);
-
-  parser->calendar = stamp_mime_calendar_new ();
-  parser->calendar->ical = ical;
-  parser->calendar->uid = g_strdup (i_cal_component_get_uid (ical));
-
-  return TRUE;
-}
-
-static void
-process_single_part (StampMimeParser *parser,
-                     CamelMimePart   *part);
-
-static void
-handle_inline_content (StampMimeParser *parser,
-                       CamelMimePart   *part)
-{
-  const char *content_id;
-  CamelContentType *content_type;
-  CamelDataWrapper *content;
-  GOutputStream *os;
-  g_autoptr (GError) error = NULL;
-  GBytes *bytes;
-  StampMimeInlinePart *inline_part;
-
-  content_type = camel_mime_part_get_content_type (part);
-  content_id = camel_mime_part_get_content_id (part);
-  if (!content_id) {
-    handle_text_content (parser, camel_medium_get_content (CAMEL_MEDIUM (part)), content_type);
-    return;
-  }
-
-  content = camel_medium_get_content (CAMEL_MEDIUM (part));
-  if (!CAMEL_IS_DATA_WRAPPER (content))
-    return;
-
-  os = g_memory_output_stream_new_resizable ();
-  if (!camel_data_wrapper_decode_to_output_stream_sync (content, os, parser->cancellable, &error)) {
-    g_warning ("%s: Could not decode inline content: %s", G_STRFUNC, error->message);
-    return;
-  }
-
-  g_output_stream_close (os, parser->cancellable, NULL);
-
-  bytes = g_memory_output_stream_steal_as_bytes ((GMemoryOutputStream *)os);
-
-  inline_part = g_new0 (StampMimeInlinePart, 1);
-  inline_part->content_id = g_strdup (content_id);
-  inline_part->data = bytes;
-
-  if (content_type && content_type->subtype) {
-    inline_part->content_type = g_strdup_printf ("%s/%s", content_type->type, content_type->subtype);
-  } else {
-    /* Fallback */
-    inline_part->content_type = g_strdup ("image/png");
-  }
-
-  g_ptr_array_add (parser->inline_parts, inline_part);
-}
-
-static void
-handle_attachment (StampMimeParser *parser,
-                   CamelMimePart   *part)
-{
-  StampMimeAttachment *attachment;
-  CamelContentType *content_type;
-  const char *filename;
-  g_autoptr (GError) error = NULL;
-  g_autoptr (GByteArray) byte_array = NULL;
-  CamelStream *stream;
-  g_autoptr (GOutputStream) os = NULL;
-
-  content_type = camel_mime_part_get_content_type (part);
-  filename = camel_mime_part_get_filename (part);
-
-  byte_array = g_byte_array_new ();
-  stream = camel_stream_mem_new ();
-  camel_stream_mem_set_byte_array (CAMEL_STREAM_MEM (stream), byte_array);
-
-  if (!camel_data_wrapper_write_to_stream_sync (CAMEL_DATA_WRAPPER (camel_medium_get_content (CAMEL_MEDIUM (part))), stream, parser->cancellable, &error)) {
-    g_warning ("%s: Could not get attachment content: %s", G_STRFUNC, error ? error->message : "unknown error");
-    return;
-  }
-
-  attachment = stamp_mime_attachment_new ();
-  attachment->filename = g_strdup (filename);
-  attachment->content_type = g_strdup (content_type ? content_type->type : "application/octet-stream");
-  attachment->content_id = g_strdup (camel_mime_part_get_content_id (part));
-
-  os = g_memory_output_stream_new_resizable ();
-  if (camel_data_wrapper_decode_to_output_stream_sync (CAMEL_DATA_WRAPPER (camel_medium_get_content (CAMEL_MEDIUM (part))), os, parser->cancellable, &error)) {
-    g_output_stream_close (os, parser->cancellable, NULL);
-    attachment->data = g_memory_output_stream_steal_as_bytes (G_MEMORY_OUTPUT_STREAM (os));
-    attachment->size = attachment->data ? g_bytes_get_size (attachment->data) : 0;
-  }
-
-  g_ptr_array_add (parser->attachments, attachment);
+  return utf8;
 }
 
 static StampMimeSignatureStatus
@@ -553,540 +304,946 @@ map_validity_status (CamelCipherValiditySign status)
       return STAMP_MIME_SIGNATURE_GOOD;
     case CAMEL_CIPHER_VALIDITY_SIGN_BAD:
       return STAMP_MIME_SIGNATURE_BAD;
+    case CAMEL_CIPHER_VALIDITY_SIGN_NONE:
+      return STAMP_MIME_SIGNATURE_NONE;
     case CAMEL_CIPHER_VALIDITY_SIGN_NEED_PUBLIC_KEY:
     case CAMEL_CIPHER_VALIDITY_SIGN_UNKNOWN:
-    case CAMEL_CIPHER_VALIDITY_SIGN_NONE:
     default:
       return STAMP_MIME_SIGNATURE_UNKNOWN;
   }
 }
 
 static void
-process_signature_validation (StampMimeParser     *parser,
-                              CamelCipherValidity *validity)
+convert_links (StampMimeParser *self)
 {
-  GString *description;
-  GPtrArray *signers;
-  CamelCipherCertInfo *info;
-  GQueue *signer_list;
-  guint i;
+  static GRegex *email_regex = NULL;
+  static GRegex *url_regex = NULL;
+  g_autofree char *linked_content = NULL;
 
-  if (!validity)
-    return;
-
-  if (!parser->validation)
-    parser->validation = stamp_mime_validation_new ();
-
-  parser->validation->status = map_validity_status (validity->sign.status);
-  parser->validation->encryption = validity->encrypt.status != CAMEL_CIPHER_VALIDITY_ENCRYPT_NONE
-                                    ? STAMP_MIME_ENCRYPTION_VALID
-                                    : STAMP_MIME_ENCRYPTION_NONE;
-
-  if (validity->sign.description) {
-    description = g_string_new (g_strstrip (validity->sign.description));
-  } else {
-    description = g_string_new ("");
+  if (!email_regex) {
+    email_regex = g_regex_new (
+      "([a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,})",
+      0,
+      0,
+      NULL);
   }
 
-  signers = g_ptr_array_new_with_free_func (g_free);
-  signer_list = &validity->sign.signers;
+  if (!url_regex) {
+    url_regex = g_regex_new (
+      "((https?://|ftp://|git://)[^[:space:]<>\"]*[^[:space:]<>\".,;:!?)'\"])",
+      0,
+      0,
+      NULL);
+  }
 
-  if (signer_list->length > 0) {
-    for (i = 0; i < signer_list->length; i++) {
-      info = g_queue_peek_nth (signer_list, i);
+  if (self->plain_body->text) {
+    if (email_regex) {
+      linked_content = g_regex_replace (email_regex, self->plain_body->text, -1, 0, "<a href=\"mailto:\\1\">\\1</a>", 0, NULL);
 
-      g_ptr_array_add (signers, g_strdup (info->name ? info->name : ""));
-      g_ptr_array_add (signers, g_strdup (info->email ? info->email : ""));
+      if (linked_content)
+        g_set_str (&self->plain_body->text, g_steal_pointer (&linked_content));
     }
 
-    g_ptr_array_add (signers, NULL);
-    parser->validation->signers = (char **)g_ptr_array_free (signers, FALSE);
-    parser->validation->n_signers = signer_list->length;
-  } else {
-    g_ptr_array_free (signers, TRUE);
-    parser->validation->signers = NULL;
-    parser->validation->n_signers = 0;
+    if (url_regex) {
+      linked_content = g_regex_replace (url_regex, self->plain_body->text, -1, 0, "<a href=\"\\1\">\\1</a>", 0, NULL);
+
+      if (linked_content)
+        g_set_str (&self->plain_body->text, g_steal_pointer (&linked_content));
+    }
+
+    convert_newlines_to_br (&self->plain_body->text);
+    self->plain_body->length = strlen (self->plain_body->text);
+  }
+}
+
+#define STAMP_PGP_ARMOR_SIGNED     "-----BEGIN PGP SIGNED MESSAGE-----"
+#define STAMP_PGP_ARMOR_ENCRYPTED  "-----BEGIN PGP MESSAGE-----"
+#define STAMP_PGP_ARMOR_END_SIG    "-----END PGP SIGNATURE-----"
+#define STAMP_PGP_ARMOR_END_MSG    "-----END PGP MESSAGE-----"
+
+static StampMimePgpInlineType
+detect_pgp_inline (const char *text)
+{
+  const char *anchor;
+
+  if (!text)
+    return STAMP_MIME_PGP_INLINE_NONE;
+
+  anchor = strstr (text, "-----BEGIN PGP ");
+  if (!anchor)
+    return STAMP_MIME_PGP_INLINE_NONE;
+
+  if (strncmp (anchor, STAMP_PGP_ARMOR_SIGNED, strlen (STAMP_PGP_ARMOR_SIGNED)) == 0)
+    return STAMP_MIME_PGP_INLINE_SIGNED;
+
+  if (strncmp (anchor, STAMP_PGP_ARMOR_ENCRYPTED, strlen (STAMP_PGP_ARMOR_ENCRYPTED)) == 0)
+    return STAMP_MIME_PGP_INLINE_ENCRYPTED;
+
+  return STAMP_MIME_PGP_INLINE_NONE;
+}
+
+static char *
+extract_pgp_cleartext (const char *text)
+{
+  const char *begin = strstr (text, STAMP_PGP_ARMOR_SIGNED);
+  const char *body_start;
+  const char *sig_start;
+  gsize len;
+
+  if (!begin)
+    return NULL;
+
+  body_start = strstr (begin, "\n\n");
+  if (!body_start)
+    body_start = strstr (begin, "\r\n\r\n");
+
+  if (!body_start)
+    return NULL;
+
+  body_start += 2;
+  if (*body_start == '\n')
+    body_start++;
+
+  sig_start = strstr (body_start, "-----BEGIN PGP SIGNATURE-----");
+  if (!sig_start)
+    return NULL;
+
+  len = sig_start - body_start;
+  if (len > 0 && body_start[len - 1] == '\n')
+    len--;
+
+  if (len > 0 && body_start[len - 1] == '\r')
+    len--;
+
+  return g_strndup (body_start, len);
+}
+
+static GList *
+build_signer_list (CamelCipherValidity *validity)
+{
+  GList *head = g_queue_peek_head_link (&validity->sign.signers);
+  GList *result = NULL;
+
+  for (GList *l = head; l; l = l->next) {
+    CamelCipherCertInfo *ci = l->data;
+    StampMimeSignerInfo *info = g_new0 (StampMimeSignerInfo, 1);
+
+    info->name = g_strdup (ci->name);
+    info->email = g_strdup (ci->email);
+
+    result = g_list_append (result, info);
   }
 
-  parser->validation->description = g_string_free_and_steal (description);
+  return result;
 }
 
 static gboolean
-handle_pgp_encrypted (StampMimeParser *parser,
-                      CamelMimePart   *part)
+handle_pgp_inline (StampMimeParser         *self,
+                   CamelMimePart           *part,
+                   const char              *text,
+                   StampMimePgpInlineType   pgp_type,
+                   GCancellable            *cancellable,
+                   GError                 **error)
 {
-  g_autoptr (CamelCipherContext) cipher = NULL;
-  g_autoptr (CamelMimePart) decrypted_part = NULL;
-  CamelDataWrapper *content;
-  g_autoptr (GError) error = NULL;
-  g_autoptr (CamelCipherValidity) validity = NULL;
+  g_autoptr (CamelCipherContext) cipher = camel_gpg_context_new (self->session);
 
-  if (!parser->session)
+  if (!cipher)
     return FALSE;
 
-  parser->decryption_attempted = TRUE;
+  if (pgp_type == STAMP_MIME_PGP_INLINE_SIGNED) {
+    StampMimeSignature *signature;
+    g_autoptr (GError) cipher_err = NULL;
+    g_autoptr (CamelCipherValidity) validity = camel_cipher_context_verify_sync (cipher, CAMEL_MIME_PART (part), cancellable, &cipher_err);
+    char *cleartext;
 
-  cipher = camel_gpg_context_new (parser->session);
-  decrypted_part = camel_mime_part_new ();
+    signature = g_new0 (StampMimeSignature, 1);
+    signature->is_smime = FALSE;
+    signature->is_inline = TRUE;
 
-  validity = camel_cipher_context_decrypt_sync (cipher, CAMEL_MIME_PART (parser->message),
-                                                decrypted_part, parser->cancellable, &error);
-  if (error) {
-    g_warning ("%s: PGP decryption failed: %s", G_STRFUNC, error->message);
-    return FALSE;
-  }
+    if (cipher_err) {
+      signature->status = STAMP_MIME_SIGNATURE_UNKNOWN;
+      signature->description = g_strdup (cipher_err->message);
+    } else if (validity) {
+      signature->status = map_validity_status (validity->sign.status);
+      signature->description = g_strdup (validity->sign.description);
+      signature->signers = build_signer_list (validity);
+    }
 
-  if (validity)
-    process_signature_validation (parser, validity);
+    self->signatures = g_list_append (self->signatures, signature);
 
-  content = camel_medium_get_content (CAMEL_MEDIUM (decrypted_part));
-  if (content) {
-    parser->decryption_succeeded = TRUE;
-    parser->is_multipart = CAMEL_IS_MULTIPART (content);
+    cleartext = extract_pgp_cleartext (text);
+    if (cleartext) {
+      CamelContentType *ct = camel_mime_part_get_content_type (part);
+      StampMimeBody *body;
+      const char *charset = camel_content_type_param (ct, "charset");
 
-    g_clear_object (&parser->root_content);
-    parser->root_content = g_object_ref (content);
-  }
+      body = g_new0 (StampMimeBody, 1);
+      body->is_html = FALSE;
+      body->text = cleartext;
+      body->length = strlen (cleartext);
+      body->charset = g_strdup (charset);
 
-  return parser->decryption_succeeded;
-}
-
-static gboolean
-handle_smime_encrypted (StampMimeParser *parser,
-                        CamelMimePart   *part)
-{
-  CamelCipherContext *cipher;
-  CamelMimePart *decrypted_part = NULL;
-  g_autoptr (CamelDataWrapper) content = NULL;
-  g_autoptr (GError) error = NULL;
-  g_autoptr (CamelCipherValidity) validity = NULL;
-  CamelContentType *content_type;
-
-  if (!parser->session)
-    return FALSE;
-
-  parser->decryption_attempted = TRUE;
-
-  cipher = camel_smime_context_new (parser->session);
-  decrypted_part = camel_mime_part_new ();
-
-  validity = camel_cipher_context_decrypt_sync (cipher, CAMEL_MIME_PART (parser->message),
-                                                decrypted_part, parser->cancellable, &error);
-  if (error) {
-    g_warning ("S/MIME decryption failed: %s", error->message);
-    g_propagate_error (&parser->error, g_steal_pointer (&error));
-    return FALSE;
-  }
-
-  if (validity)
-    process_signature_validation (parser, validity);
-
-  content = camel_medium_get_content (CAMEL_MEDIUM (decrypted_part));
-  if (!content) {
-    return FALSE;
-  }
-
-  content_type = camel_mime_part_get_content_type (decrypted_part);
-  parser->decryption_succeeded = TRUE;
-
-  if (CAMEL_IS_MULTIPART (content)) {
-    parser->is_multipart = TRUE;
-    g_clear_object (&parser->root_content);
-    parser->root_content = g_object_ref (content);
-  } else if (content_type && g_strcmp0 (content_type->type, "text") == 0) {
-    parser->is_multipart = FALSE;
-    handle_text_content (parser, content, content_type);
-  } else if (content_type && g_strcmp0 (content_type->type, "message") == 0) {
-    CamelMimeMessage *inner_msg = (CamelMimeMessage *)content;
-
-    if (CAMEL_IS_MIME_MESSAGE (inner_msg)) {
-      CamelDataWrapper *inner_body = camel_medium_get_content (CAMEL_MEDIUM (inner_msg));
-
-      if (inner_body) {
-        CamelContentType *body_ct = camel_mime_part_get_content_type (CAMEL_MIME_PART (inner_msg));
-
-        if (CAMEL_IS_MULTIPART (inner_body)) {
-          parser->is_multipart = TRUE;
-          g_clear_object (&parser->root_content);
-          parser->root_content = g_object_ref (inner_body);
-        } else if (body_ct && g_strcmp0 (body_ct->type, "text") == 0) {
-          CamelStream *stream;
-          g_autofree char *text = NULL;
-          g_autofree char *body_str = NULL;
-          gsize body_len = 0;
-          GByteArray *byte_array;
-
-          byte_array = g_byte_array_new ();
-          stream = camel_stream_mem_new ();
-          camel_stream_mem_set_byte_array (CAMEL_STREAM_MEM (stream), byte_array);
-
-          camel_data_wrapper_write_to_stream_sync (inner_body, stream, parser->cancellable, NULL);
-
-          text = convert_content_to_utf8 ((const char *)byte_array->data,
-                                          byte_array->len,
-                                          camel_content_type_param (body_ct, "charset"));
-
-          if (text) {
-            body_str = g_strdup (text);
-            body_len = strlen (body_str);
-
-            if (g_strcmp0 (camel_content_type_param (body_ct, "format"), "flowed") == 0) {
-              g_autofree char *unpacked = unpack_flowed_format (body_str, body_len);
-              if (unpacked) {
-                g_clear_pointer (&body_str, g_free);
-                body_str = g_steal_pointer (&unpacked);
-                body_len = strlen (body_str);
-              }
-            }
-
-            if (!parser->body) {
-              parser->body = stamp_mime_content_new ();
-            } else {
-              g_clear_pointer (&parser->body->content, g_free);
-            }
-
-            parser->body->content = g_strndup (body_str, body_len);
-            parser->body->length = body_len;
-            parser->body->charset = g_strdup (camel_content_type_param (body_ct, "charset"));
-
-            if (g_strcmp0 (body_ct->subtype, "html") == 0)
-              parser->body->is_html = TRUE;
-            else if (g_strcmp0 (body_ct->subtype, "plain") == 0)
-              parser->body->is_html = FALSE;
-          }
-        } else {
-          parser->is_multipart = FALSE;
-          g_clear_object (&parser->root_content);
-          parser->root_content = g_object_ref (inner_body);
-        }
-      }
+      stamp_mime_body_free (self->plain_body);
+      self->plain_body = body;
     }
   } else {
-    parser->is_multipart = FALSE;
-    g_clear_object (&parser->root_content);
-    parser->root_content = g_object_ref (content);
-  }
+    StampMimeEncryption *encryption;
+    g_autoptr (GError) dec_err = NULL;
+    g_autoptr (CamelMimePart) out = camel_mime_part_new ();
+    CamelCipherValidity *cv;
 
-  return parser->decryption_succeeded;
-}
+    self->found_encrypted = TRUE;
 
-static gboolean
-handle_pgp_signature (StampMimeParser *parser,
-                      CamelMimePart   *part)
-{
-  g_autoptr (CamelCipherContext) cipher = NULL;
-  g_autoptr (GError) error = NULL;
-  g_autoptr (CamelCipherValidity) validity = NULL;
+    encryption = g_new0 (StampMimeEncryption, 1);
+    encryption->is_smime = FALSE;
+    encryption->is_inline = TRUE;
 
-  if (!parser->session)
-    return FALSE;
+    cv = camel_cipher_context_decrypt_sync (cipher, CAMEL_MIME_PART (part), out, cancellable, &dec_err);
+    if (!cv || dec_err) {
+      encryption->success = FALSE;
+      encryption->error_message = dec_err ? g_strdup (dec_err->message) : g_strdup ("Inline PGP decryption failed");
+    } else {
+      g_autoptr (GError) child_err = NULL;
+      encryption->success = TRUE;
 
-  cipher = camel_gpg_context_new (parser->session);
-
-  validity = camel_cipher_context_verify_sync (cipher, CAMEL_MIME_PART (parser->message),
-                                               parser->cancellable, &error);
-  if (error && !g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-    g_warning ("%s: PGP signature verification failed: %s", G_STRFUNC, error->message);
-  }
-
-  if (validity) {
-    if (parser->body)
-      parser->body->is_signed = TRUE;
-
-    process_signature_validation (parser, validity);
-  }
-
-  return validity != NULL;
-}
-
-static gboolean
-handle_smime_signature (StampMimeParser *parser,
-                        CamelMimePart   *part)
-{
-  g_autoptr (CamelCipherContext) cipher = NULL;
-  g_autoptr (GError) error = NULL;
-  g_autoptr (CamelCipherValidity) validity = NULL;
-
-  if (!parser->session)
-    return FALSE;
-
-  cipher = camel_smime_context_new (parser->session);
-
-  validity = camel_cipher_context_verify_sync (cipher, CAMEL_MIME_PART (parser->message), parser->cancellable, &error);
-  if (error && !g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-    g_warning ("%s: S/MIME signature verification failed: %s", G_STRFUNC, error->message);
-  }
-
-  if (validity) {
-    if (parser->body)
-      parser->body->is_signed = TRUE;
-
-    process_signature_validation (parser, validity);
-  }
-
-  return validity != NULL;
-}
-
-static void
-process_multipart (StampMimeParser *parser,
-                   CamelMultipart  *multipart)
-{
-  guint num_parts;
-  guint i;
-
-  num_parts = camel_multipart_get_number (multipart);
-
-  for (i = 0; i < num_parts; i++) {
-    CamelMimePart *part;
-    CamelContentType *content_type;
-    const char *disposition;
-    CamelDataWrapper *content;
-
-    part = camel_multipart_get_part (multipart, i);
-    if (!part)
-      continue;
-
-    content_type = camel_mime_part_get_content_type (part);
-    disposition = camel_mime_part_get_disposition (part);
-    content = camel_medium_get_content (CAMEL_MEDIUM (part));
-
-    if (g_strcmp0 (disposition, "inline") == 0) {
-      handle_inline_content (parser, part);
-      continue;
+      dispatch_part (self, out, cancellable, &child_err);
     }
 
-    if (g_strcmp0 (disposition, "attachment") == 0) {
-      handle_attachment (parser, part);
-      if (camel_mime_part_get_content_id (part))
-        handle_inline_content (parser, part);
-    }
-
-    if (camel_mime_part_get_content_id (part) && content_type &&
-        g_strcmp0 (content_type->type, "image") == 0) {
-      handle_inline_content (parser, part);
-    }
-
-    if (!content_type)
-      continue;
-
-    if (g_strcmp0 (content_type->type, "multipart") == 0) {
-      if (g_strcmp0 (content_type->subtype, "encrypted") == 0) {
-        handle_smime_encrypted (parser, part);
-      } else if (g_strcmp0 (content_type->subtype, "signed") == 0) {
-        handle_smime_signature (parser, part);
-      } else if (CAMEL_IS_MULTIPART (content)) {
-        process_multipart (parser, CAMEL_MULTIPART (content));
-      }
-      continue;
-    }
-
-    if (g_strcmp0 (content_type->type, "text") == 0) {
-      if (g_strcmp0 (content_type->subtype, "calendar") == 0) {
-        handle_calendar_content (parser, content, content_type);
-      } else {
-        handle_text_content (parser, content, content_type);
-      }
-    } else if (g_strcmp0 (content_type->type, "application") == 0) {
-      if (g_strcmp0 (content_type->subtype, "pgp-encrypted") == 0) {
-        handle_pgp_encrypted (parser, part);
-      } else if (g_strcmp0 (content_type->subtype, "pkcs7-mime") == 0 || g_strcmp0 (content_type->subtype, "x-pkcs7-mime") == 0) {
-        handle_smime_encrypted (parser, part);
-      } else if (g_strcmp0 (content_type->subtype, "pgp-signature") == 0) {
-        handle_pgp_signature (parser, part);
-      } else if (g_strcmp0 (content_type->subtype, "pkcs7-signature") == 0 || g_strcmp0 (content_type->subtype, "x-pkcs7-signature") == 0) {
-        handle_smime_signature (parser, part);
-      }
-    } else if (g_strcmp0 (content_type->type, "multipart") == 0) {
-      if (CAMEL_IS_MULTIPART (content)) {
-        process_multipart (parser, CAMEL_MULTIPART (content));
-      }
-    } else if (g_strcmp0 (content_type->type, "message") == 0) {
-      if (CAMEL_IS_MIME_MESSAGE (content)) {
-        CamelMimeMessage *inner_msg = CAMEL_MIME_MESSAGE (content);
-        CamelDataWrapper *inner_body = camel_medium_get_content (CAMEL_MEDIUM (inner_msg));
-
-        if (inner_body) {
-          if (CAMEL_IS_MULTIPART (inner_body)) {
-            process_multipart (parser, CAMEL_MULTIPART (inner_body));
-          } else if (CAMEL_IS_DATA_WRAPPER (inner_body)) {
-            CamelContentType *body_ct = camel_mime_part_get_content_type (CAMEL_MIME_PART (inner_msg));
-
-            if (body_ct && g_strcmp0 (body_ct->type, "text") == 0) {
-              handle_text_content (parser, inner_body, body_ct);
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-static void
-process_single_part (StampMimeParser *parser,
-                     CamelMimePart   *part)
-{
-  CamelContentType *content_type;
-  CamelDataWrapper *content;
-  const char *disposition;
-
-  content_type = camel_mime_part_get_content_type (part);
-  disposition = camel_mime_part_get_disposition (part);
-  content = camel_medium_get_content (CAMEL_MEDIUM (part));
-
-  if (g_strcmp0 (disposition, "inline") == 0) {
-    handle_inline_content (parser, part);
-    return;
-  }
-
-  if (g_strcmp0 (disposition, "attachment") == 0) {
-    handle_attachment (parser, part);
-
-    if (camel_mime_part_get_content_id (part))
-      handle_inline_content (parser, part);
-  }
-
-  if (camel_mime_part_get_content_id (part) && content_type && g_strcmp0 (content_type->type, "image") == 0 && g_strcmp0 (disposition, "inline") != 0 && g_strcmp0 (disposition, "attachment") != 0) {
-    handle_inline_content (parser, part);
-  }
-
-  if (!content_type || !content)
-    return;
-
-  if (g_strcmp0 (content_type->type, "text") == 0) {
-    if (g_strcmp0 (content_type->subtype, "calendar") == 0)
-      handle_calendar_content (parser, content, content_type);
-    else
-      handle_text_content (parser, content, content_type);
-  } else if (g_strcmp0 (content_type->type, "application") == 0) {
-    if (g_strcmp0 (content_type->subtype, "pkcs7-mime") == 0 || g_strcmp0 (content_type->subtype, "x-pkcs7-mime") == 0) {
-      handle_smime_encrypted (parser, part);
-    }
-  }
-}
-
-static void
-check_root_encryption (StampMimeParser *parser)
-{
-  CamelContentType *content_type;
-  CamelMimePart *part;
-
-  part = CAMEL_MIME_PART (parser->message);
-  content_type = camel_mime_part_get_content_type (part);
-  if (!content_type)
-    return;
-
-  if (g_strcmp0 (content_type->type, "application") == 0) {
-    if (g_strcmp0 (content_type->subtype, "pkcs7-mime") == 0 || g_strcmp0 (content_type->subtype, "x-pkcs7-mime") == 0) {
-      handle_smime_encrypted (parser, part);
-    } else if (g_strcmp0 (content_type->subtype, "pgp-encrypted") == 0) {
-      handle_pgp_encrypted (parser, part);
-    }
-  }
-}
-
-static void
-parse_list_unsubscribe (StampMimeParser *parser)
-{
-  const char *list_unsubscribe;
-  const char *list_unsubscribe_post;
-
-  list_unsubscribe = camel_medium_get_header (CAMEL_MEDIUM (parser->message), "List-Unsubscribe");
-  if (!list_unsubscribe)
-    return;
-
-  list_unsubscribe_post = camel_medium_get_header (CAMEL_MEDIUM (parser->message), "List-Unsubscribe-Post");
-  if (list_unsubscribe_post && g_str_equal (list_unsubscribe_post, "List-Unsubscribe=One-Click")) {
-    char *url_start = strstr (list_unsubscribe, "<http");
-    char *url_end = url_start ? strchr (url_start, '>') : NULL;
-
-    if (url_start && url_end) {
-      url_start += 1;
-      parser->list_unsubscribe = stamp_mime_list_unsubscribe_new ();
-      parser->list_unsubscribe->url = g_strndup (url_start, url_end - url_start);
-      parser->list_unsubscribe->one_click = TRUE;
-    }
-  }
-}
-
-gboolean
-stamp_mime_parser_parse (StampMimeParser *parser)
-{
-  CamelDataWrapper *content;
-
-  g_return_val_if_fail (parser != NULL, FALSE);
-
-  check_root_encryption (parser);
-  parse_list_unsubscribe (parser);
-
-  if (!parser->decryption_succeeded) {
-    content = camel_medium_get_content (CAMEL_MEDIUM (parser->message));
-    if (content) {
-      g_clear_object (&parser->root_content);
-
-      parser->root_content = g_object_ref (content);
-    }
-  }
-
-  parser->is_multipart = CAMEL_IS_MULTIPART (parser->root_content);
-
-  if (parser->is_multipart) {
-    process_multipart (parser, CAMEL_MULTIPART (parser->root_content));
-  } else if (!parser->body) {
-    CamelMimePart *part = CAMEL_MIME_PART (parser->message);
-
-    process_single_part (parser, part);
+    self->encryption = g_list_append (self->encryption, encryption);
   }
 
   return TRUE;
 }
 
-StampMimeContent *
-stamp_mime_parser_get_body (StampMimeParser *parser)
+static void
+handle_text_part (StampMimeParser *self,
+                  CamelMimePart   *part,
+                  gboolean         is_html,
+                  GCancellable    *cancellable)
 {
-  g_return_val_if_fail (parser != NULL, NULL);
-  return parser->body;
+  CamelContentType *content_type = camel_mime_part_get_content_type (part);
+  const char *charset = camel_content_type_param (content_type, "charset");
+  GByteArray *ba = decode_part_to_bytes (part, NULL);
+  gsize raw_len;
+  guint8 *raw;
+  gsize text_len = 0;
+  g_autofree char *text = NULL;
+  StampMimeBody *bp;
+
+  if (!ba)
+    return;
+
+  raw_len = ba->len;
+  raw = g_byte_array_free (ba, FALSE);
+  text = convert_to_utf8 (raw, raw_len, charset, &text_len);
+
+  if (!text)
+    return;
+
+  /* Inline PGP check only in text/plain */
+  if (!is_html) {
+    StampMimePgpInlineType pgp = detect_pgp_inline (text);
+
+    if (pgp != STAMP_MIME_PGP_INLINE_NONE) {
+      handle_pgp_inline (self, part, text, pgp, cancellable, NULL);
+      return;
+    }
+  }
+
+  bp = stamp_mime_body_new ();
+  bp->is_html = is_html;
+  bp->text = g_steal_pointer (&text);
+  bp->length = text_len;
+  bp->charset = g_strdup (charset);
+
+  if (is_html) {
+    g_clear_pointer (&self->html_body, stamp_mime_body_free);
+    self->html_body = bp;
+  } else if (!self->plain_body) {
+    g_clear_pointer (&self->plain_body, stamp_mime_body_free);
+    self->plain_body = bp;
+
+    convert_links (self);
+  }
 }
 
-GPtrArray *
-stamp_mime_parser_get_attachments (StampMimeParser *parser)
+static char *
+image_format_from_subtype (const char *subtype)
 {
-  g_return_val_if_fail (parser != NULL, NULL);
-  return parser->attachments;
+  if (!subtype)
+    return g_strdup ("unknown");
+
+  if (strcmp (subtype, "jpg") == 0)
+    return g_strdup ("jpeg");
+
+  return g_strdup (subtype);
 }
 
-StampMimeValidation *
-stamp_mime_parser_get_validation (StampMimeParser *parser)
+static char *
+calendar_method_from_part (CamelMimePart *part)
 {
-  g_return_val_if_fail (parser != NULL, NULL);
-  return parser->validation;
+  CamelContentType *ct = camel_mime_part_get_content_type (part);
+  const char *method;
+
+  if (!ct)
+    return NULL;
+
+  method = camel_content_type_param (ct, "method");
+  if (!method)
+    return NULL;
+
+  return g_ascii_strup (method, -1);
 }
 
-StampMimeCalendar *
-stamp_mime_parser_get_calendar (StampMimeParser *parser)
+static gboolean
+create_calendar (StampMimeParser     *self,
+                 StampMimeAttachment *attachment)
 {
-  g_return_val_if_fail (parser != NULL, NULL);
-  return parser->calendar;
+  ICalComponent *ical = NULL;
+  const char *ical_text = NULL;
+  const char *ical_start = NULL;
+  const char *body = NULL;
+
+  ical_text = g_bytes_get_data (attachment->data, NULL);
+  if (!ical_text)
+    return FALSE;
+
+  ical_start = strstr (ical_text, "BEGIN:VCALENDAR");
+  if (!ical_start)
+    ical_start = strstr (ical_text, "BEGIN:VCARD");
+
+  if (!ical_start) {
+    body = strstr (ical_text, "\r\n\r\n");
+    if (!body)
+      body = strstr (ical_text, "\n\n");
+    if (body) {
+      body += (body[0] == '\r') ? 4 : 2;
+      ical_start = strstr (body, "BEGIN:VCALENDAR");
+      if (!ical_start)
+        ical_start = strstr (body, "BEGIN:VCARD");
+    }
+  }
+
+  if (ical_start) {
+    g_autofree char *tmp = g_strdup (ical_start);
+    ical = e_cal_util_parse_ics_string (tmp);
+  } else {
+    ical = e_cal_util_parse_ics_string (ical_text);
+  }
+
+  if (!ical)
+    return FALSE;
+
+  if (self->calendar)
+    stamp_mime_calendar_free (self->calendar);
+
+  self->calendar = stamp_mime_calendar_new ();
+  self->calendar->ical = ical;
+  self->calendar->uid = g_strdup (i_cal_component_get_uid (ical));
+  self->calendar->method = g_strdup (attachment->calendar_method);
+
+  return TRUE;
+}
+
+static void
+handle_attachment (StampMimeParser *self,
+                   CamelMimePart   *part)
+{
+  CamelContentType *content_type = camel_mime_part_get_content_type (part);
+  const char *type = content_type->type;
+  const char *subtype = content_type->subtype;
+  GByteArray *ba;
+  char type_lc[32];
+  char sub_lc[64];
+  gsize data_len;
+  guint8 *data;
+  gsize i = 0;
+  const char *ptr = type;
+  StampMimeAttachment *att;
+  const char *disp;
+
+  if (!type || !subtype)
+    return;
+
+  while (*ptr && i < sizeof (type_lc) - 1)
+    type_lc[i++] = g_ascii_tolower (*ptr++);
+
+  type_lc[i] = '\0';
+  i = 0;
+  ptr = subtype;
+  while (*ptr && i < sizeof (sub_lc) - 1)
+    sub_lc[i++] = g_ascii_tolower (*ptr++);
+  sub_lc[i] = '\0';
+
+  PARSER_LOG ("type_lc %s, sub %s", type_lc, sub_lc);
+  if (strcmp (type_lc, "application") == 0 && (strcmp (sub_lc, "pgp-encrypted") == 0 || strcmp (sub_lc, "pgp-signature") == 0 || strcmp (sub_lc, "pkcs7-signature") == 0 || strcmp (sub_lc, "x-pkcs7-signature") == 0))
+    return;
+
+  ba = decode_part_to_bytes (part, NULL);
+  if (!ba)
+    return;
+
+  data_len = ba->len;
+  data = g_byte_array_free (ba, FALSE);
+
+  att = stamp_mime_attachment_new ();
+  att->filename = g_strdup (camel_mime_part_get_filename (part));
+  att->content_id = g_strdup (camel_mime_part_get_content_id (part));
+  att->data = g_bytes_new_take (data, data_len);
+  att->size = data_len;
+  att->image_format = NULL;
+  att->calendar_method = NULL;
+
+  PARSER_LOG ("filename: %s, content_id %s", att->filename, att->content_id);
+
+  disp = camel_mime_part_get_disposition (part);
+  PARSER_LOG ("disposition: %s", disp);
+  att->is_inline = (disp && strcmp (disp, "inline") == 0);
+
+  if (strcmp (type_lc, "application") == 0 && strcmp (sub_lc, "octet-stream") == 0) {
+    const char *guessed = NULL;
+
+    att->mime_type = g_strdup (guessed ? guessed : "application/octet-stream");
+  } else {
+    att->mime_type = camel_content_type_simple (content_type);
+  }
+
+  if (strcmp (type_lc, "image") == 0) {
+    att->kind = STAMP_MIME_ATTACHMENT_IMAGE;
+    att->image_format = image_format_from_subtype (sub_lc);
+    att->content_id = g_strdup (camel_mime_part_get_content_id (part));
+    if (att->mime_type && strcmp (disp ? disp : "", "attachment") != 0)
+      att->is_inline = TRUE;
+  } else if ((strcmp (type_lc, "application") == 0 && strcmp (sub_lc, "ics") == 0) || (strcmp (type_lc, "text") == 0 && strcmp (sub_lc, "calendar") == 0)) {
+    att->kind = STAMP_MIME_ATTACHMENT_CALENDAR;
+    att->calendar_method = calendar_method_from_part (part);
+    if (att->calendar_method) {
+      att->kind = STAMP_MIME_ATTACHMENT_INVITATION;
+      create_calendar (self, att);
+    }
+    g_print ("%s: Calendar %s, internal %d, filename %s, size %ld\n", G_STRFUNC, att->calendar_method, att->is_inline, att->filename, att->size);
+  } else if (strcmp (type_lc, "application") == 0 && strcmp (sub_lc, "pgp-keys") == 0) {
+    att->kind = STAMP_MIME_ATTACHMENT_PGP_KEY;
+    att->is_inline = FALSE;
+  } else {
+    att->kind = STAMP_MIME_ATTACHMENT_GENERIC;
+  }
+  PARSER_LOG ("kind: %x", att->kind);
+
+  self->attachments = g_list_append (self->attachments, att);
+}
+
+static gboolean
+handle_multipart_alternative (StampMimeParser  *self,
+                              CamelMultipart   *mp,
+                              GCancellable     *cancellable,
+                              GError          **error)
+{
+  guint num = camel_multipart_get_number (mp);
+
+  for (guint idx = 0; idx < num; idx++) {
+    CamelMimePart *child = camel_multipart_get_part (mp, idx);
+    g_autoptr (GError) child_err = NULL;
+
+    if (!child)
+      continue;
+
+    if (!dispatch_part (self, child, cancellable, &child_err))
+      g_warning ("%s: Error in multipart/alternative part %u: %s", G_STRFUNC, idx, child_err ? child_err->message : "(unknown)");
+  }
+
+  return TRUE;
+}
+
+static gboolean
+handle_multipart_generic (StampMimeParser  *self,
+                          CamelMultipart   *mp,
+                          GCancellable     *cancellable,
+                          GError          **error)
+{
+  guint num = camel_multipart_get_number (mp);
+
+  for (guint idx = 0; idx < num; idx++) {
+    CamelMimePart *child = camel_multipart_get_part (mp, idx);
+    g_autoptr (GError) child_err = NULL;
+
+    if (!child)
+      continue;
+
+    if (!dispatch_part (self, child, cancellable, &child_err))
+      g_warning ("%s: Error in multipart part %u: %s", G_STRFUNC, idx, child_err ? child_err->message : "(unknown)");
+  }
+
+  return TRUE;
+}
+
+static gboolean
+handle_signed (StampMimeParser  *self,
+               CamelMimePart    *part,
+               GCancellable     *cancellable,
+               GError          **error)
+{
+  CamelContentType *content_type = camel_mime_part_get_content_type (part);
+  const char *proto = camel_content_type_param (content_type, "protocol");
+  g_autoptr (CamelCipherContext) cipher = NULL;
+  gboolean is_smime = FALSE;
+  CamelDataWrapper *data_wrapper;
+
+  if (!proto) {
+    g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED, "multipart/signed without protocol parameter");
+    return FALSE;
+  }
+
+  if (g_str_equal (proto, "application/pgp-signature")) {
+    cipher = camel_gpg_context_new (self->session);
+  } else if (g_str_equal (proto, "application/pkcs7-signature") || g_str_equal (proto, "application/x-pkcs7-signature")) {
+    cipher = camel_smime_context_new (self->session);
+    is_smime = TRUE;
+  } else {
+    g_warning ("%s: Unknown signature protocol: %s", G_STRFUNC, proto);
+  }
+
+  if (cipher) {
+    data_wrapper = camel_medium_get_content (CAMEL_MEDIUM (part));
+
+    if (!CAMEL_IS_MULTIPART_SIGNED (data_wrapper)) {
+      g_warning ("%s: Expected CamelMultipartSigned, got %s", G_STRFUNC, G_OBJECT_TYPE_NAME (data_wrapper));
+    } else {
+      StampMimeSignature *signature;
+      g_autoptr (GError) cipher_err = NULL;
+      g_autoptr (CamelCipherValidity) validity = NULL;
+
+      signature = g_new0 (StampMimeSignature, 1);
+      signature->is_smime = is_smime;
+      signature->is_inline = FALSE;
+
+      validity = camel_cipher_context_verify_sync (cipher, CAMEL_MIME_PART (part), cancellable, &cipher_err);
+      if (cipher_err) {
+        signature->status = STAMP_MIME_SIGNATURE_UNKNOWN;
+        signature->description = g_strdup (cipher_err->message);
+      } else if (validity) {
+        signature->status = map_validity_status (validity->sign.status);
+        signature->description = g_strdup (validity->sign.description);
+        signature->signers = build_signer_list (validity);
+      }
+
+      self->signatures = g_list_append (self->signatures, signature);
+    }
+  }
+
+  data_wrapper = camel_medium_get_content (CAMEL_MEDIUM (part));
+  if (CAMEL_IS_MULTIPART (data_wrapper)) {
+    CamelMimePart *content_part = camel_multipart_get_part (CAMEL_MULTIPART (data_wrapper), 0);
+
+    if (content_part)
+      return dispatch_part (self, content_part, cancellable, error);
+  }
+
+  return TRUE;
+}
+
+static gboolean
+dispatch_multipart (StampMimeParser  *self,
+                    CamelMimePart    *part,
+                    gconstpointer     user_data,
+                    GCancellable     *cancellable,
+                    GError          **error)
+{
+  CamelDataWrapper *data_wrapper = camel_medium_get_content (CAMEL_MEDIUM (part));
+
+  if (!CAMEL_IS_MULTIPART (data_wrapper))
+    return TRUE;
+
+  return GPOINTER_TO_INT (user_data)
+      ? handle_multipart_alternative (self, CAMEL_MULTIPART (data_wrapper), cancellable, error)
+      : handle_multipart_generic (self, CAMEL_MULTIPART (data_wrapper), cancellable, error);
+}
+
+static gboolean
+dispatch_text (StampMimeParser  *self,
+               CamelMimePart    *part,
+               gconstpointer     user_data,
+               GCancellable     *cancellable,
+               GError          **error)
+{
+  const char *disposition = camel_mime_part_get_disposition (part);
+
+  PARSER_LOG ("disposition %s", disposition ? disposition : "NONE");
+  if (g_strcmp0 (disposition, "attachment") == 0) {
+    handle_attachment (self, part);
+    return TRUE;
+  }
+
+  handle_text_part (self, part, GPOINTER_TO_INT (user_data), cancellable);
+
+  return TRUE;
+}
+
+static gboolean
+dispatch_attachment (StampMimeParser  *self,
+                     CamelMimePart    *part,
+                     gconstpointer     user_data,
+                     GCancellable     *cancellable,
+                     GError          **error)
+{
+  handle_attachment (self, part);
+  return TRUE;
+}
+
+static gboolean
+dispatch_signed (StampMimeParser  *self,
+                 CamelMimePart    *part,
+                 gconstpointer     user_data,
+                 GCancellable     *cancellable,
+                 GError          **error)
+{
+  return handle_signed (self, part, cancellable, error);
+}
+
+static CamelMimePart *
+handle_pgp_encrypted_mime (StampMimeParser  *self,
+                           CamelMimePart    *part,
+                           GCancellable     *cancellable,
+                           GError          **error)
+{
+  g_autoptr (CamelCipherContext) cipher = NULL;
+  CamelMimePart *decrypted = NULL;
+  CamelDataWrapper *data_wrapper;
+  StampMimeEncryption *encryption;
+
+  self->found_encrypted = TRUE;
+
+  encryption = g_new0 (StampMimeEncryption, 1);
+  encryption->is_smime = FALSE;
+  encryption->is_inline = FALSE;
+
+  cipher = camel_gpg_context_new (self->session);
+  data_wrapper = camel_medium_get_content (CAMEL_MEDIUM (part));
+
+  if (!CAMEL_IS_MULTIPART_ENCRYPTED (data_wrapper)) {
+    encryption->success = FALSE;
+    encryption->error_message = g_strdup ("No CamelMultipartEncrypted found");
+  } else {
+    g_autoptr (GError) err = NULL;
+    g_autoptr (CamelMimePart) out = camel_mime_part_new ();
+    g_autoptr (CamelCipherValidity) cv = camel_cipher_context_decrypt_sync (cipher, CAMEL_MIME_PART (part), out, cancellable, &err);
+
+    if (!cv || err) {
+      encryption->success = FALSE;
+      encryption->error_message = err ? g_strdup (err->message) : g_strdup ("PGP MIME Decryption failed");
+    } else {
+      encryption->success = TRUE;
+      decrypted = g_steal_pointer (&out);
+    }
+  }
+
+  self->encryption = g_list_append (self->encryption, encryption);
+  return decrypted;
+}
+
+static gboolean
+dispatch_pgp_encrypted (StampMimeParser  *self,
+                        CamelMimePart    *part,
+                        gconstpointer     user_data,
+                        GCancellable     *cancellable,
+                        GError          **error)
+{
+  g_autoptr (CamelMimePart) plain = NULL;
+
+  plain = handle_pgp_encrypted_mime (self, part, cancellable, error);
+  if (!plain)
+    return FALSE;
+
+  return dispatch_part (self, plain, cancellable, error);
+}
+
+static CamelMimePart *
+handle_smime_encrypted (StampMimeParser  *self,
+                        CamelMimePart    *part,
+                        GCancellable     *cancellable,
+                        GError          **error)
+{
+  g_autoptr (CamelCipherContext) cipher = NULL;
+  g_autoptr (GError) err = NULL;
+  g_autoptr (CamelCipherValidity) cv = NULL;
+  g_autoptr (CamelMimePart) out = NULL;
+  CamelMimePart *decrypted = NULL;
+  StampMimeEncryption *encrypt;
+
+  self->found_encrypted = TRUE;
+
+  encrypt = g_new0 (StampMimeEncryption, 1);
+  encrypt->is_smime = TRUE;
+  encrypt->is_inline = FALSE;
+
+  cipher = camel_smime_context_new (self->session);
+  out = camel_mime_part_new ();
+  cv = camel_cipher_context_decrypt_sync (cipher, part, out, cancellable, &err);
+  if (!cv || err) {
+    encrypt->success = FALSE;
+    encrypt->error_message = err ? g_strdup (err->message) : g_strdup ("S/MIME decryption failed");
+  } else {
+    encrypt->success = TRUE;
+    decrypted = g_steal_pointer (&out);
+  }
+
+  self->encryption = g_list_append (self->encryption, encrypt);
+  return decrypted;
+}
+
+static gboolean
+handle_smime_signed_opaque (StampMimeParser  *self,
+                            CamelMimePart    *part,
+                            GCancellable     *cancellable,
+                            GError          **error)
+{
+  g_autoptr (CamelCipherContext) cipher = NULL;
+  g_autoptr (GError) err = NULL;
+  g_autoptr (CamelMimePart) out = NULL;
+  g_autoptr (CamelCipherValidity) cv = NULL;
+  StampMimeSignature *signature;
+  gboolean ok;
+
+  signature = g_new0 (StampMimeSignature, 1);
+  signature->is_smime = TRUE;
+  signature->is_inline = FALSE;
+
+  cipher = camel_smime_context_new (self->session);
+  out = camel_mime_part_new ();
+  cv = camel_cipher_context_decrypt_sync (cipher, part, out, cancellable, &err);
+  if (err || !cv) {
+    signature->status = STAMP_MIME_SIGNATURE_UNKNOWN;
+    signature->description = err ? g_strdup (err->message) : g_strdup ("S/MIME opaque signature couldn't be unpacked");
+
+    self->signatures = g_list_append (self->signatures, signature);
+    return FALSE;
+  }
+
+  ok = dispatch_part (self, out, cancellable, error);
+
+  signature->status = ok ? STAMP_MIME_SIGNATURE_GOOD : STAMP_MIME_SIGNATURE_UNKNOWN;
+  signature->description = g_strdup (ok ? "S/MIME opaque signature unpacked" : "S/MIME opaque signature: Parser error");
+
+  self->signatures = g_list_append (self->signatures, signature);
+
+  return ok;
+}
+
+static gboolean
+dispatch_smime (StampMimeParser  *self,
+                CamelMimePart    *part,
+                gconstpointer     user_data,
+                GCancellable     *cancellable,
+                GError          **error)
+{
+  CamelContentType *content_type = camel_mime_part_get_content_type (part);
+  const char *smime_type = camel_content_type_param (content_type, "smime-type");
+
+  if (g_strcmp0 (smime_type, "enveloped-data") == 0) {
+    g_autoptr (CamelMimePart) plain = NULL;
+
+    plain = handle_smime_encrypted (self, part, cancellable, error);
+    if (!plain)
+      return FALSE;
+
+    return dispatch_part (self, plain, cancellable, error);
+  }
+
+  if (g_strcmp0 (smime_type, "signed-data") == 0)
+    return handle_smime_signed_opaque (self, part, cancellable, error);
+
+  handle_attachment (self, part);
+
+  return TRUE;
+}
+
+static gboolean
+dispatch_rfc822 (StampMimeParser  *self,
+                 CamelMimePart    *part,
+                 gconstpointer     user_data,
+                 GCancellable     *cancellable,
+                 GError          **error)
+{
+  CamelDataWrapper *data_wrapper = camel_medium_get_content (CAMEL_MEDIUM (part));
+
+  if (CAMEL_IS_MIME_MESSAGE (data_wrapper))
+    return dispatch_part (self, CAMEL_MIME_PART (data_wrapper), cancellable, error);
+
+  handle_attachment (self, part);
+  return TRUE;
+}
+
+static const StampPartDispatchEntry part_dispatch_table[] = {
+  { "multipart", "signed", dispatch_signed, NULL},
+  { "multipart", "encrypted", dispatch_pgp_encrypted, NULL },
+  { "multipart", "alternative", dispatch_multipart, GINT_TO_POINTER (1) },
+  { "multipart", "*", dispatch_multipart, GINT_TO_POINTER (0) },
+  { "application", "pkcs7-mime", dispatch_smime, NULL },
+  { "application", "x-pkcs7-mime", dispatch_smime, NULL},
+  { "message", "rfc822", dispatch_rfc822, NULL},
+  { "text", "html", dispatch_text, GINT_TO_POINTER (1) },
+  { "text", "plain", dispatch_text, GINT_TO_POINTER (0) },
+  { "text", "*", dispatch_attachment, NULL},
+};
+
+static gboolean
+dispatch_part (StampMimeParser  *self,
+               CamelMimePart    *part,
+               GCancellable     *cancellable,
+               GError          **error)
+{
+  CamelContentType *content_type = camel_mime_part_get_content_type (part);
+  gboolean ret;
+
+  if (!content_type)
+    return TRUE;
+
+  for (gsize i = 0; i < G_N_ELEMENTS (part_dispatch_table); i++) {
+    const StampPartDispatchEntry *entry = &part_dispatch_table[i];
+
+    if (camel_content_type_is (content_type, entry->type, entry->subtype)) {
+      self->depth++;
+      PARSER_LOG ("%s/%s", entry->type, entry->subtype);
+      ret = entry->handler (self, part, entry->user_data, cancellable, error);
+      self->depth--;
+      return ret;
+    }
+  }
+
+  self->depth++;
+  PARSER_LOG ("%s/%s (attachment fallback)", content_type->type, content_type->subtype);
+  ret = dispatch_attachment (self, part, NULL, cancellable, error);
+  self->depth--;
+  return ret;
+}
+
+static void
+parse_list_unsubscribe (StampMimeParser  *self,
+                        CamelMimeMessage *message)
+{
+  const char *post_header = camel_medium_get_header (CAMEL_MEDIUM (message), "List-Unsubscribe-Post");
+  const char *header;
+  const char *ptr;
+
+  if (post_header && strstr (post_header, "One-Click"))
+    self->unsubscribe_one_click = TRUE;
+
+  header = camel_medium_get_header (CAMEL_MEDIUM (message), "List-Unsubscribe");
+  if (!header)
+    return;
+
+  ptr = header;
+  while ((ptr = strchr (ptr, '<')) != NULL) {
+    StampMimeListUnsubscribe *info;
+    g_autofree char *uri = NULL;
+    const char *end;
+
+    ptr++;
+
+    end = strchr (ptr, '>');
+    if (!end)
+      break;
+
+    uri = g_strndup (ptr, end - ptr);
+    g_strstrip (uri);
+
+    info = stamp_mime_list_unsubscribe_new ();
+    info->uri = g_strdup (uri);
+    info->one_click = self->unsubscribe_one_click;
+
+    if (g_ascii_strncasecmp (uri, "mailto:", 7) == 0) {
+      const char *addr_start = uri + 7;
+      const char *q = strchr (addr_start, '?');
+
+      info->method = STAMP_MIME_UNSUBSCRIBE_MAILTO;
+
+      info->mailto = q ? g_strndup (addr_start, q - addr_start) : g_strdup (addr_start);
+    } else if (g_ascii_strncasecmp (uri, "http://", 7) == 0 || g_ascii_strncasecmp (uri, "https://", 8) == 0) {
+      info->method = STAMP_MIME_UNSUBSCRIBE_HTTP;
+    } else {
+      g_clear_pointer (&info, stamp_mime_list_unsubscribe_free);
+      ptr = end + 1;
+      continue;
+    }
+
+    self->list_unsubscribe = g_list_append (self->list_unsubscribe, info);
+    ptr = end + 1;
+  }
 }
 
 gboolean
-stamp_mime_parser_has_calendar (StampMimeParser *parser)
+stamp_mime_parser_parse (StampMimeParser   *self,
+                         CamelMimeMessage  *message,
+                         GCancellable      *cancellable,
+                         GError           **error)
 {
-  g_return_val_if_fail (parser != NULL, FALSE);
-  return parser->calendar != NULL && parser->calendar->ical != NULL;
+  g_return_val_if_fail (STAMP_IS_MIME_PARSER (self), FALSE);
+  g_return_val_if_fail (CAMEL_IS_MIME_MESSAGE (message), FALSE);
+
+  PARSER_LOG ("Starting to parse: %s", camel_mime_message_get_subject (message));
+
+  /* Clear internal structure */
+  stamp_mime_parser_clear (self);
+
+  /* Parser headers */
+  parse_list_unsubscribe (self, message);
+
+  /* Walk tree */
+  return dispatch_part (self, CAMEL_MIME_PART (message), cancellable, error);
 }
 
-gboolean
-stamp_mime_parser_has_attachments (StampMimeParser *parser)
+StampMimeBody *
+stamp_mime_parser_get_body (StampMimeParser *self)
 {
-  g_return_val_if_fail (parser != NULL, FALSE);
-  return parser->attachments->len > 0;
+  g_return_val_if_fail (STAMP_IS_MIME_PARSER (self), NULL);
+  return self->html_body ? self->html_body : self->plain_body;
 }
 
-StampMimeListUnsubscribe *
-stamp_mime_parser_get_list_unsubscribe (StampMimeParser *parser)
+static GList *
+stamp_mime_parser_filter_by_kind (StampMimeParser         *self,
+                                  StampMimeAttachmentKind  kind,
+                                  gboolean                 is_inline)
 {
-  g_return_val_if_fail (parser != NULL, NULL);
-  return parser->list_unsubscribe;
+  GList *result = NULL;
+
+  for (GList *l = self->attachments; l; l = l->next) {
+    StampMimeAttachment *att = l->data;
+
+    PARSER_LOG ("%p %d %d %s\n", att, att->kind & kind, att->is_inline, att->filename);
+    if (att->kind & kind && att->is_inline == is_inline)
+      result = g_list_append (result, att);
+  }
+
+  return result;
+}
+
+GList *
+stamp_mime_parser_get_attachments (StampMimeParser *self)
+{
+  g_return_val_if_fail (self != NULL, NULL);
+
+  return stamp_mime_parser_filter_by_kind (self, STAMP_MIME_ATTACHMENT_GENERIC | STAMP_MIME_ATTACHMENT_IMAGE | STAMP_MIME_ATTACHMENT_CALENDAR, FALSE);
+}
+
+const GList *
+stamp_mime_parser_get_signatures (StampMimeParser *self)
+{
+  g_return_val_if_fail (self != NULL, NULL);
+  return self->signatures;
+}
+
+const GList *
+stamp_mime_parser_get_encryptions (StampMimeParser *self)
+{
+  g_return_val_if_fail (self != NULL, NULL);
+  return self->encryption;
+}
+
+GList *
+stamp_mime_parser_get_list_unsubscribe (StampMimeParser *self)
+{
+  g_return_val_if_fail (self != NULL, NULL);
+  return self->list_unsubscribe;
 }
 
 static void
@@ -1106,21 +1263,22 @@ send_unsubscribe_callback (GObject      *source,
 }
 
 void
-stamp_mime_parser_send_unsubscribe (StampMimeParser *parser,
-                                    GCancellable    *cancellable)
+stamp_mime_parser_send_unsubscribe (StampMimeParser          *self,
+                                    StampMimeListUnsubscribe *unsubscribe,
+                                    GCancellable             *cancellable)
 {
   g_autoptr (SoupSession) session = NULL;
   g_autoptr (SoupMessage) msg = NULL;
 
-  g_return_if_fail (parser != NULL);
-  g_return_if_fail (parser->list_unsubscribe != NULL);
-  g_return_if_fail (parser->list_unsubscribe->url != NULL);
+  g_return_if_fail (self != NULL);
+  g_return_if_fail (unsubscribe != NULL);
+  g_return_if_fail (unsubscribe->uri != NULL);
 
   session = soup_session_new ();
-  msg = soup_message_new ("POST", parser->list_unsubscribe->url);
+  msg = soup_message_new ("POST", unsubscribe->uri);
 
   if (!msg) {
-    g_warning ("%s: Could not create SoupMessage for %s", G_STRFUNC, parser->list_unsubscribe->url);
+    g_warning ("%s: Could not create SoupMessage for %s", G_STRFUNC, unsubscribe->uri);
     return;
   }
 
@@ -1134,11 +1292,12 @@ stamp_mime_parser_send_unsubscribe (StampMimeParser *parser,
                                     NULL);
 }
 
-GPtrArray *
-stamp_mime_parser_get_inline_parts (StampMimeParser *parser)
+GList *
+stamp_mime_parser_get_inline_images (StampMimeParser *self)
 {
-  g_return_val_if_fail (parser != NULL, NULL);
-  return parser->inline_parts;
+  g_return_val_if_fail (self != NULL, NULL);
+
+  return stamp_mime_parser_filter_by_kind (self, STAMP_MIME_ATTACHMENT_IMAGE, TRUE);
 }
 
 static gboolean
@@ -1162,22 +1321,25 @@ normalize_content_id (const char *cid)
   return g_strdup (cid);
 }
 
+/* FIXME: This is workaround for replying mails with images until they are embedded as parts */
 char *
-stamp_mime_parser_embed_inline_images (StampMimeParser *parser,
+stamp_mime_parser_embed_inline_images (StampMimeParser *self,
                                        const char      *html_content)
 {
+#if 0
+  return g_strdup (html_content);
+#else
   GString *result;
-  const char *p = html_content;
-  guint i;
+  const char *ptr = html_content;
 
-  if (!html_content || !parser->inline_parts || parser->inline_parts->len == 0)
+  if (!html_content || !self->attachments)
     return g_strdup (html_content);
 
   result = g_string_new ("");
 
-  while (*p) {
-    if (p[0] == 's' && g_ascii_strncasecmp (p, "src=", 4) == 0) {
-      const char *start = p + 4;
+  while (*ptr) {
+    if (ptr[0] == 's' && g_ascii_strncasecmp (ptr, "src=", 4) == 0) {
+      const char *start = ptr + 4;
       char quote = '\0';
 
       while (*start && g_ascii_isspace (*start))
@@ -1216,8 +1378,8 @@ stamp_mime_parser_embed_inline_images (StampMimeParser *parser,
         if (cid) {
           norm_cid = normalize_content_id (cid);
 
-          for (i = 0; i < parser->inline_parts->len; i++) {
-            StampMimeInlinePart *part = g_ptr_array_index (parser->inline_parts, i);
+          for (GList *attachment = self->attachments; attachment && attachment->data; attachment = g_list_next (attachment)) {
+            StampMimeAttachment *part = attachment->data;
 
             if (part->content_id && norm_cid) {
               g_autofree char *norm_part_cid = normalize_content_id (part->content_id);
@@ -1226,15 +1388,15 @@ stamp_mime_parser_embed_inline_images (StampMimeParser *parser,
                 gsize data_size;
                 const guint8 *data = g_bytes_get_data (part->data, &data_size);
                 g_autofree char *base64 = g_base64_encode (data, data_size);
-                g_autofree char *data_uri = g_strdup_printf ("data:%s;base64,%s", part->content_type, base64);
+                g_autofree char *data_uri = g_strdup_printf ("data:%s;base64,%s", part->mime_type, base64);
 
-                g_string_append_len (result, p, start - p);
+                g_string_append_len (result, ptr, start - ptr);
                 g_string_append (result, data_uri);
 
-                p = end_quote;
+                ptr = end_quote;
 
-                if (*p == '>')
-                  p++;
+                if (*ptr == '>')
+                  ptr++;
 
                 goto done_src;
               }
@@ -1243,16 +1405,25 @@ stamp_mime_parser_embed_inline_images (StampMimeParser *parser,
         }
       }
 
-      g_string_append_len (result, p, start - p);
-      p = start;
+      g_string_append_len (result, ptr, start - ptr);
+      ptr = start;
       continue;
     }
 
-    g_string_append_c (result, *p);
-    p++;
+    g_string_append_c (result, *ptr);
+    ptr++;
 
 done_src:
   }
 
   return g_string_free_and_steal (result);
+#endif
+}
+
+StampMimeCalendar *
+stamp_mime_parser_get_invitations (StampMimeParser *self)
+{
+  g_return_val_if_fail (STAMP_IS_MIME_PARSER (self), NULL);
+
+  return self->calendar;
 }
