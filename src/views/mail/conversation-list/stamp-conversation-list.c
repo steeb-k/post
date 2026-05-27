@@ -1895,3 +1895,51 @@ stamp_consersation_list_set_show_buttons (StampConversationList *self,
   adw_header_bar_set_show_end_title_buttons (ADW_HEADER_BAR (self->normal_headerbar), show);
   adw_header_bar_set_show_end_title_buttons (ADW_HEADER_BAR (self->selection_headerbar), show);
 }
+
+void
+stamp_conversation_list_select_relative (StampConversationList *self,
+                                         int                    direction)
+{
+  GtkSelectionModel *model = GTK_SELECTION_MODEL (self->single_selection);
+  guint n_items = g_list_model_get_n_items (G_LIST_MODEL (model));
+  guint selected;
+
+  if (self->selection_mode || n_items == 0)
+    return;
+
+  selected = gtk_single_selection_get_selected (self->single_selection);
+
+  if (selected == GTK_INVALID_LIST_POSITION) {
+    selected = (direction > 0) ? 0 : n_items - 1;
+  } else {
+    int new_pos = (int)selected + direction;
+    selected = CLAMP (new_pos, 0, (int)n_items - 1);
+  }
+
+  gtk_selection_model_select_item (model, selected, TRUE);
+}
+
+StampConversationItem *
+stamp_conversation_list_get_adjacent_item (StampConversationList *self,
+                                           int                    offset)
+{
+  GListModel *model = G_LIST_MODEL (self->single_selection);
+  guint n_items = g_list_model_get_n_items (model);
+  guint selected;
+  int new_pos;
+
+  if (n_items == 0)
+    return NULL;
+
+  selected = gtk_single_selection_get_selected (self->single_selection);
+
+  if (selected == GTK_INVALID_LIST_POSITION)
+    return NULL;
+
+  new_pos = (int)selected + offset;
+
+  if (new_pos < 0 || new_pos >= (int)n_items)
+    return NULL;
+
+  return g_list_model_get_item (model, new_pos);
+}

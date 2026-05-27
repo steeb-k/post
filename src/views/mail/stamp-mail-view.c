@@ -135,8 +135,13 @@ on_conversation_selected (GtkWidget *object,
   if (thread_node) {
     const char *layout = adw_multi_layout_view_get_layout_name (self->mail_layout);
 
-    if (g_strcmp0 (layout, "mobile") == 0)
-      adw_navigation_view_push_by_tag (self->mobile_nav, "content");
+    if (g_strcmp0 (layout, "mobile") == 0) {
+      AdwNavigationPage *visible = adw_navigation_view_get_visible_page (self->mobile_nav);
+      const char *tag = adw_navigation_page_get_tag (visible);
+
+      if (g_strcmp0 (tag, "content") != 0)
+        adw_navigation_view_push_by_tag (self->mobile_nav, "content");
+    }
   }
 
   stamp_message_list_set_conversation (self->message_list, self->account, (CamelFolderThreadNode *)thread_node);
@@ -405,6 +410,15 @@ static const Shortcut MailShortcuts[] = {
   { "mail.view-source", "<primary>s" },
 };
 
+static void
+stamp_mail_view_navigate_back (StampMailView *self)
+{
+  const char *layout = adw_multi_layout_view_get_layout_name (self->mail_layout);
+
+  if (g_strcmp0 (layout, "mobile") == 0)
+    adw_navigation_view_pop (self->mobile_nav);
+}
+
 void
 stamp_mail_view_init (StampMailView *self)
 {
@@ -446,6 +460,11 @@ stamp_mail_view_init (StampMailView *self)
   /* Synchronize button state with show-sidebar */
   g_signal_connect_swapped (self->tablet_osv, "notify::show-sidebar", G_CALLBACK (on_sidebar_visibility_changed), self);
   g_signal_connect_swapped (self->mobile_osv, "notify::show-sidebar", G_CALLBACK (on_sidebar_visibility_changed), self);
+
+  g_signal_connect_swapped (self->message_list, "switch-conversation",
+                            G_CALLBACK (stamp_conversation_list_select_relative), self->conversation_list);
+  g_signal_connect_swapped (self->message_list, "navigate-back",
+                            G_CALLBACK (stamp_mail_view_navigate_back), self);
 }
 
 GtkWidget *
@@ -478,4 +497,10 @@ stamp_mail_view_show_toast (StampMailView *self,
 
   toast = adw_toast_new (message);
   adw_toast_overlay_add_toast (self->toast_overlay, toast);
+}
+
+StampConversationList *
+stamp_mail_view_get_conversation_list (StampMailView *self)
+{
+  return self->conversation_list;
 }

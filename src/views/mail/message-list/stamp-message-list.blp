@@ -5,250 +5,260 @@ template $StampMessageList: Adw.BreakpointBin {
   width-request: 300;
   height-request: 300;
 
-  child: Stack message_stack {
-    hexpand: true;
-    name: "placeholder";
+  GestureDrag {
+    propagation-phase: capture;
+    drag-begin => $on_drag_begin();
+    drag-update => $on_drag_update();
+  }
 
-    StackPage {
-      name: "content";
+  child: Adw.Carousel carousel {
+    page-changed => $on_carousel_page_changed();
 
-      child: Adw.ToolbarView {
-        [top]
-        Adw.HeaderBar {
-          show-title: false;
+    Stack message_stack {
+      hexpand: true;
+      name: "placeholder";
 
-          [start]
-          Button reply_btn {
-            icon-name: 'mail-reply-sender-symbolic';
-            tooltip-text: _("Reply");
-            action-name: 'mail.reply-current';
+      StackPage {
+        name: "content";
+
+        child: Adw.ToolbarView {
+          [top]
+          Adw.HeaderBar {
+            show-title: false;
+
+            [start]
+            Button reply_btn {
+              icon-name: 'mail-reply-sender-symbolic';
+              tooltip-text: _("Reply");
+              action-name: 'mail.reply-current';
+            }
+
+            [start]
+            Button reply_all_btn {
+              icon-name: 'mail-reply-all-symbolic';
+              tooltip-text: _("Reply All");
+              action-name: 'mail.reply-all-current';
+            }
+
+            [start]
+            Button forward_btn {
+              icon-name: 'mail-forward-symbolic';
+              tooltip-text: _("Forward");
+              action-name: 'mail.forward-current';
+            }
+
+            [start]
+            Button edit_button {
+              icon-name: 'document-edit-symbolic';
+              tooltip-text: _("Edit");
+              action-name: 'mail.edit';
+              visible: false;
+            }
+
+            [end]
+            ToggleButton {
+              icon-name: 'edit-find-symbolic';
+              active: bind search_bar.search-mode-enabled bidirectional;
+            }
+
+            [end]
+            Button delete_btn {
+              icon-name: 'user-trash-symbolic';
+              tooltip-text: _("Delete");
+              action-name: 'mail.trash';
+            }
+
+            [end]
+            Button spam_btn {
+              icon-name: 'junk-symbolic';
+              tooltip-text: _("Mark Spam");
+              action-name: 'mail.junk';
+            }
+
+            [end]
+            Button unsubscribe_button {
+              icon-name: 'media-playback-stop-symbolic';
+              tooltip-text: _("Unsubscribe");
+              visible: false;
+              clicked => $on_unsubscribe_clicked();
+            }
           }
 
-          [start]
-          Button reply_all_btn {
-            icon-name: 'mail-reply-all-symbolic';
-            tooltip-text: _("Reply All");
-            action-name: 'mail.reply-all-current';
-          }
+          [top]
+          SearchBar search_bar {
+            key-capture-widget: message_stack;
 
-          [start]
-          Button forward_btn {
-            icon-name: 'mail-forward-symbolic';
-            tooltip-text: _("Forward");
-            action-name: 'mail.forward-current';
-          }
+            child: Adw.Clamp {
+              maximum-size: 400;
 
-          [start]
-          Button edit_button {
-            icon-name: 'document-edit-symbolic';
-            tooltip-text: _("Edit");
-            action-name: 'mail.edit';
-            visible: false;
-          }
-
-          [end]
-          ToggleButton {
-            icon-name: 'edit-find-symbolic';
-            active: bind search_bar.search-mode-enabled bidirectional;
-          }
-
-          [end]
-          Button delete_btn {
-            icon-name: 'user-trash-symbolic';
-            tooltip-text: _("Delete");
-            action-name: 'mail.trash';
-          }
-
-          [end]
-          Button spam_btn {
-            icon-name: 'junk-symbolic';
-            tooltip-text: _("Mark Spam");
-            action-name: 'mail.junk';
-          }
-
-          [end]
-          Button unsubscribe_button {
-            icon-name: 'media-playback-stop-symbolic';
-            tooltip-text: _("Unsubscribe");
-            visible: false;
-            clicked => $on_unsubscribe_clicked();
-          }
-        }
-
-        [top]
-        SearchBar search_bar {
-          key-capture-widget: message_stack;
-
-          child: Adw.Clamp {
-            maximum-size: 400;
-
-            child: SearchEntry search_entry {
-              hexpand: true;
-              search-delay: 500;
-              search-changed => $on_message_search_entry_changed();
-            };
-          };
-        }
-
-        Stack stack {
-          StackPage {
-            name: "empty";
-
-            child: Adw.StatusPage {
-              icon-name: "mail-unread-symbolic";
-              title: _("No Conversation Selected");
-            };
-          }
-
-          StackPage {
-            name: "content";
-
-            child: Overlay overlay {
-              [overlay]
-              Label hover_url {
-                styles [
-                  "card",
-                  "message-list-floating-bar",
-                ]
-
-                halign: start;
-                valign: end;
-              }
-
-              child: ScrolledWindow scrolled_window {
-                hscrollbar-policy: never;
-                can-focus: false;
-
-                child: Adw.Bin {
-                  Adw.Clamp {
-                    maximum-size: 9999;
-
-                    child: Box {
-                      orientation: vertical;
-
-                      styles [
-                        "message-list-conversation",
-                      ]
-
-                      Box {
-                        orientation: vertical;
-                        spacing: 6;
-
-                        Label message_title {
-                          xalign: 0;
-                          wrap: true;
-                          wrap-mode: word_char;
-                          selectable: true;
-                          hexpand: true;
-
-                          styles [
-                            "title-2",
-                          ]
-                        }
-
-                        Label external {
-                          label: _("External");
-                          tooltip-text: _("The sender is not part of your organization");
-                          visible: false;
-                          halign: start;
-
-                          styles [
-                            "message-header-external-pill",
-                            "warning",
-                          ]
-                        }
-                      }
-
-                      ListBox list_box {
-                        selection-mode: none;
-
-                        styles [
-                          "message-list",
-                          "background",
-                        ]
-                      }
-                    };
-                  }
-                };
+              child: SearchEntry search_entry {
+                hexpand: true;
+                search-delay: 500;
+                search-changed => $on_message_search_entry_changed();
               };
             };
           }
-        }
 
-        [bottom]
-        Box toolbar {
-          visible: false;
-          homogeneous: true;
+          Stack stack {
+            StackPage {
+              name: "empty";
 
-          Button {
-            accessibility {
-              label: _("Reply Current");
+              child: Adw.StatusPage {
+                icon-name: "mail-unread-symbolic";
+                title: _("No Conversation Selected");
+              };
             }
 
-            icon-name: 'mail-reply-sender-symbolic';
-            action-name: 'mail.reply-current';
+            StackPage {
+              name: "content";
+
+              child: Overlay overlay {
+                [overlay]
+                Label hover_url {
+                  styles [
+                    "card",
+                    "message-list-floating-bar",
+                  ]
+
+                  halign: start;
+                  valign: end;
+                }
+
+                child: ScrolledWindow scrolled_window {
+                  hscrollbar-policy: never;
+                  can-focus: false;
+
+                  child: Adw.Bin {
+                    Adw.Clamp {
+                      maximum-size: 9999;
+
+                      child: Box {
+                        orientation: vertical;
+
+                        styles [
+                          "message-list-conversation",
+                        ]
+
+                        Box {
+                          orientation: vertical;
+                          spacing: 6;
+
+                          Label message_title {
+                            xalign: 0;
+                            wrap: true;
+                            wrap-mode: word_char;
+                            selectable: true;
+                            hexpand: true;
+
+                            styles [
+                              "title-2",
+                            ]
+                          }
+
+                          Label external {
+                            label: _("External");
+                            tooltip-text: _("The sender is not part of your organization");
+                            visible: false;
+                            halign: start;
+
+                            styles [
+                              "message-header-external-pill",
+                              "warning",
+                            ]
+                          }
+                        }
+
+                        ListBox list_box {
+                          selection-mode: none;
+
+                          styles [
+                            "message-list",
+                            "background",
+                          ]
+                        }
+                      };
+                    }
+                  };
+                };
+              };
+            }
           }
 
-          Button {
-            accessibility {
-              label: _("Reply All Current");
+          [bottom]
+          Box toolbar {
+            visible: false;
+            homogeneous: true;
+
+            Button {
+              accessibility {
+                label: _("Reply Current");
+              }
+
+              icon-name: 'mail-reply-sender-symbolic';
+              action-name: 'mail.reply-current';
             }
 
-            icon-name: 'mail-reply-all-symbolic';
-            action-name: 'mail.reply-all-current';
-          }
+            Button {
+              accessibility {
+                label: _("Reply All Current");
+              }
 
-          Button {
-            accessibility {
-              label: _("Forward Current");
+              icon-name: 'mail-reply-all-symbolic';
+              action-name: 'mail.reply-all-current';
             }
 
-            icon-name: 'mail-forward-symbolic';
-            action-name: 'mail.forward-current';
-          }
+            Button {
+              accessibility {
+                label: _("Forward Current");
+              }
 
-          Button {
-            accessibility {
-              label: _("Mark Junk");
+              icon-name: 'mail-forward-symbolic';
+              action-name: 'mail.forward-current';
             }
 
-            icon-name: 'junk-symbolic';
-            action-name: 'mail.junk';
-          }
+            Button {
+              accessibility {
+                label: _("Mark Junk");
+              }
 
-          Button {
-            accessibility {
-              label: _("Move To Trash");
+              icon-name: 'junk-symbolic';
+              action-name: 'mail.junk';
             }
 
-            icon-name: 'user-trash-symbolic';
-            action-name: 'mail.trash';
+            Button {
+              accessibility {
+                label: _("Move To Trash");
+              }
+
+              icon-name: 'user-trash-symbolic';
+              action-name: 'mail.trash';
+            }
+
+            styles [
+              "toolbar",
+            ]
+          }
+        };
+      }
+
+      StackPage {
+        child: Adw.ToolbarView {
+          [top]
+          Adw.HeaderBar {
+            show-title: false;
           }
 
-          styles [
-            "toolbar",
-          ]
-        }
-      };
-    }
-
-    StackPage {
-      child: Adw.ToolbarView {
-        [top]
-        Adw.HeaderBar {
-          show-title: false;
-        }
-
-        Adw.StatusPage {
-          title: _("No Mail Selected");
-        }
-      };
+          Adw.StatusPage {
+            title: _("No Mail Selected");
+          }
+        };
+      }
     }
   };
 
   Adw.Breakpoint breakpoint_small {
     condition ("max-width: 500sp")
-    // unapply => $one_pane_unapply_cb();
+
     setters {
       reply_btn.visible: false;
       reply_all_btn.visible: false;

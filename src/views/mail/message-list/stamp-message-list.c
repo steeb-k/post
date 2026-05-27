@@ -19,6 +19,8 @@
 
 #include "stamp-message-list.h"
 
+#include "stamp-conversation-item.h"
+#include "stamp-conversation-list.h"
 #include "stamp-mail-view.h"
 #include "stamp-mime-parser.h"
 #include "stamp-message-list-item.h"
@@ -51,6 +53,12 @@ struct _StampMessageList {
   StampAccount *account;
 
   char *subject;
+
+  GtkWidget *carousel;
+  GtkWidget *prev_page;
+  GtkWidget *next_page;
+  GtkWidget *message_stack;
+  gboolean rebuilding;
 };
 
 G_DEFINE_FINAL_TYPE (StampMessageList, stamp_message_list, ADW_TYPE_BREAKPOINT_BIN);
@@ -131,6 +139,75 @@ on_unsubscribe_clicked (GtkWidget *button,
   adw_dialog_present (dialog, GTK_WIDGET (self));
 }
 
+enum {
+  SWITCH_CONVERSATION,
+  NAVIGATE_BACK,
+  LAST_SIGNAL_SWITCH
+};
+
+static gint switch_signals[LAST_SIGNAL_SWITCH] = { 0 };
+
+static void
+on_carousel_page_changed (AdwCarousel *carousel,
+                          guint        index,
+                          gpointer     user_data)
+{
+  StampMessageList *self = STAMP_MESSAGE_LIST (user_data);
+
+  if (self->rebuilding)
+    return;
+
+  if (index == 0) {
+    g_signal_emit (self, switch_signals[SWITCH_CONVERSATION], 0, -1);
+  } else if (index == 2) {
+    g_signal_emit (self, switch_signals[SWITCH_CONVERSATION], 0, 1);
+  }
+}
+
+static void
+emit_navigate_back_idle (gpointer user_data)
+{
+  StampMessageList *self = STAMP_MESSAGE_LIST (user_data);
+
+  g_signal_emit (self, switch_signals[NAVIGATE_BACK], 0);
+  g_object_unref (self);
+}
+
+static void
+on_drag_begin (GtkGestureDrag *gesture,
+               double          start_x,
+               double          start_y,
+               gpointer        user_data)
+{
+  gboolean at_left_edge = start_x < 50;
+
+  g_object_set_data (G_OBJECT (gesture), "triggered", GINT_TO_POINTER (FALSE));
+  g_object_set_data (G_OBJECT (gesture), "edge-left", GINT_TO_POINTER (at_left_edge));
+
+  if (at_left_edge) {
+    gtk_gesture_set_state (GTK_GESTURE (gesture), GTK_EVENT_SEQUENCE_CLAIMED);
+  } else {
+    gtk_gesture_set_state (GTK_GESTURE (gesture), GTK_EVENT_SEQUENCE_DENIED);
+  }
+}
+
+static void
+on_drag_update (GtkGestureDrag *gesture,
+                double          offset_x,
+                double          offset_y,
+                gpointer        user_data)
+{
+  StampMessageList *self = STAMP_MESSAGE_LIST (user_data);
+
+  if (g_object_get_data (G_OBJECT (gesture), "triggered"))
+    return;
+
+  if (g_object_get_data (G_OBJECT (gesture), "edge-left") && offset_x > 20) {
+    g_object_set_data (G_OBJECT (gesture), "triggered", GINT_TO_POINTER (TRUE));
+    g_idle_add_once (emit_navigate_back_idle, g_object_ref (self));
+  }
+}
+
 static void
 stamp_message_list_class_init (StampMessageListClass *klass)
 {
@@ -151,15 +228,31 @@ stamp_message_list_class_init (StampMessageListClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, edit_button);
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, unsubscribe_button);
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, external);
+  gtk_widget_class_bind_template_child (widget_class, StampMessageList, carousel);
+  gtk_widget_class_bind_template_child (widget_class, StampMessageList, message_stack);
 
   gtk_widget_class_bind_template_callback (widget_class, on_message_search_entry_changed);
   gtk_widget_class_bind_template_callback (widget_class, on_unsubscribe_clicked);
+  gtk_widget_class_bind_template_callback (widget_class, on_drag_begin);
+  gtk_widget_class_bind_template_callback (widget_class, on_drag_update);
+  gtk_widget_class_bind_template_callback (widget_class, on_carousel_page_changed);
 
   signals[HOVERING_OVER_LINK] = g_signal_new ("hovering-over-link", G_OBJECT_CLASS_TYPE (klass),
                                               G_SIGNAL_RUN_FIRST | G_SIGNAL_RUN_LAST,
                                               0, NULL, NULL, NULL,
                                               G_TYPE_NONE,
                                               2, G_TYPE_STRING, G_TYPE_STRING);
+
+  switch_signals[SWITCH_CONVERSATION] = g_signal_new ("switch-conversation", G_OBJECT_CLASS_TYPE (klass),
+                                                      G_SIGNAL_RUN_FIRST | G_SIGNAL_RUN_LAST,
+                                                      0, NULL, NULL, NULL,
+                                                      G_TYPE_NONE,
+                                                      1, G_TYPE_INT);
+
+  switch_signals[NAVIGATE_BACK] = g_signal_new ("navigate-back", G_OBJECT_CLASS_TYPE (klass),
+                                                G_SIGNAL_RUN_FIRST | G_SIGNAL_RUN_LAST,
+                                                0, NULL, NULL, NULL,
+                                                G_TYPE_NONE, 0);
 }
 
 static gint
@@ -295,6 +388,98 @@ find_last_of_type (GtkListBox *listbox,
   return result;
 }
 
+static void
+populate_list_box_from_thread (StampAccount          *account,
+                               GtkListBox            *list_box,
+                               CamelFolderThreadNode *node)
+{
+  CamelFolderThreadNode *current_node = node;
+
+  while (current_node) {
+    GtkWidget *item = stamp_message_list_item_new (account, current_node);
+    CamelMessageInfo *message = camel_folder_thread_node_get_item (current_node);
+
+    gtk_list_box_append (list_box, item);
+    if ((camel_message_info_get_flags (message) & CAMEL_MESSAGE_SEEN) == 0) {
+      stamp_message_list_item_set_expanded (STAMP_MESSAGE_LIST_ITEM (item), TRUE);
+    }
+
+    if (camel_folder_thread_node_get_next (current_node))
+      populate_list_box_from_thread (account, list_box, camel_folder_thread_node_get_next (current_node));
+
+    current_node = camel_folder_thread_node_get_child (current_node);
+  }
+}
+
+static GtkWidget *
+create_carousel_page_view (StampAccount          *account,
+                           CamelFolderThreadNode *node)
+{
+  GtkWidget *toolbar_view;
+  GtkWidget *header_bar;
+  GtkWidget *scrolled;
+  GtkWidget *list_box;
+  GtkWidget *subject_label;
+  CamelMessageInfo *message;
+
+  toolbar_view = adw_toolbar_view_new ();
+  gtk_widget_set_hexpand (toolbar_view, TRUE);
+  gtk_widget_set_vexpand (toolbar_view, TRUE);
+
+  header_bar = adw_header_bar_new ();
+  adw_header_bar_set_show_title (ADW_HEADER_BAR (header_bar), FALSE);
+  adw_toolbar_view_add_top_bar (ADW_TOOLBAR_VIEW (toolbar_view), header_bar);
+
+  message = camel_folder_thread_node_get_item (node);
+
+  subject_label = gtk_label_new (camel_message_info_get_subject (message));
+  gtk_label_set_xalign (GTK_LABEL (subject_label), 0);
+  gtk_label_set_wrap (GTK_LABEL (subject_label), TRUE);
+  gtk_label_set_wrap_mode (GTK_LABEL (subject_label), PANGO_WRAP_WORD_CHAR);
+  gtk_widget_add_css_class (subject_label, "title-2");
+
+  {
+    GtkWidget *content_box;
+    GtkWidget *header_box;
+
+    content_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+    gtk_widget_set_hexpand (content_box, TRUE);
+    gtk_widget_set_vexpand (content_box, TRUE);
+    gtk_widget_add_css_class (content_box, "message-list-conversation");
+
+    header_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+    gtk_box_append (GTK_BOX (header_box), subject_label);
+    gtk_box_append (GTK_BOX (content_box), header_box);
+
+    scrolled = gtk_scrolled_window_new ();
+    gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolled), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+    gtk_widget_set_hexpand (scrolled, TRUE);
+    gtk_widget_set_vexpand (scrolled, TRUE);
+
+    list_box = gtk_list_box_new ();
+    gtk_list_box_set_selection_mode (GTK_LIST_BOX (list_box), GTK_SELECTION_NONE);
+    gtk_widget_add_css_class (list_box, "message-list");
+    gtk_widget_add_css_class (list_box, "background");
+    gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (scrolled), list_box);
+
+    {
+      CamelMessageInfo *root_msg = camel_folder_thread_node_get_item (node);
+      GtkWidget *item = stamp_message_list_item_new (account, node);
+      gtk_list_box_append (GTK_LIST_BOX (list_box), item);
+      if ((camel_message_info_get_flags (root_msg) & CAMEL_MESSAGE_SEEN) == 0)
+        stamp_message_list_item_set_expanded (STAMP_MESSAGE_LIST_ITEM (item), TRUE);
+    }
+    if (camel_folder_thread_node_get_child (node))
+      populate_list_box_from_thread (account, GTK_LIST_BOX (list_box), camel_folder_thread_node_get_child (node));
+
+    gtk_box_append (GTK_BOX (content_box), scrolled);
+
+    adw_toolbar_view_set_content (ADW_TOOLBAR_VIEW (toolbar_view), content_box);
+  }
+
+  return toolbar_view;
+}
+
 void
 stamp_message_list_set_conversation (StampMessageList      *self,
                                      StampAccount          *account,
@@ -311,8 +496,60 @@ stamp_message_list_set_conversation (StampMessageList      *self,
   CamelFolder *folder;
   const char *fname;
   gboolean draft_folder = FALSE;
+  StampConversationList *conv_list;
+  StampConversationItem *adjacent;
 
   self->account = account;
+
+  self->rebuilding = TRUE;
+
+  if (!self->prev_page) {
+    self->prev_page = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+    gtk_widget_set_hexpand (self->prev_page, TRUE);
+    gtk_widget_set_vexpand (self->prev_page, TRUE);
+    adw_carousel_prepend (ADW_CAROUSEL (self->carousel), self->prev_page);
+  }
+  if (!self->next_page) {
+    self->next_page = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+    gtk_widget_set_hexpand (self->next_page, TRUE);
+    gtk_widget_set_vexpand (self->next_page, TRUE);
+    adw_carousel_append (ADW_CAROUSEL (self->carousel), self->next_page);
+  }
+
+  adw_carousel_reorder (ADW_CAROUSEL (self->carousel), self->prev_page, 0);
+  adw_carousel_reorder (ADW_CAROUSEL (self->carousel), self->message_stack, 1);
+  adw_carousel_reorder (ADW_CAROUSEL (self->carousel), self->next_page, 2);
+
+  conv_list = stamp_mail_view_get_conversation_list (mail_view);
+
+  adjacent = stamp_conversation_list_get_adjacent_item (conv_list, -1);
+  if (adjacent) {
+    GtkWidget *prev_child = gtk_widget_get_first_child (self->prev_page);
+    while (prev_child) {
+      GtkWidget *next = gtk_widget_get_next_sibling (prev_child);
+      gtk_box_remove (GTK_BOX (self->prev_page), prev_child);
+      prev_child = next;
+    }
+    gtk_box_append (GTK_BOX (self->prev_page),
+                    create_carousel_page_view (self->account, stamp_conversation_item_get_node (adjacent)));
+    g_object_unref (adjacent);
+  }
+
+  adjacent = stamp_conversation_list_get_adjacent_item (conv_list, 1);
+  if (adjacent) {
+    GtkWidget *next_child = gtk_widget_get_first_child (self->next_page);
+    while (next_child) {
+      GtkWidget *next = gtk_widget_get_next_sibling (next_child);
+      gtk_box_remove (GTK_BOX (self->next_page), next_child);
+      next_child = next;
+    }
+    gtk_box_append (GTK_BOX (self->next_page),
+                    create_carousel_page_view (self->account, stamp_conversation_item_get_node (adjacent)));
+    g_object_unref (adjacent);
+  }
+
+  adw_carousel_scroll_to (ADW_CAROUSEL (self->carousel), self->message_stack, FALSE);
+  self->rebuilding = FALSE;
 
   gtk_list_box_remove_all (GTK_LIST_BOX (self->list_box));
 

@@ -23,6 +23,8 @@
 
 G_BEGIN_DECLS
 
+typedef struct _StampConversationList StampConversationList;
+
 #define STAMP_TYPE_MAIL_VIEW (stamp_mail_view_get_type ())
 
 G_DECLARE_FINAL_TYPE (StampMailView, stamp_mail_view, STAMP, MAIL_VIEW, AdwBreakpointBin);
@@ -40,6 +42,9 @@ stamp_mail_view_get_action_group (StampMailView *self);
 void
 stamp_mail_view_show_toast (StampMailView *self,
                             const char    *message);
+
+StampConversationList *
+stamp_mail_view_get_conversation_list (StampMailView *self);
 
 G_END_DECLS
 
