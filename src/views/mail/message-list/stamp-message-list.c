@@ -38,6 +38,7 @@ struct _StampMessageList {
   GtkWidget *search_bar;
   GtkWidget *search_entry;
   GtkWidget *edit_button;
+  GtkWidget *external;
 
   GtkButton *unsubscribe_button;
   char *unsubscribe_sender;
@@ -149,6 +150,7 @@ stamp_message_list_class_init (StampMessageListClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, search_entry);
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, edit_button);
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, unsubscribe_button);
+  gtk_widget_class_bind_template_child (widget_class, StampMessageList, external);
 
   gtk_widget_class_bind_template_callback (widget_class, on_message_search_entry_changed);
   gtk_widget_class_bind_template_callback (widget_class, on_unsubscribe_clicked);
@@ -534,4 +536,11 @@ stamp_message_list_set_unsubscribe (StampMessageList *self,
   g_set_str (&self->unsubscribe_sender, sender);
   g_set_str (&self->unsubscribe_url, url);
   g_set_object (&self->unsubscribe_message, message);
+}
+
+void
+stamp_message_list_set_external (StampMessageList *self,
+                                 gboolean          is_external)
+{
+  gtk_widget_set_visible (self->external, is_external);
 }

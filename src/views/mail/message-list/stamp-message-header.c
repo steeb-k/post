@@ -723,13 +723,6 @@ stamp_message_header_set_account (StampMessageHeader *self,
 }
 
 void
-stamp_message_header_set_extern (StampMessageHeader *self,
-                                 gboolean            is_extern)
-{
-  gtk_widget_set_visible (self->external, is_extern);
-}
-
-void
 stamp_message_header_set_internal (StampMessageHeader *self,
                                    gboolean            is_internal)
 {

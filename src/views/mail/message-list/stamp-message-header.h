@@ -42,10 +42,6 @@ stamp_message_header_set_collapsed (StampMessageHeader *self,
                                     gboolean            collapsed);
 
 void
-stamp_message_header_set_extern (StampMessageHeader *self,
-                                 gboolean            is_extern);
-
-void
 stamp_message_header_set_internal (StampMessageHeader *self,
                                    gboolean            is_internal);
 

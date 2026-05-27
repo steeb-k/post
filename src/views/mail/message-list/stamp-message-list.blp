@@ -131,8 +131,8 @@ template $StampMessageList: Adw.BreakpointBin {
                       ]
 
                       Box {
-                        orientation: horizontal;
-                        spacing: 12;
+                        orientation: vertical;
+                        spacing: 6;
 
                         Label message_title {
                           xalign: 0;
@@ -143,6 +143,18 @@ template $StampMessageList: Adw.BreakpointBin {
 
                           styles [
                             "title-2",
+                          ]
+                        }
+
+                        Label external {
+                          label: _("External");
+                          tooltip-text: _("The sender is not part of your organization");
+                          visible: false;
+                          halign: start;
+
+                          styles [
+                            "message-header-external-pill",
+                            "warning",
                           ]
                         }
                       }
