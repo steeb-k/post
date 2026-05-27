@@ -25,6 +25,7 @@
 
 #include <ctype.h>
 #include <libebook/libebook.h>
+#include <libpsl.h>
 
 struct _StampContactCompletion {
   AdwBin parent_instance;
@@ -42,6 +43,7 @@ struct _StampContactCompletion {
   GList *receivers;
   gboolean has_entries;
   StampAccount *account;
+  gboolean block;
 };
 
 G_DEFINE_FINAL_TYPE (StampContactCompletion, stamp_contact_completion, ADW_TYPE_BIN);
@@ -95,38 +97,36 @@ static gboolean
 is_valid_email (const gchar *str)
 {
   static GRegex *regex = NULL;
+  gboolean ret;
 
   if (!regex)
     regex = g_regex_new (
       "^[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$",
       0, 0, NULL);
 
-  return g_regex_match (regex, str, 0, NULL);
+  ret = g_regex_match (regex, str, 0, NULL);
+  if (ret) {
+    const psl_ctx_t *psl = psl_builtin ();
+    return psl_registrable_domain (psl, strchr (str, '@') + 1) != NULL;
+  }
+
+  return FALSE;
 }
 
 static gboolean
 convert_to_tag (StampContactCompletion *self,
+                const char             *text,
                 gboolean                focus_leave)
 {
-  g_autofree char *text = g_strdup (gtk_editable_get_text (GTK_EDITABLE (self->entry)));
+  g_autofree char *stripped = g_strstrip (g_strdup (text));
 
-  if (!focus_leave) {
-    if (text[strlen (text) - 1] != ' ')
-      return FALSE;
-
-    text[strlen (text) - 1] = '\0';
-  }
-
-  if (is_valid_email (text)) {
+  if (is_valid_email (stripped)) {
     GtkWidget *tag = stamp_tag_new (self->account);
-    g_autofree char *tmp = g_strdup (text);
 
-    stamp_tag_set_label (STAMP_TAG (tag), tmp);
-    stamp_tag_set_mail (STAMP_TAG (tag), tmp);
+    stamp_tag_set_label (STAMP_TAG (tag), stripped);
+    stamp_tag_set_mail (STAMP_TAG (tag), stripped);
 
     stamp_contact_completion_add_tag (self, STAMP_TAG (tag));
-
-    gtk_editable_set_text (GTK_EDITABLE (self->entry), "");
 
     return TRUE;
   }
@@ -144,7 +144,8 @@ on_focus_leave (GtkEventControllerFocus *controller,
   if (focus_widget && gtk_widget_has_focus (self->entry) && gtk_widget_is_ancestor (focus_widget, GTK_WIDGET (self->entry)))
     return;
 
-  convert_to_tag (self, TRUE);
+  if (convert_to_tag (self, gtk_editable_get_text (GTK_EDITABLE (self->entry)), TRUE))
+    gtk_editable_set_text (GTK_EDITABLE (self->entry), "");
 
   gtk_popover_popdown (GTK_POPOVER (self->popover));
 }
@@ -163,7 +164,7 @@ on_items_changed (GListModel *model,
 
   if (items > 0 && text && strlen (text) > 0) {
     GdkRectangle rect = { 0, 0, 1, gtk_widget_get_height (self->wrap_box) };
-    /* gtk_widget_set_size_request (GTK_WIDGET (pop), gtk_widget_get_width (GTK_WIDGET (self->wrap_box)), -1); */
+
     gtk_popover_set_position (GTK_POPOVER (pop), GTK_POS_BOTTOM);
 
     gtk_widget_set_halign (GTK_WIDGET (pop), GTK_ALIGN_START);
@@ -193,14 +194,22 @@ on_key_pressed (GtkEventControllerKey  *controller,
   }
 
   if (keyval == GDK_KEY_BackSpace) {
+    const char *text = gtk_editable_get_text (GTK_EDITABLE (self->entry));
+    g_autofree char *mail = NULL;
     StampTag *tag;
+
+    if (*text)
+      return FALSE;
 
     if (!self->receivers)
       return TRUE;
 
     tag = g_list_last (self->receivers)->data;
+    mail = g_strdup (stamp_tag_get_mail (tag));
 
-    g_object_unref (tag);
+    gtk_widget_unparent (GTK_WIDGET (tag));
+    gtk_editable_set_text (GTK_EDITABLE (self->entry), mail);
+    gtk_editable_set_position (GTK_EDITABLE (self->entry), -1);
     return TRUE;
   }
 
@@ -275,6 +284,11 @@ on_entry_activate (GtkWidget *widget,
       return;
     }
   }
+
+  if (convert_to_tag (self, gtk_editable_get_text (GTK_EDITABLE (self->entry)), TRUE))
+    gtk_editable_set_text (GTK_EDITABLE (self->entry), "");
+
+  gtk_popover_popdown (GTK_POPOVER (self->popover));
 }
 
 static void
@@ -310,7 +324,13 @@ on_changed (GtkEditable *ed,
             gpointer     user_data)
 {
   StampContactCompletion *self = STAMP_CONTACT_COMPLETION (user_data);
-  const char *text = gtk_editable_get_text (GTK_EDITABLE (self->entry));
+  g_autofree char *text = NULL;
+
+  if (self->block)
+    return;
+
+  text = g_strdup (gtk_editable_get_text (GTK_EDITABLE (self->entry)));
+  self->block = TRUE;
 
   if (self->cancellable) {
     g_cancellable_cancel (self->cancellable);
@@ -318,26 +338,35 @@ on_changed (GtkEditable *ed,
   }
 
   if (text) {
-    if (convert_to_tag (self, FALSE))
-      return;
-    /* if (strchr (text, '@') && strchr (text, '.') && g_str_has_suffix (text, ",")) { */
-    /*   GtkWidget *tag = stamp_tag_new (self->account); */
-    /*   g_autofree char *tmp = g_strdup (text); */
+    g_auto (GStrv) split = g_strsplit (g_strstrip (text), ",", -1);
+    GString *new_string = g_string_new (NULL);
+    int n_parts = g_strv_length (split);
+    gboolean converted = FALSE;
 
-    /*   tmp[strlen (tmp) - 1] = '\0'; */
-    /*   stamp_tag_set_label (STAMP_TAG (tag), tmp); */
-    /*   stamp_tag_set_email (STAMP_TAG (tag), tmp); */
+    for (int idx = 0; idx < n_parts; idx++) {
+      char *part = g_strstrip (split[idx]);
+      gboolean is_last = (idx == n_parts - 1);
 
-    /*   stamp_contact_completion_add_tag (self, STAMP_TAG (tag)); */
+      if (*part && is_valid_email (part) && !is_last) {
+        convert_to_tag (self, part, FALSE);
+        converted = TRUE;
+      } else {
+        if (new_string->len > 0)
+          g_string_append (new_string, ", ");
+        g_string_append (new_string, part);
+      }
+    }
 
-    /*   gtk_editable_set_text (GTK_EDITABLE (self->entry), ""); */
-
-    /*   return; */
-    /* } */
+    if (converted) {
+      gtk_editable_set_text (GTK_EDITABLE (self->entry), new_string->str);
+      gtk_editable_set_position (GTK_EDITABLE (self->entry), -1);
+    }
 
     self->cancellable = g_cancellable_new ();
-    stamp_account_search_contacts (self->account, NULL, text, self->cancellable, on_search_contacts, self);
+    stamp_account_search_contacts (self->account, NULL, new_string->str, self->cancellable, on_search_contacts, self);
   }
+
+  self->block = FALSE;
 }
 
 static void
@@ -391,8 +420,8 @@ stamp_contact_completion_class_init (StampContactCompletionClass *klass)
 
   gtk_widget_class_bind_template_callback (widget_class, on_changed);
   gtk_widget_class_bind_template_callback (widget_class, on_entry_activate);
-  gtk_widget_class_bind_template_callback (widget_class, on_key_pressed);
   gtk_widget_class_bind_template_callback (widget_class, on_focus_leave);
+  gtk_widget_class_bind_template_callback (widget_class, on_key_pressed);
 
   object_class->set_property = stamp_contact_completion_set_property;
   object_class->get_property = stamp_contact_completion_get_property;
