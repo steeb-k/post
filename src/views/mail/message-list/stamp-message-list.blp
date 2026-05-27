@@ -12,6 +12,8 @@ template $StampMessageList: Adw.BreakpointBin {
   }
 
   child: Adw.Carousel carousel {
+    allow-mouse-drag: false;
+    allow-scroll-wheel: false;
     page-changed => $on_carousel_page_changed();
 
     Stack message_stack {
