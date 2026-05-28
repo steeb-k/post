@@ -197,7 +197,7 @@ on_book_added (GObject              *source,
     g_autoptr (StampBookAccountItem) item = STAMP_BOOK_ACCOUNT_ITEM (g_list_model_get_item (model, idx));
 
     if (stamp_item_get_account (STAMP_ITEM (item)) == account) {
-      g_warning ("%s: Account already added, abort", G_STRFUNC);
+      g_debug ("%s: Account already added, abort", G_STRFUNC);
       return;
     }
   }

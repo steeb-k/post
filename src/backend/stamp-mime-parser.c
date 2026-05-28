@@ -45,11 +45,11 @@ struct _StampMimeParser {
 
 G_DEFINE_FINAL_TYPE (StampMimeParser, stamp_mime_parser, G_TYPE_OBJECT)
 
-#define HELPER(fmt, ...) g_print (fmt "%s\n", __VA_ARGS__)
+#define HELPER(fmt, ...) g_debug (fmt "%s\n", __VA_ARGS__)
 #define PARSER_LOG(...) do { \
-          g_print ("%s: ", G_STRFUNC); \
+          g_debug ("%s: ", G_STRFUNC); \
           for (guint idx = 0; idx < self->depth; idx++) \
-          g_print (" "); \
+          g_debug (" "); \
           HELPER (__VA_ARGS__, ""); \
 } while (0)
 
@@ -721,7 +721,7 @@ handle_attachment (StampMimeParser *self,
       att->kind = STAMP_MIME_ATTACHMENT_INVITATION;
       create_calendar (self, att);
     }
-    g_print ("%s: Calendar %s, internal %d, filename %s, size %ld\n", G_STRFUNC, att->calendar_method, att->is_inline, att->filename, att->size);
+    PARSER_LOG ("Calendar %s, internal %d, filename %s, size %ld\n", att->calendar_method, att->is_inline, att->filename, att->size);
   } else if (strcmp (type_lc, "application") == 0 && strcmp (sub_lc, "pgp-keys") == 0) {
     att->kind = STAMP_MIME_ATTACHMENT_PGP_KEY;
     att->is_inline = FALSE;

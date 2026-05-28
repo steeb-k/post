@@ -885,7 +885,7 @@ stamp_account_add_mail_identity (StampAccount *self,
   const char *address = e_source_mail_identity_get_address (identity);
   GHashTable *aliases = e_source_mail_identity_get_aliases_as_hash_table (identity);
 
-  g_print ("%s: Setting own address to name %s, address %s, aliases %p\n", G_STRFUNC, name, address, aliases);
+  g_debug ("%s: Setting own address to name %s, address %s, aliases %p\n", G_STRFUNC, name, address, aliases);
   if (!self->mail)
     self->mail = g_new0 (StampMailService, 1);
 
