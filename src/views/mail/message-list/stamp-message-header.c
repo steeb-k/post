@@ -575,13 +575,12 @@ stamp_message_header_set_mail (StampMessageHeader    *self,
   g_autoptr (GString) tmp_cc_addresses = g_string_new (NULL);
   g_autoptr (GMenuItem) item = NULL;
   g_autofree char *time = NULL;
+  guint hidden = 0;
 
   self->message_info = message_info;
 
   if (camel_address_decode (CAMEL_ADDRESS (address), camel_message_info_get_from (message_info)) > 0) {
     camel_internet_address_get (address, 0, &ia_name, &ia_address);
-
-    g_print ("%s: %s %s\n", G_STRFUNC, ia_name, ia_address);
 
     if (ia_name && strlen (ia_name) > 0) {
       g_autofree char *tmp_name = NULL;
@@ -625,26 +624,27 @@ stamp_message_header_set_mail (StampMessageHeader    *self,
       stamp_tag_set_mail (STAMP_TAG (tag), ia_address);
       stamp_tag_set_show_button (STAMP_TAG (tag), FALSE);
 
+      self->total_to++;
       if (self->total_to < MAX_VISIBLE_TO) {
         adw_wrap_box_append (ADW_WRAP_BOX (self->to_wrap), tag);
-        self->total_to++;
       } else {
-        guint hidden;
-        g_autofree char *tmp_hidden = NULL;
-
-        self->total_to++;
-        hidden = self->total_to - MAX_VISIBLE_TO;
-        tmp_hidden = g_strdup_printf ("+%u more", hidden);
         adw_wrap_box_append (ADW_WRAP_BOX (self->to_hidden_wrap), tag);
-        gtk_widget_set_visible (self->more_button, TRUE);
-
-        gtk_button_set_label (GTK_BUTTON (self->more_button), tmp_hidden);
       }
-      self->to_filled = TRUE;
     }
   } else {
     gtk_widget_set_visible (self->to_box, FALSE);
   }
+
+  hidden = self->total_to - MAX_VISIBLE_TO;
+  if (hidden) {
+    g_autofree char *tmp_hidden = NULL;
+
+    tmp_hidden = g_strdup_printf ("+%u more", hidden);
+    gtk_button_set_label (GTK_BUTTON (self->more_button), tmp_hidden);
+    gtk_widget_set_visible (self->more_button, TRUE);
+  }
+
+  self->to_filled = TRUE;
 
   tmp = g_markup_printf_escaped ("<span alpha=\"55%%\">To:</span>");
   gtk_label_set_markup (GTK_LABEL (self->to), tmp);
@@ -670,20 +670,11 @@ stamp_message_header_set_mail (StampMessageHeader    *self,
       stamp_tag_set_mail (STAMP_TAG (tag), ia_address);
       stamp_tag_set_show_button (STAMP_TAG (tag), FALSE);
 
+      self->total_cc++;
       if (self->total_cc < MAX_VISIBLE_CC) {
         adw_wrap_box_append (ADW_WRAP_BOX (self->cc_wrap), tag);
-        self->total_cc++;
       } else {
-        guint hidden;
-        g_autofree char *tmp_hidden = NULL;
-
-        self->total_cc++;
-        hidden = self->total_cc - MAX_VISIBLE_CC;
-        tmp_hidden = g_strdup_printf ("+%u more", hidden);
         adw_wrap_box_append (ADW_WRAP_BOX (self->cc_hidden_wrap), tag);
-        gtk_widget_set_visible (self->cc_more_button, TRUE);
-
-        gtk_button_set_label (GTK_BUTTON (self->cc_more_button), tmp_hidden);
       }
       self->cc_filled = TRUE;
     }
@@ -695,6 +686,16 @@ stamp_message_header_set_mail (StampMessageHeader    *self,
     gtk_widget_set_visible (self->cc_box, TRUE);
   } else {
     gtk_widget_set_visible (self->cc_box, FALSE);
+  }
+
+  hidden = self->total_cc - MAX_VISIBLE_CC;
+  if (hidden) {
+    g_autofree char *tmp_hidden = NULL;
+
+    tmp_hidden = g_strdup_printf ("+%u more", hidden);
+    gtk_widget_set_visible (self->cc_more_button, TRUE);
+
+    gtk_button_set_label (GTK_BUTTON (self->cc_more_button), tmp_hidden);
   }
 
   gtk_widget_set_visible (self->attachment_icon, has_attachment (thread_node));
