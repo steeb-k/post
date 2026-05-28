@@ -184,11 +184,8 @@ on_drag_begin (GtkGestureDrag *gesture,
   g_object_set_data (G_OBJECT (gesture), "triggered", GINT_TO_POINTER (FALSE));
   g_object_set_data (G_OBJECT (gesture), "edge-left", GINT_TO_POINTER (at_left_edge));
 
-  if (at_left_edge) {
-    gtk_gesture_set_state (GTK_GESTURE (gesture), GTK_EVENT_SEQUENCE_CLAIMED);
-  } else {
+  if (!at_left_edge)
     gtk_gesture_set_state (GTK_GESTURE (gesture), GTK_EVENT_SEQUENCE_DENIED);
-  }
 }
 
 static void
