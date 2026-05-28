@@ -118,6 +118,12 @@ on_released (GtkGesture *gesture,
              gpointer    user_data)
 {
   StampTag *self = STAMP_TAG (user_data);
+  const char *label = gtk_label_get_text (self->label);
+  g_autofree char *stripped = stamp_strip_department (label);
+  g_autofree char *tmp = g_markup_printf_escaped ("<b>%s</b>", label);
+
+  gtk_label_set_markup (self->popover_name, tmp);
+  adw_avatar_set_text (self->popover_avatar, stripped);
 
   stamp_account_get_photo (self->account, self->mail, self->cancellable, on_get_photo, self);
 
@@ -184,6 +190,8 @@ stamp_tag_init (StampTag *self)
   gtk_widget_insert_action_group (GTK_WIDGET (self), "tag", G_ACTION_GROUP (group));
 
   gtk_widget_init_template (GTK_WIDGET (self));
+
+  self->cancellable = g_cancellable_new ();
 
   gtk_widget_set_parent (GTK_WIDGET (self->popover), GTK_WIDGET (self));
 }
@@ -262,28 +270,14 @@ void
 stamp_tag_set_label (StampTag   *self,
                      const char *label)
 {
-  g_autofree char *stripped = stamp_strip_department (label);
-  g_autofree char *tmp = g_markup_printf_escaped ("<b>%s</b>", label);
-
   gtk_label_set_text (self->label, label);
-  gtk_label_set_markup (self->popover_name, tmp);
-  adw_avatar_set_text (self->popover_avatar, stripped);
 }
 
 void
 stamp_tag_set_mail (StampTag   *self,
                     const char *mail)
 {
-  if (self->mail == mail)
-    return;
-
   g_set_str (&self->mail, mail);
-
-  if (self->cancellable)
-    g_cancellable_cancel (self->cancellable);
-
-  g_clear_object (&self->cancellable);
-  self->cancellable = g_cancellable_new ();
 
   gtk_label_set_text (self->popover_email, mail);
   gtk_widget_set_tooltip_text (GTK_WIDGET (self), mail);
