@@ -41,3 +41,10 @@ check-code-style:
     - bash data/check-code-style
   artifacts:
     when: on_failure
+
+check-pot-files:
+  stage: check
+  script:
+    - bash data/check-potfiles
+  artifacts:
+    when: on_failure
