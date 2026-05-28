@@ -251,9 +251,6 @@ stamp_prefs_init (gpointer user_data)
                                                 "enable-media-stream", FALSE,
                                                 NULL);
 
-  /* FIXME: Sometimes widget is not drawn, try to avoid it */
-  webkit_settings_set_hardware_acceleration_policy (settings, WEBKIT_HARDWARE_ACCELERATION_POLICY_NEVER);
-
   web_context = webkit_web_context_get_default ();
   webkit_web_context_set_spell_checking_enabled (web_context, TRUE);
 
