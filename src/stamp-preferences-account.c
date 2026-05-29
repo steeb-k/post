@@ -44,6 +44,8 @@ enum {
   LAST_PROP
 };
 
+static GParamSpec *props[LAST_PROP] = { NULL, };
+
 static void on_alias_edit_clicked (GtkWidget *button,
                                    gpointer   user_data);
 static void on_alias_activated (AdwActionRow *row,
@@ -231,12 +233,13 @@ stamp_preferences_account_class_init (StampPreferencesAccountClass *klass)
 
   gtk_widget_class_bind_template_callback (widget_class, on_add_alias_clicked);
 
-  g_object_class_install_property (gobject_class, PROP_ACCOUNT,
-                                   g_param_spec_object ("account",
-                                                        NULL,
-                                                        NULL,
-                                                        STAMP_TYPE_ACCOUNT,
-                                                        G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  props[PROP_ACCOUNT] = g_param_spec_object ("account",
+                                             NULL,
+                                             NULL,
+                                             STAMP_TYPE_ACCOUNT,
+                                             G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+
+  g_object_class_install_properties (gobject_class, LAST_PROP, props);
 }
 
 void
