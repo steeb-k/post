@@ -93,7 +93,7 @@ stamp_conversation_item_get_property (GObject    *object,
 {
   StampConversationItem *self = STAMP_CONVERSATION_ITEM (object);
 
-  switch ((StampConversationItemProps) property_id) {
+  switch ((StampConversationItemProps)property_id) {
     case PROP_THREAD_NODE:
       g_value_set_pointer (value, stamp_conversation_item_get_node (self));
       break;
@@ -172,7 +172,7 @@ stamp_conversation_item_set_property (GObject      *object,
 {
   StampConversationItem *self = STAMP_CONVERSATION_ITEM (object);
 
-  switch ((StampConversationItemProps) property_id) {
+  switch ((StampConversationItemProps)property_id) {
     case PROP_THREAD_NODE:
       self->thread_node = g_value_get_pointer (value);
       self->timestamp = get_newest_timestamp (self->thread_node, -1);
@@ -303,7 +303,7 @@ stamp_conversation_item_init (StampConversationItem *self)
 
 StampConversationItem *
 stamp_conversation_item_new (CamelFolderThreadNode *thread_node,
-                             const gchar            *service_uid)
+                             const gchar           *service_uid)
 {
   return g_object_new (STAMP_TYPE_CONVERSATION_ITEM,
                        "thread-node", thread_node,
@@ -657,7 +657,7 @@ stamp_conversation_item_get_hidden (StampConversationItem *self)
 
 void
 stamp_conversation_item_set_label (StampConversationItem *self,
-                                   const gchar            *label,
+                                   const gchar           *label,
                                    gboolean               state)
 {
   CamelMessageInfo *info;

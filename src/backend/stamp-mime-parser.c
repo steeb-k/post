@@ -240,10 +240,10 @@ decode_part_to_bytes (CamelMimePart  *part,
 }
 
 static gchar *
-convert_to_utf8 (guint8     *data,
-                 gsize       len,
+convert_to_utf8 (guint8      *data,
+                 gsize        len,
                  const gchar *charset,
-                 gsize      *out_len)
+                 gsize       *out_len)
 {
   gsize written = 0;
   g_autoptr (GError) err = NULL;
@@ -440,7 +440,7 @@ build_signer_list (CamelCipherValidity *validity)
 static gboolean
 handle_pgp_inline (StampMimeParser         *self,
                    CamelMimePart           *part,
-                   const gchar              *text,
+                   const gchar             *text,
                    StampMimePgpInlineType   pgp_type,
                    GCancellable            *cancellable,
                    GError                 **error)

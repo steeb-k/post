@@ -174,7 +174,7 @@ stamp_preferences_account_get_property (GObject    *object,
 {
   StampPreferencesAccount *self = STAMP_PREFERENCES_ACCOUNT (object);
 
-  switch ((StampPreferencesAccountProps) property_id) {
+  switch ((StampPreferencesAccountProps)property_id) {
     case PROP_ACCOUNT:
       g_value_set_object (value, self->account);
       break;
@@ -189,7 +189,7 @@ stamp_preferences_account_set_property (GObject      *object,
 {
   StampPreferencesAccount *self = STAMP_PREFERENCES_ACCOUNT (object);
 
-  switch ((StampPreferencesAccountProps) property_id) {
+  switch ((StampPreferencesAccountProps)property_id) {
     case PROP_ACCOUNT:
       set_account (self, g_value_get_object (value));
       break;
@@ -378,8 +378,8 @@ stamp_preferences_account_editor_init (StampPreferencesAccountEditor *self)
 
 GtkWidget *
 stamp_preferences_account_editor_new (StampAccount *account,
-                                      const gchar   *email,
-                                      const gchar   *name)
+                                      const gchar  *email,
+                                      const gchar  *name)
 {
   StampPreferencesAccountEditor *self;
   StampMailService *service;

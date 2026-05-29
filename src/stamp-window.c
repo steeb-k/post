@@ -137,14 +137,14 @@ stamp_window_init (StampWindow *self)
 
 void
 stamp_window_search_contact (StampWindow *self,
-                             const gchar  *mail)
+                             const gchar *mail)
 {
   stamp_mail_view_search_contact (self->mail_view, mail);
 }
 
 void
 stamp_window_show_contact (StampWindow *self,
-                           const gchar  *mail)
+                           const gchar *mail)
 {
   stamp_contact_view_show_contact (self->contact_view, mail);
   adw_view_stack_set_visible_child_name (self->main_view_stack, "contacts");

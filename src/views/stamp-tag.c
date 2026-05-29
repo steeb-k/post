@@ -59,7 +59,7 @@ stamp_tag_get_property (GObject    *object,
 {
   StampTag *self = STAMP_TAG (object);
 
-  switch ((StampTagProps) property_id) {
+  switch ((StampTagProps)property_id) {
     case PROP_ACCOUNT:
       g_value_set_object (value, self->account);
       break;
@@ -86,7 +86,7 @@ stamp_tag_set_property (GObject      *object,
 {
   StampTag *self = STAMP_TAG (object);
 
-  switch ((StampTagProps) property_id) {
+  switch ((StampTagProps)property_id) {
     case PROP_ACCOUNT:
       g_clear_object (&self->account);
 
@@ -258,14 +258,14 @@ stamp_tag_new (StampAccount *account)
 }
 
 void
-stamp_tag_set_label (StampTag   *self,
+stamp_tag_set_label (StampTag    *self,
                      const gchar *label)
 {
   gtk_label_set_text (self->label, label);
 }
 
 void
-stamp_tag_set_mail (StampTag   *self,
+stamp_tag_set_mail (StampTag    *self,
                     const gchar *mail)
 {
   g_set_str (&self->mail, mail);

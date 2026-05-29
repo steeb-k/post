@@ -120,7 +120,7 @@ enum {
 static gint signals[LAST_SIGNAL] = { 0 };
 
 static StampConversationItem *
-stamp_conversation_item_find_item (GListStore *store,
+stamp_conversation_item_find_item (GListStore  *store,
                                    const gchar *uid)
 {
   guint list_len = g_list_model_get_n_items (G_LIST_MODEL (store));
@@ -518,7 +518,7 @@ load_more_items_idle (gpointer user_data)
 void
 stamp_conversation_list_load_folder (StampConversationList *self,
                                      StampAccount          *account,
-                                     gchar                  *full_name)
+                                     gchar                 *full_name)
 {
   StampMailService *mail_service;
 
@@ -773,9 +773,9 @@ on_long_press_pressed (GtkGestureLongPress *controller,
 
 static void
 on_row_pressed (GtkGestureClick *gesture,
-                gint              n_press,
-                gdouble           x,
-                gdouble           y,
+                gint             n_press,
+                gdouble          x,
+                gdouble          y,
                 gpointer         user_data)
 {
   RowData *data = g_object_get_data (G_OBJECT (gesture), "row-data");
@@ -860,9 +860,9 @@ on_row_pressed (GtkGestureClick *gesture,
 
 static void
 on_touch_begin (GtkGestureClick *gesture,
-                gint              n_press,
-                gdouble           x,
-                gdouble           y,
+                gint             n_press,
+                gdouble          x,
+                gdouble          y,
                 gpointer         user_data)
 {
   RowData *data = g_object_get_data (G_OBJECT (gesture), "row-data");
@@ -872,9 +872,9 @@ on_touch_begin (GtkGestureClick *gesture,
 
 static void
 on_touch_released (GtkGestureClick *gesture,
-                   gint              n_press,
-                   gdouble           x,
-                   gdouble           y,
+                   gint             n_press,
+                   gdouble          x,
+                   gdouble          y,
                    gpointer         user_data)
 {
   RowData *data = g_object_get_data (G_OBJECT (gesture), "row-data");
@@ -1148,7 +1148,7 @@ stamp_conversation_list_get_property (GObject    *object,
 {
   StampConversationList *self = STAMP_CONVERSATION_LIST (object);
 
-  switch ((StampConversationListProps) property_id) {
+  switch ((StampConversationListProps)property_id) {
     case PROP_STATE:
       g_value_set_boolean (value, self->selection_mode);
       break;
@@ -1161,7 +1161,7 @@ stamp_conversation_list_set_property (GObject      *object,
                                       const GValue *value,
                                       GParamSpec   *pspec)
 {
-  switch ((StampConversationListProps) property_id) {
+  switch ((StampConversationListProps)property_id) {
     case PROP_STATE:
       break;
   }
@@ -1201,8 +1201,8 @@ stamp_conversation_list_dispose (GObject *object)
 
 static gboolean
 on_scroll (GtkEventControllerScroll *controller,
-           gdouble                    dx,
-           gdouble                    dy,
+           gdouble                   dx,
+           gdouble                   dy,
            gpointer                  user_data)
 {
   StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
@@ -1359,8 +1359,8 @@ load_folder_idle (gpointer user_data)
 
 static void
 on_drag_end (GtkGestureDrag *gesture,
-             gdouble          dx,
-             gdouble          dy,
+             gdouble         dx,
+             gdouble         dy,
              gpointer        user_data)
 {
   StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
@@ -1867,7 +1867,7 @@ stamp_conversation_list_trash (StampConversationList *self,
 
 void
 stamp_mail_conversation_list_search_contact (StampConversationList *self,
-                                             const gchar            *mail)
+                                             const gchar           *mail)
 {
   gtk_editable_set_text (GTK_EDITABLE (self->search_entry), mail);
   gtk_search_bar_set_search_mode (GTK_SEARCH_BAR (self->search_bar), TRUE);
@@ -1907,7 +1907,7 @@ stamp_consersation_list_set_show_buttons (StampConversationList *self,
 
 void
 stamp_conversation_list_select_relative (StampConversationList *self,
-                                         gint                    direction)
+                                         gint                   direction)
 {
   GtkSelectionModel *model = GTK_SELECTION_MODEL (self->single_selection);
   guint n_items = g_list_model_get_n_items (G_LIST_MODEL (model));
@@ -1930,7 +1930,7 @@ stamp_conversation_list_select_relative (StampConversationList *self,
 
 StampConversationItem *
 stamp_conversation_list_get_adjacent_item (StampConversationList *self,
-                                           gint                    offset)
+                                           gint                   offset)
 {
   GListModel *model = G_LIST_MODEL (self->single_selection);
   guint n_items = g_list_model_get_n_items (model);

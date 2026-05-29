@@ -114,7 +114,7 @@ is_valid_email (const gchar *str)
 
 static gboolean
 convert_to_tag (StampContactCompletion *self,
-                const gchar             *text,
+                const gchar            *text,
                 gboolean                focus_leave)
 {
   g_autofree char *stripped = g_strstrip (g_strdup (text));
@@ -376,7 +376,7 @@ stamp_contact_completion_set_property (GObject      *object,
 {
   StampContactCompletion *self = STAMP_CONTACT_COMPLETION (object);
 
-  switch ((StampContactCompletionProps) property_id) {
+  switch ((StampContactCompletionProps)property_id) {
     case PROP_HAS_ENTRIES:
       self->has_entries = g_value_get_boolean (value);
       g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_HAS_ENTRIES]);
@@ -392,7 +392,7 @@ stamp_contact_completion_get_property (GObject    *object,
 {
   StampContactCompletion *self = STAMP_CONTACT_COMPLETION (object);
 
-  switch ((StampContactCompletionProps) property_id) {
+  switch ((StampContactCompletionProps)property_id) {
     case PROP_HAS_ENTRIES:
       g_value_set_boolean (value, self->has_entries);
       break;
@@ -618,7 +618,7 @@ stamp_contact_completion_set_account (StampContactCompletion *self,
 
 gboolean
 stamp_contact_completion_contains_address (StampContactCompletion *self,
-                                           const gchar             *mail)
+                                           const gchar            *mail)
 {
   for (GList *iter = self->receivers; iter && iter->data; iter = g_list_next (iter)) {
     StampTag *tag = STAMP_TAG (iter->data);

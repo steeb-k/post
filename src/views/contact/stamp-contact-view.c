@@ -276,7 +276,7 @@ stamp_contact_view_new (void)
 
 void
 stamp_contact_view_show_contact (StampContactView *self,
-                                 const gchar       *mail)
+                                 const gchar      *mail)
 {
   const gchar *layout = adw_multi_layout_view_get_layout_name (self->contacts_layout);
 

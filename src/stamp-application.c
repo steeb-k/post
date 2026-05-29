@@ -41,7 +41,7 @@ struct _StampApplication {
 G_DEFINE_FINAL_TYPE (StampApplication, stamp_application, ADW_TYPE_APPLICATION);
 
 StampApplication *
-stamp_application_new (const gchar        *application_id,
+stamp_application_new (const gchar       *application_id,
                        GApplicationFlags  flags)
 {
   StampApplication *stamp_application;
@@ -178,7 +178,7 @@ static void
 on_pk11_password (StampSession  *session,
                   PK11SlotInfo  *slot,
                   PRBool         retry,
-                  gchar         **password,
+                  gchar        **password,
                   gpointer       user_data)
 {
   StampApplication *self = STAMP_APPLICATION (user_data);

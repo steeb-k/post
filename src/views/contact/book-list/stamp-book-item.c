@@ -43,7 +43,7 @@ stamp_book_item_set_property (GObject      *object,
 {
   StampBookItem *self = STAMP_BOOK_ITEM (object);
 
-  switch ((StampBookItemProps) property_id) {
+  switch ((StampBookItemProps)property_id) {
     case PROP_CLIENT:
       g_clear_object (&self->client);
 
@@ -60,7 +60,7 @@ stamp_book_item_get_property (GObject    *object,
                               GValue     *value,
                               GParamSpec *pspec)
 {
-  switch ((StampBookItemProps) property_id) {
+  switch ((StampBookItemProps)property_id) {
     case PROP_CLIENT:
       break;
   }

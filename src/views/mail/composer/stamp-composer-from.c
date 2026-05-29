@@ -58,8 +58,8 @@ stamp_composer_from_class_init (StampComposerFromClass *klass)
 
 StampComposerFrom *
 stamp_composer_from_new (StampAccount *account,
-                         const gchar   *name,
-                         const gchar   *mail)
+                         const gchar  *name,
+                         const gchar  *mail)
 {
   StampComposerFrom *self = g_object_new (STAMP_TYPE_COMPOSER_FROM, NULL);
 

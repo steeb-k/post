@@ -106,7 +106,7 @@ stamp_message_list_dispose (GObject *object)
 
 static void
 on_unsubscribe_response (GtkWidget *dialog,
-                         gchar      *response,
+                         gchar     *response,
                          gpointer   user_data)
 {
   StampMessageList *self = STAMP_MESSAGE_LIST (user_data);
@@ -178,8 +178,8 @@ emit_navigate_back_idle (gpointer user_data)
 
 static void
 on_drag_begin (GtkGestureDrag *gesture,
-               gdouble          start_x,
-               gdouble          start_y,
+               gdouble         start_x,
+               gdouble         start_y,
                gpointer        user_data)
 {
   gboolean at_left_edge = start_x < 50;
@@ -193,8 +193,8 @@ on_drag_begin (GtkGestureDrag *gesture,
 
 static void
 on_drag_update (GtkGestureDrag *gesture,
-                gdouble          offset_x,
-                gdouble          offset_y,
+                gdouble         offset_x,
+                gdouble         offset_y,
                 gpointer        user_data)
 {
   StampMessageList *self = STAMP_MESSAGE_LIST (user_data);
@@ -623,8 +623,8 @@ stamp_message_list_set_conversation (StampMessageList      *self,
 
 void
 stamp_message_list_hovering_over_link (StampMessageList *self,
-                                       const gchar       *title,
-                                       const gchar       *url)
+                                       const gchar      *title,
+                                       const gchar      *url)
 {
   if (!url) {
     gtk_widget_set_visible (self->hover_url, FALSE);
@@ -768,8 +768,8 @@ stamp_message_list_view_source (StampMessageList *self,
 
 void
 stamp_message_list_set_unsubscribe (StampMessageList *self,
-                                    const gchar       *sender,
-                                    const gchar       *url,
+                                    const gchar      *sender,
+                                    const gchar      *url,
                                     CamelMimeMessage *message)
 {
   gtk_widget_set_visible (GTK_WIDGET (self->unsubscribe_button), TRUE);

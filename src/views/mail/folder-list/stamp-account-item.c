@@ -52,7 +52,7 @@ enum {
 static gint signals[LAST_SIGNAL] = { 0 };
 
 static StampFolderItem *
-stamp_account_item_find_item (GListStore *store,
+stamp_account_item_find_item (GListStore  *store,
                               const gchar *full_name)
 {
   guint list_len = g_list_model_get_n_items (G_LIST_MODEL (store));
@@ -269,7 +269,7 @@ on_offline_store_folder_changed (CamelOfflineStore *store,
 static gboolean
 stamp_account_item_find_and_delete_item (StampAccountItem *self,
                                          GListStore       *store,
-                                         const gchar       *full_name)
+                                         const gchar      *full_name)
 {
   guint list_len = g_list_model_get_n_items (G_LIST_MODEL (store));
 

@@ -65,7 +65,7 @@ static void
 on_user_alert (CamelSession *session,
                CamelService *service,
                gint          type,
-               gchar         *message)
+               gchar        *message)
 {
   g_warning ("%s: %s", G_STRFUNC, message);
 }
@@ -225,7 +225,7 @@ stamp_session_load_accounts_from_registry (ESourceRegistry *registry)
 }
 
 static StampAccount *
-stamp_session_find_account_by_uid (GList      *list,
+stamp_session_find_account_by_uid (GList       *list,
                                    const gchar *uid)
 {
   for (GList *iter = list; iter && iter->data; iter = g_list_next (iter)) {
@@ -508,8 +508,8 @@ authenticate_sync (CamelSession  *session,
 
 static CamelService *
 add_service (CamelSession       *session,
-             const gchar         *uid,
-             const gchar         *protocol,
+             const gchar        *uid,
+             const gchar        *protocol,
              CamelProviderType   type,
              GError            **error)
 {
@@ -566,7 +566,7 @@ remove_service (CamelSession *session,
 
 static CamelFilterDriver *
 get_filter_driver (CamelSession  *session,
-                   const gchar    *type,
+                   const gchar   *type,
                    CamelFolder   *folder,
                    GError       **error)
 {

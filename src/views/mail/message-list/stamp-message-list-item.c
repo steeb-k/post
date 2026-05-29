@@ -348,9 +348,9 @@ stamp_message_list_item_get_property (GObject    *object,
 {
   StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (object);
 
-  switch ((StampMessageListItemProps) property_id) {
+  switch ((StampMessageListItemProps)property_id) {
     case PROP_MESSAGE_INFO:
-      g_value_set_object (value, (GObject *) self->message_info);
+      g_value_set_object (value, (GObject *)self->message_info);
       break;
     case PROP_ACCOUNT:
       g_value_set_object (value, self->account);
@@ -369,7 +369,7 @@ stamp_message_list_item_set_property (GObject      *object,
 {
   StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (object);
 
-  switch ((StampMessageListItemProps) property_id) {
+  switch ((StampMessageListItemProps)property_id) {
     case PROP_ACCOUNT:
       self->account = g_value_get_object (value);
       stamp_message_header_set_account (STAMP_MESSAGE_HEADER (self->header), self->account);
@@ -518,7 +518,7 @@ stamp_message_list_item_send_rsvp (StampMessageListItem  *self,
 
 static void
 on_rsvp_response (GtkWidget *dialog,
-                  gchar      *response,
+                  gchar     *response,
                   gpointer   user_data)
 {
   StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
@@ -1178,7 +1178,7 @@ on_found_text (WebKitFindController *controller,
 
 void
 stamp_message_list_item_search (StampMessageListItem *self,
-                                const gchar           *search_text)
+                                const gchar          *search_text)
 {
   WebKitFindController *controller = webkit_web_view_get_find_controller (WEBKIT_WEB_VIEW (self->web_view));
 

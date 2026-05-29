@@ -106,8 +106,8 @@ stamp_pending_lookup_unref (StampPendingLookup *pending)
 
 static gchar *
 stamp_cache_path_for_email (StampPhotoCache *cache,
-                            const gchar      *email,
-                            const gchar      *suffix)
+                            const gchar     *email,
+                            const gchar     *suffix)
 {
   g_autofree char *hash = g_compute_checksum_for_string (G_CHECKSUM_SHA256, email, -1);
   g_autofree char *path = g_build_filename (cache->cache_dir, hash, NULL);
@@ -129,7 +129,7 @@ stamp_disk_cache_is_valid (const gchar *path)
 
 static GdkTexture *
 stamp_disk_cache_load (StampPhotoCache *cache,
-                       const gchar      *email)
+                       const gchar     *email)
 {
   GdkTexture *texture;
   g_autoptr (GFile) file = NULL;
@@ -146,7 +146,7 @@ stamp_disk_cache_load (StampPhotoCache *cache,
 
 static gboolean
 stamp_disk_cache_load_negative (StampPhotoCache *cache,
-                                const gchar      *email)
+                                const gchar     *email)
 {
   g_autofree char *path = stamp_cache_path_for_email (cache, email, STAMP_CACHE_NEGATIVE_SUFFIX);
   return stamp_disk_cache_is_valid (path);
@@ -154,7 +154,7 @@ stamp_disk_cache_load_negative (StampPhotoCache *cache,
 
 static void
 stamp_disk_cache_store (StampPhotoCache *cache,
-                        const gchar      *email,
+                        const gchar     *email,
                         const guchar    *data,
                         gsize            length)
 {
@@ -168,7 +168,7 @@ stamp_disk_cache_store (StampPhotoCache *cache,
 
 static void
 stamp_disk_cache_store_negative (StampPhotoCache *cache,
-                                 const gchar      *email)
+                                 const gchar     *email)
 {
   g_autofree char *path = stamp_cache_path_for_email (cache, email, STAMP_CACHE_NEGATIVE_SUFFIX);
   g_autoptr (GError) error = NULL;
@@ -260,7 +260,7 @@ stamp_photo_cache_free (StampPhotoCache *cache)
 
 static StampCancelData *
 stamp_cancel_data_new (StampPhotoCache *cache,
-                       const gchar      *email,
+                       const gchar     *email,
                        guint            waiter_id)
 {
   StampCancelData *data = g_new0 (StampCancelData, 1);
@@ -309,7 +309,7 @@ stamp_on_waiter_cancelled (GCancellable *cancellable,
 
 static GdkTexture *
 check_bimi (StampPhotoCache *self,
-            const gchar      *email,
+            const gchar     *email,
             GCancellable    *cancellable)
 {
   GdkTexture *texture = NULL;
@@ -529,8 +529,8 @@ load_bimi (GTask        *task,
  */
 void
 stamp_photo_cache_lookup_async (StampPhotoCache *self,
-                                const gchar      *search_string,
-                                const gchar      *book_uid,
+                                const gchar     *search_string,
+                                const gchar     *book_uid,
                                 GCancellable    *cancellable,
                                 GFunc            callback,
                                 gpointer         user_data)

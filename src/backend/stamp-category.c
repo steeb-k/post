@@ -60,7 +60,7 @@ stamp_category_get_property (GObject    *object,
 {
   StampCategory *self = STAMP_CATEGORY (object);
 
-  switch ((StampCategoryProps) prop_id) {
+  switch ((StampCategoryProps)prop_id) {
     case PROP_ID:
       g_value_set_string (value, self->id);
       break;
@@ -84,7 +84,7 @@ stamp_category_set_property (GObject      *object,
 {
   StampCategory *self = STAMP_CATEGORY (object);
 
-  switch ((StampCategoryProps) property_id) {
+  switch ((StampCategoryProps)property_id) {
     case PROP_ID:
       g_set_str (&self->id, g_value_get_string (value));
       break;
@@ -224,8 +224,8 @@ stamp_preset_to_hex (const gchar *preset)
 
 static GList *
 parse_categories_json (const gchar  *json_data,
-                       gsize        json_len,
-                       GError     **error)
+                       gsize         json_len,
+                       GError      **error)
 {
   g_autoptr (JsonParser) parser = NULL;
   JsonNode *root_node;

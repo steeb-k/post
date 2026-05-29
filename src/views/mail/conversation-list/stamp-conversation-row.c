@@ -107,7 +107,7 @@ stamp_conversation_row_get_property (GObject    *object,
 {
   StampConversationRow *self = STAMP_CONVERSATION_ROW (object);
 
-  switch ((StampConversationRowProps) property_id) {
+  switch ((StampConversationRowProps)property_id) {
     case PROP_SELECTED:
       g_value_set_boolean (value, self->selected);
       break;
@@ -153,7 +153,7 @@ stamp_conversation_row_set_property (GObject      *object,
 {
   StampConversationRow *self = STAMP_CONVERSATION_ROW (object);
 
-  switch ((StampConversationRowProps) property_id) {
+  switch ((StampConversationRowProps)property_id) {
     case PROP_SELECTED:
       self->selected = g_value_get_boolean (value);
       gtk_check_button_set_active (self->check_button, self->selected);
@@ -173,7 +173,7 @@ stamp_conversation_row_set_property (GObject      *object,
 
 static void
 set_offset (GtkWidget *row,
-            gdouble     offset)
+            gdouble    offset)
 {
   gtk_widget_set_margin_start (row, offset);
   gtk_widget_set_margin_end (row, -offset);
@@ -181,8 +181,8 @@ set_offset (GtkWidget *row,
 
 static void
 on_drag_update (GtkGestureDrag *gesture,
-                gdouble          dx,
-                gdouble          dy,
+                gdouble         dx,
+                gdouble         dy,
                 gpointer        user_data)
 {
   StampConversationRow *self = STAMP_CONVERSATION_ROW (user_data);
@@ -211,7 +211,7 @@ on_drag_update (GtkGestureDrag *gesture,
 
 static void
 animate_to_zero (StampConversationRow *self,
-                 gdouble                pos)
+                 gdouble               pos)
 {
   AdwAnimationTarget *target = adw_callback_animation_target_new ((AdwAnimationTargetFunc)set_offset, self->row, NULL);
   g_autoptr (AdwAnimation) anim = adw_timed_animation_new (GTK_WIDGET (self->row), pos, 0, 200, target);
@@ -220,8 +220,8 @@ animate_to_zero (StampConversationRow *self,
 
 static void
 on_drag_end (GtkGestureDrag *gesture,
-             gdouble          dx,
-             gdouble          dy,
+             gdouble         dx,
+             gdouble         dy,
              gpointer        user_data)
 {
   StampConversationRow *self = STAMP_CONVERSATION_ROW (user_data);

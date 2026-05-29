@@ -308,7 +308,7 @@ stamp_contact_list_get_property (GObject    *object,
 {
   StampContactList *self = STAMP_CONTACT_LIST (object);
 
-  switch ((StampContactListProps) property_id) {
+  switch ((StampContactListProps)property_id) {
     case PROP_SORT_MODE:
       g_value_set_enum (value, self->sort_mode);
       break;
@@ -322,7 +322,7 @@ stamp_contact_list_set_property (GObject      *object,
 {
   StampContactList *self = STAMP_CONTACT_LIST (object);
 
-  switch ((StampContactListProps) property_id) {
+  switch ((StampContactListProps)property_id) {
     case PROP_SORT_MODE:
       self->sort_mode = g_value_get_enum (value);
       break;
@@ -460,7 +460,7 @@ stamp_contact_list_get_sidebar_button (StampContactList *self)
 
 void
 stamp_contact_list_search_contact (StampContactList *self,
-                                   const gchar       *mail)
+                                   const gchar      *mail)
 {
   gtk_editable_set_text (GTK_EDITABLE (self->search_entry), mail);
   gtk_search_bar_set_search_mode (GTK_SEARCH_BAR (self->search_bar), TRUE);

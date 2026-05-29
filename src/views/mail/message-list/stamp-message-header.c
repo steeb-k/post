@@ -168,7 +168,7 @@ stamp_message_header_get_property (GObject    *object,
 {
   StampMessageHeader *self = STAMP_MESSAGE_HEADER (object);
 
-  switch ((StampMessageHeaderProps) property_id) {
+  switch ((StampMessageHeaderProps)property_id) {
     case PROP_ACCOUNT:
       break;
     case PROP_COLLAPSED:
@@ -194,7 +194,7 @@ stamp_message_header_set_property (GObject      *object,
 {
   StampMessageHeader *self = STAMP_MESSAGE_HEADER (object);
 
-  switch ((StampMessageHeaderProps) property_id) {
+  switch ((StampMessageHeaderProps)property_id) {
     case PROP_ACCOUNT:
       self->account = g_value_get_object (value);
       break;
@@ -724,7 +724,7 @@ stamp_message_header_set_internal (StampMessageHeader *self,
 
 void
 stamp_message_header_set_sender (StampMessageHeader *self,
-                                 const gchar         *sender)
+                                 const gchar        *sender)
 {
   g_autoptr (CamelInternetAddress) address = camel_internet_address_new ();
   const gchar *ia_name;

@@ -61,7 +61,7 @@ stamp_attachment_button_get_property (GObject    *object,
 {
   StampAttachmentButton *self = STAMP_ATTACHMENT_BUTTON (object);
 
-  switch ((StampAttachmentButtonProps) property_id) {
+  switch ((StampAttachmentButtonProps)property_id) {
     case PROP_MIME_PART:
       g_value_set_object (value, self->mime_part);
       break;
@@ -91,7 +91,7 @@ stamp_attachment_button_set_property (GObject      *object,
 {
   StampAttachmentButton *self = STAMP_ATTACHMENT_BUTTON (object);
 
-  switch ((StampAttachmentButtonProps) property_id) {
+  switch ((StampAttachmentButtonProps)property_id) {
     case PROP_MIME_PART:
       self->mime_part = g_value_get_object (value);
       break;
@@ -322,7 +322,7 @@ on_remove_activate (GAction  *action,
 }
 
 static gboolean
-remove_menu_item (GMenu      *menu,
+remove_menu_item (GMenu       *menu,
                   const gchar *action_name)
 {
   gint i, n;
@@ -530,8 +530,8 @@ stamp_attachment_button_new (CamelMimePart *mime_part)
 GtkWidget *
 stamp_attachment_button_new_from_data (const gchar *filename,
                                        const gchar *content_type,
-                                       gsize       size,
-                                       GBytes     *data)
+                                       gsize        size,
+                                       GBytes      *data)
 {
   return g_object_new (STAMP_TYPE_ATTACHMENT_BUTTON,
                        "filename", filename,

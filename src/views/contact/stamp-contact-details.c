@@ -84,7 +84,7 @@ stamp_contact_details_class_init (StampContactDetailsClass *klass)
 
 static void
 add_mail_row (GtkWidget *list_box,
-              gchar      *mail)
+              gchar     *mail)
 {
   GtkWidget *row;
   g_autofree char *markup = g_markup_escape_text (mail, -1);
@@ -106,7 +106,7 @@ add_mail_row (GtkWidget *list_box,
 }
 
 static void
-add_phone_row (GtkWidget  *list_box,
+add_phone_row (GtkWidget   *list_box,
                const gchar *type,
                const gchar *number)
 {
@@ -179,7 +179,7 @@ static struct {
 };
 
 static void
-add_org_row (GtkWidget  *list_box,
+add_org_row (GtkWidget   *list_box,
              const gchar *icon,
              const gchar *type,
              const gchar *text)

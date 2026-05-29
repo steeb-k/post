@@ -84,7 +84,7 @@ static GParamSpec *props[PROP_ACCOUNT + 1] = { NULL, };
 
 static void
 on_query_command (GObject      *source,
-                  const gchar   *command,
+                  const gchar  *command,
                   GAsyncResult *res,
                   gpointer      user_data)
 {
@@ -157,8 +157,8 @@ on_edit_activate (GSimpleAction *action,
 
 static CamelMimeMessage *
 build_message (StampComposer *self,
-               const gchar    *body_html,
-               const gchar    *body_plain)
+               const gchar   *body_html,
+               const gchar   *body_plain)
 {
   CamelMimePart *part;
   CamelMultipart *body;
@@ -265,8 +265,8 @@ build_message (StampComposer *self,
 
 static CamelInternetAddress *
 build_sender (CamelMimeMessage *message,
-              const gchar       *name,
-              const gchar       *mail)
+              const gchar      *name,
+              const gchar      *mail)
 {
   CamelInternetAddress *sender = camel_internet_address_new ();
 
@@ -461,7 +461,7 @@ static void on_get_body_html (GObject      *source_object,
 
 static gboolean
 check_attachment_reminder (StampComposer *self,
-                           const gchar    *body)
+                           const gchar   *body)
 {
   const gchar *keywords[] = {
     "attachment",
@@ -491,7 +491,7 @@ check_attachment_reminder (StampComposer *self,
 
 static void
 on_attachment_reminder_response (GtkWidget *dialog,
-                                 gchar      *response,
+                                 gchar     *response,
                                  gpointer   user_data)
 {
   StampComposer *self = STAMP_COMPOSER (user_data);
@@ -1241,7 +1241,7 @@ stamp_composer_get_property (GObject    *object,
 {
   StampComposer *self = STAMP_COMPOSER (object);
 
-  switch ((StampComposerProps) property_id) {
+  switch ((StampComposerProps)property_id) {
     case PROP_ACCOUNT:
       g_value_set_object (value, self->composer_from);
       break;
@@ -1256,7 +1256,7 @@ stamp_composer_set_property (GObject      *object,
 {
   StampComposer *self = STAMP_COMPOSER (object);
 
-  switch ((StampComposerProps) property_id) {
+  switch ((StampComposerProps)property_id) {
     case PROP_ACCOUNT:
       stamp_composer_set_composer_from_by_account (self, g_value_get_object (value));
       break;
@@ -1399,11 +1399,11 @@ remove_own_address (StampComposer        *self,
 static void
 stamp_composer_set_quote_content (StampComposer          *self,
                                   StampComposerType       type,
-                                  const gchar             *uid,
+                                  const gchar            *uid,
                                   StampWebView           *webview,
                                   const CamelMessageInfo *info,
                                   CamelMimeMessage       *message,
-                                  gchar                   *content_to_quote)
+                                  gchar                  *content_to_quote)
 {
   const gchar *subject = camel_message_info_get_subject (info);
 
@@ -1512,12 +1512,12 @@ stamp_composer_set_quote_content (StampComposer          *self,
 
 GtkWidget *
 stamp_composer_new_with_quote (StampComposerType       type,
-                               const gchar             *uid,
+                               const gchar            *uid,
                                StampAccount           *account,
                                StampWebView           *webview,
                                const CamelMessageInfo *info,
                                CamelMimeMessage       *mime_message,
-                               gchar                   *content_to_quote)
+                               gchar                  *content_to_quote)
 {
   GtkWidget *composer = g_object_new (STAMP_TYPE_COMPOSER, "account", account, NULL);
 
@@ -1534,7 +1534,7 @@ stamp_composer_new_with_quote (StampComposerType       type,
 
 void
 stamp_composer_set_to (StampComposer *self,
-                       gchar          *to)
+                       gchar         *to)
 {
   CamelInternetAddress *to_address = camel_internet_address_new ();
 
@@ -1546,14 +1546,14 @@ stamp_composer_set_to (StampComposer *self,
 
 void
 stamp_composer_set_subject (StampComposer *self,
-                            gchar          *subject)
+                            gchar         *subject)
 {
   gtk_editable_set_text (GTK_EDITABLE (self->subject), subject);
 }
 
 void
 stamp_composer_set_body (StampComposer *self,
-                         gchar          *body)
+                         gchar         *body)
 {
   stamp_web_view_set_body_content (self->webview, body);
 

@@ -78,7 +78,7 @@ stamp_item_set_property (GObject      *object,
   StampItem *self = STAMP_ITEM (object);
   StampItemPrivate *priv = stamp_item_get_instance_private (self);
 
-  switch ((StampItemProps) property_id) {
+  switch ((StampItemProps)property_id) {
     case PROP_NAME:
       g_set_str (&priv->name, g_value_get_string (value));
       break;
@@ -107,7 +107,7 @@ stamp_item_get_property (GObject    *object,
   StampItem *self = STAMP_ITEM (object);
   StampItemPrivate *priv = stamp_item_get_instance_private (self);
 
-  switch ((StampItemProps) property_id) {
+  switch ((StampItemProps)property_id) {
     case PROP_ACCOUNT:
       g_value_set_object (value, priv->account);
       break;
@@ -159,7 +159,7 @@ stamp_item_class_init (StampItemClass *klass)
 }
 
 void
-stamp_item_set_icon_name (StampItem  *self,
+stamp_item_set_icon_name (StampItem   *self,
                           const gchar *icon_name)
 {
   StampItemPrivate *priv = stamp_item_get_instance_private (self);
@@ -178,7 +178,7 @@ stamp_item_get_icon_name (StampItem *self)
 }
 
 void
-stamp_item_set_name (StampItem  *self,
+stamp_item_set_name (StampItem   *self,
                      const gchar *name)
 {
   StampItemPrivate *priv = stamp_item_get_instance_private (self);

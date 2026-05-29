@@ -58,7 +58,7 @@
 
 gchar *
 eel_strdup_strftime (const gchar *format,
-                     struct tm  *time_pieces)
+                     struct tm   *time_pieces)
 {
   g_autoptr (GString) string = NULL;
   const gchar *remainder, *percent;

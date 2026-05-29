@@ -63,7 +63,7 @@ stamp_contact_row_get_property (GObject    *object,
 {
   StampContactRow *self = STAMP_CONTACT_ROW (object);
 
-  switch ((StampContactRowProps) property_id) {
+  switch ((StampContactRowProps)property_id) {
     case PROP_NAME:
       g_value_set_string (value, gtk_inscription_get_text (GTK_INSCRIPTION (self->name)));
       break;
@@ -77,7 +77,7 @@ stamp_contact_row_set_property (GObject      *object,
 {
   StampContactRow *self = STAMP_CONTACT_ROW (object);
 
-  switch ((StampContactRowProps) property_id) {
+  switch ((StampContactRowProps)property_id) {
     case PROP_NAME:
       gtk_inscription_set_text (GTK_INSCRIPTION (self->name), g_value_get_string (value));
       break;

@@ -77,7 +77,7 @@ get_icon (CamelFolderInfo *info)
 }
 
 static StampFolderItem *
-stamp_folder_item_find_item (GListStore *store,
+stamp_folder_item_find_item (GListStore  *store,
                              const gchar *full_name)
 {
   gint num = g_list_model_get_n_items (G_LIST_MODEL (store));
@@ -148,7 +148,7 @@ stamp_folder_item_set_property (GObject      *object,
 {
   StampFolderItem *self = STAMP_FOLDER_ITEM (object);
 
-  switch ((StampFolderItemProps) property_id) {
+  switch ((StampFolderItemProps)property_id) {
     case PROP_FOLDER_INFO:
       stamp_folder_item_set_folder_info (self, g_value_get_boxed (value));
       break;
@@ -165,7 +165,7 @@ stamp_folder_item_get_property (GObject    *object,
 {
   StampFolderItem *self = STAMP_FOLDER_ITEM (object);
 
-  switch ((StampFolderItemProps) property_id) {
+  switch ((StampFolderItemProps)property_id) {
     case PROP_FOLDER_INFO:
       g_value_set_boxed (value, self->folder_info);
       break;

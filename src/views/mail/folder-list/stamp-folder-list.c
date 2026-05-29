@@ -373,9 +373,9 @@ folders_sorter (gconstpointer a,
 
 static void
 on_row_released (GtkGestureClick *gesture,
-                 gint              n_press,
-                 gdouble           x,
-                 gdouble           y,
+                 gint             n_press,
+                 gdouble          x,
+                 gdouble          y,
                  gpointer         user_data)
 {
   GtkListItem *list_item = GTK_LIST_ITEM (user_data);
@@ -397,8 +397,8 @@ on_row_released (GtkGestureClick *gesture,
 
 static GdkContentProvider *
 on_drag_prepare (GtkDragSource *source,
-                 gdouble         x,
-                 gdouble         y,
+                 gdouble        x,
+                 gdouble        y,
                  gpointer       user_data)
 {
   GtkListItem *list_item = GTK_LIST_ITEM (user_data);
@@ -459,8 +459,8 @@ save_account_order (StampFolderList *self)
 static gboolean
 on_drop (GtkDropTarget *target,
          const GValue  *value,
-         gdouble         x,
-         gdouble         y,
+         gdouble        x,
+         gdouble        y,
          gpointer       user_data)
 {
   StampFolderList *self = STAMP_FOLDER_LIST (user_data);

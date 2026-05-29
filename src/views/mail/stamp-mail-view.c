@@ -111,7 +111,7 @@ close_overlay_sidebar (StampMailView *self)
 static void
 on_folder_selected (GtkWidget    *object,
                     StampAccount *account,
-                    gchar         *full_name,
+                    gchar        *full_name,
                     gpointer      user_data)
 {
   StampMailView *self = STAMP_MAIL_VIEW (user_data);
@@ -188,7 +188,7 @@ stamp_mail_view_get_property (GObject    *object,
 {
   StampMailView *self = STAMP_MAIL_VIEW (object);
 
-  switch ((StampMailViewProps) property_id) {
+  switch ((StampMailViewProps)property_id) {
     case PROP_STACK:
       g_value_set_object (value, self->stack);
       break;
@@ -203,7 +203,7 @@ stamp_mail_view_set_property (GObject      *object,
 {
   StampMailView *self = STAMP_MAIL_VIEW (object);
 
-  switch ((StampMailViewProps) property_id) {
+  switch ((StampMailViewProps)property_id) {
     case PROP_STACK:
       g_set_object (&self->stack, g_value_get_object (value));
       break;
@@ -465,7 +465,7 @@ stamp_mail_view_new (void)
 
 void
 stamp_mail_view_search_contact (StampMailView *self,
-                                const gchar    *mail)
+                                const gchar   *mail)
 {
   stamp_mail_conversation_list_search_contact (self->conversation_list, mail);
 
@@ -481,7 +481,7 @@ stamp_mail_view_get_action_group (StampMailView *self)
 
 void
 stamp_mail_view_show_toast (StampMailView *self,
-                            const gchar    *message)
+                            const gchar   *message)
 {
   AdwToast *toast;
 
