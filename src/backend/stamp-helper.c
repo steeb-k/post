@@ -23,8 +23,8 @@
 
 #include "stamp-application.h"
 
-static char *cache_dir = NULL;
-static char *data_dir = NULL;
+static gchar *cache_dir = NULL;
+static gchar *data_dir = NULL;
 static GMutex dir_mutex;
 static gsize dir_mutex_initialized = 0;
 
@@ -37,7 +37,7 @@ init_dir_mutex (void)
   }
 }
 
-const char *
+const gchar *
 stamp_get_cache_dir (void)
 {
   init_dir_mutex ();
@@ -49,7 +49,7 @@ stamp_get_cache_dir (void)
   return cache_dir;
 }
 
-const char *
+const gchar *
 stamp_get_data_dir (void)
 {
   init_dir_mutex ();
@@ -61,11 +61,11 @@ stamp_get_data_dir (void)
   return data_dir;
 }
 
-char *
-stamp_strip_department (const char *str)
+gchar *
+stamp_strip_department (const gchar *str)
 {
-  char *ret = g_strdup (str);
-  const char *pos;
+  gchar *ret = g_strdup (str);
+  const gchar *pos;
 
   pos = strchr (ret, '(');
   if (pos)
@@ -77,7 +77,7 @@ stamp_strip_department (const char *str)
 void
 stamp_launch_goa (void)
 {
-  const char *flatpak_id = getenv ("FLATPAK_ID");
+  const gchar *flatpak_id = getenv ("FLATPAK_ID");
 
   if (flatpak_id) {
     g_spawn_command_line_async ("flatpak-spawn --host gnome-control-center online-accounts", NULL);
@@ -94,13 +94,13 @@ stamp_launch_goa (void)
 }
 
 
-char **
-g_strv_remove (const char * const *strv,
-               const char         *str)
+gchar **
+g_strv_remove (const gchar * const *strv,
+               const gchar         *str)
 {
-  char **new_strv;
-  char **n;
-  const char * const *s;
+  gchar **new_strv;
+  gchar **n;
+  const gchar * const *s;
   guint len;
 
   if (!g_strv_contains (strv, str))
@@ -124,13 +124,13 @@ g_strv_remove (const char * const *strv,
   return new_strv;
 }
 
-char **
-g_strv_append (const char * const *strv,
-               const char         *str)
+gchar **
+g_strv_append (const gchar * const *strv,
+               const gchar         *str)
 {
-  char **new_strv;
-  char **n;
-  const char * const *s;
+  gchar **new_strv;
+  gchar **n;
+  const gchar * const *s;
   guint len;
 
   if (g_strv_contains (strv, str))

@@ -74,10 +74,10 @@ struct _StampMessageHeader {
 
   StampAccount *account;
 
-  char *from_mail;
-  char *from_name;
-  char *sender_name;
-  char *sender_mail;
+  gchar *from_mail;
+  gchar *from_name;
+  gchar *sender_name;
+  gchar *sender_mail;
 };
 
 G_DEFINE_FINAL_TYPE (StampMessageHeader, stamp_message_header, GTK_TYPE_GRID);
@@ -321,8 +321,8 @@ on_released (GtkGesture *gesture,
   CamelInternetAddress *address = parse_custom_address (gtk_label_get_text (GTK_LABEL (self->from_full)));
   g_autofree char *tmp = NULL;
   g_autofree char *stripped = NULL;
-  const char *name;
-  const char *mail;
+  const gchar *name;
+  const gchar *mail;
 
   camel_internet_address_get (address, 0, &name, &mail);
 
@@ -557,9 +557,9 @@ stamp_message_header_set_mail (StampMessageHeader    *self,
   g_autoptr (CamelInternetAddress) address = camel_internet_address_new ();
   const CamelMessageInfo *message_info = camel_folder_thread_node_get_item (thread_node);
   g_autofree char *markup = NULL;
-  const char *to = NULL;
-  const char *ia_name;
-  const char *ia_address;
+  const gchar *to = NULL;
+  const gchar *ia_name;
+  const gchar *ia_address;
   g_autofree char *tmp = NULL;
   g_autoptr (GString) tmp_to = g_string_new (NULL);
   g_autoptr (GString) tmp_addresses = g_string_new (NULL);
@@ -576,7 +576,7 @@ stamp_message_header_set_mail (StampMessageHeader    *self,
 
     if (ia_name && strlen (ia_name) > 0) {
       g_autofree char *tmp_name = NULL;
-      int offset = 0;
+      gint offset = 0;
 
       if (ia_name[0] == '<')
         offset = 1;
@@ -600,9 +600,9 @@ stamp_message_header_set_mail (StampMessageHeader    *self,
   address = camel_internet_address_new ();
 
   if (camel_address_decode (CAMEL_ADDRESS (address), camel_message_info_get_to (message_info)) > 0) {
-    int len = camel_address_length (CAMEL_ADDRESS (address));
+    gint len = camel_address_length (CAMEL_ADDRESS (address));
 
-    for (int idx = 0; idx < len; idx++) {
+    for (gint idx = 0; idx < len; idx++) {
       GtkWidget *tag = stamp_tag_new (self->account);
 
       camel_internet_address_get (address, idx, &ia_name, &ia_address);
@@ -646,9 +646,9 @@ stamp_message_header_set_mail (StampMessageHeader    *self,
   address = camel_internet_address_new ();
 
   if (camel_address_decode (CAMEL_ADDRESS (address), camel_message_info_get_cc (message_info)) > 0) {
-    int len = camel_address_length (CAMEL_ADDRESS (address));
+    gint len = camel_address_length (CAMEL_ADDRESS (address));
 
-    for (int idx = 0; idx < len; idx++) {
+    for (gint idx = 0; idx < len; idx++) {
       GtkWidget *tag = stamp_tag_new (self->account);
 
       camel_internet_address_get (address, idx, &ia_name, &ia_address);
@@ -724,11 +724,11 @@ stamp_message_header_set_internal (StampMessageHeader *self,
 
 void
 stamp_message_header_set_sender (StampMessageHeader *self,
-                                 const char         *sender)
+                                 const gchar         *sender)
 {
   g_autoptr (CamelInternetAddress) address = camel_internet_address_new ();
-  const char *ia_name;
-  const char *ia_address;
+  const gchar *ia_name;
+  const gchar *ia_address;
 
   if (camel_address_decode (CAMEL_ADDRESS (address), sender) <= 0)
     return;

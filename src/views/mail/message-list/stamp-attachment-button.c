@@ -28,8 +28,8 @@ struct _StampAttachmentButton {
 
   CamelMimePart *mime_part;
   GFile *file;
-  char *filename;
-  char *content_type;
+  gchar *filename;
+  gchar *content_type;
   gsize size;
   GBytes *data;
   GCancellable *cancellable;
@@ -323,9 +323,9 @@ on_remove_activate (GAction  *action,
 
 static gboolean
 remove_menu_item (GMenu      *menu,
-                  const char *action_name)
+                  const gchar *action_name)
 {
-  int i, n;
+  gint i, n;
 
   n = g_menu_model_get_n_items (G_MENU_MODEL (menu));
 
@@ -378,7 +378,7 @@ stamp_attachment_button_constructed (GObject *object)
   g_autoptr (GIcon) content_icon = NULL;
   g_autofree char *tmp = NULL;
   g_autofree char *readable_size = NULL;
-  const char *filename = NULL;
+  const gchar *filename = NULL;
   gsize size = 0;
 
   G_OBJECT_CLASS (stamp_attachment_button_parent_class)->constructed (object);
@@ -528,8 +528,8 @@ stamp_attachment_button_new (CamelMimePart *mime_part)
 }
 
 GtkWidget *
-stamp_attachment_button_new_from_data (const char *filename,
-                                       const char *content_type,
+stamp_attachment_button_new_from_data (const gchar *filename,
+                                       const gchar *content_type,
                                        gsize       size,
                                        GBytes     *data)
 {
@@ -557,8 +557,8 @@ CamelMimePart *
 stamp_attachment_button_get_mime_part (StampAttachmentButton *self)
 {
   g_autoptr (GFileInfo) info = NULL;
-  const char *content_type;
-  const char *mime_type;
+  const gchar *content_type;
+  const gchar *mime_type;
   CamelMimePart *part = NULL;
   CamelDataWrapper *wrapper;
   GInputStream *input_stream;

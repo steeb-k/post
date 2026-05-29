@@ -23,25 +23,25 @@
 
 G_BEGIN_DECLS
 
-const char *
+const gchar *
 stamp_get_cache_dir (void);
 
-const char *
+const gchar *
 stamp_get_data_dir (void);
 
-char *
-stamp_strip_department (const char *str);
+gchar *
+stamp_strip_department (const gchar *str);
 
 void
 stamp_launch_goa (void);
 
-char **
-g_strv_remove (const char * const *strv,
-               const char         *str);
+gchar **
+g_strv_remove (const gchar * const *strv,
+               const gchar         *str);
 
-char **
-g_strv_append (const char * const *strv,
-               const char         *str);
+gchar **
+g_strv_append (const gchar * const *strv,
+               const gchar         *str);
 
 G_END_DECLS
 

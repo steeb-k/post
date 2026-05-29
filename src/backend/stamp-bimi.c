@@ -24,15 +24,15 @@
 #include <arpa/nameser.h>
 #include <resolv.h>
 
-char *
-stamp_query_bimi_logo (const char *domain)
+gchar *
+stamp_query_bimi_logo (const gchar *domain)
 {
   g_autofree char *bimi = g_strdup_printf ("default._bimi.%s", domain);
-  unsigned char answer[NS_PACKETSZ];
+  guchar answer[NS_PACKETSZ];
   ns_msg handle;
   ns_rr rr;
-  int len = res_query (bimi, C_IN, T_TXT, answer, sizeof (answer));
-  int count;
+  gint len = res_query (bimi, C_IN, T_TXT, answer, sizeof (answer));
+  gint count;
 
   g_debug ("%s: Request for %s", G_STRFUNC, domain);
 
@@ -54,12 +54,12 @@ stamp_query_bimi_logo (const char *domain)
   }
 
   count = ns_msg_count (handle, ns_s_an);
-  for (int idx = 0; idx < count; idx++) {
+  for (gint idx = 0; idx < count; idx++) {
     if (ns_parserr (&handle, ns_s_an, idx, &rr) == 0) {
-      const unsigned char *rdata = ns_rr_rdata (rr);
-      int txt_len = rdata[0];
-      char txt[256];
-      char *logo;
+      const guchar *rdata = ns_rr_rdata (rr);
+      gint txt_len = rdata[0];
+      gchar txt[256];
+      gchar *logo;
 
       if (txt_len >= sizeof (txt))
         txt_len = sizeof (txt) - 1;
@@ -69,10 +69,10 @@ stamp_query_bimi_logo (const char *domain)
 
       logo = strstr (txt, "l=");
       if (logo && *logo) {
-        char *end = strstr (logo + 1, ";");
+        gchar *end = strstr (logo + 1, ";");
 
         if (end && *end) {
-          char *url = g_strndup (logo + 2, end - logo - 2);
+          gchar *url = g_strndup (logo + 2, end - logo - 2);
           return url;
         }
       }

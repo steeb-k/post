@@ -53,8 +53,8 @@ struct _StampCalendarService {
 struct _StampAccount {
   GObject parent_instance;
 
-  char *uid;
-  char *display_name;
+  gchar *uid;
+  gchar *display_name;
   ESourceRegistry *registry;
 
   ESource *collection;
@@ -229,13 +229,13 @@ stamp_account_new (ESource         *collection,
   return self;
 }
 
-const char *
+const gchar *
 stamp_account_get_name (StampAccount *self)
 {
   return self->display_name;
 }
 
-const char *
+const gchar *
 stamp_account_get_uid (StampAccount *self)
 {
   return self->uid;
@@ -249,8 +249,8 @@ stamp_account_get_book_client (StampAccount *self)
 
 #if 0
     /* FIXME: Hack for our company, remove once setting of default book is enabled */
-    for (int idx = 0; idx < self->address_books->len; idx++) {
-      const char *name;
+    for (gint idx = 0; idx < self->address_books->len; idx++) {
+      const gchar *name;
 
       service = g_ptr_array_index (self->address_books, idx);
       name = e_source_get_display_name (service->source);
@@ -269,7 +269,7 @@ stamp_account_get_book_client (StampAccount *self)
 
 void
 stamp_account_get_photo (StampAccount *self,
-                         const char   *sender,
+                         const gchar   *sender,
                          GCancellable *cancellable,
                          GFunc         callback,
                          gpointer      user_data)
@@ -295,7 +295,7 @@ stamp_account_get_photo_finish (StampAccount  *session,
 void
 stamp_account_search_contacts (StampAccount        *self,
                                EBookClient         *client,
-                               const char          *search_text,
+                               const gchar          *search_text,
                                GCancellable        *cancellable,
                                GAsyncReadyCallback  callback,
                                gpointer             user_data)
@@ -510,7 +510,7 @@ typedef enum {
 typedef struct {
   FindFolderType type;
   guint32 flags;
-  const char *name;
+  const gchar *name;
 } FindFolderData;
 
 static gboolean
@@ -618,7 +618,7 @@ out:
 static gboolean
 is_drafts_folder (CamelFolderInfo *fi)
 {
-  const char *name;
+  const gchar *name;
 
   if ((fi->flags & CAMEL_FOLDER_TYPE_MASK) == CAMEL_FOLDER_TYPE_DRAFTS)
     return TRUE;
@@ -859,7 +859,7 @@ stamp_account_mail_changed (StampAccount *self,
 
 void
 stamp_account_set_name (StampAccount *self,
-                        const char   *name)
+                        const gchar   *name)
 {
   if (!name || self->display_name == name)
     return;
@@ -881,8 +881,8 @@ stamp_account_add_mail_identity (StampAccount *self,
                                  ESource      *source)
 {
   ESourceMailIdentity *identity = e_source_get_extension (source, E_SOURCE_EXTENSION_MAIL_IDENTITY);
-  const char *name = e_source_mail_identity_get_name (identity);
-  const char *address = e_source_mail_identity_get_address (identity);
+  const gchar *name = e_source_mail_identity_get_name (identity);
+  const gchar *address = e_source_mail_identity_get_address (identity);
   GHashTable *aliases = e_source_mail_identity_get_aliases_as_hash_table (identity);
 
   g_debug ("%s: Setting own address to name %s, address %s, aliases %p\n", G_STRFUNC, name, address, aliases);
@@ -896,7 +896,7 @@ stamp_account_add_mail_identity (StampAccount *self,
   self->mail->identity_source = g_object_ref (source);
 }
 
-static char *
+static gchar *
 alias_to_string (GHashTable *aliases)
 {
   GString *str = g_string_new ("");
@@ -904,8 +904,8 @@ alias_to_string (GHashTable *aliases)
   GList *iter;
 
   for (iter = keys; iter; iter = g_list_next (iter)) {
-    const char *mail = iter->data;
-    const char *name = g_hash_table_lookup (aliases, mail);
+    const gchar *mail = iter->data;
+    const gchar *name = g_hash_table_lookup (aliases, mail);
     g_autofree char *encoded = NULL;
 
     encoded = camel_internet_address_encode_address (NULL, name, mail);
@@ -1162,16 +1162,16 @@ on_folder_synchronized (GObject      *source,
   }
 }
 
-char *
+gchar *
 stamp_account_save_draft (StampAccount         *self,
-                          const char           *draft_uid,
+                          const gchar           *draft_uid,
                           CamelMimeMessage     *message,
                           CamelInternetAddress *sender,
                           CamelInternetAddress *recipient)
 {
   g_autoptr (GError) error = NULL;
   g_autoptr (CamelMessageInfo) info = camel_message_info_new (NULL);
-  char *uid = NULL;
+  gchar *uid = NULL;
 
   if (error) {
     g_warning ("%s: Could not load draft folder: %s", G_STRFUNC, error->message);
@@ -1222,7 +1222,7 @@ on_draft_transferred (GObject      *source,
 
 void
 stamp_account_remove_draft (StampAccount *self,
-                            const char   *uid)
+                            const gchar   *uid)
 {
   g_autoptr (CamelMessageInfo) info = NULL;
   g_autoptr (GError) error = NULL;
@@ -1275,7 +1275,7 @@ save_draft_thread (GTask        *task,
                    GCancellable *cancellable)
 {
   SaveDraftData *data = task_data;
-  char *uid;
+  gchar *uid;
 
   uid = stamp_account_save_draft (data->account,
                                   data->draft_uid,
@@ -1291,7 +1291,7 @@ save_draft_thread (GTask        *task,
 
 void
 stamp_account_save_draft_async (StampAccount         *self,
-                                const char           *draft_uid,
+                                const gchar           *draft_uid,
                                 CamelMimeMessage     *message,
                                 CamelInternetAddress *sender,
                                 CamelInternetAddress *recipient,
@@ -1313,7 +1313,7 @@ stamp_account_save_draft_async (StampAccount         *self,
   g_task_run_in_thread (task, save_draft_thread);
 }
 
-char *
+gchar *
 stamp_account_save_draft_async_finish (StampAccount  *self,
                                        GAsyncResult  *result,
                                        GError       **error)
@@ -1323,7 +1323,7 @@ stamp_account_save_draft_async_finish (StampAccount  *self,
 
 typedef struct {
   StampAccount *account;
-  char *uid;
+  gchar *uid;
 } RemoveDraftData;
 
 static void
@@ -1351,7 +1351,7 @@ remove_draft_thread (GTask        *task,
 
 void
 stamp_account_remove_draft_async (StampAccount        *self,
-                                  const char          *uid,
+                                  const gchar          *uid,
                                   GCancellable        *cancellable,
                                   GAsyncReadyCallback  callback,
                                   gpointer             user_data)
@@ -1401,7 +1401,7 @@ stamp_account_clear_negative_photo_cache (StampAccount *self)
 
 StampCategory *
 stamp_account_find_category (StampAccount *self,
-                             const char   *name)
+                             const gchar   *name)
 {
   g_autoptr (GString) str = NULL;
 

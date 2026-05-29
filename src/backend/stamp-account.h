@@ -82,14 +82,14 @@ stamp_account_clear_negative_photo_cache (StampAccount *self);
  * Getter/Setter
  */
 
-const char *
+const gchar *
 stamp_account_get_name (StampAccount *self);
 
 void
 stamp_account_set_name (StampAccount *self,
-                        const char   *name);
+                        const gchar   *name);
 
-const char *
+const gchar *
 stamp_account_get_uid (StampAccount *self);
 
 CamelInternetAddress *
@@ -134,7 +134,7 @@ stamp_mail_service_get_transport_source (StampMailService *self);
 
 void
 stamp_account_get_photo (StampAccount        *self,
-                         const char          *sender,
+                         const gchar          *sender,
                          GCancellable        *cancellable,
                          GFunc  callback,
                          gpointer             user_data);
@@ -147,7 +147,7 @@ stamp_account_get_photo_finish (StampAccount  *self,
 void
 stamp_account_search_contacts (StampAccount        *self,
                                EBookClient         *client,
-                               const char          *search_text,
+                               const gchar          *search_text,
                                GCancellable        *cancellable,
                                GAsyncReadyCallback  callback,
                                gpointer             user_data);
@@ -178,16 +178,16 @@ stamp_account_send_mail_finish (StampAccount  *session,
                                 GAsyncResult  *result,
                                 GError       **error);
 
-char *
+gchar *
 stamp_account_save_draft (StampAccount         *self,
-                          const char           *draft_uid,
+                          const gchar           *draft_uid,
                           CamelMimeMessage     *message,
                           CamelInternetAddress *sender,
                           CamelInternetAddress *recipient);
 
 void
 stamp_account_save_draft_async (StampAccount         *self,
-                                const char           *draft_uid,
+                                const gchar           *draft_uid,
                                 CamelMimeMessage     *message,
                                 CamelInternetAddress *sender,
                                 CamelInternetAddress *recipient,
@@ -195,18 +195,18 @@ stamp_account_save_draft_async (StampAccount         *self,
                                 GAsyncReadyCallback  callback,
                                 gpointer             user_data);
 
-char *
+gchar *
 stamp_account_save_draft_async_finish (StampAccount  *self,
                                        GAsyncResult  *result,
                                        GError       **error);
 
 void
 stamp_account_remove_draft (StampAccount *self,
-                            const char   *uid);
+                            const gchar   *uid);
 
 void
 stamp_account_remove_draft_async (StampAccount        *self,
-                                 const char           *uid,
+                                 const gchar           *uid,
                                  GCancellable         *cancellable,
                                  GAsyncReadyCallback   callback,
                                  gpointer             user_data);
@@ -230,7 +230,7 @@ stamp_account_get_categories (StampAccount *self);
 
 StampCategory *
 stamp_account_find_category (StampAccount *self,
-                             const char   *name);
+                             const gchar   *name);
 
 GHashTable *
 stamp_mail_service_get_aliases (StampMailService *self);

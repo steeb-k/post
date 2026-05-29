@@ -53,14 +53,14 @@ typedef enum {
 } G_GNUC_FLAG_ENUM StampMimeAttachmentKind;
 
 typedef struct {
-  char *name;
-  char *email;
+  gchar *name;
+  gchar *email;
 } StampMimeSignerInfo;
 
 typedef struct {
   StampMimeSignatureStatus status;
   GList *signers;
-  char *description;
+  gchar *description;
   gboolean is_smime;
   gboolean is_inline;
 } StampMimeSignature;
@@ -73,16 +73,16 @@ typedef enum {
 
 typedef struct {
   StampMimeEncryptionStatus status;
-  char *error_message;
+  gchar *error_message;
   gboolean success;
   gboolean is_smime;
   gboolean is_inline;
 } StampMimeEncryption;
 
 typedef struct {
-  char *text;
+  gchar *text;
   gsize length;
-  char *charset;
+  gchar *charset;
   gboolean is_html;
 
   gboolean is_signed;
@@ -90,27 +90,27 @@ typedef struct {
 } StampMimeBody;
 
 typedef struct {
-  char *filename;
-  char *mime_type;
-  char *disposition;
+  gchar *filename;
+  gchar *mime_type;
+  gchar *disposition;
   GBytes *data;
   gsize size;
   gboolean is_inline;
   StampMimeAttachmentKind  kind;
-  char *content_id;
-  char *image_format;
-  char *calendar_method;
+  gchar *content_id;
+  gchar *image_format;
+  gchar *calendar_method;
 } StampMimeAttachment;
 
 typedef struct {
-  char *content_id;
-  char *content_type;
+  gchar *content_id;
+  gchar *content_type;
   GBytes *data;
 } StampMimeInlinePart;
 
 typedef struct {
-  char *uid;
-  char *method;
+  gchar *uid;
+  gchar *method;
   ICalComponent *ical;
 } StampMimeCalendar;
 
@@ -121,8 +121,8 @@ typedef enum {
 
 typedef struct {
   StampMimeUnsubscribeMethod method;
-  char *uri;
-  char *mailto;
+  gchar *uri;
+  gchar *mailto;
   gboolean one_click;
 } StampMimeListUnsubscribe;
 
@@ -162,9 +162,9 @@ stamp_mime_parser_get_calendars (StampMimeParser *self);
 GList *
 stamp_mime_parser_get_inline_images (StampMimeParser *self);
 
-char *
+gchar *
 stamp_mime_parser_embed_inline_images (StampMimeParser *self,
-                                       const char      *html_content);
+                                       const gchar      *html_content);
 
 GList *
 stamp_mime_parser_get_list_unsubscribe (StampMimeParser *self);

@@ -30,7 +30,7 @@ static gboolean
 on_user_message_received (WebKitWebPage     *page,
                           WebKitUserMessage *message)
 {
-  const char *name = webkit_user_message_get_name (message);
+  const gchar *name = webkit_user_message_get_name (message);
   G_GNUC_BEGIN_IGNORE_DEPRECATIONS
   WebKitFrame *frame = webkit_web_page_get_main_frame (page);
   G_GNUC_END_IGNORE_DEPRECATIONS
@@ -78,7 +78,7 @@ on_user_message_received (WebKitWebPage     *page,
     webkit_user_message_send_reply (message, reply);
   } else if (g_strcmp0 (name, "set-body-html") == 0) {
     GVariant *parameters = webkit_user_message_get_parameters (message);
-    const char *body_html = g_variant_get_string (parameters, NULL);
+    const gchar *body_html = g_variant_get_string (parameters, NULL);
     g_autoptr (JSCValue) body = NULL;
     WebKitUserMessage *reply;
 
@@ -116,7 +116,7 @@ on_user_message_received (WebKitWebPage     *page,
     GVariant *parameters = webkit_user_message_get_parameters (message);
     g_autoptr (JSCValue) document = NULL;
     g_autoptr (JSCValue) value = NULL;
-    const char *command = g_variant_get_string (parameters, NULL);
+    const gchar *command = g_variant_get_string (parameters, NULL);
     JSCValue *param1 = jsc_value_new_string (jsc_context, command);
     JSCValue *params[] = { param1 };
 
@@ -134,7 +134,7 @@ on_user_message_received (WebKitWebPage     *page,
     GVariant *parameters = webkit_user_message_get_parameters (message);
     g_autoptr (JSCValue) document = NULL;
     g_autoptr (JSCValue) value = NULL;
-    const char **arguments = g_variant_get_strv (parameters, NULL);
+    const gchar **arguments = g_variant_get_strv (parameters, NULL);
     JSCValue *param1 = jsc_value_new_string (jsc_context, arguments[0]);
     JSCValue *param2 = jsc_value_new_boolean (jsc_context, FALSE);
     JSCValue *param3 = jsc_value_new_string (jsc_context, arguments[1]);

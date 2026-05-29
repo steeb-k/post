@@ -48,7 +48,7 @@ void stamp_message_list_item_get_message_body_html (StampMessageListItem *self,
                                                     GAsyncReadyCallback   callback,
                                                     gpointer              user_data);
 
-char *stamp_message_list_item_get_message_body_html_finish (StampMessageListItem  *self,
+gchar *stamp_message_list_item_get_message_body_html_finish (StampMessageListItem  *self,
                                                             GAsyncResult          *res,
                                                             GError               **error);
 
@@ -61,7 +61,7 @@ stamp_message_list_item_get_timestamp (StampMessageListItem *self);
 void
 stamp_message_list_item_print (StampMessageListItem *self);
 
-const char *
+const gchar *
 stamp_message_list_item_get_uid (StampMessageListItem *self);
 
 void
@@ -69,7 +69,7 @@ stamp_message_list_item_view_source (StampMessageListItem *self);
 
 void
 stamp_message_list_item_search (StampMessageListItem *self,
-                                const char           *search_text);
+                                const gchar           *search_text);
 
 StampWebView *
 stamp_message_list_item_get_web_view (StampMessageListItem *self);

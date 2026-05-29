@@ -31,11 +31,11 @@ G_DECLARE_FINAL_TYPE (StampWindow, stamp_window, STAMP, WINDOW, AdwApplicationWi
 
 void
 stamp_window_search_contact (StampWindow *self,
-                             const char  *mail);
+                             const gchar  *mail);
 
 void
 stamp_window_show_contact (StampWindow *self,
-                           const char  *mail);
+                           const gchar  *mail);
 
 StampMailView *
 stamp_window_get_mail_view (StampWindow *self);

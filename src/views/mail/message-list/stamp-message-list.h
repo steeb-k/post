@@ -41,8 +41,8 @@ stamp_message_list_set_conversation (StampMessageList      *self,
 
 void
 stamp_message_list_hovering_over_link (StampMessageList *self,
-                                       const char       *title,
-                                       const char       *url);
+                                       const gchar       *title,
+                                       const gchar       *url);
 
 void
 stamp_message_list_compose (StampMessageList  *self,
@@ -59,8 +59,8 @@ stamp_message_list_view_source (StampMessageList *self,
 
 void
 stamp_message_list_set_unsubscribe (StampMessageList *self,
-                                    const char       *sender,
-                                    const char       *url,
+                                    const gchar       *sender,
+                                    const gchar       *url,
                                     CamelMimeMessage *message);
 
 void

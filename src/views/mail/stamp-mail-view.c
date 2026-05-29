@@ -46,7 +46,7 @@ struct _StampMailView {
   GSimpleActionGroup *actions;
   StampAccount *account;
 
-  int saved_paned_pos;
+  gint saved_paned_pos;
 };
 
 G_DEFINE_FINAL_TYPE (StampMailView, stamp_mail_view, ADW_TYPE_BREAKPOINT_BIN);
@@ -60,7 +60,7 @@ static GParamSpec *obj_properties[PROP_STACK + 1];
 static AdwOverlaySplitView *
 get_current_osv (StampMailView *self)
 {
-  const char *layout = adw_multi_layout_view_get_layout_name (self->mail_layout);
+  const gchar *layout = adw_multi_layout_view_get_layout_name (self->mail_layout);
 
   if (g_strcmp0 (layout, "tablet") == 0)
     return self->tablet_osv;
@@ -111,7 +111,7 @@ close_overlay_sidebar (StampMailView *self)
 static void
 on_folder_selected (GtkWidget    *object,
                     StampAccount *account,
-                    char         *full_name,
+                    gchar         *full_name,
                     gpointer      user_data)
 {
   StampMailView *self = STAMP_MAIL_VIEW (user_data);
@@ -130,11 +130,11 @@ on_conversation_selected (GtkWidget *object,
   StampMailView *self = STAMP_MAIL_VIEW (user_data);
 
   if (thread_node) {
-    const char *layout = adw_multi_layout_view_get_layout_name (self->mail_layout);
+    const gchar *layout = adw_multi_layout_view_get_layout_name (self->mail_layout);
 
     if (g_strcmp0 (layout, "mobile") == 0) {
       AdwNavigationPage *visible = adw_navigation_view_get_visible_page (self->mobile_nav);
-      const char *tag = adw_navigation_page_get_tag (visible);
+      const gchar *tag = adw_navigation_page_get_tag (visible);
 
       if (g_strcmp0 (tag, "content") != 0)
         adw_navigation_view_push_by_tag (self->mobile_nav, "content");
@@ -355,7 +355,7 @@ on_layout_changed (AdwMultiLayoutView *view,
                    gpointer            user_data)
 {
   StampMailView *self = STAMP_MAIL_VIEW (user_data);
-  const char *name = adw_multi_layout_view_get_layout_name (view);
+  const gchar *name = adw_multi_layout_view_get_layout_name (view);
   gboolean narrow = g_strcmp0 (name, "desktop") != 0;
   GtkToggleButton *toggle_button = stamp_conversation_list_get_sidebar_button (self->conversation_list);
 
@@ -373,7 +373,7 @@ on_paned_changed (GtkPaned      *paned,
                   gpointer       user_data)
 {
   StampMailView *self = STAMP_MAIL_VIEW (user_data);
-  int pos = gtk_paned_get_position (paned);
+  gint pos = gtk_paned_get_position (paned);
 
   if (pos < 50)
     return;
@@ -382,8 +382,8 @@ on_paned_changed (GtkPaned      *paned,
 }
 
 typedef struct {
-  const char *action;
-  const char *shortcut;
+  const gchar *action;
+  const gchar *shortcut;
 } Shortcut;
 
 static const Shortcut MailShortcuts[] = {
@@ -403,7 +403,7 @@ static const Shortcut MailShortcuts[] = {
 static void
 stamp_mail_view_navigate_back (StampMailView *self)
 {
-  const char *layout = adw_multi_layout_view_get_layout_name (self->mail_layout);
+  const gchar *layout = adw_multi_layout_view_get_layout_name (self->mail_layout);
 
   if (g_strcmp0 (layout, "mobile") == 0)
     adw_navigation_view_pop (self->mobile_nav);
@@ -465,7 +465,7 @@ stamp_mail_view_new (void)
 
 void
 stamp_mail_view_search_contact (StampMailView *self,
-                                const char    *mail)
+                                const gchar    *mail)
 {
   stamp_mail_conversation_list_search_contact (self->conversation_list, mail);
 
@@ -481,7 +481,7 @@ stamp_mail_view_get_action_group (StampMailView *self)
 
 void
 stamp_mail_view_show_toast (StampMailView *self,
-                            const char    *message)
+                            const gchar    *message)
 {
   AdwToast *toast;
 

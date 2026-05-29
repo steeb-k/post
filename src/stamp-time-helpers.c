@@ -56,19 +56,19 @@
  * Return value: Newly allocated string containing the formatted time.
  **/
 
-char *
-eel_strdup_strftime (const char *format,
+gchar *
+eel_strdup_strftime (const gchar *format,
                      struct tm  *time_pieces)
 {
   g_autoptr (GString) string = NULL;
-  const char *remainder, *percent;
-  char code[4], buffer[512];
-  char *piece, *result;
+  const gchar *remainder, *percent;
+  gchar code[4], buffer[512];
+  gchar *piece, *result;
   g_autofree gchar *converted = NULL;
-  size_t string_length;
+  gsize string_length;
   gboolean strip_leading_zeros, turn_leading_zeros_to_spaces;
-  char modifier;
-  int i;
+  gchar modifier;
+  gint i;
 
   /* Format could be translated, and contain UTF-8 chars,
    * so convert to locale encoding which strftime uses */
@@ -196,15 +196,15 @@ eel_strdup_strftime (const char *format,
 }
 
 
-char *
+gchar *
 stamp_time_helpers_utf_friendly_time (time_t   date,
                                       gboolean short_format)
 {
   time_t nowdate;
   time_t yesdate;
   struct tm then, now, yesterday;
-  const char *format = NULL;
-  char *str = NULL;
+  const gchar *format = NULL;
+  gchar *str = NULL;
   gboolean done = FALSE;
   gboolean use_24;
   g_autoptr (GSettings) settings = NULL;
@@ -240,7 +240,7 @@ stamp_time_helpers_utf_friendly_time (time_t   date,
   }
 
   if (!done) {
-    int i;
+    gint i;
     for (i = 1; i < 7; i++) {
       yesdate = nowdate - 60 * 60 * 24 * i;
       localtime_r (&yesdate, &yesterday);

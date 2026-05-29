@@ -28,10 +28,10 @@
 
 G_BEGIN_DECLS
 
-char      *eel_strdup_strftime                        (const char *format,
+gchar      *eel_strdup_strftime                        (const gchar *format,
                                                        struct tm *time_pieces);
 
-char *
+gchar *
 stamp_time_helpers_utf_friendly_time (time_t date, gboolean short_format);
 
 G_END_DECLS

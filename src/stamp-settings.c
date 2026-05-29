@@ -27,7 +27,7 @@
 static GHashTable *settings = NULL;
 
 GSettings *
-stamp_settings_get (const char *schema)
+stamp_settings_get (const gchar *schema)
 {
   GSettings *gsettings = NULL;
 

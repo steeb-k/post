@@ -71,37 +71,37 @@ stamp_contact_item_new (EContact *contact)
   return ret;
 }
 
-const char *
+const gchar *
 stamp_contact_item_get_name (StampContactItem *self)
 {
   return e_contact_get_const (self->contact, E_CONTACT_FULL_NAME);
 }
 
-const char *
+const gchar *
 stamp_contact_item_get_given_name (StampContactItem *self)
 {
   return e_contact_get_const (self->contact, E_CONTACT_GIVEN_NAME);
 }
 
-const char *
+const gchar *
 stamp_contact_item_get_family_name (StampContactItem *self)
 {
   return e_contact_get_const (self->contact, E_CONTACT_FAMILY_NAME);
 }
 
-const char *
+const gchar *
 stamp_contact_item_get_mail (StampContactItem *self)
 {
   return e_contact_get_const (self->contact, E_CONTACT_EMAIL_1);
 }
 
-const char *
+const gchar *
 stamp_contact_item_get_org (StampContactItem *self)
 {
   return e_contact_get_const (self->contact, E_CONTACT_ORG);
 }
 
-const char *
+const gchar *
 stamp_contact_item_get_office (StampContactItem *self)
 {
   return e_contact_get_const (self->contact, E_CONTACT_OFFICE);

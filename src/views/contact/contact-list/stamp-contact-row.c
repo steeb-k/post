@@ -154,8 +154,8 @@ transfer_sort_mode_to (GBinding     *binding,
 {
   StampSortMode sort_mode = g_value_get_enum (from_value);
   StampContactItem *item = STAMP_CONTACT_ITEM (user_data);
-  const char *given_name = stamp_contact_item_get_given_name (item);
-  const char *family_name = stamp_contact_item_get_family_name (item);
+  const gchar *given_name = stamp_contact_item_get_given_name (item);
+  const gchar *family_name = stamp_contact_item_get_family_name (item);
   g_autoptr (GString) tmp = g_string_new (NULL);
 
   if (sort_mode == SORT_MODE_GIVEN_NAME) {
@@ -202,8 +202,8 @@ stamp_contact_row_bind_mail (StampContactRow  *self,
                              StampContactItem *item,
                              StampContactList *list)
 {
-  const char *mail = stamp_contact_item_get_mail (item);
-  const char *name = stamp_contact_item_get_name (item);
+  const gchar *mail = stamp_contact_item_get_mail (item);
+  const gchar *name = stamp_contact_item_get_name (item);
   StampPhotoToken *token;
 
   if (self->cancellable) {

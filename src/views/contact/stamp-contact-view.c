@@ -23,7 +23,7 @@ struct _StampContactView {
   GtkWidget *contact_details;
   AdwViewStack *stack;
 
-  int saved_paned_pos;
+  gint saved_paned_pos;
 };
 
 G_DEFINE_FINAL_TYPE (StampContactView, stamp_contact_view, ADW_TYPE_BREAKPOINT_BIN);
@@ -31,7 +31,7 @@ G_DEFINE_FINAL_TYPE (StampContactView, stamp_contact_view, ADW_TYPE_BREAKPOINT_B
 static AdwOverlaySplitView *
 get_current_osv (StampContactView *self)
 {
-  const char *layout = adw_multi_layout_view_get_layout_name (self->contacts_layout);
+  const gchar *layout = adw_multi_layout_view_get_layout_name (self->contacts_layout);
 
   if (g_strcmp0 (layout, "tablet") == 0)
     return self->tablet_osv;
@@ -103,7 +103,7 @@ on_contact_selected (GtkWidget        *object,
   StampContactView *self = STAMP_CONTACT_VIEW (user_data);
 
   if (item) {
-    const char *layout = adw_multi_layout_view_get_layout_name (self->contacts_layout);
+    const gchar *layout = adw_multi_layout_view_get_layout_name (self->contacts_layout);
 
     if (g_strcmp0 (layout, "mobile") == 0 && self->mobile_nav) {
       adw_navigation_view_push_by_tag (self->mobile_nav, "content");
@@ -218,7 +218,7 @@ on_layout_changed (AdwMultiLayoutView *view,
                    gpointer            user_data)
 {
   StampContactView *self = STAMP_CONTACT_VIEW (user_data);
-  const char *name = adw_multi_layout_view_get_layout_name (view);
+  const gchar *name = adw_multi_layout_view_get_layout_name (view);
   gboolean narrow = g_strcmp0 (name, "desktop") != 0;
   GtkWidget *btn = stamp_contact_list_get_sidebar_button (STAMP_CONTACT_LIST (self->contact_list));
 
@@ -237,7 +237,7 @@ on_paned_changed (GtkPaned      *paned,
 {
   StampContactView *self = STAMP_CONTACT_VIEW (user_data);
   GtkPaned *other;
-  int pos = gtk_paned_get_position (paned);
+  gint pos = gtk_paned_get_position (paned);
 
   if (pos < 50)
     return;
@@ -276,9 +276,9 @@ stamp_contact_view_new (void)
 
 void
 stamp_contact_view_show_contact (StampContactView *self,
-                                 const char       *mail)
+                                 const gchar       *mail)
 {
-  const char *layout = adw_multi_layout_view_get_layout_name (self->contacts_layout);
+  const gchar *layout = adw_multi_layout_view_get_layout_name (self->contacts_layout);
 
   stamp_contact_list_search_contact (STAMP_CONTACT_LIST (self->contact_list), mail);
 

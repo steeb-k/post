@@ -102,7 +102,7 @@ void
 stamp_folder_row_bind (StampFolderRow *self,
                        StampItem      *item)
 {
-  const char *icon_name = stamp_item_get_icon_name (item);
+  const gchar *icon_name = stamp_item_get_icon_name (item);
 
   gtk_image_set_from_icon_name (self->image, icon_name);
   gtk_widget_set_visible (GTK_WIDGET (self->image), icon_name != NULL);

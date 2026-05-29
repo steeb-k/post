@@ -37,7 +37,7 @@ stamp_conversation_list_new (void);
 void
 stamp_conversation_list_load_folder (StampConversationList *self,
                                      StampAccount          *account,
-                                     char                  *full_name);
+                                     gchar                  *full_name);
 
 void
 stamp_conversation_list_mark_read (StampConversationList *self,
@@ -65,7 +65,7 @@ stamp_conversation_list_undo_trash (StampConversationList *self);
 
 void
 stamp_mail_conversation_list_search_contact (StampConversationList *self,
-                                             const char            *mail);
+                                             const gchar            *mail);
 
 GtkToggleButton *
 stamp_conversation_list_get_sidebar_button (StampConversationList *self);
@@ -76,10 +76,10 @@ stamp_consersation_list_set_show_buttons (StampConversationList *self,
 
 void
 stamp_conversation_list_select_relative (StampConversationList *self,
-                                         int                    direction);
+                                         gint                    direction);
 
 StampConversationItem *
 stamp_conversation_list_get_adjacent_item (StampConversationList *self,
-                                           int                    offset);
+                                           gint                    offset);
 
 G_END_DECLS

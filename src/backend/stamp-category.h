@@ -29,21 +29,21 @@ G_BEGIN_DECLS
 G_DECLARE_FINAL_TYPE (StampCategory, stamp_category, STAMP, CATEGORY, GObject);
 
 StampCategory *
-stamp_category_new (const char *id,
-                    const char *name,
-                    const char *color,
-                    const char *color_hex);
+stamp_category_new (const gchar *id,
+                    const gchar *name,
+                    const gchar *color,
+                    const gchar *color_hex);
 
-const char *
+const gchar *
 stamp_category_get_id (StampCategory *self);
 
-const char *
+const gchar *
 stamp_category_get_name (StampCategory *self);
 
-const char *
+const gchar *
 stamp_category_get_color (StampCategory *self);
 
-const char *
+const gchar *
 stamp_category_get_hex (StampCategory *self);
 
 /* Helper */

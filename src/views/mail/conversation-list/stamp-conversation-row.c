@@ -173,7 +173,7 @@ stamp_conversation_row_set_property (GObject      *object,
 
 static void
 set_offset (GtkWidget *row,
-            double     offset)
+            gdouble     offset)
 {
   gtk_widget_set_margin_start (row, offset);
   gtk_widget_set_margin_end (row, -offset);
@@ -181,12 +181,12 @@ set_offset (GtkWidget *row,
 
 static void
 on_drag_update (GtkGestureDrag *gesture,
-                double          dx,
-                double          dy,
+                gdouble          dx,
+                gdouble          dy,
                 gpointer        user_data)
 {
   StampConversationRow *self = STAMP_CONVERSATION_ROW (user_data);
-  double pos;
+  gdouble pos;
 
   if (!self->claimed) {
     if (fabs (dx) < 10 || fabs (dx) <= fabs (dy))
@@ -211,7 +211,7 @@ on_drag_update (GtkGestureDrag *gesture,
 
 static void
 animate_to_zero (StampConversationRow *self,
-                 double                pos)
+                 gdouble                pos)
 {
   AdwAnimationTarget *target = adw_callback_animation_target_new ((AdwAnimationTargetFunc)set_offset, self->row, NULL);
   g_autoptr (AdwAnimation) anim = adw_timed_animation_new (GTK_WIDGET (self->row), pos, 0, 200, target);
@@ -220,12 +220,12 @@ animate_to_zero (StampConversationRow *self,
 
 static void
 on_drag_end (GtkGestureDrag *gesture,
-             double          dx,
-             double          dy,
+             gdouble          dx,
+             gdouble          dy,
              gpointer        user_data)
 {
   StampConversationRow *self = STAMP_CONVERSATION_ROW (user_data);
-  double pos;
+  gdouble pos;
 
   pos = CLAMP (dx, -96, 96);
 
@@ -432,7 +432,7 @@ transfer_avatar_to (GBinding     *binding,
                     GValue       *to_value,
                     gpointer      user_data)
 {
-  const char *from = g_value_get_string (from_value);
+  const gchar *from = g_value_get_string (from_value);
   g_autofree char *tmp = NULL;
 
   tmp = stamp_strip_department (from);
@@ -478,7 +478,7 @@ transfer_labels_to_box (GBinding     *binding,
   g_list_store_remove_all (store);
 
   if (labels) {
-    for (int idx = 0; idx < labels->len; idx++) {
+    for (gint idx = 0; idx < labels->len; idx++) {
       StampCategory *cat = stamp_account_find_category (self->account, labels->pdata[idx]);
 
       if (cat)
@@ -496,7 +496,7 @@ create_label (gpointer item,
               gpointer user_data)
 {
   StampCategory *obj = STAMP_CATEGORY (item);
-  const char *name = stamp_category_get_name (obj);
+  const gchar *name = stamp_category_get_name (obj);
   GtkWidget *label = gtk_label_new (name);
   g_autofree char *css_color = g_strdup_printf ("category-color-%s", stamp_category_get_color (obj));
 

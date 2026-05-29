@@ -58,8 +58,8 @@ void
 stamp_book_row_bind (StampBookRow *self,
                      StampItem    *item)
 {
-  const char *icon_name = stamp_item_get_icon_name (item);
-  const char *name = stamp_item_get_name (item);
+  const gchar *icon_name = stamp_item_get_icon_name (item);
+  const gchar *name = stamp_item_get_name (item);
 
   /* Image */
   gtk_image_set_from_icon_name (GTK_IMAGE (self->image), icon_name);

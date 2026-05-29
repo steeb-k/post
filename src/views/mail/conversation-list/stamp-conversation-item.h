@@ -29,15 +29,15 @@ G_DECLARE_FINAL_TYPE (StampConversationItem, stamp_conversation_item, STAMP, CON
 
 StampConversationItem *
 stamp_conversation_item_new (CamelFolderThreadNode *thread_node,
-                             const char            *service_uid);
+                             const gchar            *service_uid);
 
-const char *
+const gchar *
 stamp_conversation_item_get_subject (StampConversationItem *self);
 
 CamelFolderThreadNode *
 stamp_conversation_item_get_node (StampConversationItem *self);
 
-const char *
+const gchar *
 stamp_conversation_item_get_from (StampConversationItem *self);
 
 gint64
@@ -63,13 +63,13 @@ void
 stamp_conversation_item_set_flagged (StampConversationItem *self,
                                      gboolean               flagged);
 
-const char *
+const gchar *
 stamp_conversation_item_get_preview (StampConversationItem *self);
 
 guint
 stamp_conversation_item_get_timestamp (StampConversationItem *self);
 
-char *
+gchar *
 stamp_conversation_item_get_mail (StampConversationItem *self);
 
 void
@@ -81,7 +81,7 @@ stamp_conversation_item_get_answered (StampConversationItem *self);
 gboolean
 stamp_conversation_item_get_calendar (StampConversationItem *self);
 
-char *
+gchar *
 stamp_conversation_item_get_service_uid (StampConversationItem *self);
 
 void
@@ -91,7 +91,7 @@ stamp_conversation_item_set_hidden (StampConversationItem *self,
 gboolean
 stamp_conversation_item_get_hidden (StampConversationItem *self);
 
-const char *
+const gchar *
 stamp_conversation_item_get_uid (StampConversationItem *self);
 
 void
@@ -103,7 +103,7 @@ stamp_conversation_item_get_labels (StampConversationItem *self);
 
 void
 stamp_conversation_item_set_label (StampConversationItem *self,
-                                   const char            *label,
+                                   const gchar            *label,
                                    gboolean               state);
 
 gboolean

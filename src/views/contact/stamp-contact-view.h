@@ -14,7 +14,7 @@ stamp_contact_view_new (void);
 
 void
 stamp_contact_view_show_contact (StampContactView *self,
-                                 const char       *mail);
+                                 const gchar       *mail);
 
 G_END_DECLS
 

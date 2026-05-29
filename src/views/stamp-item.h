@@ -37,22 +37,22 @@ struct _StampItemClass
 
 void
 stamp_item_set_icon_name (StampItem  *self,
-                          const char *icon_name);
+                          const gchar *icon_name);
 
-const char *
+const gchar *
 stamp_item_get_icon_name (StampItem *self);
 
 void
 stamp_item_set_name (StampItem  *self,
-                     const char *name);
+                     const gchar *name);
 
-const char *
+const gchar *
 stamp_item_get_name (StampItem *self);
 
 GListStore *
 stamp_item_get_list_store (StampItem *self);
 
-const char *
+const gchar *
 stamp_item_get_account_uid (StampItem *self);
 
 void

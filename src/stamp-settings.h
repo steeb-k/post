@@ -47,7 +47,7 @@ G_BEGIN_DECLS
 #define STAMP_SETTINGS_MAIL stamp_settings_get (STAMP_PREFS_MAIL_SCHEMA)
 
 GSettings *
-stamp_settings_get (const char *schema);
+stamp_settings_get (const gchar *schema);
 
 void
 stamp_settings_init (void);

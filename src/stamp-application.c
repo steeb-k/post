@@ -35,13 +35,13 @@ struct _StampApplication {
 
   gboolean start_hidden;
   StampSession *session;
-  char *password;
+  gchar *password;
 };
 
 G_DEFINE_FINAL_TYPE (StampApplication, stamp_application, ADW_TYPE_APPLICATION);
 
 StampApplication *
-stamp_application_new (const char        *application_id,
+stamp_application_new (const gchar        *application_id,
                        GApplicationFlags  flags)
 {
   StampApplication *stamp_application;
@@ -86,23 +86,23 @@ stamp_application_activate (GApplication *app)
   gtk_window_present (main_window);
 }
 
-static int
+static gint
 stamp_application_command_line (GApplication            *app,
                                 GApplicationCommandLine *cmdline)
 {
   g_autoptr (GError) error = NULL;
   g_auto (GStrv) argv = NULL;
-  int argc;
+  gint argc;
 
   argv = g_application_command_line_get_arguments (cmdline, &argc);
   stamp_application_activate (app);
 
-  for (int i = 1; argv[i]; i++) {
+  for (gint i = 1; argv[i]; i++) {
     g_autoptr (GUri) mailto = NULL;
     g_autofree char *to = NULL;
     GtkWidget *composer;
-    char *mailto_uri = argv[i];
-    const char *uri_query;
+    gchar *mailto_uri = argv[i];
+    const gchar *uri_query;
 
     mailto = g_uri_parse (mailto_uri, G_URI_FLAGS_NONE, &error);
     if (error) {
@@ -124,8 +124,8 @@ stamp_application_command_line (GApplication            *app,
     uri_query = g_uri_get_query (mailto);
     if (uri_query) {
       GUriParamsIter qp;
-      char *name;
-      char *value;
+      gchar *name;
+      gchar *value;
       g_autoptr (GString) body = g_string_new (NULL);
       g_autofree char *escaped = NULL;
       g_autofree char *markup = NULL;
@@ -178,7 +178,7 @@ static void
 on_pk11_password (StampSession  *session,
                   PK11SlotInfo  *slot,
                   PRBool         retry,
-                  char         **password,
+                  gchar         **password,
                   gpointer       user_data)
 {
   StampApplication *self = STAMP_APPLICATION (user_data);
@@ -275,8 +275,8 @@ stamp_application_about_action (GSimpleAction *action,
                                 GVariant      *parameter,
                                 gpointer       user_data)
 {
-  static const char *developers[] = {"Jan-Michael Brummer", "Michael Catanzaro", NULL};
-  static const char *designers[] = {"Tobias Bernard", NULL};
+  static const gchar *developers[] = {"Jan-Michael Brummer", "Michael Catanzaro", NULL};
+  static const gchar *designers[] = {"Tobias Bernard", NULL};
   StampApplication *self = STAMP_APPLICATION (user_data);
   GtkWindow *window = NULL;
   AdwDialog *dialog;

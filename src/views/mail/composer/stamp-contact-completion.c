@@ -80,7 +80,7 @@ on_activate (GtkListView *view,
   g_autoptr (EContact) contact = g_list_model_get_item (G_LIST_MODEL (self->model), position);
   GSList *emails = e_contact_get (contact, E_CONTACT_EMAIL);
   GtkWidget *tag = stamp_tag_new (self->account);
-  const char *name = e_contact_get_const (contact, E_CONTACT_FULL_NAME);
+  const gchar *name = e_contact_get_const (contact, E_CONTACT_FULL_NAME);
 
   gtk_editable_set_text (GTK_EDITABLE (self->entry), "");
 
@@ -114,7 +114,7 @@ is_valid_email (const gchar *str)
 
 static gboolean
 convert_to_tag (StampContactCompletion *self,
-                const char             *text,
+                const gchar             *text,
                 gboolean                focus_leave)
 {
   g_autofree char *stripped = g_strstrip (g_strdup (text));
@@ -158,8 +158,8 @@ on_items_changed (GListModel *model,
 {
   StampContactCompletion *self = STAMP_CONTACT_COMPLETION (user_data);
   GtkPopover *pop = GTK_POPOVER (self->popover);
-  int items = g_list_model_get_n_items (G_LIST_MODEL (self->model));
-  const char *text = gtk_editable_get_text (GTK_EDITABLE (self->entry));
+  gint items = g_list_model_get_n_items (G_LIST_MODEL (self->model));
+  const gchar *text = gtk_editable_get_text (GTK_EDITABLE (self->entry));
 
   if (items > 0 && text && strlen (text) > 0) {
     GdkRectangle rect = { 0, 0, 1, gtk_widget_get_height (self->wrap_box) };
@@ -193,7 +193,7 @@ on_key_pressed (GtkEventControllerKey  *controller,
   }
 
   if (keyval == GDK_KEY_BackSpace) {
-    const char *text = gtk_editable_get_text (GTK_EDITABLE (self->entry));
+    const gchar *text = gtk_editable_get_text (GTK_EDITABLE (self->entry));
     g_autofree char *mail = NULL;
     StampTag *tag;
 
@@ -339,11 +339,11 @@ on_changed (GtkEditable *ed,
   if (text) {
     g_auto (GStrv) split = g_strsplit (g_strstrip (text), ",", -1);
     GString *new_string = g_string_new (NULL);
-    int n_parts = g_strv_length (split);
+    gint n_parts = g_strv_length (split);
     gboolean converted = FALSE;
 
-    for (int idx = 0; idx < n_parts; idx++) {
-      char *part = g_strstrip (split[idx]);
+    for (gint idx = 0; idx < n_parts; idx++) {
+      gchar *part = g_strstrip (split[idx]);
       gboolean is_last = (idx == n_parts - 1);
 
       if (*part && is_valid_email (part) && !is_last) {
@@ -428,14 +428,14 @@ stamp_contact_completion_class_init (StampContactCompletionClass *klass)
   g_object_class_install_properties (object_class, G_N_ELEMENTS (properties), properties);
 }
 
-static int
+static gint
 match (gpointer item,
        gpointer user_data)
 {
   EContact *contact = E_CONTACT (item);
   StampContactCompletion *self = STAMP_CONTACT_COMPLETION (user_data);
-  const char *name = e_contact_get_const (contact, E_CONTACT_FULL_NAME);
-  const char *text = gtk_editable_get_text (GTK_EDITABLE (self->entry));
+  const gchar *name = e_contact_get_const (contact, E_CONTACT_FULL_NAME);
+  const gchar *text = gtk_editable_get_text (GTK_EDITABLE (self->entry));
   g_autofree char *lower_text = NULL;
 
   if (!text)
@@ -451,7 +451,7 @@ match (gpointer item,
   }
 
   if (e_contact_field_is_string (E_CONTACT_EMAIL)) {
-    const char *mail = e_contact_get_const (contact, E_CONTACT_EMAIL);
+    const gchar *mail = e_contact_get_const (contact, E_CONTACT_EMAIL);
     g_autofree char *lower_mail = g_ascii_strdown (mail, -1);
 
     if (g_strstr_len (lower_mail, -1, lower_text) != NULL)
@@ -461,15 +461,15 @@ match (gpointer item,
   return 0;
 }
 
-static int
+static gint
 sort (gconstpointer a,
       gconstpointer b,
       gpointer      user_data)
 {
   EContact *contact_a = (EContact *)a;
   EContact *contact_b = (EContact *)b;
-  const char *name_a = e_contact_get_const (contact_a, E_CONTACT_FULL_NAME);
-  const char *name_b = e_contact_get_const (contact_b, E_CONTACT_FULL_NAME);
+  const gchar *name_a = e_contact_get_const (contact_a, E_CONTACT_FULL_NAME);
+  const gchar *name_b = e_contact_get_const (contact_b, E_CONTACT_FULL_NAME);
 
   return g_strcmp0 (name_a, name_b);
 }
@@ -508,7 +508,7 @@ on_bind (GtkSignalListItemFactory *f,
   GtkWidget *row = gtk_list_item_get_child (item);
   g_autofree char *tmp = NULL;
   GtkWidget *avatar = g_object_get_data (G_OBJECT (row), "avatar");
-  const char *name = e_contact_get_const (contact, E_CONTACT_FULL_NAME);
+  const gchar *name = e_contact_get_const (contact, E_CONTACT_FULL_NAME);
   GSList *emails = e_contact_get (contact, E_CONTACT_EMAIL);
   StampContactCompletion *self = STAMP_CONTACT_COMPLETION (user_data);
 
@@ -618,7 +618,7 @@ stamp_contact_completion_set_account (StampContactCompletion *self,
 
 gboolean
 stamp_contact_completion_contains_address (StampContactCompletion *self,
-                                           const char             *mail)
+                                           const gchar             *mail)
 {
   for (GList *iter = self->receivers; iter && iter->data; iter = g_list_next (iter)) {
     StampTag *tag = STAMP_TAG (iter->data);

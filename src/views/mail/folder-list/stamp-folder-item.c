@@ -51,7 +51,7 @@ enum {
 
 static gint signals[LAST_SIGNAL] = { 0 };
 
-static const char *
+static const gchar *
 get_icon (CamelFolderInfo *info)
 {
   switch (info->flags & CAMEL_FOLDER_TYPE_MASK) {
@@ -78,11 +78,11 @@ get_icon (CamelFolderInfo *info)
 
 static StampFolderItem *
 stamp_folder_item_find_item (GListStore *store,
-                             const char *full_name)
+                             const gchar *full_name)
 {
-  int num = g_list_model_get_n_items (G_LIST_MODEL (store));
+  gint num = g_list_model_get_n_items (G_LIST_MODEL (store));
 
-  for (int idx = 0; idx < num; idx++) {
+  for (gint idx = 0; idx < num; idx++) {
     g_autoptr (StampFolderItem) item = g_list_model_get_item (G_LIST_MODEL (store), idx);
     GListStore *child_store;
 
@@ -176,9 +176,9 @@ stamp_folder_item_get_property (GObject    *object,
 }
 
 static gint pending_new_mail_count = 0;
-static char *pending_first_uid = NULL;
-static char *pending_first_subject = NULL;
-static char *pending_first_sender = NULL;
+static gchar *pending_first_uid = NULL;
+static gchar *pending_first_subject = NULL;
+static gchar *pending_first_sender = NULL;
 static guint pending_debounce_id = 0;
 
 static void
@@ -246,9 +246,9 @@ on_folder_item_folder_changed (CamelFolder           *folder,
   if (!changes->uid_added || folder == trash_folder || folder == draft_folder)
     return;
 
-  for (int idx = 0; idx < (int)changes->uid_added->len; idx++) {
+  for (gint idx = 0; idx < (int)changes->uid_added->len; idx++) {
     CamelMessageInfo *message_info;
-    char *uid = (char *)changes->uid_added->pdata[idx];
+    gchar *uid = (char *)changes->uid_added->pdata[idx];
     guint32 flags;
 
     message_info = camel_folder_summary_get (summary, uid);
@@ -263,8 +263,8 @@ on_folder_item_folder_changed (CamelFolder           *folder,
 
     if (pending_new_mail_count == 1) {
       g_autoptr (CamelInternetAddress) address = camel_internet_address_new ();
-      const char *sender_address = NULL;
-      const char *sender_name = NULL;
+      const gchar *sender_address = NULL;
+      const gchar *sender_name = NULL;
 
       camel_address_unformat (CAMEL_ADDRESS (address), camel_message_info_get_from (message_info));
       camel_internet_address_get (address, 0, &sender_name, &sender_address);
@@ -425,7 +425,7 @@ stamp_folder_item_new (StampAccount    *account,
                        NULL);
 }
 
-const char *
+const gchar *
 stamp_folder_item_get_full_name (StampFolderItem *self)
 {
   return self->folder_info->full_name;

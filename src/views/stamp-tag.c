@@ -37,7 +37,7 @@ struct _StampTag {
   GtkLabel *popover_name;
   GtkLabel *popover_email;
 
-  char *mail;
+  gchar *mail;
   GCancellable *cancellable;
   StampAccount *account;
 };
@@ -109,7 +109,7 @@ on_released (GtkGesture *gesture,
              gpointer    user_data)
 {
   StampTag *self = STAMP_TAG (user_data);
-  const char *label = gtk_label_get_text (self->label);
+  const gchar *label = gtk_label_get_text (self->label);
   g_autofree char *stripped = stamp_strip_department (label);
   g_autofree char *tmp = g_markup_printf_escaped ("<b>%s</b>", label);
 
@@ -259,14 +259,14 @@ stamp_tag_new (StampAccount *account)
 
 void
 stamp_tag_set_label (StampTag   *self,
-                     const char *label)
+                     const gchar *label)
 {
   gtk_label_set_text (self->label, label);
 }
 
 void
 stamp_tag_set_mail (StampTag   *self,
-                    const char *mail)
+                    const gchar *mail)
 {
   g_set_str (&self->mail, mail);
 
@@ -274,13 +274,13 @@ stamp_tag_set_mail (StampTag   *self,
   gtk_widget_set_tooltip_text (GTK_WIDGET (self), mail);
 }
 
-const char *
+const gchar *
 stamp_tag_get_mail (StampTag *self)
 {
   return self->mail;
 }
 
-const char *
+const gchar *
 stamp_tag_get_label (StampTag *self)
 {
   return gtk_label_get_text (self->label);

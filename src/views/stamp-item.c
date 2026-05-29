@@ -24,9 +24,9 @@
 #include "stamp-account.h"
 
 typedef struct {
-  char *name;
-  char *icon_name;
-  char *account_uid;
+  gchar *name;
+  gchar *icon_name;
+  gchar *account_uid;
 
   StampAccount *account;
   GListStore *list_store;
@@ -160,7 +160,7 @@ stamp_item_class_init (StampItemClass *klass)
 
 void
 stamp_item_set_icon_name (StampItem  *self,
-                          const char *icon_name)
+                          const gchar *icon_name)
 {
   StampItemPrivate *priv = stamp_item_get_instance_private (self);
 
@@ -169,7 +169,7 @@ stamp_item_set_icon_name (StampItem  *self,
   }
 }
 
-const char *
+const gchar *
 stamp_item_get_icon_name (StampItem *self)
 {
   StampItemPrivate *priv = stamp_item_get_instance_private (self);
@@ -179,7 +179,7 @@ stamp_item_get_icon_name (StampItem *self)
 
 void
 stamp_item_set_name (StampItem  *self,
-                     const char *name)
+                     const gchar *name)
 {
   StampItemPrivate *priv = stamp_item_get_instance_private (self);
 
@@ -190,7 +190,7 @@ stamp_item_set_name (StampItem  *self,
   }
 }
 
-const char *
+const gchar *
 stamp_item_get_name (StampItem *self)
 {
   StampItemPrivate *priv = stamp_item_get_instance_private (self);
@@ -206,7 +206,7 @@ stamp_item_get_list_store (StampItem *self)
   return priv->list_store;
 }
 
-const char *
+const gchar *
 stamp_item_get_account_uid (StampItem *self)
 {
   StampItemPrivate *priv = stamp_item_get_instance_private (self);

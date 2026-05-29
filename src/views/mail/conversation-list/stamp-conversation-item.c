@@ -26,11 +26,11 @@ struct _StampConversationItem {
 
   CamelFolderThreadNode *thread_node;
   guint timestamp;
-  char *senders;
-  char *subject;
-  char *sender;
-  char *service_uid;
-  char *preview;
+  gchar *senders;
+  gchar *subject;
+  gchar *sender;
+  gchar *service_uid;
+  gchar *preview;
   GPtrArray *labels;
   gboolean unread;
   gboolean starred;
@@ -57,7 +57,7 @@ typedef enum {
 
 static GParamSpec *properties[PROP_LABELS + 1];
 
-const char *
+const gchar *
 stamp_conversation_item_get_subject (StampConversationItem *self)
 {
   if (!self->subject) {
@@ -303,7 +303,7 @@ stamp_conversation_item_init (StampConversationItem *self)
 
 StampConversationItem *
 stamp_conversation_item_new (CamelFolderThreadNode *thread_node,
-                             const char            *service_uid)
+                             const gchar            *service_uid)
 {
   return g_object_new (STAMP_TYPE_CONVERSATION_ITEM,
                        "thread-node", thread_node,
@@ -317,13 +317,13 @@ stamp_conversation_item_get_node (StampConversationItem *self)
   return self->thread_node;
 }
 
-const char *
+const gchar *
 stamp_conversation_item_get_from (StampConversationItem *self)
 {
   CamelFolderThreadNode *current_node = self->thread_node;
   g_autoptr (GHashTable) senders = NULL;
-  const char *ia_name;
-  const char *ia_address;
+  const gchar *ia_name;
+  const gchar *ia_address;
 
   /* if (self->sender) */
   /*   return self->sender; */
@@ -337,8 +337,8 @@ stamp_conversation_item_get_from (StampConversationItem *self)
       g_autoptr (CamelInternetAddress) address = camel_internet_address_new ();
 
       if (camel_address_decode (CAMEL_ADDRESS (address), camel_message_info_get_from (message)) > 0) {
-        const char *sender = NULL;
-        char *tmp = NULL;
+        const gchar *sender = NULL;
+        gchar *tmp = NULL;
 
         camel_internet_address_get (address, 0, &ia_name, &ia_address);
         if (g_strcmp0 (ia_name, "") != 0) {
@@ -361,7 +361,7 @@ stamp_conversation_item_get_from (StampConversationItem *self)
   }
 
   if (g_hash_table_size (senders) > 0) {
-    char **keys = (char **)g_hash_table_get_keys_as_array (senders, NULL);
+    gchar **keys = (char **)g_hash_table_get_keys_as_array (senders, NULL);
 
     self->sender = g_strjoinv (", ", (char **)keys);
     g_clear_pointer (&keys, g_free);
@@ -494,11 +494,11 @@ stamp_conversation_item_get_answered (StampConversationItem *self)
   return has_thread_flag_one (self->thread_node, CAMEL_MESSAGE_ANSWERED);
 }
 
-const char *
+const gchar *
 stamp_conversation_item_get_preview (StampConversationItem *self)
 {
   if (!self->preview) {
-    const char *preview = NULL;
+    const gchar *preview = NULL;
     const CamelMessageInfo *info = NULL;
 
     for (CamelFolderThreadNode *child = camel_folder_thread_node_get_child (self->thread_node); child; child = camel_folder_thread_node_get_next (child)) {
@@ -523,7 +523,7 @@ stamp_conversation_item_get_timestamp (StampConversationItem *self)
   return self->timestamp;
 }
 
-char *
+gchar *
 stamp_conversation_item_get_mail (StampConversationItem *self)
 {
   CamelFolderThreadNode *current_node = self->thread_node;
@@ -535,9 +535,9 @@ stamp_conversation_item_get_mail (StampConversationItem *self)
       g_autoptr (CamelInternetAddress) address = camel_internet_address_new ();
 
       if (camel_address_decode (CAMEL_ADDRESS (address), camel_message_info_get_from (message)) > 0) {
-        const char *ia_name;
-        const char *ia_address;
-        const char *sender;
+        const gchar *ia_name;
+        const gchar *ia_address;
+        const gchar *sender;
 
         camel_internet_address_get (address, 0, &ia_name, &ia_address);
         sender = ia_address;
@@ -552,13 +552,13 @@ stamp_conversation_item_get_mail (StampConversationItem *self)
   return NULL;
 }
 
-char *
+gchar *
 stamp_conversation_item_get_service_uid (StampConversationItem *self)
 {
   return self->service_uid;
 }
 
-const char *
+const gchar *
 stamp_conversation_item_get_uid (StampConversationItem *self)
 {
   const CamelMessageInfo *message;
@@ -597,8 +597,8 @@ stamp_conversation_item_get_labels (StampConversationItem *self)
 
   flags = camel_message_info_get_user_flags (message);
 
-  for (int idx = 0; idx < camel_named_flags_get_length (flags); idx++) {
-    const char *name = camel_named_flags_get (flags, idx);
+  for (gint idx = 0; idx < camel_named_flags_get_length (flags); idx++) {
+    const gchar *name = camel_named_flags_get (flags, idx);
 
     if (g_strcmp0 (name, "$has_cal") != 0 && g_strcmp0 (name, "$Labelimportant") != 0 && !g_str_has_prefix (name, "X-")) {
       g_ptr_array_add (array, g_strdup (name));
@@ -633,7 +633,7 @@ stamp_conversation_item_is_important (StampConversationItem *self)
 
   len = camel_named_flags_get_length (flags);
   for (guint idx = 0; idx < len; idx++) {
-    const char *name = camel_named_flags_get (flags, idx);
+    const gchar *name = camel_named_flags_get (flags, idx);
 
     if (g_strcmp0 (name, "$Labelimportant") == 0)
       return TRUE;
@@ -657,7 +657,7 @@ stamp_conversation_item_get_hidden (StampConversationItem *self)
 
 void
 stamp_conversation_item_set_label (StampConversationItem *self,
-                                   const char            *label,
+                                   const gchar            *label,
                                    gboolean               state)
 {
   CamelMessageInfo *info;

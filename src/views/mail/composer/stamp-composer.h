@@ -41,23 +41,23 @@ typedef enum {
 GtkWidget *stamp_composer_new (StampAccount *account);
 
 GtkWidget *stamp_composer_new_with_quote (StampComposerType       type,
-                                          const char             *uid,
+                                          const gchar             *uid,
                                           StampAccount           *account,
                                           StampWebView           *webview,
                                           const CamelMessageInfo *info,
                                           CamelMimeMessage       *mime_message,
-                                          char                   *content_to_quote);
+                                          gchar                   *content_to_quote);
 
 void stamp_composer_set_to (StampComposer *self,
-                            char          *to);
+                            gchar          *to);
 
 void
 stamp_composer_set_subject (StampComposer *self,
-                            char          *subject);
+                            gchar          *subject);
 
 void
 stamp_composer_set_body (StampComposer *self,
-                         char          *body);
+                         gchar          *body);
 
 G_END_DECLS
 

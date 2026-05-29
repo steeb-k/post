@@ -58,11 +58,11 @@ struct _StampMessageListItem {
   StampMimeParser *parser;
 
   const CamelMessageInfo *message_info;
-  char *calendar_content;
-  char *message_content;
-  char *signature_details;
+  gchar *calendar_content;
+  gchar *message_content;
+  gchar *signature_details;
   CamelCipherValiditySign signature_status;
-  char *disposition_notification_to;
+  gchar *disposition_notification_to;
   gboolean message_is_html;
   gboolean expanded;
   gboolean message_loaded;
@@ -74,7 +74,7 @@ struct _StampMessageListItem {
   gboolean loading_done;
   GSimpleActionGroup *actions;
   StampComposerType type;
-  char *save_img;
+  gchar *save_img;
 };
 
 G_DEFINE_FINAL_TYPE (StampMessageListItem, stamp_message_list_item, GTK_TYPE_LIST_BOX_ROW);
@@ -96,9 +96,9 @@ open_message (StampMessageListItem *self,
   const GList *encryptions;
   StampMimeCalendar *calendar;
   GList *list_unsubscribe;
-  const char *address = camel_medium_get_header (CAMEL_MEDIUM (message), "Disposition-Notification-To");
-  const char *auth_as = camel_medium_get_header (CAMEL_MEDIUM (message), "X-MS-Exchange-Organization-AuthAs");
-  const char *sender = camel_medium_get_header (CAMEL_MEDIUM (message), "Sender");
+  const gchar *address = camel_medium_get_header (CAMEL_MEDIUM (message), "Disposition-Notification-To");
+  const gchar *auth_as = camel_medium_get_header (CAMEL_MEDIUM (message), "X-MS-Exchange-Organization-AuthAs");
+  const gchar *sender = camel_medium_get_header (CAMEL_MEDIUM (message), "Sender");
   GList *attachments;
   StampMessageList *message_list = STAMP_MESSAGE_LIST (gtk_widget_get_ancestor (GTK_WIDGET (self), STAMP_TYPE_MESSAGE_LIST));
 
@@ -458,8 +458,8 @@ stamp_message_list_item_send_rsvp (StampMessageListItem  *self,
   GList *sources = e_source_registry_list_sources (registry, E_SOURCE_EXTENSION_CALENDAR);
   ESource *source;
   CamelInternetAddress *address = stamp_account_get_address (self->account);
-  const char *name;
-  const char *email;
+  const gchar *name;
+  const gchar *email;
   gboolean stat_set = FALSE;
 
   camel_internet_address_get (address, 0, &name, &email);
@@ -476,8 +476,8 @@ stamp_message_list_item_send_rsvp (StampMessageListItem  *self,
   event = i_cal_component_get_first_component (self->calendar, I_CAL_VEVENT_COMPONENT);
 
   for (prop = i_cal_component_get_first_property (event, I_CAL_ATTENDEE_PROPERTY); prop; prop = i_cal_component_get_next_property (event, I_CAL_ATTENDEE_PROPERTY)) {
-    const char *attendee = i_cal_property_get_attendee (prop);
-    const char *attendee_email;
+    const gchar *attendee = i_cal_property_get_attendee (prop);
+    const gchar *attendee_email;
 
     if (g_str_has_prefix (attendee, "mailto:"))
       attendee_email = attendee + 7;
@@ -518,7 +518,7 @@ stamp_message_list_item_send_rsvp (StampMessageListItem  *self,
 
 static void
 on_rsvp_response (GtkWidget *dialog,
-                  char      *response,
+                  gchar      *response,
                   gpointer   user_data)
 {
   StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
@@ -542,7 +542,7 @@ on_rsvp (AdwBanner *banner,
 {
   StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
   AdwDialog *dialog;
-  const char *sender = camel_message_info_get_from (self->message_info);
+  const gchar *sender = camel_message_info_get_from (self->message_info);
   g_autofree char *body = g_strdup_printf (_("%s wants to know whether you can join this meeting"), sender);
 
   dialog = adw_alert_dialog_new (_("RVSP"), body);
@@ -670,9 +670,9 @@ on_size_request (GtkWidget  *web_view,
                  gpointer    user_data)
 {
   StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
-  int width;
-  int height;
-  int my_width;
+  gint width;
+  gint height;
+  gint my_width;
 
   stamp_web_view_get_size (self->web_view, &width, &height);
 
@@ -778,7 +778,7 @@ on_message_body (GObject      *source,
   StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
   GtkWidget *composer;
   g_autoptr (GError) error = NULL;
-  char *body;
+  gchar *body;
 
   body = stamp_message_list_item_get_message_body_html_finish (self, res, &error);
   if (error) {
@@ -944,7 +944,7 @@ save_image_cb (GSimpleAction *action,
 {
   StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
   GList *attachments;
-  int offset = 0;
+  gint offset = 0;
 
   if (g_str_has_prefix (self->save_img, "cid:"))
     offset += 4;
@@ -979,7 +979,7 @@ on_context_menu (WebKitWebView       *web_view,
   if (webkit_hit_test_result_context_is_image (hit_test_result)) {
     GSimpleAction *action;
     WebKitContextMenuItem *item;
-    const char *image_uri = webkit_hit_test_result_get_image_uri (hit_test_result);
+    const gchar *image_uri = webkit_hit_test_result_get_image_uri (hit_test_result);
 
     webkit_context_menu_remove_all (context_menu);
 
@@ -1045,7 +1045,7 @@ stamp_message_list_item_get_message_body_html (StampMessageListItem *self,
   stamp_webview_get_body_html (self->web_view, cancellable, callback, user_data);
 }
 
-char *
+gchar *
 stamp_message_list_item_get_message_body_html_finish (StampMessageListItem  *self,
                                                       GAsyncResult          *res,
                                                       GError               **error)
@@ -1070,7 +1070,7 @@ stamp_message_list_item_print (StampMessageListItem *self)
 {
   GtkPrintSettings *settings = gtk_print_settings_new ();
   WebKitPrintOperation *operation;
-  const char *subject = camel_message_info_get_subject (self->message_info);
+  const gchar *subject = camel_message_info_get_subject (self->message_info);
   g_autofree char *filename = g_strdup (_("E-Mail Message"));
   GtkRoot *root = gtk_widget_get_root (GTK_WIDGET (self));
 
@@ -1093,7 +1093,7 @@ stamp_message_list_item_print (StampMessageListItem *self)
   webkit_print_operation_run_dialog (operation, GTK_WINDOW (root));
 }
 
-const char *
+const gchar *
 stamp_message_list_item_get_uid (StampMessageListItem *self)
 {
   return camel_message_info_get_uid (self->message_info);
@@ -1105,7 +1105,7 @@ static void
 cleanup_view_source_dir (void)
 {
   GDir *dir = g_dir_open (VIEW_SOURCE_TMP_DIR, 0, NULL);
-  const char *name;
+  const gchar *name;
 
   if (!dir)
     return;
@@ -1129,7 +1129,7 @@ stamp_message_list_item_view_source (StampMessageListItem *self)
   g_autoptr (CamelStream) stream = NULL;
   g_autofree char *tmpl = NULL;
   GByteArray *array = NULL;
-  int fd;
+  gint fd;
 
   if (!initialized) {
     initialized = TRUE;
@@ -1178,7 +1178,7 @@ on_found_text (WebKitFindController *controller,
 
 void
 stamp_message_list_item_search (StampMessageListItem *self,
-                                const char           *search_text)
+                                const gchar           *search_text)
 {
   WebKitFindController *controller = webkit_web_view_get_find_controller (WEBKIT_WEB_VIEW (self->web_view));
 

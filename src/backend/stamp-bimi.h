@@ -23,7 +23,7 @@
 
 G_BEGIN_DECLS
 
-char *
-stamp_query_bimi_logo (const char *domain);
+gchar *
+stamp_query_bimi_logo (const gchar *domain);
 
 G_END_DECLS

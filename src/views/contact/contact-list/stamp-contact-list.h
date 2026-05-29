@@ -54,7 +54,7 @@ stamp_contact_list_get_sidebar_button (StampContactList *self);
 
 void
 stamp_contact_list_search_contact (StampContactList *self,
-                                   const char       *mail);
+                                   const gchar       *mail);
 
 void
 stamp_contact_list_set_show_buttons (StampContactList *self,

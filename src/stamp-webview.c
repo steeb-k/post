@@ -28,7 +28,7 @@ struct _StampWebView {
   gint32 width_request;
   gint32 height_request;
   gboolean loaded;
-  char *queued_body_content;
+  gchar *queued_body_content;
   gboolean queued_load_images;
   GCancellable *cancellable;
   gboolean body_html_changed;
@@ -205,7 +205,7 @@ on_decide_policy (WebKitWebView            *web_view,
     navigation_type = webkit_navigation_action_get_navigation_type (navigation_action);
     if (navigation_type == WEBKIT_NAVIGATION_TYPE_LINK_CLICKED) {
       WebKitURIRequest *request = webkit_navigation_action_get_request (navigation_action);
-      const char *uri = webkit_uri_request_get_uri (request);
+      const gchar *uri = webkit_uri_request_get_uri (request);
       g_autoptr (GError) error = NULL;
 
       if (!g_app_info_launch_default_for_uri (uri, NULL, &error)) {
@@ -325,7 +325,7 @@ stamp_webview_user_message_received (WebKitWebView     *webview,
                                      WebKitUserMessage *message)
 {
   StampWebView *self = STAMP_WEB_VIEW (webview);
-  const char *name = webkit_user_message_get_name (message);
+  const gchar *name = webkit_user_message_get_name (message);
 
   if (g_strcmp0 (name, "image-load-blocked") == 0) {
     if (!self->queued_load_images)
@@ -408,7 +408,7 @@ stamp_webview_new (void)
 
 void
 stamp_webview_load_html (StampWebView *self,
-                         char         *content)
+                         gchar         *content)
 {
   if (content)
     webkit_web_view_load_html (WEBKIT_WEB_VIEW (self), content, NULL);
@@ -416,7 +416,7 @@ stamp_webview_load_html (StampWebView *self,
 
 void
 stamp_webview_load_plain_text (StampWebView *self,
-                               char         *content)
+                               gchar         *content)
 {
   if (content) {
     g_autoptr (GBytes) template = g_resources_lookup_data ("/org/tabos/stamp/blank-message-template.html", G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
@@ -429,7 +429,7 @@ stamp_webview_load_plain_text (StampWebView *self,
 
 void
 stamp_webview_add_internal_resource (StampWebView *self,
-                                     const char   *id,
+                                     const gchar   *id,
                                      GInputStream *stream)
 {
   g_hash_table_insert (self->internal_resources, g_strdup (id), g_object_ref (stream));
@@ -446,17 +446,17 @@ stamp_webview_get_body_html (StampWebView        *self,
   webkit_web_view_send_message_to_page (WEBKIT_WEB_VIEW (self), message, cancellable, callback, user_data);
 }
 
-char *
+gchar *
 stamp_webview_get_body_html_finish (StampWebView  *self,
                                     GAsyncResult  *res,
-                                    char         **out_plain_text,
+                                    gchar         **out_plain_text,
                                     GError       **error)
 {
   g_autoptr (GError) local_error = NULL;
   g_autoptr (WebKitUserMessage) response = webkit_web_view_send_message_to_page_finish (WEBKIT_WEB_VIEW (self), res, &local_error);
   GVariant *parameters;
-  const char *html;
-  const char *plain;
+  const gchar *html;
+  const gchar *plain;
 
   if (local_error) {
     g_propagate_error (error, g_steal_pointer (&local_error));
@@ -499,7 +499,7 @@ on_set_body_html (GObject      *source,
 
 void
 stamp_web_view_set_body_content (StampWebView *self,
-                                 char         *content)
+                                 gchar         *content)
 {
   if (self->loaded) {
     WebKitUserMessage *message = webkit_user_message_new ("set-body-html", g_variant_new_string (content));
@@ -556,7 +556,7 @@ stamp_web_view_load_images (StampWebView *self)
 
 void
 stamp_web_view_query_command_state (StampWebView        *self,
-                                    const char          *command,
+                                    const gchar          *command,
                                     GCancellable        *cancellable,
                                     GAsyncReadyCallback  callback,
                                     gpointer             user_data)
@@ -589,8 +589,8 @@ stamp_web_view_query_command_state_finish (GObject       *source,
 
 void
 stamp_web_view_execute_editor_command (StampWebView *self,
-                                       const char   *command,
-                                       const char   *argument)
+                                       const gchar   *command,
+                                       const gchar   *argument)
 {
   g_autoptr (GStrvBuilder) builder = g_strv_builder_new ();
   g_auto (GStrv) arguments = NULL;

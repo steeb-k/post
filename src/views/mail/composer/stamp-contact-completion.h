@@ -45,7 +45,7 @@ stamp_contact_completion_set_account (StampContactCompletion *self,
 
 gboolean
 stamp_contact_completion_contains_address (StampContactCompletion *self,
-                                           const char             *mail);
+                                           const gchar             *mail);
 
 G_END_DECLS
 

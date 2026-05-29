@@ -87,8 +87,8 @@ refresh_alias_list (StampPreferencesAccount *self)
   mails = g_hash_table_get_keys (self->aliases);
 
   for (GList *iter = mails; iter && iter->data; iter = g_list_next (iter)) {
-    char *mail = iter->data;
-    char *name = g_hash_table_lookup (self->aliases, mail);
+    gchar *mail = iter->data;
+    gchar *name = g_hash_table_lookup (self->aliases, mail);
     GtkWidget *row;
     GtkWidget *edit_button;
 
@@ -122,8 +122,8 @@ on_alias_edit_clicked (GtkWidget *button,
 {
   StampPreferencesAccount *self = STAMP_PREFERENCES_ACCOUNT (user_data);
   AdwActionRow *row = ADW_ACTION_ROW (g_object_get_data (G_OBJECT (button), "row"));
-  const char *mail = adw_preferences_row_get_title (ADW_PREFERENCES_ROW (row));
-  const char *name = adw_action_row_get_subtitle (row);
+  const gchar *mail = adw_preferences_row_get_title (ADW_PREFERENCES_ROW (row));
+  const gchar *name = adw_action_row_get_subtitle (row);
   AdwNavigationPage *page;
   GtkWidget *parent;
 
@@ -139,8 +139,8 @@ on_alias_activated (AdwActionRow *row,
                     gpointer      user_data)
 {
   StampPreferencesAccount *self = STAMP_PREFERENCES_ACCOUNT (user_data);
-  const char *mail = g_object_get_data (G_OBJECT (row), "email");
-  const char *name = g_object_get_data (G_OBJECT (row), "name");
+  const gchar *mail = g_object_get_data (G_OBJECT (row), "email");
+  const gchar *name = g_object_get_data (G_OBJECT (row), "name");
   AdwNavigationPage *page;
   GtkWidget *parent;
 
@@ -266,8 +266,8 @@ struct _StampPreferencesAccountEditor {
   AdwButtonRow *remove;
 
   StampAccount *account;
-  char *email;
-  char *name;
+  gchar *email;
+  gchar *name;
   GHashTable *aliases;
 };
 
@@ -278,8 +278,8 @@ on_save_clicked (GtkWidget *button,
                  gpointer   user_data)
 {
   StampPreferencesAccountEditor *self = STAMP_PREFERENCES_ACCOUNT_EDITOR (user_data);
-  const char *mail = gtk_editable_get_text (GTK_EDITABLE (self->mail_row));
-  const char *name = gtk_editable_get_text (GTK_EDITABLE (self->name_row));
+  const gchar *mail = gtk_editable_get_text (GTK_EDITABLE (self->mail_row));
+  const gchar *name = gtk_editable_get_text (GTK_EDITABLE (self->name_row));
   GtkWidget *parent;
 
   if (g_strcmp0 (mail, "") != 0) {
@@ -378,8 +378,8 @@ stamp_preferences_account_editor_init (StampPreferencesAccountEditor *self)
 
 GtkWidget *
 stamp_preferences_account_editor_new (StampAccount *account,
-                                      const char   *email,
-                                      const char   *name)
+                                      const gchar   *email,
+                                      const gchar   *name)
 {
   StampPreferencesAccountEditor *self;
   StampMailService *service;

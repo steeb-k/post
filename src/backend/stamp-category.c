@@ -22,10 +22,10 @@
 struct _StampCategory {
   GObject parent_instance;
 
-  char *id;
-  char *name;
-  char *color;
-  char *color_hex;
+  gchar *id;
+  gchar *name;
+  gchar *color;
+  gchar *color_hex;
 };
 
 typedef enum {
@@ -137,36 +137,36 @@ stamp_category_init (StampCategory *self)
 }
 
 StampCategory *
-stamp_category_new (const char *id,
-                    const char *name,
-                    const char *color,
-                    const char *color_hex)
+stamp_category_new (const gchar *id,
+                    const gchar *name,
+                    const gchar *color,
+                    const gchar *color_hex)
 {
   return g_object_new (STAMP_TYPE_CATEGORY, "id", id, "name", name, "color", color, "color-hex", color_hex, NULL);
 }
 
-const char *
+const gchar *
 stamp_category_get_id (StampCategory *self)
 {
   g_return_val_if_fail (STAMP_IS_CATEGORY (self), NULL);
   return self->id;
 }
 
-const char *
+const gchar *
 stamp_category_get_name (StampCategory *self)
 {
   g_return_val_if_fail (STAMP_IS_CATEGORY (self), NULL);
   return self->name;
 }
 
-const char *
+const gchar *
 stamp_category_get_color (StampCategory *self)
 {
   g_return_val_if_fail (STAMP_IS_CATEGORY (self), NULL);
   return self->color;
 }
 
-const char *
+const gchar *
 stamp_category_get_hex (StampCategory *self)
 {
   g_return_val_if_fail (STAMP_IS_CATEGORY (self), NULL);
@@ -208,13 +208,13 @@ static const struct {
   { NULL, NULL }
 };
 
-static const char *
-stamp_preset_to_hex (const char *preset)
+static const gchar *
+stamp_preset_to_hex (const gchar *preset)
 {
   if (!preset)
     return "#808080";
 
-  for (int i = 0; COLOR_MAP[i].preset != NULL; i++) {
+  for (gint i = 0; COLOR_MAP[i].preset != NULL; i++) {
     if (g_strcmp0 (COLOR_MAP[i].preset, preset) == 0)
       return COLOR_MAP[i].hex;
   }
@@ -223,7 +223,7 @@ stamp_preset_to_hex (const char *preset)
 }
 
 static GList *
-parse_categories_json (const char  *json_data,
+parse_categories_json (const gchar  *json_data,
                        gsize        json_len,
                        GError     **error)
 {
@@ -250,7 +250,7 @@ parse_categories_json (const char  *json_data,
   root_obj = json_node_get_object (root_node);
   if (json_object_has_member (root_obj, "error")) {
     JsonObject *err_obj = json_object_get_object_member (root_obj, "error");
-    const char *msg = json_object_get_string_member (err_obj, "message");
+    const gchar *msg = json_object_get_string_member (err_obj, "message");
 
     g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED, "Graph API Error: %s", msg ? msg : "unknown");
     return NULL;
@@ -266,7 +266,7 @@ parse_categories_json (const char  *json_data,
   for (guint i = 0; i < json_array_get_length (value_arr); i++) {
     JsonObject *obj = json_array_get_object_element (value_arr, i);
     StampCategory *cat = NULL;
-    const char *preset;
+    const gchar *preset;
 
     preset = json_object_get_string_member_with_default (obj, "color", NULL);
     cat = stamp_category_new (json_object_get_string_member_with_default (obj, "id", NULL),

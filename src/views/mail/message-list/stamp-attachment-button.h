@@ -31,8 +31,8 @@ GtkWidget *
 stamp_attachment_button_new (CamelMimePart *mime_part);
 
 GtkWidget *
-stamp_attachment_button_new_from_data (const char *filename,
-                                        const char *content_type,
+stamp_attachment_button_new_from_data (const gchar *filename,
+                                        const gchar *content_type,
                                         gsize       size,
                                         GBytes     *data);
 

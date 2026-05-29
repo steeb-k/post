@@ -47,7 +47,7 @@ stamp_message_header_set_internal (StampMessageHeader *self,
 
 void
 stamp_message_header_set_sender (StampMessageHeader *self,
-                                 const char         *sender);
+                                 const gchar         *sender);
 
 G_END_DECLS
 

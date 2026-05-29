@@ -198,8 +198,8 @@ filter_func (gpointer object,
 {
   StampContactList *self = STAMP_CONTACT_LIST (user_data);
   StampContactItem *item = STAMP_CONTACT_ITEM (object);
-  const char *search_text = gtk_editable_get_text (GTK_EDITABLE (self->search_entry));
-  const char *contact_name = stamp_contact_item_get_name (item);
+  const gchar *search_text = gtk_editable_get_text (GTK_EDITABLE (self->search_entry));
+  const gchar *contact_name = stamp_contact_item_get_name (item);
   g_autofree char *search = NULL;
   g_autofree char *name = NULL;
 
@@ -267,7 +267,7 @@ on_contact_search_entry_changed (GtkWidget *search_entry,
                                  gpointer   user_data)
 {
   StampContactList *self = STAMP_CONTACT_LIST (user_data);
-  const char *sexp = gtk_editable_get_text (GTK_EDITABLE (self->search_entry));
+  const gchar *sexp = gtk_editable_get_text (GTK_EDITABLE (self->search_entry));
 
   /* Searching contact */
   if (self->account && sexp && strlen (sexp) > 0) {
@@ -384,7 +384,7 @@ on_sort_activate (GSimpleAction *action,
                   gpointer       user_data)
 {
   StampContactList *self = STAMP_CONTACT_LIST (user_data);
-  const char *value;
+  const gchar *value;
 
   if (!parameter)
     return;
@@ -462,7 +462,7 @@ stamp_contact_list_get_sidebar_button (StampContactList *self)
 
 void
 stamp_contact_list_search_contact (StampContactList *self,
-                                   const char       *mail)
+                                   const gchar       *mail)
 {
   gtk_editable_set_text (GTK_EDITABLE (self->search_entry), mail);
   gtk_search_bar_set_search_mode (GTK_SEARCH_BAR (self->search_bar), TRUE);

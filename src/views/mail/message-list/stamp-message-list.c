@@ -43,8 +43,8 @@ struct _StampMessageList {
   GtkWidget *external;
 
   GtkButton *unsubscribe_button;
-  char *unsubscribe_sender;
-  char *unsubscribe_url;
+  gchar *unsubscribe_sender;
+  gchar *unsubscribe_url;
   CamelMimeMessage *unsubscribe_message;
 
   GCancellable *cancellable;
@@ -52,7 +52,7 @@ struct _StampMessageList {
   GHashTable *messages;
   StampAccount *account;
 
-  char *subject;
+  gchar *subject;
 
   GtkWidget *carousel;
   GtkWidget *prev_page;
@@ -76,14 +76,14 @@ on_message_search_entry_changed (GtkWidget *search_entry,
 {
   StampMessageList *self = STAMP_MESSAGE_LIST (user_data);
   GList *keys;
-  const char *search_text = gtk_editable_get_text (GTK_EDITABLE (self->search_entry));
+  const gchar *search_text = gtk_editable_get_text (GTK_EDITABLE (self->search_entry));
 
   if (!self->messages)
     return;
 
   keys = g_hash_table_get_keys (self->messages);
   for (GList *iter = keys; iter && iter->data; iter = g_list_next (iter)) {
-    const char *key = iter->data;
+    const gchar *key = iter->data;
     StampMessageListItem *item = STAMP_MESSAGE_LIST_ITEM (g_hash_table_lookup (self->messages, key));
 
     stamp_message_list_item_search (item, search_text);
@@ -102,7 +102,7 @@ stamp_message_list_dispose (GObject *object)
 
 static void
 on_unsubscribe_response (GtkWidget *dialog,
-                         char      *response,
+                         gchar      *response,
                          gpointer   user_data)
 {
   StampMessageList *self = STAMP_MESSAGE_LIST (user_data);
@@ -123,7 +123,7 @@ on_unsubscribe_clicked (GtkWidget *button,
 {
   StampMessageList *self = STAMP_MESSAGE_LIST (user_data);
   AdwDialog *dialog;
-  const char *sender = self->unsubscribe_sender;
+  const gchar *sender = self->unsubscribe_sender;
   g_autofree char *body = g_strdup_printf (_("Are you sure you want to unsubscribe from the mailing list?\n\nSender: %s\nUnsubscribe URL: %s"), sender, self->unsubscribe_url);
 
   dialog = adw_alert_dialog_new (_("Unsubscribe"), body);
@@ -175,8 +175,8 @@ emit_navigate_back_idle (gpointer user_data)
 
 static void
 on_drag_begin (GtkGestureDrag *gesture,
-               double          start_x,
-               double          start_y,
+               gdouble          start_x,
+               gdouble          start_y,
                gpointer        user_data)
 {
   gboolean at_left_edge = start_x < 50;
@@ -190,8 +190,8 @@ on_drag_begin (GtkGestureDrag *gesture,
 
 static void
 on_drag_update (GtkGestureDrag *gesture,
-                double          offset_x,
-                double          offset_y,
+                gdouble          offset_x,
+                gdouble          offset_y,
                 gpointer        user_data)
 {
   StampMessageList *self = STAMP_MESSAGE_LIST (user_data);
@@ -270,12 +270,12 @@ sort_mails (GtkListBoxRow *row1,
 }
 
 static gboolean
-subject_changed (const char *subject,
-                 char       *new_subject)
+subject_changed (const gchar *subject,
+                 gchar       *new_subject)
 {
   /* Skip prefix Re: / Fwd: / Yes: / No: / .... */
   g_auto (GStrv) split = g_strsplit (new_subject, ":", 2);
-  char *check = new_subject;
+  gchar *check = new_subject;
   gboolean ret;
 
   if (g_strv_length (split) == 2)
@@ -294,7 +294,7 @@ update_header (GtkListBoxRow *row,
 {
   StampMessageList *self = STAMP_MESSAGE_LIST (user_data);
   StampMessageListItem *item;
-  const char *subject;
+  const gchar *subject;
 
   if (!before)
     return;
@@ -491,7 +491,7 @@ stamp_message_list_set_conversation (StampMessageList      *self,
   StampMailView *mail_view = stamp_window_get_mail_view (window);
   CamelFolderSummary *summary;
   CamelFolder *folder;
-  const char *fname;
+  const gchar *fname;
   gboolean draft_folder = FALSE;
   StampConversationList *conv_list;
   StampConversationItem *adjacent;
@@ -617,8 +617,8 @@ stamp_message_list_set_conversation (StampMessageList      *self,
 
 void
 stamp_message_list_hovering_over_link (StampMessageList *self,
-                                       const char       *title,
-                                       const char       *url)
+                                       const gchar       *title,
+                                       const gchar       *url)
 {
   if (!url) {
     gtk_widget_set_visible (self->hover_url, FALSE);
@@ -642,7 +642,7 @@ on_message_body (GObject      *source,
   GtkWidget *composer;
   ComposerData *data = user_data;
   g_autoptr (GError) error = NULL;
-  char *body;
+  gchar *body;
 
   body = stamp_message_list_item_get_message_body_html_finish (data->item, res, &error);
   if (error) {
@@ -683,7 +683,7 @@ stamp_message_list_compose (StampMessageList  *self,
 {
   GtkWidget *child;
   ComposerData *data;
-  const char *uid = NULL;
+  const gchar *uid = NULL;
 
   if (type == STAMP_COMPOSER_NEW) {
     GtkWidget *composer;
@@ -722,7 +722,7 @@ void
 stamp_message_list_print (StampMessageList *self,
                           GVariant         *parameter)
 {
-  const char *uid = NULL;
+  const gchar *uid = NULL;
   GtkWidget *child;
   StampMessageListItem *item;
 
@@ -762,8 +762,8 @@ stamp_message_list_view_source (StampMessageList *self,
 
 void
 stamp_message_list_set_unsubscribe (StampMessageList *self,
-                                    const char       *sender,
-                                    const char       *url,
+                                    const gchar       *sender,
+                                    const gchar       *url,
                                     CamelMimeMessage *message)
 {
   gtk_widget_set_visible (GTK_WIDGET (self->unsubscribe_button), TRUE);

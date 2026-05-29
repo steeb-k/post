@@ -25,8 +25,8 @@ struct _StampComposerFrom {
   GObject parent_instance;
 
   StampAccount *account;
-  char *name;
-  char *mail;
+  gchar *name;
+  gchar *mail;
 };
 
 G_DEFINE_FINAL_TYPE (StampComposerFrom, stamp_composer_from, G_TYPE_OBJECT);
@@ -58,8 +58,8 @@ stamp_composer_from_class_init (StampComposerFromClass *klass)
 
 StampComposerFrom *
 stamp_composer_from_new (StampAccount *account,
-                         const char   *name,
-                         const char   *mail)
+                         const gchar   *name,
+                         const gchar   *mail)
 {
   StampComposerFrom *self = g_object_new (STAMP_TYPE_COMPOSER_FROM, NULL);
 
@@ -76,13 +76,13 @@ stamp_composer_from_get_account (StampComposerFrom *self)
   return self->account;
 }
 
-const char *
+const gchar *
 stamp_composer_from_get_name (StampComposerFrom *self)
 {
   return self->name;
 }
 
-const char *
+const gchar *
 stamp_composer_from_get_mail (StampComposerFrom *self)
 {
   return self->mail;

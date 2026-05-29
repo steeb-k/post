@@ -34,14 +34,14 @@ stamp_mail_view_new (void);
 
 void
 stamp_mail_view_search_contact (StampMailView *self,
-                                const char    *mail);
+                                const gchar    *mail);
 
 GSimpleActionGroup *
 stamp_mail_view_get_action_group (StampMailView *self);
 
 void
 stamp_mail_view_show_toast (StampMailView *self,
-                            const char    *message);
+                            const gchar    *message);
 
 StampConversationList *
 stamp_mail_view_get_conversation_list (StampMailView *self);

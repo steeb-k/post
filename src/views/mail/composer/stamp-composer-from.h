@@ -30,16 +30,16 @@ G_DECLARE_FINAL_TYPE (StampComposerFrom, stamp_composer_from, STAMP, COMPOSER_FR
 
 StampComposerFrom *
 stamp_composer_from_new (StampAccount *account,
-                         const char   *name,
-                         const char   *mail);
+                         const gchar   *name,
+                         const gchar   *mail);
 
 StampAccount *
 stamp_composer_from_get_account (StampComposerFrom *self);
 
-const char *
+const gchar *
 stamp_composer_from_get_name (StampComposerFrom *self);
 
-const char *
+const gchar *
 stamp_composer_from_get_mail (StampComposerFrom *self);
 
 G_END_DECLS

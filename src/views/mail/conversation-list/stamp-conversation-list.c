@@ -77,7 +77,7 @@ struct _StampConversationList {
   gboolean is_pulling;
   GtkSorter *sorter;
   GtkFilter *filter;
-  char *full_name;
+  gchar *full_name;
   GMenuModel *context_menu_model;
 
   StampAccount *account;
@@ -118,7 +118,7 @@ static gint signals[LAST_SIGNAL] = { 0 };
 
 static StampConversationItem *
 stamp_conversation_item_find_item (GListStore *store,
-                                   const char *uid)
+                                   const gchar *uid)
 {
   guint list_len = g_list_model_get_n_items (G_LIST_MODEL (store));
 
@@ -157,10 +157,10 @@ on_conversation_list_folder_changed (CamelFolder           *folder,
 
   if (changes->uid_changed && changes->uid_changed->len > 0) {
     GPtrArray *changed = changes->uid_changed;
-    for (int idx = 0; idx < changed->len; idx++) {
+    for (gint idx = 0; idx < changed->len; idx++) {
       StampConversationItem *item = stamp_conversation_item_find_item (self->list_store, changed->pdata[idx]);
       CamelMessageInfo *message_info;
-      char *uid = (char *)changed->pdata[idx];
+      gchar *uid = (char *)changed->pdata[idx];
 
       message_info = camel_folder_summary_get (camel_folder_get_folder_summary (folder), uid);
 
@@ -178,7 +178,7 @@ static CamelFolderThread *
 get_thread (StampConversationList *self,
             CamelFolder           *folder)
 {
-  const char *uri = camel_folder_get_full_name (folder);
+  const gchar *uri = camel_folder_get_full_name (folder);
   CamelFolderThread *thread = g_hash_table_lookup (self->thread_cache, uri);
 
   if (!thread) {
@@ -234,8 +234,8 @@ filter_func (gpointer object,
 {
   StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
   StampConversationItem *item = STAMP_CONVERSATION_ITEM (object);
-  const char *search_text = gtk_editable_get_text (GTK_EDITABLE (self->search_entry));
-  int search_text_len = search_text ? strlen (search_text) : 0;
+  const gchar *search_text = gtk_editable_get_text (GTK_EDITABLE (self->search_entry));
+  gint search_text_len = search_text ? strlen (search_text) : 0;
 
   if (stamp_conversation_item_get_hidden (item))
     return FALSE;
@@ -245,7 +245,7 @@ filter_func (gpointer object,
     gboolean found = FALSE;
 
     if (!found) {
-      const char *item_from = stamp_conversation_item_get_from (item);
+      const gchar *item_from = stamp_conversation_item_get_from (item);
 
       if (item_from && strlen (item_from) > 0) {
         g_autofree char *from = g_utf8_strdown (item_from, -1);
@@ -255,7 +255,7 @@ filter_func (gpointer object,
     }
 
     if (!found) {
-      const char *item_subject = stamp_conversation_item_get_subject (item);
+      const gchar *item_subject = stamp_conversation_item_get_subject (item);
 
       if (item_subject && strlen (item_subject) > 0) {
         g_autofree char *subject = g_utf8_strdown (item_subject, -1);
@@ -265,7 +265,7 @@ filter_func (gpointer object,
     }
 
     if (!found) {
-      const char *item_mail = stamp_conversation_item_get_mail (item);
+      const gchar *item_mail = stamp_conversation_item_get_mail (item);
 
       if (item_mail && strlen (item_mail) > 0) {
         g_autofree char *mail = g_utf8_strdown (item_mail, -1);
@@ -309,8 +309,8 @@ on_category_toggled (GSimpleAction *action,
   StampConversationItem *item = STAMP_CONVERSATION_ITEM (gtk_single_selection_get_selected_item (self->single_selection));
   g_autoptr (GVariant) state = g_action_get_state (G_ACTION (action));
   gboolean active = g_variant_get_boolean (state);
-  const char *action_name = g_action_get_name (G_ACTION (action));
-  const char *id = action_name + 4;
+  const gchar *action_name = g_action_get_name (G_ACTION (action));
+  const gchar *id = action_name + 4;
 
   g_simple_action_set_state (action, g_variant_new_boolean (!active));
   stamp_conversation_item_set_label (item, id, !active);
@@ -320,7 +320,7 @@ static void
 rebuild_category_actions (StampConversationList *self)
 {
   GActionMap *map = G_ACTION_MAP (self->actions);
-  char **old_names = g_object_get_data (G_OBJECT (self->actions), "cat-action-names");
+  gchar **old_names = g_object_get_data (G_OBJECT (self->actions), "cat-action-names");
   GPtrArray *names = g_ptr_array_new_with_free_func (g_free);
   GList *categories;
 
@@ -337,7 +337,7 @@ rebuild_category_actions (StampConversationList *self)
   for (GList *iter = categories; iter && iter->data; iter = g_list_next (iter)) {
     StampCategory *cat = iter->data;
     g_autoptr (GString) name = g_string_new (stamp_category_get_name (cat));
-    char *action_name;
+    gchar *action_name;
     g_autoptr (GSimpleAction) action;
 
     g_string_replace (name, " ", "_", 0);
@@ -415,7 +415,7 @@ on_get_folder (GObject      *source,
 
   if (thread) {
     CamelFolderThreadNode *child;
-    const char *service_uid = camel_service_get_uid (stamp_mail_service_get_service (mail_service));
+    const gchar *service_uid = camel_service_get_uid (stamp_mail_service_get_service (mail_service));
     /* guint loaded = 0; */
 
     child = camel_folder_thread_get_tree (thread);
@@ -468,7 +468,7 @@ load_more_items_idle (gpointer user_data)
   guint current_count = g_list_model_get_n_items (G_LIST_MODEL (self->list_store));
   guint skip;
   guint loaded = 0;
-  const char *service_uid;
+  const gchar *service_uid;
 
   if (!self->thread || self->pending_load_count == 0) {
     return G_SOURCE_REMOVE;
@@ -511,7 +511,7 @@ load_more_items_idle (gpointer user_data)
 void
 stamp_conversation_list_load_folder (StampConversationList *self,
                                      StampAccount          *account,
-                                     char                  *full_name)
+                                     gchar                  *full_name)
 {
   StampMailService *mail_service;
 
@@ -598,8 +598,8 @@ on_row_trash (GtkWidget *widget,
 typedef struct {
   StampConversationList *self;
   GtkListItem *list_item;
-  double start_x;
-  double start_y;
+  gdouble start_x;
+  gdouble start_y;
 } RowData;
 
 static void
@@ -650,8 +650,8 @@ handle_popover (RowData *row_data,
 
       action = g_action_map_lookup_action (G_ACTION_MAP (row_data->self->actions), action_name);
       g_simple_action_set_state (G_SIMPLE_ACTION (action), g_variant_new_boolean (FALSE));
-      for (int idx = 0; idx < labels->len; idx++) {
-        char *cat_name = labels->pdata[idx];
+      for (gint idx = 0; idx < labels->len; idx++) {
+        gchar *cat_name = labels->pdata[idx];
 
         if (g_strcmp0 (cat_name, action_name + 4) == 0) {
           g_simple_action_set_state (G_SIMPLE_ACTION (action), g_variant_new_boolean (TRUE));
@@ -699,7 +699,7 @@ static void
 update_selection_title (StampConversationList *self)
 {
   guint n_selected = gtk_bitset_get_size (self->selected);
-  char buf[64];
+  gchar buf[64];
 
   g_snprintf (buf, sizeof buf, _("%u selected"), n_selected);
 
@@ -766,9 +766,9 @@ on_long_press_pressed (GtkGestureLongPress *controller,
 
 static void
 on_row_pressed (GtkGestureClick *gesture,
-                int              n_press,
-                double           x,
-                double           y,
+                gint              n_press,
+                gdouble           x,
+                gdouble           y,
                 gpointer         user_data)
 {
   RowData *data = g_object_get_data (G_OBJECT (gesture), "row-data");
@@ -853,9 +853,9 @@ on_row_pressed (GtkGestureClick *gesture,
 
 static void
 on_touch_begin (GtkGestureClick *gesture,
-                int              n_press,
-                double           x,
-                double           y,
+                gint              n_press,
+                gdouble           x,
+                gdouble           y,
                 gpointer         user_data)
 {
   RowData *data = g_object_get_data (G_OBJECT (gesture), "row-data");
@@ -865,9 +865,9 @@ on_touch_begin (GtkGestureClick *gesture,
 
 static void
 on_touch_released (GtkGestureClick *gesture,
-                   int              n_press,
-                   double           x,
-                   double           y,
+                   gint              n_press,
+                   gdouble           x,
+                   gdouble           y,
                    gpointer         user_data)
 {
   RowData *data = g_object_get_data (G_OBJECT (gesture), "row-data");
@@ -875,8 +875,8 @@ on_touch_released (GtkGestureClick *gesture,
   GtkListItem *list_item = data->list_item;
 
   /* Bewegung prüfen – wenn zu viel bewegt wurde war es ein Scroll */
-  double dx = x - data->start_x;
-  double dy = y - data->start_y;
+  gdouble dx = x - data->start_x;
+  gdouble dy = y - data->start_y;
   guint position;
   if (dx * dx + dy * dy > 10 * 10)
     return;
@@ -1090,7 +1090,7 @@ on_single_selection_changed (GtkSelectionModel *model,
       g_autoptr (GSettings) settings = g_settings_new ("org.tabos.stamp.mail");
       MarkReadData *data = g_new (MarkReadData, 1);
       gdouble mark_timeout = g_settings_get_double (settings, "mark-read-timeout");
-      int timeout = mark_timeout * 1000;
+      gint timeout = mark_timeout * 1000;
 
       data->self = g_object_ref (self);
       data->item = g_object_ref (conversation_item);
@@ -1186,13 +1186,13 @@ stamp_conversation_list_dispose (GObject *object)
 
 static gboolean
 on_scroll (GtkEventControllerScroll *controller,
-           double                    dx,
-           double                    dy,
+           gdouble                    dx,
+           gdouble                    dy,
            gpointer                  user_data)
 {
   StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
   GtkAdjustment *adj = gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (self->scrolled_window));
-  double adjustment = gtk_adjustment_get_value (adj);
+  gdouble adjustment = gtk_adjustment_get_value (adj);
 
   if (adjustment > 200 && dy < 0) {
     gtk_widget_set_visible (self->scroll_to_top, TRUE);
@@ -1269,7 +1269,7 @@ on_multi_selection_changed (GtkSelectionModel *model,
 {
   StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
   guint n_selected = gtk_bitset_get_size (self->selected);
-  char buf[64];
+  gchar buf[64];
 
   g_snprintf (buf, sizeof buf, _("%u selected"), n_selected);
 
@@ -1283,7 +1283,7 @@ on_drag_update (GtkGesturePan   *gesture,
                 gpointer         user_data)
 {
   StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
-  double clean_y = offset;
+  gdouble clean_y = offset;
   GValue value = G_VALUE_INIT;
   g_value_init (&value, G_TYPE_INT);
 
@@ -1342,8 +1342,8 @@ load_folder_idle (gpointer user_data)
 
 static void
 on_drag_end (GtkGestureDrag *gesture,
-             double          dx,
-             double          dy,
+             gdouble          dx,
+             gdouble          dy,
              gpointer        user_data)
 {
   StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
@@ -1365,7 +1365,7 @@ on_filter_activate (GSimpleAction *action,
                     gpointer       user_data)
 {
   StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
-  const char *value;
+  const gchar *value;
 
   if (!parameter)
     return;
@@ -1396,7 +1396,7 @@ on_sort_activate (GSimpleAction *action,
                   gpointer       user_data)
 {
   StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
-  const char *value;
+  const gchar *value;
 
   if (!parameter)
     return;
@@ -1428,7 +1428,7 @@ on_mark_category (GSimpleAction *action,
 {
   StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
   StampConversationItem *item = NULL;
-  const char *value;
+  const gchar *value;
 
   if (!parameter)
     return;
@@ -1665,13 +1665,13 @@ stamp_conversation_list_mark_read (StampConversationList *self,
     g_ptr_array_add (node_array, node);
   }
 
-  for (int idx = 0; idx < node_array->len; idx++) {
+  for (gint idx = 0; idx < node_array->len; idx++) {
     CamelFolderThreadNode *child_node = node_array->pdata[idx];
 
     array = collect_messages (child_node, array);
   }
 
-  for (int idx = array->len - 1; idx >= 0; idx--) {
+  for (gint idx = array->len - 1; idx >= 0; idx--) {
     CamelFolderThreadNode *child_node = array->pdata[idx];
     camel_message_info_set_flags (CAMEL_MESSAGE_INFO (camel_folder_thread_node_get_item (child_node)), CAMEL_MESSAGE_SEEN, ~0);
   }
@@ -1710,13 +1710,13 @@ stamp_conversation_list_mark_unread (StampConversationList *self,
     g_ptr_array_add (node_array, node);
   }
 
-  for (int idx = 0; idx < node_array->len; idx++) {
+  for (gint idx = 0; idx < node_array->len; idx++) {
     CamelFolderThreadNode *child_node = node_array->pdata[idx];
 
     array = collect_messages (child_node, array);
   }
 
-  for (int idx = array->len - 1; idx >= 0; idx--) {
+  for (gint idx = array->len - 1; idx >= 0; idx--) {
     CamelFolderThreadNode *child_node = array->pdata[idx];
     camel_message_info_set_flags (CAMEL_MESSAGE_INFO (camel_folder_thread_node_get_item (child_node)), CAMEL_MESSAGE_SEEN, 0);
   }
@@ -1808,7 +1808,7 @@ stamp_conversation_list_trash (StampConversationList *self,
 
   self->trash_array = g_ptr_array_ref (node_array);
 
-  for (int idx = 0; idx < node_array->len; idx++) {
+  for (gint idx = 0; idx < node_array->len; idx++) {
     StampConversationItem *child_item = STAMP_CONVERSATION_ITEM (node_array->pdata[idx]);
     CamelFolderThreadNode *child_node = stamp_conversation_item_get_node (child_item);
 
@@ -1826,7 +1826,7 @@ stamp_conversation_list_trash (StampConversationList *self,
 
   /* Mark all items as read */
   uid_array = g_ptr_array_new ();
-  for (int idx = array->len - 1; idx >= 0; idx--) {
+  for (gint idx = array->len - 1; idx >= 0; idx--) {
     CamelFolderThreadNode *child_node = array->pdata[idx];
     const CamelMessageInfo *info;
 
@@ -1849,7 +1849,7 @@ stamp_conversation_list_trash (StampConversationList *self,
 
 void
 stamp_mail_conversation_list_search_contact (StampConversationList *self,
-                                             const char            *mail)
+                                             const gchar            *mail)
 {
   gtk_editable_set_text (GTK_EDITABLE (self->search_entry), mail);
   gtk_search_bar_set_search_mode (GTK_SEARCH_BAR (self->search_bar), TRUE);
@@ -1861,7 +1861,7 @@ stamp_conversation_list_undo_trash (StampConversationList *self)
   if (!self->trash_array)
     return;
 
-  for (int idx = 0; idx < self->trash_array->len; idx++) {
+  for (gint idx = 0; idx < self->trash_array->len; idx++) {
     StampConversationItem *item = STAMP_CONVERSATION_ITEM (self->trash_array->pdata[idx]);
 
     stamp_conversation_item_set_hidden (item, FALSE);
@@ -1889,7 +1889,7 @@ stamp_consersation_list_set_show_buttons (StampConversationList *self,
 
 void
 stamp_conversation_list_select_relative (StampConversationList *self,
-                                         int                    direction)
+                                         gint                    direction)
 {
   GtkSelectionModel *model = GTK_SELECTION_MODEL (self->single_selection);
   guint n_items = g_list_model_get_n_items (G_LIST_MODEL (model));
@@ -1903,7 +1903,7 @@ stamp_conversation_list_select_relative (StampConversationList *self,
   if (selected == GTK_INVALID_LIST_POSITION) {
     selected = (direction > 0) ? 0 : n_items - 1;
   } else {
-    int new_pos = (int)selected + direction;
+    gint new_pos = (int)selected + direction;
     selected = CLAMP (new_pos, 0, (int)n_items - 1);
   }
 
@@ -1912,12 +1912,12 @@ stamp_conversation_list_select_relative (StampConversationList *self,
 
 StampConversationItem *
 stamp_conversation_list_get_adjacent_item (StampConversationList *self,
-                                           int                    offset)
+                                           gint                    offset)
 {
   GListModel *model = G_LIST_MODEL (self->single_selection);
   guint n_items = g_list_model_get_n_items (model);
   guint selected;
-  int new_pos;
+  gint new_pos;
 
   if (n_items == 0)
     return NULL;

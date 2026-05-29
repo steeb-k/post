@@ -80,9 +80,9 @@ on_bind_folder (GtkListItemFactory *factory,
   g_autoptr (GSettings) account_settings = NULL;
   g_autofree char *settings_path = NULL;
   GtkWidget *row_widget;
-  int indent_size = 20;
+  gint indent_size = 20;
   guint depth;
-  int margin;
+  gint margin;
 
   expander = gtk_list_item_get_child (list_item);
   row = GTK_TREE_LIST_ROW (gtk_list_item_get_item (list_item));
@@ -98,7 +98,7 @@ on_bind_folder (GtkListItemFactory *factory,
   if (STAMP_IS_BOOK_ITEM (item)) {
     if (!self->already_selected) {
       EClient *client = stamp_book_item_get_client (STAMP_BOOK_ITEM (item));
-      const char *full_name = e_source_get_display_name (e_client_get_source (client));
+      const gchar *full_name = e_source_get_display_name (e_client_get_source (client));
       g_autofree char *account_name = NULL;
       g_autofree char *book_name = NULL;
 
@@ -149,7 +149,7 @@ on_selection_changed (GtkSelectionModel *selection,
   if (STAMP_IS_BOOK_ITEM (item)) {
     StampAccount *account = stamp_item_get_account (item);
     EClient *client = stamp_book_item_get_client (STAMP_BOOK_ITEM (item));
-    const char *full_name = e_source_get_display_name (e_client_get_source (client));
+    const gchar *full_name = e_source_get_display_name (e_client_get_source (client));
 
     g_settings_set (self->settings, "selected-book", "(ss)", stamp_account_get_name (account), full_name);
     g_signal_emit (self, signals[BOOK_SELECTED], 0, account, stamp_book_item_get_client (STAMP_BOOK_ITEM (item)));

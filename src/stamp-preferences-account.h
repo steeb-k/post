@@ -38,6 +38,6 @@ GtkWidget *
 stamp_preferences_account_new (StampAccount *account);
 
 GtkWidget *
-stamp_preferences_account_editor_new (StampAccount *account, const char *email, const char *name);
+stamp_preferences_account_editor_new (StampAccount *account, const gchar *email, const gchar *name);
 
 G_END_DECLS

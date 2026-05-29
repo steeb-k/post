@@ -79,7 +79,7 @@ stamp_window_dispose (GObject *object)
 {
   StampWindow *self = STAMP_WINDOW (object);
   StampSession *session = stamp_session_get_default ();
-  const char *view;
+  const gchar *view;
 
   view = adw_view_stack_get_visible_child_name (self->main_view_stack);
   if (view)
@@ -137,14 +137,14 @@ stamp_window_init (StampWindow *self)
 
 void
 stamp_window_search_contact (StampWindow *self,
-                             const char  *mail)
+                             const gchar  *mail)
 {
   stamp_mail_view_search_contact (self->mail_view, mail);
 }
 
 void
 stamp_window_show_contact (StampWindow *self,
-                           const char  *mail)
+                           const gchar  *mail)
 {
   stamp_contact_view_show_contact (self->contact_view, mail);
   adw_view_stack_set_visible_child_name (self->main_view_stack, "contacts");

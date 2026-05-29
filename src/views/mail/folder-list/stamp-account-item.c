@@ -52,7 +52,7 @@ static gint signals[LAST_SIGNAL] = { 0 };
 
 static StampFolderItem *
 stamp_account_item_find_item (GListStore *store,
-                              const char *full_name)
+                              const gchar *full_name)
 {
   guint list_len = g_list_model_get_n_items (G_LIST_MODEL (store));
 
@@ -267,7 +267,7 @@ on_offline_store_folder_changed (CamelOfflineStore *store,
 static gboolean
 stamp_account_item_find_and_delete_item (StampAccountItem *self,
                                          GListStore       *store,
-                                         const char       *full_name)
+                                         const gchar       *full_name)
 {
   guint list_len = g_list_model_get_n_items (G_LIST_MODEL (store));
 
@@ -305,7 +305,7 @@ on_offline_store_folder_deleted (CamelOfflineStore *store,
                                  gpointer           user_data)
 {
   StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data);
-  const char *full_name = object->full_name;
+  const gchar *full_name = object->full_name;
   GListStore *list_store = stamp_item_get_list_store (STAMP_ITEM (self));
 
   stamp_account_item_find_and_delete_item (self, list_store, full_name);
@@ -422,7 +422,7 @@ create_queue (StampAccountItem *self,
     g_autoptr (StampFolderItem) folder_item = STAMP_FOLDER_ITEM (g_list_model_get_item (G_LIST_MODEL (store), idx));
     GListStore *child_store = stamp_item_get_list_store (STAMP_ITEM (folder_item));
     CamelFolder *folder = stamp_folder_item_get_folder (folder_item);
-    const char *full_name;
+    const gchar *full_name;
 
     /* First process child folders if present */
     if (child_store) {
@@ -470,7 +470,7 @@ find_priority_folder_item (StampAccountItem *self)
 
   for (iter = self->refresh_queue->head; iter; iter = g_list_next (iter)) {
     StampFolderItem *folder_item = STAMP_FOLDER_ITEM (iter->data);
-    const char *full_name = stamp_folder_item_get_full_name (folder_item);
+    const gchar *full_name = stamp_folder_item_get_full_name (folder_item);
 
     if (g_str_has_prefix (full_name, "INBOX") ||
         g_strcmp0 (full_name, "Inbox") == 0 ||

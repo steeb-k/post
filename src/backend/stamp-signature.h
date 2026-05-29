@@ -28,20 +28,20 @@ typedef struct _StampSignature StampSignature;
 
 void
 stamp_signature_save (StampSignature *signature,
-                      char           *html_signature);
+                      gchar           *html_signature);
 
 void
 stamp_signature_clear (gpointer user_data);
 
 StampSignature *
 stamp_signature_new (ESource    *source,
-                     const char *mime_type,
-                     const char *content);
+                     const gchar *mime_type,
+                     const gchar *content);
 
-const char *
+const gchar *
 stamp_signature_get_mime_type (StampSignature *self);
 
-const char *
+const gchar *
 stamp_signature_get_content (StampSignature *self);
 
 G_END_DECLS

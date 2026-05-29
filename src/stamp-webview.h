@@ -37,16 +37,16 @@ stamp_webview_new (void);
 
 void
 stamp_webview_load_html (StampWebView *self,
-                         char         *content);
+                         gchar         *content);
 
 void
 stamp_webview_add_internal_resource (StampWebView *self,
-                                     const char   *id,
+                                     const gchar   *id,
                                      GInputStream *stream);
 
 void
 stamp_webview_load_plain_text (StampWebView *self,
-                               char         *content);
+                               gchar         *content);
 
 void
 stamp_webview_get_body_html (StampWebView        *self,
@@ -54,22 +54,22 @@ stamp_webview_get_body_html (StampWebView        *self,
                              GAsyncReadyCallback  callback,
                              gpointer             user_data);
 
-char *
+gchar *
 stamp_webview_get_body_html_finish (StampWebView  *self,
                                     GAsyncResult  *res,
-                                    char         **out_plain_text,
+                                    gchar         **out_plain_text,
                                     GError       **error);
 
 void
 stamp_web_view_set_body_content (StampWebView *self,
-                                 char         *content);
+                                 gchar         *content);
 
 void
 stamp_web_view_load_images (StampWebView *self);
 
 void
 stamp_web_view_query_command_state (StampWebView        *self,
-                                    const char          *command,
+                                    const gchar          *command,
                                     GCancellable        *cancellable,
                                     GAsyncReadyCallback  callback,
                                     gpointer             user_data);
@@ -81,8 +81,8 @@ stamp_web_view_query_command_state_finish (GObject       *source,
 
 void
 stamp_web_view_execute_editor_command (StampWebView *self,
-                                       const char   *command,
-                                       const char   *argument);
+                                       const gchar   *command,
+                                       const gchar   *argument);
 
 void
 stamp_web_view_get_size (StampWebView *self,

@@ -33,17 +33,17 @@ stamp_tag_new (StampAccount *account);
 
 void
 stamp_tag_set_label (StampTag   *self,
-                     const char *label);
+                     const gchar *label);
 
 
-const char *
+const gchar *
 stamp_tag_get_label (StampTag *self);
 
 void
 stamp_tag_set_mail (StampTag   *self,
-                     const char *mail);
+                     const gchar *mail);
 
-const char *
+const gchar *
 stamp_tag_get_mail (StampTag *self);
 
 void

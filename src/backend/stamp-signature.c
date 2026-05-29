@@ -20,9 +20,9 @@
 #include "stamp-signature.h"
 
 struct _StampSignature {
-  char *name;
-  char *mime_type;
-  char *content;
+  gchar *name;
+  gchar *mime_type;
+  gchar *content;
   ESource *source;
   GCancellable *cancellable;
 };
@@ -45,7 +45,7 @@ on_signature_replace (GObject      *source_object,
 
 void
 stamp_signature_save (StampSignature *self,
-                      char           *html_signature)
+                      gchar           *html_signature)
 {
   ESourceMailSignature *ext;
 
@@ -79,8 +79,8 @@ stamp_signature_clear (gpointer user_data)
 
 StampSignature *
 stamp_signature_new (ESource    *source,
-                     const char *mime_type,
-                     const char *content)
+                     const gchar *mime_type,
+                     const gchar *content)
 {
   StampSignature *self = g_new0 (StampSignature, 1);
 
@@ -93,14 +93,14 @@ stamp_signature_new (ESource    *source,
   return self;
 }
 
-const char *
+const gchar *
 stamp_signature_get_mime_type (StampSignature *self)
 {
   g_assert (self);
   return self->mime_type;
 }
 
-const char *
+const gchar *
 stamp_signature_get_content (StampSignature *self)
 {
   g_assert (self);

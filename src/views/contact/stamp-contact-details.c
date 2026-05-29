@@ -84,7 +84,7 @@ stamp_contact_details_class_init (StampContactDetailsClass *klass)
 
 static void
 add_mail_row (GtkWidget *list_box,
-              char      *mail)
+              gchar      *mail)
 {
   GtkWidget *row;
   g_autofree char *markup = g_markup_escape_text (mail, -1);
@@ -107,8 +107,8 @@ add_mail_row (GtkWidget *list_box,
 
 static void
 add_phone_row (GtkWidget  *list_box,
-               const char *type,
-               const char *number)
+               const gchar *type,
+               const gchar *number)
 {
   GtkWidget *row;
   g_autoptr (GError) error = NULL;
@@ -180,12 +180,12 @@ static struct {
 
 static void
 add_org_row (GtkWidget  *list_box,
-             const char *icon,
-             const char *type,
-             const char *text)
+             const gchar *icon,
+             const gchar *type,
+             const gchar *text)
 {
   GtkWidget *row;
-  char *markup = g_markup_escape_text (text, -1);
+  gchar *markup = g_markup_escape_text (text, -1);
 
   row = adw_action_row_new ();
   adw_preferences_row_set_title_selectable (ADW_PREFERENCES_ROW (row), TRUE);
@@ -216,7 +216,7 @@ stamp_contact_details_show (StampContactDetails *self,
   g_autofree char *name = NULL;
   g_autoptr (EContactDate) birthdate = NULL;
   g_autoptr (EContactAddress) address = NULL;
-  const char *item_mail;
+  const gchar *item_mail;
   EContact *e_contact;
   GList *mails;
   gboolean mail_added = FALSE;
@@ -264,8 +264,8 @@ stamp_contact_details_show (StampContactDetails *self,
   /* Phone */
   gtk_list_box_remove_all (GTK_LIST_BOX (self->phone));
 
-  for (int idx = 0; idx < G_N_ELEMENTS (phones); idx++) {
-    const char *number = e_contact_get_const (e_contact, phones[idx].field);
+  for (gint idx = 0; idx < G_N_ELEMENTS (phones); idx++) {
+    const gchar *number = e_contact_get_const (e_contact, phones[idx].field);
 
     if (number && strlen (number) > 0) {
       add_phone_row (self->phone, phones[idx].name, number);
@@ -302,8 +302,8 @@ stamp_contact_details_show (StampContactDetails *self,
   /* Org */
   gtk_list_box_remove_all (GTK_LIST_BOX (self->address));
 
-  for (int idx = 0; idx < G_N_ELEMENTS (org); idx++) {
-    const char *text = e_contact_get_const (e_contact, org[idx].field);
+  for (gint idx = 0; idx < G_N_ELEMENTS (org); idx++) {
+    const gchar *text = e_contact_get_const (e_contact, org[idx].field);
 
     if (text && strlen (text) > 0) {
       add_org_row (self->address, org[idx].icon, org[idx].name, text);

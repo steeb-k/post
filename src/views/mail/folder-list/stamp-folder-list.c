@@ -66,7 +66,7 @@ on_selection_changed (GtkSelectionModel *selection,
 
   if (STAMP_IS_FOLDER_ITEM (item)) {
     StampAccount *account = stamp_item_get_account (item);
-    const char *full_name = stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item));
+    const gchar *full_name = stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item));
 
     g_settings_set (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_SELECTED_FOLDER, "(ss)", stamp_account_get_name (account), full_name);
 
@@ -78,10 +78,10 @@ static void
 insert_item (StampFolderList  *self,
              StampAccountItem *item)
 {
-  char **saved_order = g_settings_get_strv (STAMP_SETTINGS, STAMP_PREFS_ACCOUNT_ORDER);
-  int pos = -1;
-  int saved_pos = 0;
-  const char *name = stamp_item_get_name (STAMP_ITEM (item));
+  gchar **saved_order = g_settings_get_strv (STAMP_SETTINGS, STAMP_PREFS_ACCOUNT_ORDER);
+  gint pos = -1;
+  gint saved_pos = 0;
+  const gchar *name = stamp_item_get_name (STAMP_ITEM (item));
 
   while (saved_order[saved_pos]) {
     if (g_strcmp0 (name, saved_order[saved_pos]) == 0) {
@@ -94,19 +94,19 @@ insert_item (StampFolderList  *self,
   if (pos == -1) {
     g_list_store_append (self->list_store, item);
   } else {
-    int insert_index = 0;
+    gint insert_index = 0;
     guint list_len = g_list_model_get_n_items (G_LIST_MODEL (self->list_store));
 
     for (guint idx = 0; idx < list_len; idx++) {
       StampItem *cur_item = g_list_model_get_item (G_LIST_MODEL (self->list_store), idx);
-      const char *cur_name;
+      const gchar *cur_name;
 
       if (!STAMP_IS_ACCOUNT_ITEM (cur_item))
         continue;
 
       cur_name = stamp_item_get_name (cur_item);
 
-      for (int j = 0; j < pos; j++)
+      for (gint j = 0; j < pos; j++)
         if (g_strcmp0 (saved_order[j], cur_name) == 0)
           insert_index++;
     }
@@ -185,9 +185,9 @@ on_stamp_folder_list_account_removed (GObject      *object,
                                       gpointer      user_data)
 {
   StampFolderList *self = STAMP_FOLDER_LIST (user_data);
-  int len = g_list_model_get_n_items (G_LIST_MODEL (self->list_store));
+  gint len = g_list_model_get_n_items (G_LIST_MODEL (self->list_store));
 
-  for (int idx = 0; idx < len; idx++) {
+  for (gint idx = 0; idx < len; idx++) {
     g_autoptr (StampItem) item = STAMP_ITEM (g_list_model_get_item (G_LIST_MODEL (self->list_store), idx));
 
     if (!STAMP_IS_ACCOUNT_ITEM (item))
@@ -211,7 +211,7 @@ on_row_expanded (GtkTreeListRow *row,
   g_autoptr (GSettings) account_settings = NULL;
   g_auto (GStrv) folders = NULL;
   g_auto (GStrv) new_folders = NULL;
-  const char *full_name = stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item));
+  const gchar *full_name = stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item));
 
   settings_path = g_strconcat ("/org/tabos/stamp/mail/accounts/", stamp_account_get_name (account), "/", NULL);
   account_settings = g_settings_new_with_path ("org.tabos.stamp.mail.accounts", settings_path);
@@ -248,9 +248,9 @@ on_bind_folder (GtkListItemFactory *factory,
   g_autoptr (GSettings) account_settings = NULL;
   g_autofree char *settings_path = NULL;
   GtkWidget *row_widget;
-  int indent_size = 20;
+  gint indent_size = 20;
   guint depth;
-  int margin;
+  gint margin;
 
   expander = gtk_list_item_get_child (list_item);
   row = GTK_TREE_LIST_ROW (gtk_list_item_get_item (list_item));
@@ -270,7 +270,7 @@ on_bind_folder (GtkListItemFactory *factory,
   account_settings = g_settings_new_with_path ("org.tabos.stamp.mail.accounts", settings_path);
 
   if (STAMP_IS_FOLDER_ITEM (item)) {
-    const char *full_name = stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item));
+    const gchar *full_name = stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item));
     g_auto (GStrv) expanded_folders = g_settings_get_strv (account_settings, "expanded-folders");
 
     if (!self->already_selected) {
@@ -338,8 +338,8 @@ folders_sorter (gconstpointer a,
     gint type_b = flags_b & CAMEL_FOLDER_TYPE_MASK;
 
     if (type_a == type_b) {
-      const char *name_a = stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item_a));
-      const char *name_b = stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item_b));
+      const gchar *name_a = stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item_a));
+      const gchar *name_b = stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item_b));
 
       return g_strcmp0 (name_a, name_b);
     }
@@ -369,9 +369,9 @@ folders_sorter (gconstpointer a,
 
 static void
 on_row_released (GtkGestureClick *gesture,
-                 int              n_press,
-                 double           x,
-                 double           y,
+                 gint              n_press,
+                 gdouble           x,
+                 gdouble           y,
                  gpointer         user_data)
 {
   GtkListItem *list_item = GTK_LIST_ITEM (user_data);
@@ -393,8 +393,8 @@ on_row_released (GtkGestureClick *gesture,
 
 static GdkContentProvider *
 on_drag_prepare (GtkDragSource *source,
-                 double         x,
-                 double         y,
+                 gdouble         x,
+                 gdouble         y,
                  gpointer       user_data)
 {
   GtkListItem *list_item = GTK_LIST_ITEM (user_data);
@@ -436,7 +436,7 @@ save_account_order (StampFolderList *self)
   GListStore *store = self->list_store;
   guint n = g_list_model_get_n_items (G_LIST_MODEL (store));
   g_auto (GStrv) arr = g_new (gchar *, n + 1);
-  int array_index = 0;
+  gint array_index = 0;
 
   for (guint i = 0; i < n; i++) {
     gpointer it = g_list_model_get_item (G_LIST_MODEL (store), i);
@@ -455,8 +455,8 @@ save_account_order (StampFolderList *self)
 static gboolean
 on_drop (GtkDropTarget *target,
          const GValue  *value,
-         double         x,
-         double         y,
+         gdouble         x,
+         gdouble         y,
          gpointer       user_data)
 {
   StampFolderList *self = STAMP_FOLDER_LIST (user_data);

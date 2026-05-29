@@ -100,7 +100,7 @@ stamp_conversation_list_store_remove_all (StampConversationListStore *self)
     return;
 
   removed = self->data->len;
-  for (int idx = self->data->len - 1; idx >= 0; idx--) {
+  for (gint idx = self->data->len - 1; idx >= 0; idx--) {
     g_ptr_array_remove_index (self->data, idx);
   }
 

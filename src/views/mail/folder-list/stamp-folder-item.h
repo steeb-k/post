@@ -37,7 +37,7 @@ stamp_folder_item_new (StampAccount    *account,
 CamelFolder *
 stamp_folder_item_get_folder (StampFolderItem *self);
 
-const char *
+const gchar *
 stamp_folder_item_get_full_name (StampFolderItem *self);
 
 void

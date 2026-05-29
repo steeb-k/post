@@ -25,12 +25,12 @@
 #include "stamp-application.h"
 #include "stamp-settings.h"
 
-int
-main (int    argc,
-      char **argv)
+gint
+main (gint    argc,
+      gchar **argv)
 {
   g_autoptr (StampApplication) app = NULL;
-  int ret;
+  gint ret;
 
   bindtextdomain (GETTEXT_PACKAGE, LOCALEDIR);
   bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");

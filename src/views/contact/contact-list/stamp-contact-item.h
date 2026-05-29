@@ -30,22 +30,22 @@ G_DECLARE_FINAL_TYPE (StampContactItem, stamp_contact_item, STAMP, CONTACT_ITEM,
 StampContactItem *
 stamp_contact_item_new (EContact *c);
 
-const char *
+const gchar *
 stamp_contact_item_get_name (StampContactItem *self);
 
-const char *
+const gchar *
 stamp_contact_item_get_given_name (StampContactItem *self);
 
-const char *
+const gchar *
 stamp_contact_item_get_family_name (StampContactItem *self);
 
-const char *
+const gchar *
 stamp_contact_item_get_mail (StampContactItem *self);
 
-const char *
+const gchar *
 stamp_contact_item_get_org (StampContactItem *self);
 
-const char *
+const gchar *
 stamp_contact_item_get_office (StampContactItem *self);
 
 EContact *
