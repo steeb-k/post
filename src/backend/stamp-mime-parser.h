@@ -50,7 +50,7 @@ typedef enum {
   STAMP_MIME_ATTACHMENT_CALENDAR = 0x04,
   STAMP_MIME_ATTACHMENT_PGP_KEY = 0x08,
   STAMP_MIME_ATTACHMENT_INVITATION = 0x10,
-} StampMimeAttachmentKind;
+} G_GNUC_FLAG_ENUM StampMimeAttachmentKind;
 
 typedef struct {
   char *name;
