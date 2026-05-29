@@ -415,8 +415,8 @@ create_queue (StampAccountItem *self,
               GListStore       *store)
 {
   guint len = g_list_model_get_n_items (G_LIST_MODEL (store));
-  GPtrArray *priority_folders = g_ptr_array_new ();
-  GPtrArray *normal_folders = g_ptr_array_new ();
+  g_autoptr (GPtrArray) priority_folders = g_ptr_array_new ();
+  g_autoptr (GPtrArray) normal_folders = g_ptr_array_new ();
 
   for (guint idx = 0; idx < len; idx++) {
     g_autoptr (StampFolderItem) folder_item = STAMP_FOLDER_ITEM (g_list_model_get_item (G_LIST_MODEL (store), idx));
@@ -458,9 +458,6 @@ create_queue (StampAccountItem *self,
     StampFolderItem *folder_item = normal_folders->pdata[idx];
     g_queue_push_tail (self->refresh_queue, g_object_ref (folder_item));
   }
-
-  g_ptr_array_free (priority_folders, TRUE);
-  g_ptr_array_free (normal_folders, TRUE);
 }
 
 static StampFolderItem *

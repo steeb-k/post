@@ -182,12 +182,12 @@ static GPtrArray *
 stamp_session_load_accounts_from_registry (ESourceRegistry *registry)
 {
   GPtrArray *accounts = g_ptr_array_new_with_free_func (g_object_unref);
-  GList *collections = e_source_registry_list_sources (registry, E_SOURCE_EXTENSION_COLLECTION);
+  g_autolist (ESource) collections = e_source_registry_list_sources (registry, E_SOURCE_EXTENSION_COLLECTION);
 
   for (GList *l = collections; l; l = l->next) {
     ESource *col = E_SOURCE (l->data);
     StampAccount *account = stamp_account_new (col, registry);
-    GList *children;
+    g_autolist (ESource) children = NULL;
 
     g_debug ("%s: %s", G_STRFUNC, e_source_get_display_name (col));
 
@@ -215,12 +215,10 @@ stamp_session_load_accounts_from_registry (ESourceRegistry *registry)
         g_debug ("  (Task List)");
       }
     }
-    g_list_free_full (children, g_object_unref);
 
     g_ptr_array_add (accounts, account);
   }
 
-  g_list_free_full (collections, g_object_unref);
   return accounts;
 }
 
@@ -439,7 +437,7 @@ authenticate_sync (CamelSession  *session,
    * but can fall back to a user password.  Handle that case next. */
   if (mechanism != NULL) {
     CamelProvider *provider;
-    CamelSasl *sasl;
+    g_autoptr (CamelSasl) sasl = NULL;
     const gchar *service_name;
 
     provider = camel_service_get_provider (service);
@@ -461,7 +459,6 @@ authenticate_sync (CamelSession  *session,
       try_empty_password =
         camel_sasl_try_empty_password_sync (
           sasl, cancellable, &local_error);
-      g_object_unref (sasl);
     }
   }
 

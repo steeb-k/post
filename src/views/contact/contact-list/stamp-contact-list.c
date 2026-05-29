@@ -87,7 +87,7 @@ on_get_contacts (GObject      *object,
 {
   StampContactList *self = STAMP_CONTACT_LIST (user_data);
   EBookClient *client = E_BOOK_CLIENT (object);
-  GSList *contacts = NULL;
+  g_autoslist (EContact) contacts = NULL;
   g_autoptr (GError) error = NULL;
   guint old;
 
@@ -113,8 +113,6 @@ on_get_contacts (GObject      *object,
   }
 
   g_list_model_items_changed (G_LIST_MODEL (self->list_store), 0, old, g_list_model_get_n_items (G_LIST_MODEL (self->list_store)));
-
-  g_slist_free_full (contacts, g_object_unref);
 }
 
 void

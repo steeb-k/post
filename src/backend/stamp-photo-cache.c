@@ -412,7 +412,7 @@ stamp_on_contacts_received (GObject      *source,
         if (texture)
           stamp_disk_cache_store (cache, pending->email, photo->data.inlined.data, photo->data.inlined.length);
       } else if (photo->type == E_CONTACT_PHOTO_TYPE_URI) {
-        GFile *file = g_file_new_for_uri (photo->data.uri);
+        g_autoptr (GFile) file = g_file_new_for_uri (photo->data.uri);
 
         texture = gdk_texture_new_from_file (file, &error);
         if (texture) {
@@ -424,8 +424,6 @@ stamp_on_contacts_received (GObject      *source,
         } else {
           g_warning ("%s: Could not load photo from uri '%s': %s", G_STRFUNC, photo->data.uri, error->message);
         }
-
-        g_object_unref (file);
       }
 
       e_contact_photo_free (photo);

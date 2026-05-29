@@ -353,15 +353,11 @@ apply_crypto (CamelSession         *session,
   g_autoptr (GError) error = NULL;
 
   if (pgp_sign || pgp_encrypt) {
-    CamelCipherContext *cipher;
+    g_autoptr (CamelCipherContext) cipher = camel_gpg_context_new (session);
+    g_autoptr (CamelMimePart) opart = camel_mime_part_new ();
     CamelMimePart *ipart;
-    CamelMimePart *opart;
-    GPtrArray *recipients_list;
-
-    cipher = camel_gpg_context_new (session);
 
     ipart = CAMEL_MIME_PART (mime_message);
-    opart = camel_mime_part_new ();
 
     if (pgp_sign) {
       gboolean success = camel_cipher_context_sign_sync (cipher, NULL, CAMEL_CIPHER_HASH_SHA256,
@@ -382,8 +378,8 @@ apply_crypto (CamelSession         *session,
 
     if (pgp_encrypt && !error) {
       gboolean success;
+      g_autoptr (GPtrArray) recipients_list = g_ptr_array_new ();
 
-      recipients_list = g_ptr_array_new ();
       for (gint i = 0; i < camel_address_length (CAMEL_ADDRESS (recipient)); i++) {
         const gchar *r_name, *r_mail;
         if (camel_internet_address_get (recipient, i, &r_name, &r_mail) && r_mail) {
@@ -394,8 +390,6 @@ apply_crypto (CamelSession         *session,
       success = camel_cipher_context_encrypt_sync (cipher, NULL, recipients_list,
                                                    ipart, opart,
                                                    cancellable, &error);
-      g_ptr_array_free (recipients_list, TRUE);
-
       if (!success || error) {
         if (error) {
           g_warning ("PGP encryption failed: %s", error->message);
@@ -405,23 +399,17 @@ apply_crypto (CamelSession         *session,
         g_object_unref (mime_message);
         mime_message = CAMEL_MIME_MESSAGE (opart);
       }
-    } else {
-      g_object_unref (opart);
     }
 
     g_object_unref (cipher);
   }
 
   if (smime_sign || smime_encrypt) {
-    CamelCipherContext *cipher;
+    g_autoptr (CamelCipherContext) cipher = camel_smime_context_new (session);
+    g_autoptr (CamelMimePart) opart = camel_mime_part_new ();
     CamelMimePart *ipart;
-    CamelMimePart *opart;
-    GPtrArray *recipients_list;
-
-    cipher = camel_smime_context_new (session);
 
     ipart = CAMEL_MIME_PART (mime_message);
-    opart = camel_mime_part_new ();
 
     if (smime_sign) {
       gboolean success = camel_cipher_context_sign_sync (cipher, NULL, CAMEL_CIPHER_HASH_SHA256,
@@ -441,9 +429,9 @@ apply_crypto (CamelSession         *session,
     }
 
     if (smime_encrypt && !error) {
+      g_autoptr (GPtrArray) recipients_list = g_ptr_array_new ();
       gboolean success;
 
-      recipients_list = g_ptr_array_new ();
       for (gint i = 0; i < camel_address_length (CAMEL_ADDRESS (recipient)); i++) {
         const gchar *r_name, *r_mail;
         if (camel_internet_address_get (recipient, i, &r_name, &r_mail) && r_mail) {
@@ -454,8 +442,6 @@ apply_crypto (CamelSession         *session,
       success = camel_cipher_context_encrypt_sync (cipher, NULL, recipients_list,
                                                    ipart, opart,
                                                    cancellable, &error);
-      g_ptr_array_free (recipients_list, TRUE);
-
       if (!success || error) {
         if (error) {
           g_warning ("S/MIME encryption failed: %s", error->message);
@@ -465,11 +451,7 @@ apply_crypto (CamelSession         *session,
         g_object_unref (mime_message);
         mime_message = CAMEL_MIME_MESSAGE (opart);
       }
-    } else {
-      g_object_unref (opart);
     }
-
-    g_object_unref (cipher);
   }
 }
 
