@@ -118,8 +118,7 @@ on_folder_selected (GtkWidget    *object,
 
   close_overlay_sidebar (self);
 
-  g_clear_object (&self->account);
-  self->account = g_object_ref (account);
+  g_set_object (&self->account, account);
   stamp_conversation_list_load_folder (self->conversation_list, account, full_name);
 }
 

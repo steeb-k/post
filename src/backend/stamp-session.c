@@ -605,8 +605,7 @@ get_oauth2_access_token_sync (CamelSession  *session,
 
   cred_source = e_source_registry_find_extension (self->registry, source, E_SOURCE_EXTENSION_COLLECTION);
   if (!cred_source || !e_util_can_use_collection_as_credential_source (cred_source, source)) {
-    g_clear_object (&cred_source);
-    cred_source = g_object_ref (source);
+    g_set_object (&cred_source, source);
   }
 
   success = e_source_get_oauth2_access_token_sync (cred_source, cancellable, out_access_token, out_expires_in, &local_error);
