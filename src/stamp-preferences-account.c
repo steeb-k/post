@@ -178,9 +178,6 @@ stamp_preferences_account_get_property (GObject    *object,
     case PROP_ACCOUNT:
       g_value_set_object (value, self->account);
       break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
-      break;
   }
 }
 
@@ -195,9 +192,6 @@ stamp_preferences_account_set_property (GObject      *object,
   switch ((StampPreferencesAccountProps) property_id) {
     case PROP_ACCOUNT:
       set_account (self, g_value_get_object (value));
-      break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
   }
 }
