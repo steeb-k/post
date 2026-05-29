@@ -573,7 +573,7 @@ image_format_from_subtype (const char *subtype)
   if (!subtype)
     return g_strdup ("unknown");
 
-  if (strcmp (subtype, "jpg") == 0)
+  if (g_strcmp0 (subtype, "jpg") == 0)
     return g_strdup ("jpeg");
 
   return g_strdup (subtype);
@@ -676,7 +676,7 @@ handle_attachment (StampMimeParser *self,
   sub_lc[i] = '\0';
 
   PARSER_LOG ("type_lc %s, sub %s", type_lc, sub_lc);
-  if (strcmp (type_lc, "application") == 0 && (strcmp (sub_lc, "pgp-encrypted") == 0 || strcmp (sub_lc, "pgp-signature") == 0 || strcmp (sub_lc, "pkcs7-signature") == 0 || strcmp (sub_lc, "x-pkcs7-signature") == 0))
+  if (g_strcmp0 (type_lc, "application") == 0 && (g_strcmp0 (sub_lc, "pgp-encrypted") == 0 || strcmp (sub_lc, "pgp-signature") == 0 || strcmp (sub_lc, "pkcs7-signature") == 0 || strcmp (sub_lc, "x-pkcs7-signature") == 0))
     return;
 
   ba = decode_part_to_bytes (part, NULL);
@@ -698,9 +698,9 @@ handle_attachment (StampMimeParser *self,
 
   disp = camel_mime_part_get_disposition (part);
   PARSER_LOG ("disposition: %s", disp);
-  att->is_inline = (disp && strcmp (disp, "inline") == 0);
+  att->is_inline = (disp && g_strcmp0 (disp, "inline") == 0);
 
-  if (strcmp (type_lc, "application") == 0 && strcmp (sub_lc, "octet-stream") == 0) {
+  if (g_strcmp0 (type_lc, "application") == 0 && g_strcmp0 (sub_lc, "octet-stream") == 0) {
     const char *guessed = NULL;
 
     att->mime_type = g_strdup (guessed ? guessed : "application/octet-stream");
@@ -708,13 +708,13 @@ handle_attachment (StampMimeParser *self,
     att->mime_type = camel_content_type_simple (content_type);
   }
 
-  if (strcmp (type_lc, "image") == 0) {
+  if (g_strcmp0 (type_lc, "image") == 0) {
     att->kind = STAMP_MIME_ATTACHMENT_IMAGE;
     att->image_format = image_format_from_subtype (sub_lc);
     att->content_id = g_strdup (camel_mime_part_get_content_id (part));
-    if (att->mime_type && strcmp (disp ? disp : "", "attachment") != 0)
+    if (att->mime_type && g_strcmp0 (disp ? disp : "", "attachment") != 0)
       att->is_inline = TRUE;
-  } else if ((strcmp (type_lc, "application") == 0 && strcmp (sub_lc, "ics") == 0) || (strcmp (type_lc, "text") == 0 && strcmp (sub_lc, "calendar") == 0)) {
+  } else if ((g_strcmp0 (type_lc, "application") == 0 && g_strcmp0 (sub_lc, "ics") == 0) || (strcmp (type_lc, "text") == 0 && strcmp (sub_lc, "calendar") == 0)) {
     att->kind = STAMP_MIME_ATTACHMENT_CALENDAR;
     att->calendar_method = calendar_method_from_part (part);
     if (att->calendar_method) {
@@ -722,7 +722,7 @@ handle_attachment (StampMimeParser *self,
       create_calendar (self, att);
     }
     PARSER_LOG ("Calendar %s, internal %d, filename %s, size %ld\n", att->calendar_method, att->is_inline, att->filename, att->size);
-  } else if (strcmp (type_lc, "application") == 0 && strcmp (sub_lc, "pgp-keys") == 0) {
+  } else if (g_strcmp0 (type_lc, "application") == 0 && g_strcmp0 (sub_lc, "pgp-keys") == 0) {
     att->kind = STAMP_MIME_ATTACHMENT_PGP_KEY;
     att->is_inline = FALSE;
   } else {
