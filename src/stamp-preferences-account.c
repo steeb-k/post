@@ -38,13 +38,11 @@ struct _StampPreferencesAccount {
 
 G_DEFINE_FINAL_TYPE (StampPreferencesAccount, stamp_preferences_account, ADW_TYPE_NAVIGATION_PAGE);
 
-enum {
-  PROP_0,
-  PROP_ACCOUNT,
-  LAST_PROP
-};
+typedef enum {
+  PROP_ACCOUNT = 1,
+} StampPreferencesAccountProps;
 
-static GParamSpec *props[LAST_PROP] = { NULL, };
+static GParamSpec *props[PROP_ACCOUNT + 1] = { NULL, };
 
 static void on_alias_edit_clicked (GtkWidget *button,
                                    gpointer   user_data);
@@ -176,7 +174,7 @@ stamp_preferences_account_get_property (GObject    *object,
 {
   StampPreferencesAccount *self = STAMP_PREFERENCES_ACCOUNT (object);
 
-  switch (property_id) {
+  switch ((StampPreferencesAccountProps) property_id) {
     case PROP_ACCOUNT:
       g_value_set_object (value, self->account);
       break;
@@ -194,7 +192,7 @@ stamp_preferences_account_set_property (GObject      *object,
 {
   StampPreferencesAccount *self = STAMP_PREFERENCES_ACCOUNT (object);
 
-  switch (property_id) {
+  switch ((StampPreferencesAccountProps) property_id) {
     case PROP_ACCOUNT:
       set_account (self, g_value_get_object (value));
       break;
@@ -239,7 +237,7 @@ stamp_preferences_account_class_init (StampPreferencesAccountClass *klass)
                                              STAMP_TYPE_ACCOUNT,
                                              G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_properties (gobject_class, LAST_PROP, props);
+  g_object_class_install_properties (gobject_class, G_N_ELEMENTS (props), props);
 }
 
 void

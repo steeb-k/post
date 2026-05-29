@@ -76,13 +76,11 @@ struct _StampComposer {
 
 G_DEFINE_FINAL_TYPE (StampComposer, stamp_composer, ADW_TYPE_APPLICATION_WINDOW);
 
-enum {
-  PROP_0,
-  PROP_ACCOUNT,
-  LAST_PROP
-};
+typedef enum {
+  PROP_ACCOUNT = 1,
+} StampComposerProps;
 
-static GParamSpec *props[LAST_PROP] = { NULL, };
+static GParamSpec *props[PROP_ACCOUNT + 1] = { NULL, };
 
 static void
 on_query_command (GObject      *source,
@@ -1261,7 +1259,7 @@ stamp_composer_get_property (GObject    *object,
 {
   StampComposer *self = STAMP_COMPOSER (object);
 
-  switch (property_id) {
+  switch ((StampComposerProps) property_id) {
     case PROP_ACCOUNT:
       g_value_set_object (value, self->composer_from);
       break;
@@ -1280,7 +1278,7 @@ stamp_composer_set_property (GObject      *object,
 {
   StampComposer *self = STAMP_COMPOSER (object);
 
-  switch (property_id) {
+  switch ((StampComposerProps) property_id) {
     case PROP_ACCOUNT:
       stamp_composer_set_composer_from_by_account (self, g_value_get_object (value));
       break;
@@ -1348,7 +1346,7 @@ stamp_composer_class_init (StampComposerClass *klass)
                                              STAMP_TYPE_ACCOUNT,
                                              G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_properties (object_class, LAST_PROP, props);
+  g_object_class_install_properties (object_class, G_N_ELEMENTS (props), props);
 }
 
 GtkWidget *
