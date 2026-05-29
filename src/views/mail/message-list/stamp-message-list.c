@@ -142,10 +142,9 @@ on_unsubscribe_clicked (GtkWidget *button,
 enum {
   SWITCH_CONVERSATION,
   NAVIGATE_BACK,
-  LAST_SIGNAL_SWITCH
 };
 
-static gint switch_signals[LAST_SIGNAL_SWITCH] = { 0 };
+static gint switch_signals[NAVIGATE_BACK + 1] = { 0 };
 
 static void
 on_carousel_page_changed (AdwCarousel *carousel,
