@@ -98,6 +98,9 @@ struct _StampConversationList {
 
   GSimpleActionGroup *actions;
   GMenu *cat_menu;
+  guint load_folder_handler;
+  guint load_more_items_handler;
+  guint scroll_to_top_handler;
 };
 
 G_DEFINE_FINAL_TYPE (StampConversationList, stamp_conversation_list, ADW_TYPE_BIN);
@@ -170,7 +173,8 @@ on_conversation_list_folder_changed (CamelFolder           *folder,
   }
 
   if ((changes->uid_added && changes->uid_added->len > 0) || (changes->uid_removed && changes->uid_removed->len > 0)) {
-    g_idle_add_once (load_folder_idle, self);
+    g_clear_handle_id (&self->load_folder_handler, g_source_remove);
+    self->load_folder_handler = g_idle_add_once (load_folder_idle, self);
   }
 }
 
@@ -454,7 +458,8 @@ on_get_folder (GObject      *source,
     gtk_list_view_scroll_to (GTK_LIST_VIEW (self->listview), 0, GTK_LIST_SCROLL_FOCUS, NULL);
 
   if (self->pending_load_count > 0) {
-    g_idle_add (load_more_items_idle, self);
+    g_clear_handle_id (&self->load_more_items_handler, g_source_remove);
+    self->load_more_items_handler = g_idle_add (load_more_items_idle, self);
   }
 }
 
@@ -471,6 +476,7 @@ load_more_items_idle (gpointer user_data)
   const gchar *service_uid;
 
   if (!self->thread || self->pending_load_count == 0) {
+    self->load_more_items_handler = 0;
     return G_SOURCE_REMOVE;
   }
 
@@ -505,6 +511,7 @@ load_more_items_idle (gpointer user_data)
     return G_SOURCE_CONTINUE;
   }
 
+  self->load_more_items_handler = 0;
   return G_SOURCE_REMOVE;
 }
 
@@ -1120,13 +1127,17 @@ scroll_to_top_idle (gpointer user_data)
 
   gtk_list_view_scroll_to (GTK_LIST_VIEW (self->listview), 0, GTK_LIST_SCROLL_NONE, NULL);
   gtk_widget_set_visible (self->scroll_to_top, FALSE);
+  self->scroll_to_top_handler = 0;
 }
 
 static void
 on_scroll_to_top (GtkButton *button,
                   gpointer   user_data)
 {
-  g_idle_add_once (scroll_to_top_idle, user_data);
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+
+  g_clear_handle_id (&self->scroll_to_top_handler, g_source_remove);
+  self->scroll_to_top_handler = g_idle_add_once (scroll_to_top_idle, user_data);
 }
 
 static void
@@ -1166,6 +1177,10 @@ stamp_conversation_list_dispose (GObject *object)
 
   g_cancellable_cancel (self->transfer_cancellable);
   g_clear_object (&self->transfer_cancellable);
+
+  g_clear_handle_id (&self->load_folder_handler, g_source_remove);
+  g_clear_handle_id (&self->load_more_items_handler, g_source_remove);
+  g_clear_handle_id (&self->scroll_to_top_handler, g_source_remove);
 
   g_clear_object (&self->thread);
   g_clear_object (&self->list_store);
@@ -1338,6 +1353,8 @@ load_folder_idle (gpointer user_data)
 {
   StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
   stamp_conversation_list_load_folder (self, self->account, self->full_name);
+
+  self->load_folder_handler = 0;
 }
 
 static void
@@ -1349,7 +1366,8 @@ on_drag_end (GtkGestureDrag *gesture,
   StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
 
   if (gtk_widget_get_margin_top (GTK_WIDGET (self->spinner)) >= 125) {
-    g_idle_add_once (load_folder_idle, self);
+    g_clear_handle_id (&self->load_folder_handler, g_source_remove);
+    self->load_folder_handler = g_idle_add_once (load_folder_idle, self);
   } else {
     gtk_widget_set_visible (self->spinner, FALSE);
     gtk_widget_set_margin_top (self->spinner, 12);

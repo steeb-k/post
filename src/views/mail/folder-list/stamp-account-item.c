@@ -36,6 +36,7 @@ struct _StampAccountItem {
   GQueue *refresh_queue;
   gboolean refresh_queue_running;
   gboolean first_refresh;
+  guint refresh_folder_handler;
 };
 
 G_DEFINE_FINAL_TYPE (StampAccountItem, stamp_account_item, STAMP_TYPE_ITEM);
@@ -148,7 +149,8 @@ on_get_folder_info (GObject      *source,
     stamp_account_item_connect_to_account (self);
 
     /* Defer folder refresh to give folder items time to load their folders */
-    g_idle_add (refresh_folder_main, self);
+    g_clear_handle_id (&self->refresh_folder_handler, g_source_remove);
+    self->refresh_folder_handler = g_idle_add (refresh_folder_main, self);
   }
 }
 
@@ -488,8 +490,10 @@ refresh_folder_main (gpointer user_data)
   GListStore *store;
   StampFolderItem *folder_item = NULL;
 
-  if (g_cancellable_is_cancelled (self->cancellable))
+  if (g_cancellable_is_cancelled (self->cancellable)) {
+    self->refresh_folder_handler = 0;
     return G_SOURCE_REMOVE;
+  }
 
   store = stamp_item_get_list_store (STAMP_ITEM (self));
 
@@ -531,6 +535,7 @@ refresh_folder_main (gpointer user_data)
     g_debug ("%s: Refresh already running, queue updated for next iteration", G_STRFUNC);
   }
 
+  self->refresh_folder_handler = 0;
   return G_SOURCE_REMOVE;
 }
 
@@ -603,6 +608,8 @@ stamp_account_item_dispose (GObject *object)
 
   g_cancellable_cancel (self->cancellable);
   g_clear_object (&self->cancellable);
+
+  g_clear_handle_id (&self->refresh_folder_handler, g_source_remove);
 
   g_clear_object (&self->offline_store);
 

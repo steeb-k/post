@@ -35,6 +35,7 @@ struct _StampWebView {
 
   cid_handler_func cid_handler;
   gpointer cid_handler_user_data;
+  guint page_size_timeout_handler;
 };
 
 G_DEFINE_FINAL_TYPE (StampWebView, stamp_webview, WEBKIT_TYPE_WEB_VIEW);
@@ -351,6 +352,8 @@ stamp_web_view_dispose (GObject *object)
 
   g_clear_object (&self->cancellable);
 
+  g_clear_handle_id (&self->page_size_timeout_handler, g_source_remove);
+
   g_clear_pointer (&self->queued_body_content, g_free);
   g_clear_pointer (&self->internal_resources, g_hash_table_unref);
 
@@ -522,7 +525,10 @@ stamp_web_view_set_body_content (StampWebView *self,
 static void
 request_page_size_timeout (gpointer user_data)
 {
-  request_page_size (STAMP_WEB_VIEW (user_data));
+  StampWebView *self = STAMP_WEB_VIEW (user_data);
+
+  request_page_size (self);
+  self->page_size_timeout_handler = 0;
 }
 
 static void
@@ -530,6 +536,7 @@ on_set_image_loading_enabled (GObject      *source,
                               GAsyncResult *res,
                               gpointer      user_data)
 {
+  StampWebView *self = STAMP_WEB_VIEW (user_data);
   g_autoptr (GError) error = NULL;
 
   webkit_web_view_send_message_to_page_finish (WEBKIT_WEB_VIEW (source), res, &error);
@@ -539,7 +546,8 @@ on_set_image_loading_enabled (GObject      *source,
   }
 
   /* Request page size again so that it can be rescaled */
-  g_timeout_add_once (150, request_page_size_timeout, user_data);
+  g_clear_handle_id (&self->page_size_timeout_handler, g_source_remove);
+  self->page_size_timeout_handler = g_timeout_add_once (150, request_page_size_timeout, user_data);
 }
 
 void

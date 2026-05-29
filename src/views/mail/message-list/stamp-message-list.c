@@ -59,6 +59,8 @@ struct _StampMessageList {
   GtkWidget *next_page;
   GtkWidget *message_stack;
   gboolean rebuilding;
+  guint scroll_to_bottom_handler;
+  guint navigate_back_handler;
 };
 
 G_DEFINE_FINAL_TYPE (StampMessageList, stamp_message_list, ADW_TYPE_BREAKPOINT_BIN);
@@ -96,6 +98,8 @@ stamp_message_list_dispose (GObject *object)
   StampMessageList *self = STAMP_MESSAGE_LIST (object);
 
   g_clear_pointer (&self->messages, g_hash_table_unref);
+  g_clear_handle_id (&self->scroll_to_bottom_handler, g_source_remove);
+  g_clear_handle_id (&self->navigate_back_handler, g_source_remove);
 
   G_OBJECT_CLASS (stamp_message_list_parent_class)->dispose (object);
 }
@@ -169,7 +173,7 @@ emit_navigate_back_idle (gpointer user_data)
   StampMessageList *self = STAMP_MESSAGE_LIST (user_data);
 
   g_signal_emit (self, switch_signals[NAVIGATE_BACK], 0);
-  g_object_unref (self);
+  self->navigate_back_handler = 0;
 }
 
 static void
@@ -200,7 +204,8 @@ on_drag_update (GtkGestureDrag *gesture,
 
   if (g_object_get_data (G_OBJECT (gesture), "edge-left") && offset_x > 20) {
     g_object_set_data (G_OBJECT (gesture), "triggered", GINT_TO_POINTER (TRUE));
-    g_idle_add_once (emit_navigate_back_idle, g_object_ref (self));
+    g_clear_handle_id (&self->navigate_back_handler, g_source_remove);
+    self->navigate_back_handler = g_idle_add_once (emit_navigate_back_idle, self);
   }
 }
 
@@ -368,6 +373,7 @@ scroll_to_bottom (gpointer user_data)
   GtkAdjustment *adj = gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (self->scrolled_window));
 
   gtk_adjustment_set_value (adj, gtk_adjustment_get_upper (adj));
+  self->scroll_to_bottom_handler = 0;
 }
 
 static GtkWidget *
@@ -611,7 +617,8 @@ stamp_message_list_set_conversation (StampMessageList      *self,
     item = GTK_WIDGET (list_item);
   }
 
-  g_idle_add_once (scroll_to_bottom, self);
+  g_clear_handle_id (&self->scroll_to_bottom_handler, g_source_remove);
+  self->scroll_to_bottom_handler = g_idle_add_once (scroll_to_bottom, self);
 }
 
 void

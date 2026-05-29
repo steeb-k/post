@@ -41,6 +41,7 @@ struct _StampSession {
   GList *accounts;
   GList *signatures;
   GCancellable *cancellable;
+  guint accounts_loaded_handler;
 };
 
 typedef struct _TryCredentialsData {
@@ -137,6 +138,7 @@ on_accounts_loaded_idle (gpointer user_data)
 
   if (!accounts || idx >= accounts->len) {
     g_object_set_data (G_OBJECT (self), "accounts-to-load", NULL);
+    self->accounts_loaded_handler = 0;
     return G_SOURCE_REMOVE;
   }
 
@@ -175,7 +177,7 @@ on_accounts_loaded (GObject      *src,
   g_object_set_data_full (G_OBJECT (self), "accounts-to-load", g_steal_pointer (&accounts), (GDestroyNotify)g_ptr_array_unref);
   g_object_set_data (G_OBJECT (self), "accounts-idx", GUINT_TO_POINTER (0));
 
-  g_idle_add (on_accounts_loaded_idle, self);
+  self->accounts_loaded_handler = g_idle_add (on_accounts_loaded_idle, self);
 }
 
 static GPtrArray *
@@ -631,6 +633,8 @@ stamp_session_dispose (GObject *object)
 
   g_cancellable_cancel (self->cancellable);
   g_clear_object (&self->cancellable);
+
+  g_clear_handle_id (&self->accounts_loaded_handler, g_source_remove);
 
   g_clear_object (&self->registry);
   g_clear_list (&self->accounts, g_object_unref);

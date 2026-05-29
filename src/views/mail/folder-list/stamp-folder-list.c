@@ -36,6 +36,7 @@ struct _StampFolderList {
 
   gboolean already_selected;
   GListStore *list_store;
+  guint expand_handler;
 };
 
 G_DEFINE_FINAL_TYPE (StampFolderList, stamp_folder_list, ADW_TYPE_BIN);
@@ -232,6 +233,7 @@ expand_idle (gpointer user_data)
   g_autoptr (GtkTreeListRow) row = GTK_TREE_LIST_ROW (user_data);
 
   gtk_tree_list_row_set_expanded (row, TRUE);
+  /* self->expand_handler = 0; */
 }
 
 static void
@@ -284,8 +286,10 @@ on_bind_folder (GtkListItemFactory *factory,
       }
     }
 
-    if (g_strv_contains ((const char **)expanded_folders, full_name))
-      g_idle_add_once (expand_idle, g_object_ref (row));
+    if (g_strv_contains ((const char **)expanded_folders, full_name)) {
+      g_clear_handle_id (&self->expand_handler, g_source_remove);
+      self->expand_handler = g_idle_add_once (expand_idle, g_object_ref (row));
+    }
 
     g_signal_connect_object (row, "notify::expanded", G_CALLBACK (on_row_expanded), self, 0);
   } else {
@@ -560,6 +564,8 @@ stamp_folder_list_dispose (GObject *object)
 
   if (self->list_store)
     g_clear_object (&self->list_store);
+
+  g_clear_handle_id (&self->expand_handler, g_source_remove);
 
   G_OBJECT_CLASS (stamp_folder_list_parent_class)->dispose (object);
 }
