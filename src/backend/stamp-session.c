@@ -375,8 +375,7 @@ try_credentials_sync (ECredentialsPrompter    *prompter,
     credential_name = e_source_authentication_dup_credential_name (auth_extension);
 
     if (!credential_name || !*credential_name) {
-      g_free (credential_name);
-      credential_name = NULL;
+      g_clear_pointer (&credential_name, g_free);
     }
   }
 
