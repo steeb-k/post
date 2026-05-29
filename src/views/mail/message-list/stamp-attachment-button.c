@@ -340,7 +340,7 @@ remove_menu_item (GMenu      *menu,
                                      "s",
                                      &item_action);
 
-    if (!g_strcmp0 (action_name, item_action)) {
+    if (g_strcmp0 (action_name, item_action) == 0) {
       g_menu_remove (menu, i);
       return TRUE;
     }
