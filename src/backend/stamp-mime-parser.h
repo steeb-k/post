@@ -130,7 +130,7 @@ typedef void (*StampMimeParserCallback) (StampMimeParser *self,
                                         gpointer user_data);
 
 #define STAMP_TYPE_MIME_PARSER (stamp_mime_parser_get_type())
-G_DECLARE_FINAL_TYPE(StampMimeParser, stamp_mime_parser, STAMP, MIME_PARSER, GObject)
+G_DECLARE_FINAL_TYPE(StampMimeParser, stamp_mime_parser, STAMP, MIME_PARSER, GObject);
 
 StampMimeParser *
 stamp_mime_parser_new (CamelSession *session);

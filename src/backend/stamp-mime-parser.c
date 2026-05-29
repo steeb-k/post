@@ -43,7 +43,7 @@ struct _StampMimeParser {
   guint depth;
 };
 
-G_DEFINE_FINAL_TYPE (StampMimeParser, stamp_mime_parser, G_TYPE_OBJECT)
+G_DEFINE_FINAL_TYPE (StampMimeParser, stamp_mime_parser, G_TYPE_OBJECT);
 
 #define HELPER(fmt, ...) g_debug (fmt "%s\n", __VA_ARGS__)
 #define PARSER_LOG(...) do { \
