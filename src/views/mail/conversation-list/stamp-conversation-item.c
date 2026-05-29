@@ -39,9 +39,8 @@ struct _StampConversationItem {
 
 G_DEFINE_FINAL_TYPE (StampConversationItem, stamp_conversation_item, G_TYPE_OBJECT);
 
-enum {
-  PROP_0,
-  PROP_THREAD_NODE,
+typedef enum {
+  PROP_THREAD_NODE = 1,
   PROP_UNREAD,
   PROP_STARRED,
   PROP_SERVICE_UID,
@@ -54,10 +53,9 @@ enum {
   PROP_DATE,
   PROP_NUM_MESSAGES,
   PROP_LABELS,
-  LAST_PROP
-};
+} StampConversationItemProps;
 
-static GParamSpec *properties[LAST_PROP];
+static GParamSpec *properties[PROP_LABELS + 1];
 
 const char *
 stamp_conversation_item_get_subject (StampConversationItem *self)
@@ -95,7 +93,13 @@ stamp_conversation_item_get_property (GObject    *object,
 {
   StampConversationItem *self = STAMP_CONVERSATION_ITEM (object);
 
-  switch (property_id) {
+  switch ((StampConversationItemProps) property_id) {
+    case PROP_THREAD_NODE:
+      g_value_set_pointer (value, stamp_conversation_item_get_node (self));
+      break;
+    case PROP_SERVICE_UID:
+      g_value_set_string (value, stamp_conversation_item_get_uid (self));
+      break;
     case PROP_UNREAD:
       g_value_set_boolean (value, stamp_conversation_item_get_unread (self));
       break;
@@ -172,7 +176,7 @@ stamp_conversation_item_set_property (GObject      *object,
 {
   StampConversationItem *self = STAMP_CONVERSATION_ITEM (object);
 
-  switch (property_id) {
+  switch ((StampConversationItemProps) property_id) {
     case PROP_THREAD_NODE:
       self->thread_node = g_value_get_pointer (value);
       self->timestamp = get_newest_timestamp (self->thread_node, -1);
@@ -296,7 +300,7 @@ stamp_conversation_item_class_init (StampConversationItemClass *klass)
                                                   NULL,
                                                   G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_properties (object_class, LAST_PROP, properties);
+  g_object_class_install_properties (object_class, G_N_ELEMENTS (properties), properties);
 }
 
 void

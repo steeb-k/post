@@ -34,13 +34,11 @@ struct _StampContactRow {
 
 G_DEFINE_FINAL_TYPE (StampContactRow, stamp_contact_row, ADW_TYPE_BIN);
 
-enum {
-  PROP_0,
-  PROP_NAME,
-  LAST_PROP
-};
+typedef enum {
+  PROP_NAME = 1,
+} StampContactRowProps;
 
-static GParamSpec *props[LAST_PROP];
+static GParamSpec *props[PROP_NAME + 1];
 
 static guint next_instance_id = 1;
 
@@ -65,7 +63,7 @@ stamp_contact_row_get_property (GObject    *object,
 {
   StampContactRow *self = STAMP_CONTACT_ROW (object);
 
-  switch (property_id) {
+  switch ((StampContactRowProps) property_id) {
     case PROP_NAME:
       g_value_set_string (value, gtk_inscription_get_text (GTK_INSCRIPTION (self->name)));
       break;
@@ -83,7 +81,7 @@ stamp_contact_row_set_property (GObject      *object,
 {
   StampContactRow *self = STAMP_CONTACT_ROW (object);
 
-  switch (property_id) {
+  switch ((StampContactRowProps) property_id) {
     case PROP_NAME:
       gtk_inscription_set_text (GTK_INSCRIPTION (self->name), g_value_get_string (value));
       break;
@@ -114,7 +112,7 @@ stamp_contact_row_class_init (StampContactRowClass *klass)
                                           "",
                                           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_properties (object_class, LAST_PROP, props);
+  g_object_class_install_properties (object_class, G_N_ELEMENTS (props), props);
 }
 
 void

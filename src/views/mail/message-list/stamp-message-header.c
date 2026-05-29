@@ -82,17 +82,15 @@ struct _StampMessageHeader {
 
 G_DEFINE_FINAL_TYPE (StampMessageHeader, stamp_message_header, GTK_TYPE_GRID);
 
-enum {
-  PROP_0,
-  PROP_ACCOUNT,
+typedef enum {
+  PROP_ACCOUNT = 1,
   PROP_COLLAPSED,
   PROP_COMPACT,
   PROP_IS_UNREAD,
   PROP_IS_READ,
-  LAST_PROP
-};
+} StampMessageHeaderProps;
 
-static GParamSpec *properties[LAST_PROP];
+static GParamSpec *properties[PROP_IS_READ + 1];
 
 static void
 update_visibility (StampMessageHeader *self);
@@ -170,7 +168,7 @@ stamp_message_header_get_property (GObject    *object,
 {
   StampMessageHeader *self = STAMP_MESSAGE_HEADER (object);
 
-  switch (property_id) {
+  switch ((StampMessageHeaderProps) property_id) {
     case PROP_ACCOUNT:
       break;
     case PROP_COLLAPSED:
@@ -200,7 +198,7 @@ stamp_message_header_set_property (GObject      *object,
 {
   StampMessageHeader *self = STAMP_MESSAGE_HEADER (object);
 
-  switch (property_id) {
+  switch ((StampMessageHeaderProps) property_id) {
     case PROP_ACCOUNT:
       self->account = g_value_get_object (value);
       break;
@@ -425,7 +423,7 @@ stamp_message_header_class_init (StampMessageHeaderClass *klass)
                           FALSE,
                           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_properties (object_class, LAST_PROP, properties);
+  g_object_class_install_properties (object_class, G_N_ELEMENTS (properties), properties);
 }
 
 GtkWidget *

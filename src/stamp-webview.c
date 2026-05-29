@@ -39,13 +39,11 @@ struct _StampWebView {
 
 G_DEFINE_FINAL_TYPE (StampWebView, stamp_webview, WEBKIT_TYPE_WEB_VIEW);
 
-enum {
-  PROP_0,
-  PROP_SIZE_REQUEST,
-  LAST_PROP
-};
+typedef enum {
+  PROP_SIZE_REQUEST = 1,
+} StampWebViewProps;
 
-static GParamSpec *properties[LAST_PROP];
+static GParamSpec *properties[PROP_SIZE_REQUEST + 1];
 
 enum {
   IMAGE_LOAD_BLOCKED,
@@ -64,7 +62,7 @@ stamp_webview_get_property (GObject    *object,
 {
   StampWebView *self = STAMP_WEB_VIEW (object);
 
-  switch (property_id) {
+  switch ((StampWebViewProps) property_id) {
     case PROP_SIZE_REQUEST:
       g_value_set_boolean (value, self->loaded);
       break;
@@ -81,7 +79,7 @@ stamp_web_view_set_property (GObject      *object,
                              const GValue *value,
                              GParamSpec   *pspec)
 {
-  switch (property_id) {
+  switch ((StampWebViewProps) property_id) {
     case PROP_SIZE_REQUEST:
       break;
     default:
@@ -401,7 +399,7 @@ stamp_webview_class_init (StampWebViewClass *klass)
                                                         FALSE,
                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_properties (gobject_class, LAST_PROP, properties);
+  g_object_class_install_properties (gobject_class, G_N_ELEMENTS (properties), properties);
 }
 
 static void

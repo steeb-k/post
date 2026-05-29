@@ -28,16 +28,14 @@ struct _StampCategory {
   char *color_hex;
 };
 
-enum {
-  PROP_0,
-  PROP_ID,
+typedef enum {
+  PROP_ID = 1,
   PROP_NAME,
   PROP_COLOR,
   PROP_COLOR_HEX,
-  N_PROPS
-};
+} StampCategoryProps;
 
-static GParamSpec *props[N_PROPS];
+static GParamSpec *props[PROP_COLOR_HEX + 1];
 
 G_DEFINE_FINAL_TYPE (StampCategory, stamp_category, G_TYPE_OBJECT);
 
@@ -62,7 +60,7 @@ stamp_category_get_property (GObject    *object,
 {
   StampCategory *self = STAMP_CATEGORY (object);
 
-  switch (prop_id) {
+  switch ((StampCategoryProps) prop_id) {
     case PROP_ID:
       g_value_set_string (value, self->id);
       break;
@@ -88,7 +86,7 @@ stamp_category_set_property (GObject      *object,
 {
   StampCategory *self = STAMP_CATEGORY (object);
 
-  switch (property_id) {
+  switch ((StampCategoryProps) property_id) {
     case PROP_ID:
       g_set_str (&self->id, g_value_get_string (value));
       break;
@@ -135,7 +133,7 @@ stamp_category_class_init (StampCategoryClass *klass)
   props[PROP_COLOR] = g_param_spec_string ("color", NULL, NULL, NULL, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
   props[PROP_COLOR_HEX] = g_param_spec_string ("color-hex", NULL, NULL, NULL, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_properties (object_class, N_PROPS, props);
+  g_object_class_install_properties (object_class, G_N_ELEMENTS (props), props);
 }
 
 static void

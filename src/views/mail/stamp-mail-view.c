@@ -51,13 +51,11 @@ struct _StampMailView {
 
 G_DEFINE_FINAL_TYPE (StampMailView, stamp_mail_view, ADW_TYPE_BREAKPOINT_BIN);
 
-enum {
-  PROP_0,
-  PROP_STACK,
-  LAST_PROP
-};
+typedef enum {
+  PROP_STACK = 1,
+} StampMailViewProps;
 
-static GParamSpec *obj_properties[LAST_PROP];
+static GParamSpec *obj_properties[PROP_STACK + 1];
 
 static AdwOverlaySplitView *
 get_current_osv (StampMailView *self)
@@ -191,7 +189,7 @@ stamp_mail_view_get_property (GObject    *object,
 {
   StampMailView *self = STAMP_MAIL_VIEW (object);
 
-  switch (property_id) {
+  switch ((StampMailViewProps) property_id) {
     case PROP_STACK:
       g_value_set_object (value, self->stack);
       break;
@@ -210,7 +208,7 @@ stamp_mail_view_set_property (GObject      *object,
 {
   StampMailView *self = STAMP_MAIL_VIEW (object);
 
-  switch (property_id) {
+  switch ((StampMailViewProps) property_id) {
     case PROP_STACK:
       g_set_object (&self->stack, g_value_get_object (value));
       break;
@@ -253,7 +251,7 @@ stamp_mail_view_class_init (StampMailViewClass *klass)
                                                     ADW_TYPE_VIEW_STACK,
                                                     G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_properties (object_class, LAST_PROP, obj_properties);
+  g_object_class_install_properties (object_class, G_N_ELEMENTS (obj_properties), obj_properties);
 
   gtk_widget_class_bind_template_child (widget_class, StampMailView, mail_layout);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, folder_list);

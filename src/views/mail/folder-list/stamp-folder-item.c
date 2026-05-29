@@ -37,14 +37,12 @@ struct _StampFolderItem {
 
 G_DEFINE_FINAL_TYPE (StampFolderItem, stamp_folder_item, STAMP_TYPE_ITEM);
 
-enum {
-  PROP_0,
-  PROP_FOLDER_INFO,
+typedef enum {
+  PROP_FOLDER_INFO = 1,
   PROP_UNREAD,
-  LAST_PROP
-};
+} StampFolderItemProps;
 
-static GParamSpec *properties[LAST_PROP];
+static GParamSpec *properties[PROP_UNREAD + 1];
 
 enum {
   FOLDER_ITEM_ADDED,
@@ -150,7 +148,7 @@ stamp_folder_item_set_property (GObject      *object,
 {
   StampFolderItem *self = STAMP_FOLDER_ITEM (object);
 
-  switch (property_id) {
+  switch ((StampFolderItemProps) property_id) {
     case PROP_FOLDER_INFO:
       stamp_folder_item_set_folder_info (self, g_value_get_boxed (value));
       break;
@@ -170,7 +168,10 @@ stamp_folder_item_get_property (GObject    *object,
 {
   StampFolderItem *self = STAMP_FOLDER_ITEM (object);
 
-  switch (property_id) {
+  switch ((StampFolderItemProps) property_id) {
+    case PROP_FOLDER_INFO:
+      g_value_set_boxed (value, self->folder_info);
+      break;
     case PROP_UNREAD:
       g_value_set_uint (value, self->unread);
       break;
@@ -406,7 +407,7 @@ stamp_folder_item_class_init (StampFolderItemClass *klass)
                        0,
                        G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_properties (object_class, LAST_PROP, properties);
+  g_object_class_install_properties (object_class, G_N_ELEMENTS (properties), properties);
 
   signals[FOLDER_ITEM_ADDED] = g_signal_new ("folder-item-added", G_OBJECT_CLASS_TYPE (klass),
                                              G_SIGNAL_RUN_FIRST | G_SIGNAL_RUN_LAST,

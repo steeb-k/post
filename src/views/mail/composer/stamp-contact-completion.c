@@ -51,13 +51,11 @@ G_DEFINE_FINAL_TYPE (StampContactCompletion, stamp_contact_completion, ADW_TYPE_
 
 #define PAGE_STEP 20
 
-enum {
-  PROP_0,
-  PROP_HAS_ENTRIES,
-  LAST_PROP
-};
+typedef enum {
+  PROP_HAS_ENTRIES = 1,
+} StampContactCompletionProps;
 
-static GParamSpec *properties[LAST_PROP];
+static GParamSpec *properties[PROP_HAS_ENTRIES + 1];
 
 static void
 on_tag_destroy (GtkWidget *obj,
@@ -378,7 +376,7 @@ stamp_contact_completion_set_property (GObject      *object,
 {
   StampContactCompletion *self = STAMP_CONTACT_COMPLETION (object);
 
-  switch (property_id) {
+  switch ((StampContactCompletionProps) property_id) {
     case PROP_HAS_ENTRIES:
       self->has_entries = g_value_get_boolean (value);
       g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_HAS_ENTRIES]);
@@ -397,7 +395,7 @@ stamp_contact_completion_get_property (GObject    *object,
 {
   StampContactCompletion *self = STAMP_CONTACT_COMPLETION (object);
 
-  switch (property_id) {
+  switch ((StampContactCompletionProps) property_id) {
     case PROP_HAS_ENTRIES:
       g_value_set_boolean (value, self->has_entries);
       break;
@@ -433,7 +431,7 @@ stamp_contact_completion_class_init (StampContactCompletionClass *klass)
                           FALSE,
                           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_properties (object_class, LAST_PROP, properties);
+  g_object_class_install_properties (object_class, G_N_ELEMENTS (properties), properties);
 }
 
 static int

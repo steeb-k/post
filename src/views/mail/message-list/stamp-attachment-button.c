@@ -42,18 +42,16 @@ struct _StampAttachmentButton {
 
 G_DEFINE_FINAL_TYPE (StampAttachmentButton, stamp_attachment_button, GTK_TYPE_BOX);
 
-enum {
-  PROP_0,
-  PROP_MIME_PART,
+typedef enum {
+  PROP_MIME_PART = 1,
   PROP_FILE,
   PROP_FILENAME,
   PROP_CONTENT_TYPE,
   PROP_SIZE,
   PROP_DATA,
-  LAST_PROP
-};
+} StampAttachmentButtonProps;
 
-static GParamSpec *properties[LAST_PROP];
+static GParamSpec *properties[PROP_DATA + 1];
 
 static void
 stamp_attachment_button_get_property (GObject    *object,
@@ -63,7 +61,7 @@ stamp_attachment_button_get_property (GObject    *object,
 {
   StampAttachmentButton *self = STAMP_ATTACHMENT_BUTTON (object);
 
-  switch (property_id) {
+  switch ((StampAttachmentButtonProps) property_id) {
     case PROP_MIME_PART:
       g_value_set_object (value, self->mime_part);
       break;
@@ -97,7 +95,7 @@ stamp_attachment_button_set_property (GObject      *object,
 {
   StampAttachmentButton *self = STAMP_ATTACHMENT_BUTTON (object);
 
-  switch (property_id) {
+  switch ((StampAttachmentButtonProps) property_id) {
     case PROP_MIME_PART:
       self->mime_part = g_value_get_object (value);
       break;
@@ -527,7 +525,7 @@ stamp_attachment_button_class_init (StampAttachmentButtonClass *klass)
                         G_TYPE_BYTES,
                         G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_properties (object_class, LAST_PROP, properties);
+  g_object_class_install_properties (object_class, G_N_ELEMENTS (properties), properties);
 }
 
 GtkWidget *

@@ -79,15 +79,13 @@ struct _StampMessageListItem {
 
 G_DEFINE_FINAL_TYPE (StampMessageListItem, stamp_message_list_item, GTK_TYPE_LIST_BOX_ROW);
 
-enum {
-  PROP_0,
-  PROP_ACCOUNT,
+typedef enum {
+  PROP_ACCOUNT = 1,
   PROP_MESSAGE_INFO,
   PROP_EXPANDED,
-  LAST_PROP
-};
+} StampMessageListItemProps;
 
-static GParamSpec *properties[LAST_PROP];
+static GParamSpec *properties[PROP_EXPANDED + 1];
 
 static void
 open_message (StampMessageListItem *self,
@@ -350,7 +348,10 @@ stamp_message_list_item_get_property (GObject    *object,
 {
   StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (object);
 
-  switch (property_id) {
+  switch ((StampMessageListItemProps) property_id) {
+    case PROP_MESSAGE_INFO:
+      g_value_set_object (value, (GObject *) self->message_info);
+      break;
     case PROP_ACCOUNT:
       g_value_set_object (value, self->account);
       break;
@@ -372,7 +373,7 @@ stamp_message_list_item_set_property (GObject      *object,
 {
   StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (object);
 
-  switch (property_id) {
+  switch ((StampMessageListItemProps) property_id) {
     case PROP_ACCOUNT:
       self->account = g_value_get_object (value);
       stamp_message_header_set_account (STAMP_MESSAGE_HEADER (self->header), self->account);
@@ -667,7 +668,7 @@ stamp_message_list_item_class_init (StampMessageListItemClass *klass)
                           TRUE,
                           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_properties (gobject_class, LAST_PROP, properties);
+  g_object_class_install_properties (gobject_class, G_N_ELEMENTS (properties), properties);
 }
 
 static void

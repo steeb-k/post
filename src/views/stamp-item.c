@@ -36,16 +36,14 @@ typedef struct {
 
 G_DEFINE_TYPE_WITH_CODE (StampItem, stamp_item, G_TYPE_OBJECT, G_ADD_PRIVATE (StampItem));
 
-enum {
-  PROP_0,
-  PROP_ACCOUNT,
+typedef enum {
+  PROP_ACCOUNT = 1,
   PROP_LOADING,
   PROP_NAME,
   PROP_ERROR,
-  LAST_PROP
-};
+} StampItemProps;
 
-static GParamSpec *properties[LAST_PROP];
+static GParamSpec *properties[PROP_ERROR + 1];
 
 void
 stamp_item_init (StampItem *self)
@@ -80,7 +78,10 @@ stamp_item_set_property (GObject      *object,
   StampItem *self = STAMP_ITEM (object);
   StampItemPrivate *priv = stamp_item_get_instance_private (self);
 
-  switch (property_id) {
+  switch ((StampItemProps) property_id) {
+    case PROP_NAME:
+      g_set_str (&priv->name, g_value_get_string (value));
+      break;
     case PROP_ACCOUNT:
       g_clear_object (&priv->account);
 
@@ -109,7 +110,10 @@ stamp_item_get_property (GObject    *object,
   StampItem *self = STAMP_ITEM (object);
   StampItemPrivate *priv = stamp_item_get_instance_private (self);
 
-  switch (property_id) {
+  switch ((StampItemProps) property_id) {
+    case PROP_ACCOUNT:
+      g_value_set_object (value, priv->account);
+      break;
     case PROP_LOADING:
       g_value_set_boolean (value, priv->loading);
       break;
@@ -157,7 +161,7 @@ stamp_item_class_init (StampItemClass *klass)
                           NULL, NULL,
                           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_properties (object_class, LAST_PROP, properties);
+  g_object_class_install_properties (object_class, G_N_ELEMENTS (properties), properties);
 }
 
 void

@@ -44,14 +44,12 @@ struct _StampTag {
 
 G_DEFINE_FINAL_TYPE (StampTag, stamp_tag, GTK_TYPE_BOX);
 
-enum {
-  PROP_0,
-  PROP_LABEL,
+typedef enum {
+  PROP_LABEL = 1,
   PROP_ACCOUNT,
-  LAST_PROP
-};
+} StampTagProps;
 
-static GParamSpec *obj_properties[LAST_PROP];
+static GParamSpec *obj_properties[PROP_ACCOUNT + 1];
 
 static void
 stamp_tag_get_property (GObject    *object,
@@ -61,7 +59,7 @@ stamp_tag_get_property (GObject    *object,
 {
   StampTag *self = STAMP_TAG (object);
 
-  switch (property_id) {
+  switch ((StampTagProps) property_id) {
     case PROP_ACCOUNT:
       g_value_set_object (value, self->account);
       break;
@@ -92,7 +90,7 @@ stamp_tag_set_property (GObject      *object,
 {
   StampTag *self = STAMP_TAG (object);
 
-  switch (property_id) {
+  switch ((StampTagProps) property_id) {
     case PROP_ACCOUNT:
       g_clear_object (&self->account);
 
@@ -257,7 +255,7 @@ stamp_tag_class_init (StampTagClass *klass)
                                                       STAMP_TYPE_ACCOUNT,
                                                       G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_properties (object_class, LAST_PROP, obj_properties);
+  g_object_class_install_properties (object_class, G_N_ELEMENTS (obj_properties), obj_properties);
 }
 
 GtkWidget *

@@ -54,13 +54,11 @@ struct _StampContactList {
 
 G_DEFINE_FINAL_TYPE (StampContactList, stamp_contact_list, ADW_TYPE_BREAKPOINT_BIN);
 
-enum {
-  PROP_0,
-  PROP_SORT_MODE,
-  LAST_PROP
-};
+typedef enum {
+  PROP_SORT_MODE = 1,
+} StampContactListProps;
 
-static GParamSpec *properties[LAST_PROP];
+static GParamSpec *properties[PROP_SORT_MODE + 1];
 
 enum {
   CONTACT_SELECTED,
@@ -312,7 +310,7 @@ stamp_contact_list_get_property (GObject    *object,
 {
   StampContactList *self = STAMP_CONTACT_LIST (object);
 
-  switch (property_id) {
+  switch ((StampContactListProps) property_id) {
     case PROP_SORT_MODE:
       g_value_set_enum (value, self->sort_mode);
       break;
@@ -330,7 +328,7 @@ stamp_contact_list_set_property (GObject      *object,
 {
   StampContactList *self = STAMP_CONTACT_LIST (object);
 
-  switch (property_id) {
+  switch ((StampContactListProps) property_id) {
     case PROP_SORT_MODE:
       self->sort_mode = g_value_get_enum (value);
       break;
@@ -383,7 +381,7 @@ stamp_contact_list_class_init (StampContactListClass *klass)
                                                   SORT_MODE_GIVEN_NAME,
                                                   G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_properties (object_class, LAST_PROP, properties);
+  g_object_class_install_properties (object_class, G_N_ELEMENTS (properties), properties);
 }
 
 

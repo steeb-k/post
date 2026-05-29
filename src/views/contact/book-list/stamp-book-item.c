@@ -29,13 +29,11 @@ struct _StampBookItem {
 
 G_DEFINE_FINAL_TYPE (StampBookItem, stamp_book_item, STAMP_TYPE_ITEM);
 
-enum {
-  PROP_0,
-  PROP_CLIENT,
-  LAST_PROP
-};
+typedef enum {
+  PROP_CLIENT = 1,
+} StampBookItemProps;
 
-static GParamSpec *obj_properties[LAST_PROP];
+static GParamSpec *obj_properties[PROP_CLIENT + 1];
 
 static void
 stamp_book_item_set_property (GObject      *object,
@@ -45,7 +43,7 @@ stamp_book_item_set_property (GObject      *object,
 {
   StampBookItem *self = STAMP_BOOK_ITEM (object);
 
-  switch (property_id) {
+  switch ((StampBookItemProps) property_id) {
     case PROP_CLIENT:
       g_clear_object (&self->client);
 
@@ -65,7 +63,7 @@ stamp_book_item_get_property (GObject    *object,
                               GValue     *value,
                               GParamSpec *pspec)
 {
-  switch (property_id) {
+  switch ((StampBookItemProps) property_id) {
     case PROP_CLIENT:
       break;
     default:
@@ -110,7 +108,7 @@ stamp_book_item_class_init (StampBookItemClass *klass)
                          E_TYPE_CLIENT,
                          G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_properties (object_class, LAST_PROP, obj_properties);
+  g_object_class_install_properties (object_class, G_N_ELEMENTS (obj_properties), obj_properties);
 }
 
 void

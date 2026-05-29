@@ -64,15 +64,13 @@ G_DEFINE_FINAL_TYPE (StampConversationRow, stamp_conversation_row, GTK_TYPE_BOX)
 
 static guint next_instance_id = 1;
 
-enum {
-  PROP_0,
-  PROP_SELECTED,
+typedef enum {
+  PROP_SELECTED = 1,
   PROP_IMPORTANT,
   PROP_UNREAD,
-  LAST_PROP
-};
+} StampConversationRowProps;
 
-static GParamSpec *properties[LAST_PROP];
+static GParamSpec *properties[PROP_UNREAD + 1];
 
 enum {
   MARK_READ,
@@ -109,7 +107,7 @@ stamp_conversation_row_get_property (GObject    *object,
 {
   StampConversationRow *self = STAMP_CONVERSATION_ROW (object);
 
-  switch (property_id) {
+  switch ((StampConversationRowProps) property_id) {
     case PROP_SELECTED:
       g_value_set_boolean (value, self->selected);
       break;
@@ -159,7 +157,7 @@ stamp_conversation_row_set_property (GObject      *object,
 {
   StampConversationRow *self = STAMP_CONVERSATION_ROW (object);
 
-  switch (property_id) {
+  switch ((StampConversationRowProps) property_id) {
     case PROP_SELECTED:
       self->selected = g_value_get_boolean (value);
       gtk_check_button_set_active (self->check_button, self->selected);
@@ -315,7 +313,7 @@ stamp_conversation_row_class_init (StampConversationRowClass *klass)
                                                   FALSE,
                                                   G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_properties (object_class, LAST_PROP, properties);
+  g_object_class_install_properties (object_class, G_N_ELEMENTS (properties), properties);
 
   signals[MARK_READ] = g_signal_new ("mark-read", G_OBJECT_CLASS_TYPE (klass),
                                      G_SIGNAL_RUN_FIRST | G_SIGNAL_RUN_LAST,

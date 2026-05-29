@@ -102,13 +102,11 @@ struct _StampConversationList {
 
 G_DEFINE_FINAL_TYPE (StampConversationList, stamp_conversation_list, ADW_TYPE_BIN);
 
-enum {
-  PROP_0,
-  PROP_STATE,
-  LAST_PROP
-};
+typedef enum {
+  PROP_STATE = 1,
+} StampConversationListProps;
 
-static GParamSpec *properties[LAST_PROP];
+static GParamSpec *properties[PROP_STATE + 1];
 
 enum {
   CONVERSATION_SELECTED,
@@ -1139,7 +1137,7 @@ stamp_conversation_list_get_property (GObject    *object,
 {
   StampConversationList *self = STAMP_CONVERSATION_LIST (object);
 
-  switch (property_id) {
+  switch ((StampConversationListProps) property_id) {
     case PROP_STATE:
       g_value_set_boolean (value, self->selection_mode);
       break;
@@ -1156,7 +1154,7 @@ stamp_conversation_list_set_property (GObject      *object,
                                       const GValue *value,
                                       GParamSpec   *pspec)
 {
-  switch (property_id) {
+  switch ((StampConversationListProps) property_id) {
     case PROP_STATE:
       break;
     default:
@@ -1267,7 +1265,7 @@ stamp_conversation_list_class_init (StampConversationListClass *klass)
                                                  FALSE,
                                                  G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_properties (object_class, LAST_PROP, properties);
+  g_object_class_install_properties (object_class, G_N_ELEMENTS (properties), properties);
 }
 
 static void
