@@ -19,13 +19,14 @@
 
 #include "stamp-contact-completion.h"
 
+#include <ctype.h>
+
+#include <libebook/libebook.h>
+#include <libpsl.h>
+
 #include "stamp-account.h"
 #include "stamp-session.h"
 #include "stamp-tag.h"
-
-#include <ctype.h>
-#include <libebook/libebook.h>
-#include <libpsl.h>
 
 struct _StampContactCompletion {
   AdwBin parent_instance;

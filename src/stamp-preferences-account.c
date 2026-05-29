@@ -19,9 +19,9 @@
 
 #include "stamp-preferences-account.h"
 
-#include "stamp-account.h"
-
 #include <glib/gi18n.h>
+
+#include "stamp-account.h"
 
 struct _StampPreferencesAccount {
   AdwNavigationPage parent_instance;

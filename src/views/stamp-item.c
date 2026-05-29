@@ -19,9 +19,9 @@
 
 #include "stamp-item.h"
 
-#include "stamp-account.h"
-
 #include <glib.h>
+
+#include "stamp-account.h"
 
 typedef struct {
   char *name;

@@ -19,9 +19,9 @@
 
 #include "stamp-helper.h"
 
-#include "stamp-application.h"
-
 #include <gio/gdesktopappinfo.h>
+
+#include "stamp-application.h"
 
 static char *cache_dir = NULL;
 static char *data_dir = NULL;

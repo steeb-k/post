@@ -19,25 +19,23 @@
 
 #include "stamp-message-list-item.h"
 
-#include "stamp-attachment-button.h"
-#include "stamp-message-list.h"
-#include "stamp-message-header.h"
-#include "stamp-session.h"
-#include "stamp-settings.h"
-#include "stamp-webview.h"
-#include "stamp-mime-parser.h"
-
 #include <camel/camel.h>
 #include <glib/gi18n.h>
 #include <glib/gstdio.h>
 #include <libecal/libecal.h>
-#include <nss.h>
-
-#define LIBICAL_GLIB_UNSTABLE_API 1
 #include <libical-glib/libical-glib.h>
-
+#include <nss.h>
 #include <webkit/webkit.h>
 
+#include "stamp-attachment-button.h"
+#include "stamp-message-header.h"
+#include "stamp-message-list.h"
+#include "stamp-mime-parser.h"
+#include "stamp-session.h"
+#include "stamp-settings.h"
+#include "stamp-webview.h"
+
+#define LIBICAL_GLIB_UNSTABLE_API 1
 struct _StampMessageListItem {
   GtkListBoxRow parent_instance;
 

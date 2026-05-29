@@ -19,9 +19,10 @@
 
 #include "stamp-bimi.h"
 
+#include <netdb.h>
+
 #include <arpa/nameser.h>
 #include <resolv.h>
-#include <netdb.h>
 
 char *
 stamp_query_bimi_logo (const char *domain)

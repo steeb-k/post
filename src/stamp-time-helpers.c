@@ -24,8 +24,8 @@
 
 #include <gdesktop-enums.h>
 #include <gio/gio.h>
-#include <glib/gi18n.h>
 #include <glib.h>
+#include <glib/gi18n.h>
 
 /* Legal conversion specifiers, as specified in the C standard. */
 #define C_STANDARD_STRFTIME_CHARACTERS "aAbBcdHIjmMpSUwWxXyYZ"

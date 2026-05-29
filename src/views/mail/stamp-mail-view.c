@@ -19,12 +19,12 @@
 
 #include "stamp-mail-view.h"
 
+#include <glib/gi18n.h>
+
 #include "stamp-conversation-list.h"
 #include "stamp-folder-list.h"
 #include "stamp-header-bar.h"
 #include "stamp-message-list.h"
-
-#include <glib/gi18n.h>
 
 struct _StampMailView {
   AdwBreakpointBin parent_instance;

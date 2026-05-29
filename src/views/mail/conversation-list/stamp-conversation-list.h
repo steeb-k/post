@@ -19,11 +19,11 @@
 
 #pragma once
 
-#include "stamp-account.h"
-#include "stamp-conversation-item.h"
-
 #include <adwaita.h>
 #include <camel/camel.h>
+
+#include "stamp-account.h"
+#include "stamp-conversation-item.h"
 
 G_BEGIN_DECLS
 

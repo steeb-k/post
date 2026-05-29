@@ -17,16 +17,17 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "stamp-message-header.h"
+
+#include <glib/gi18n.h>
+#include <libsoup/soup.h>
+
 #include "stamp-account.h"
 #include "stamp-helper.h"
-#include "stamp-message-header.h"
 #include "stamp-session.h"
 #include "stamp-tag.h"
 #include "stamp-time-helpers.h"
 #include "stamp-window.h"
-
-#include <glib/gi18n.h>
-#include <libsoup/soup.h>
 
 #define MAX_VISIBLE_TO  5
 #define MAX_VISIBLE_CC  5

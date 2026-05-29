@@ -19,10 +19,10 @@
 
 #include "stamp-folder-row.h"
 
+#include <adwaita.h>
+
 #include "stamp-account-item.h"
 #include "stamp-folder-item.h"
-
-#include <adwaita.h>
 
 struct _StampFolderRow {
   GtkBox parent_instance;

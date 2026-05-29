@@ -19,11 +19,11 @@
 
 #include "stamp-contact-details.h"
 
-#include "stamp-account.h"
-
 #include <adwaita.h>
-#include <glib/gi18n.h>
 #include <gio/gio.h>
+#include <glib/gi18n.h>
+
+#include "stamp-account.h"
 
 struct _StampContactDetails {
   GtkBox parent_instance;

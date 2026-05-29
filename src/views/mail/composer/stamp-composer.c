@@ -19,23 +19,23 @@
 
 #include "stamp-composer.h"
 
+#include <camel/camel.h>
+#include <glib/gi18n.h>
+#include <libebook-contacts/libebook-contacts.h>
+#include <libebook/libebook.h>
+#include <libedata-book/libedata-book.h>
+#include <libedataserverui4/libedataserverui4.h>
+
 #include "stamp-account.h"
 #include "stamp-attachment-button.h"
-#include "stamp-contact-completion.h"
 #include "stamp-composer-from.h"
+#include "stamp-contact-completion.h"
 #include "stamp-mail-view.h"
 #include "stamp-session.h"
 #include "stamp-signature.h"
 #include "stamp-tag.h"
 #include "stamp-webview.h"
 #include "stamp-window.h"
-
-#include <camel/camel.h>
-#include <glib/gi18n.h>
-#include <libebook-contacts/libebook-contacts.h>
-#include <libedataserverui4/libedataserverui4.h>
-#include <libebook/libebook.h>
-#include <libedata-book/libedata-book.h>
 
 struct _StampComposer {
   AdwApplicationWindow parent_instance;

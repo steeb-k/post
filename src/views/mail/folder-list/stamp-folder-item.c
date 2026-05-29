@@ -19,11 +19,11 @@
 
 #include "stamp-folder-item.h"
 
-#include "stamp-item.h"
-#include "stamp-settings.h"
-
 #include <glib/gi18n.h>
 #include <gst/gst.h>
+
+#include "stamp-item.h"
+#include "stamp-settings.h"
 
 struct _StampFolderItem {
   StampItem parent_instance;

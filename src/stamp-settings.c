@@ -21,8 +21,8 @@
 
 #include "stamp-settings.h"
 
-#include <glib.h>
 #include <gio/gio.h>
+#include <glib.h>
 
 static GHashTable *settings = NULL;
 

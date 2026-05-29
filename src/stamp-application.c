@@ -20,14 +20,15 @@
 #include "config.h"
 
 #include "stamp-application.h"
+
+#include <glib/gi18n.h>
+#include <pk11pub.h>
+
 #include "stamp-composer.h"
 #include "stamp-helper.h"
 #include "stamp-preferences.h"
 #include "stamp-session.h"
 #include "stamp-window.h"
-
-#include <glib/gi18n.h>
-#include <pk11pub.h>
 
 struct _StampApplication {
   AdwApplication parent_instance;

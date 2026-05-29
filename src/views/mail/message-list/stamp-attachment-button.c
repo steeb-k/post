@@ -20,8 +20,8 @@
 #include "stamp-attachment-button.h"
 
 #include <adwaita.h>
-#include <glib/gi18n.h>
 #include <gio/gio.h>
+#include <glib/gi18n.h>
 
 struct _StampAttachmentButton {
   GtkBox parent_instance;

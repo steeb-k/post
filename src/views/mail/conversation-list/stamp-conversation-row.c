@@ -19,13 +19,13 @@
 
 #include "stamp-conversation-row.h"
 
+#include <glib/gi18n.h>
+
 #include "stamp-account.h"
 #include "stamp-category.h"
 #include "stamp-helper.h"
 #include "stamp-session.h"
 #include "stamp-time-helpers.h"
-
-#include <glib/gi18n.h>
 
 struct _StampConversationRow {
   GtkBox parent_instance;

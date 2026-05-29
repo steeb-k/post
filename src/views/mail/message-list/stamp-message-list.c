@@ -19,15 +19,15 @@
 
 #include "stamp-message-list.h"
 
+#include <glib/gi18n.h>
+
 #include "stamp-conversation-item.h"
 #include "stamp-conversation-list.h"
 #include "stamp-mail-view.h"
-#include "stamp-mime-parser.h"
 #include "stamp-message-list-item.h"
+#include "stamp-mime-parser.h"
 #include "stamp-session.h"
 #include "stamp-window.h"
-
-#include <glib/gi18n.h>
 
 struct _StampMessageList {
   AdwBreakpointBin parent_instance;

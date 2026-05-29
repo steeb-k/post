@@ -19,16 +19,16 @@
 
 #include "stamp-conversation-list.h"
 
-#include "stamp-account.h"
-#include "stamp-conversation-list-store.h"
-#include "stamp-conversation-item.h"
-#include "stamp-conversation-row.h"
-#include "stamp-composer.h"
-#include "stamp-item.h"
-#include "stamp-message-list.h"
-
 #include <camel/camel.h>
 #include <glib/gi18n.h>
+
+#include "stamp-account.h"
+#include "stamp-composer.h"
+#include "stamp-conversation-item.h"
+#include "stamp-conversation-list-store.h"
+#include "stamp-conversation-row.h"
+#include "stamp-item.h"
+#include "stamp-message-list.h"
 
 #define INITIAL_LOAD_COUNT 200
 #define BATCH_LOAD_COUNT 100

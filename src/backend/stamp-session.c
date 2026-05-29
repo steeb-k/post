@@ -19,17 +19,17 @@
 
 #include "stamp-session.h"
 
+#include <libebook/libebook.h>
+#include <libedata-book/libedata-book.h>
+#include <libedataserverui4/libedataserverui4.h>
+#include <nss.h>
+#include <nssb64.h>
+#include <pk11pub.h>
+#include <secmod.h>
+
 #include "stamp-account.h"
 #include "stamp-helper.h"
 #include "stamp-signature.h"
-
-#include <libedataserverui4/libedataserverui4.h>
-#include <libebook/libebook.h>
-#include <libedata-book/libedata-book.h>
-#include <pk11pub.h>
-#include <nss.h>
-#include <nssb64.h>
-#include <secmod.h>
 
 static StampSession *_session = NULL;
 

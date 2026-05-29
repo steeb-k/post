@@ -19,18 +19,19 @@
 
 #include "stamp-photo-cache.h"
 
+#include <string.h>
+
+#include <gdk/gdk.h>
+#include <glib/gstdio.h>
+#include <gtk/gtk.h>
+#include <libebook/libebook.h>
+#include <libedataserver/libedataserver.h>
+
 #include "stamp-account.h"
 #include "stamp-bimi.h"
 #include "stamp-helper.h"
 #include "stamp-session.h"
 #include "stamp-settings.h"
-
-#include <libebook/libebook.h>
-#include <libedataserver/libedataserver.h>
-#include <gtk/gtk.h>
-#include <gdk/gdk.h>
-#include <glib/gstdio.h>
-#include <string.h>
 
 #define STAMP_CACHE_TTL_SEC        (7 * 24 * 60 * 60)   /* 1 Week */
 #define STAMP_CACHE_NEGATIVE_SUFFIX ".negative"

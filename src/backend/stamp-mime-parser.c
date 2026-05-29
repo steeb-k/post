@@ -19,8 +19,8 @@
 
 #include "stamp-mime-parser.h"
 
-#include <libsoup/soup.h>
 #include <libecal/libecal.h>
+#include <libsoup/soup.h>
 
 struct _StampMimeParser {
   GObject parent_instance;

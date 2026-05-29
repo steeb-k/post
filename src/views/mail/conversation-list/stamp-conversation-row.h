@@ -17,10 +17,10 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <gtk/gtk.h>
+
 #include "stamp-account.h"
 #include "stamp-conversation-item.h"
-
-#include <gtk/gtk.h>
 
 #pragma once
 

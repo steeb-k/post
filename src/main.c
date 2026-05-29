@@ -19,11 +19,11 @@
 
 #include "config.h"
 
-#include "stamp-application.h"
-#include "stamp-settings.h"
-
 #include <glib/gi18n.h>
 #include <gst/gst.h>
+
+#include "stamp-application.h"
+#include "stamp-settings.h"
 
 int
 main (int    argc,

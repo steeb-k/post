@@ -23,8 +23,8 @@
 #include "stamp-folder-item.h"
 #include "stamp-folder-row.h"
 #include "stamp-helper.h"
-#include "stamp-settings.h"
 #include "stamp-session.h"
+#include "stamp-settings.h"
 
 struct _StampFolderList {
   AdwBin parent_instance;

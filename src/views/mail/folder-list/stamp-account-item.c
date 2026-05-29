@@ -17,13 +17,14 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "stamp-account.h"
 #include "stamp-account-item.h"
+
+#include <camel/camel.h>
+
+#include "stamp-account.h"
 #include "stamp-folder-item.h"
 #include "stamp-item.h"
 #include "stamp-session.h"
-
-#include <camel/camel.h>
 
 struct _StampAccountItem {
   StampItem parent_instance;

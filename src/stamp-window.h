@@ -19,9 +19,9 @@
 
 #pragma once
 
-#include "stamp-mail-view.h"
-
 #include <adwaita.h>
+
+#include "stamp-mail-view.h"
 
 G_BEGIN_DECLS
 

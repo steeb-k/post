@@ -21,6 +21,10 @@
 
 #include "stamp-window.h"
 
+#include <gio/gdesktopappinfo.h>
+#include <gtk/gtk.h>
+#include <libportal-gtk4/portal-gtk4.h>
+
 #include "stamp-account.h"
 #include "stamp-calendar-view.h"
 #include "stamp-contact-view.h"
@@ -28,10 +32,6 @@
 #include "stamp-mail-view.h"
 #include "stamp-session.h"
 #include "stamp-settings.h"
-
-#include <gio/gdesktopappinfo.h>
-#include <gtk/gtk.h>
-#include <libportal-gtk4/portal-gtk4.h>
 
 struct _StampWindow {
   AdwApplicationWindow parent_instance;

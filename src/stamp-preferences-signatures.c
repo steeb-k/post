@@ -19,12 +19,12 @@
 
 #include "stamp-preferences-signatures.h"
 
+#include <glib/gi18n.h>
+#include <libportal-gtk4/portal-gtk4.h>
+
 #include "stamp-session.h"
 #include "stamp-signature.h"
 #include "stamp-webview.h"
-
-#include <glib/gi18n.h>
-#include <libportal-gtk4/portal-gtk4.h>
 
 struct _StampPreferencesSignatures {
   AdwNavigationPage parent_instance;

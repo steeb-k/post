@@ -19,10 +19,10 @@
 
 #pragma once
 
-#include "stamp-account.h"
-
 #include <gtk/gtk.h>
 #include <libebook/libebook.h>
+
+#include "stamp-account.h"
 
 G_BEGIN_DECLS
 
