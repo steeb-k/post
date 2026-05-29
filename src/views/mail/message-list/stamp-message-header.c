@@ -490,9 +490,9 @@ transfer_flags_to_icon (GBinding     *binding,
   guint flags = g_value_get_flags (from_value);
 
   if (flags & CAMEL_MESSAGE_FLAGGED)
-    g_value_set_string (to_value, "starred-symbolic");
+    g_value_set_static_string (to_value, "starred-symbolic");
   else
-    g_value_set_string (to_value, "non-starred-symbolic");
+    g_value_set_static_string (to_value, "non-starred-symbolic");
 
   return TRUE;
 }
