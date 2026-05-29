@@ -133,10 +133,6 @@ stamp_conversation_item_get_property (GObject    *object,
     case PROP_LABELS:
       g_value_set_pointer (value, stamp_conversation_item_get_labels (self));
       break;
-    default:
-      /* We don't have any other property... */
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
-      break;
   }
 }
 
@@ -195,9 +191,6 @@ stamp_conversation_item_set_property (GObject      *object,
     case PROP_DATE:
     case PROP_NUM_MESSAGES:
     case PROP_LABELS:
-      break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
   }
 }

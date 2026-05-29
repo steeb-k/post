@@ -314,10 +314,6 @@ stamp_contact_list_get_property (GObject    *object,
     case PROP_SORT_MODE:
       g_value_set_enum (value, self->sort_mode);
       break;
-    default:
-      /* We don't have any other property... */
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
-      break;
   }
 }
 static void
@@ -331,9 +327,6 @@ stamp_contact_list_set_property (GObject      *object,
   switch ((StampContactListProps) property_id) {
     case PROP_SORT_MODE:
       self->sort_mode = g_value_get_enum (value);
-      break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
   }
 }

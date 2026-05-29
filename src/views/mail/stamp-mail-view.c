@@ -193,10 +193,6 @@ stamp_mail_view_get_property (GObject    *object,
     case PROP_STACK:
       g_value_set_object (value, self->stack);
       break;
-    default:
-      /* We don't have any other property... */
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
-      break;
   }
 }
 
@@ -211,9 +207,6 @@ stamp_mail_view_set_property (GObject      *object,
   switch ((StampMailViewProps) property_id) {
     case PROP_STACK:
       g_set_object (&self->stack, g_value_get_object (value));
-      break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
   }
 }

@@ -183,10 +183,6 @@ stamp_message_header_get_property (GObject    *object,
     case PROP_IS_READ:
       g_value_set_boolean (value, self->is_read);
       break;
-    default:
-      /* We don't have any other property... */
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
-      break;
   }
 }
 
@@ -216,9 +212,6 @@ stamp_message_header_set_property (GObject      *object,
       break;
     case PROP_IS_READ:
       self->is_read = g_value_get_boolean (value);
-      break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
   }
 }

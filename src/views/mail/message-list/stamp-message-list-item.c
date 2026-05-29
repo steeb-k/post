@@ -358,10 +358,6 @@ stamp_message_list_item_get_property (GObject    *object,
     case PROP_EXPANDED:
       g_value_set_boolean (value, gtk_revealer_get_reveal_child (GTK_REVEALER (self->secondary_revealer)));
       break;
-    default:
-      /* We don't have any other property... */
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
-      break;
   }
 }
 
@@ -383,9 +379,6 @@ stamp_message_list_item_set_property (GObject      *object,
       break;
     case PROP_EXPANDED:
       stamp_message_list_item_set_expanded (self, g_value_get_boolean (value));
-      break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
   }
 }

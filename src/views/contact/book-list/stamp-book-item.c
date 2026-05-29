@@ -51,9 +51,6 @@ stamp_book_item_set_property (GObject      *object,
       if (self->client)
         g_object_ref (self->client);
       break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
-      break;
   }
 }
 
@@ -65,9 +62,6 @@ stamp_book_item_get_property (GObject    *object,
 {
   switch ((StampBookItemProps) property_id) {
     case PROP_CLIENT:
-      break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
   }
 }

@@ -1141,10 +1141,6 @@ stamp_conversation_list_get_property (GObject    *object,
     case PROP_STATE:
       g_value_set_boolean (value, self->selection_mode);
       break;
-    default:
-      /* We don't have any other property... */
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
-      break;
   }
 }
 
@@ -1156,9 +1152,6 @@ stamp_conversation_list_set_property (GObject      *object,
 {
   switch ((StampConversationListProps) property_id) {
     case PROP_STATE:
-      break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
   }
 }

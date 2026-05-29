@@ -95,9 +95,6 @@ stamp_item_set_property (GObject      *object,
     case PROP_ERROR:
       priv->error = g_value_get_pointer (value);
       break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
-      break;
   }
 }
 
@@ -122,9 +119,6 @@ stamp_item_get_property (GObject    *object,
       break;
     case PROP_ERROR:
       g_value_set_pointer (value, priv->error);
-      break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
   }
 }

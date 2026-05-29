@@ -154,9 +154,6 @@ stamp_folder_item_set_property (GObject      *object,
       break;
     case PROP_UNREAD:
       break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
-      break;
   }
 }
 
@@ -174,9 +171,6 @@ stamp_folder_item_get_property (GObject    *object,
       break;
     case PROP_UNREAD:
       g_value_set_uint (value, self->unread);
-      break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
   }
 }

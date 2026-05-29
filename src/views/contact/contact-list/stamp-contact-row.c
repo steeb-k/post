@@ -67,10 +67,6 @@ stamp_contact_row_get_property (GObject    *object,
     case PROP_NAME:
       g_value_set_string (value, gtk_inscription_get_text (GTK_INSCRIPTION (self->name)));
       break;
-    default:
-      /* We don't have any other property... */
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
-      break;
   }
 }
 static void
@@ -84,9 +80,6 @@ stamp_contact_row_set_property (GObject      *object,
   switch ((StampContactRowProps) property_id) {
     case PROP_NAME:
       gtk_inscription_set_text (GTK_INSCRIPTION (self->name), g_value_get_string (value));
-      break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
   }
 }

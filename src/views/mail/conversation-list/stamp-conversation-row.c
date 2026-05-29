@@ -115,10 +115,6 @@ stamp_conversation_row_get_property (GObject    *object,
       break;
     case PROP_UNREAD:
       break;
-    default:
-      /* We don't have any other property... */
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
-      break;
   }
 }
 
@@ -171,9 +167,6 @@ stamp_conversation_row_set_property (GObject      *object,
       break;
     case PROP_UNREAD:
       set_unread_status (self, g_value_get_boolean (value));
-      break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
   }
 }

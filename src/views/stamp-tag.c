@@ -65,10 +65,6 @@ stamp_tag_get_property (GObject    *object,
       break;
     case PROP_LABEL:
       break;
-    default:
-      /* We don't have any other property... */
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
-      break;
   }
 }
 
@@ -101,9 +97,6 @@ stamp_tag_set_property (GObject      *object,
       break;
     case PROP_LABEL:
       gtk_label_set_text (self->label, g_value_get_string (value));
-      break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
   }
 }

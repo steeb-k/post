@@ -66,10 +66,6 @@ stamp_webview_get_property (GObject    *object,
     case PROP_SIZE_REQUEST:
       g_value_set_boolean (value, self->loaded);
       break;
-    default:
-      /* We don't have any other property... */
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
-      break;
   }
 }
 
@@ -81,9 +77,6 @@ stamp_web_view_set_property (GObject      *object,
 {
   switch ((StampWebViewProps) property_id) {
     case PROP_SIZE_REQUEST:
-      break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
   }
 }

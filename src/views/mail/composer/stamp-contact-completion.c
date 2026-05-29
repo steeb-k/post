@@ -381,9 +381,6 @@ stamp_contact_completion_set_property (GObject      *object,
       self->has_entries = g_value_get_boolean (value);
       g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_HAS_ENTRIES]);
       break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
-      break;
   }
 }
 
@@ -398,9 +395,6 @@ stamp_contact_completion_get_property (GObject    *object,
   switch ((StampContactCompletionProps) property_id) {
     case PROP_HAS_ENTRIES:
       g_value_set_boolean (value, self->has_entries);
-      break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
   }
 }
