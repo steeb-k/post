@@ -135,9 +135,6 @@ G_DECLARE_FINAL_TYPE(StampMimeParser, stamp_mime_parser, STAMP, MIME_PARSER, GOb
 StampMimeParser *
 stamp_mime_parser_new (CamelSession *session);
 
-void
-stamp_mime_parser_free (StampMimeParser *self);
-
 gboolean
 stamp_mime_parser_parse (StampMimeParser   *self,
                          CamelMimeMessage  *message,
@@ -157,14 +154,7 @@ const GList *
 stamp_mime_parser_get_encryptions (StampMimeParser *self);
 
 GList *
-stamp_mime_parser_get_calendars (StampMimeParser *self);
-
-GList *
 stamp_mime_parser_get_inline_images (StampMimeParser *self);
-
-gchar *
-stamp_mime_parser_embed_inline_images (StampMimeParser *self,
-                                       const gchar      *html_content);
 
 GList *
 stamp_mime_parser_get_list_unsubscribe (StampMimeParser *self);
