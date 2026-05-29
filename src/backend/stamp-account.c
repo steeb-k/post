@@ -919,7 +919,7 @@ alias_to_string (GHashTable *aliases)
 
   g_list_free (keys);
 
-  return g_string_free (str, FALSE);
+  return g_string_free_and_steal (str);
 }
 
 void
