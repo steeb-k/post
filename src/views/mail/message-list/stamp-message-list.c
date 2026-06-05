@@ -374,8 +374,34 @@ scroll_to_bottom (gpointer user_data)
 {
   StampMessageList *self = STAMP_MESSAGE_LIST (user_data);
   GtkAdjustment *adj = gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (self->scrolled_window));
+  GtkWidget *first_unread = NULL;
+  GtkWidget *row;
+  gboolean found_unread = FALSE;
 
-  gtk_adjustment_set_value (adj, gtk_adjustment_get_upper (adj));
+  for (row = gtk_widget_get_first_child (GTK_WIDGET (self->list_box)); row != NULL; row = gtk_widget_get_next_sibling (row)) {
+    const CamelMessageInfo *info;
+
+    if (!STAMP_IS_MESSAGE_LIST_ITEM (row))
+      continue;
+
+    info = stamp_message_list_item_get_message_info (STAMP_MESSAGE_LIST_ITEM (row));
+
+    if ((camel_message_info_get_flags (info) & CAMEL_MESSAGE_SEEN) == 0) {
+      found_unread = TRUE;
+      first_unread = row;
+      break;
+    }
+  }
+
+  if (found_unread && first_unread) {
+    graphene_point_t in_point;
+    graphene_point_t out_point;
+
+    graphene_point_init (&in_point, 0, 0);
+    if (gtk_widget_compute_point (first_unread, GTK_WIDGET (self->list_box), &in_point, &out_point))
+      gtk_adjustment_set_value (adj, out_point.y);
+  }
+
   self->scroll_to_bottom_handler = 0;
 
   mark_visible_messages_as_read (self);
