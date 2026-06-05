@@ -335,6 +335,9 @@ on_send_mail (GObject      *account,
     return;
   }
 
+  if (self->draft_uid)
+    stamp_account_remove_draft (stamp_composer_from_get_account (self->composer_from), self->draft_uid);
+
   self->is_dirty = FALSE;
   stamp_mail_view_show_toast (mail_view, _("Mail sent"));
   gtk_window_destroy (GTK_WINDOW (self));
