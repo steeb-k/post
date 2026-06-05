@@ -75,14 +75,6 @@ template $StampMessageList: Adw.BreakpointBin {
               tooltip-text: _("Mark Spam");
               action-name: 'mail.junk';
             }
-
-            [end]
-            Button unsubscribe_button {
-              icon-name: 'media-playback-stop-symbolic';
-              tooltip-text: _("Unsubscribe");
-              visible: false;
-              clicked => $on_unsubscribe_clicked();
-            }
           }
 
           [top]

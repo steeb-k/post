@@ -42,11 +42,6 @@ struct _StampMessageList {
   GtkWidget *edit_button;
   GtkWidget *external;
 
-  GtkButton *unsubscribe_button;
-  gchar *unsubscribe_sender;
-  gchar *unsubscribe_url;
-  CamelMimeMessage *unsubscribe_message;
-
   GCancellable *cancellable;
 
   GHashTable *messages;
@@ -102,45 +97,6 @@ stamp_message_list_dispose (GObject *object)
   g_clear_handle_id (&self->navigate_back_handler, g_source_remove);
 
   G_OBJECT_CLASS (stamp_message_list_parent_class)->dispose (object);
-}
-
-static void
-on_unsubscribe_response (GtkWidget *dialog,
-                         gchar     *response,
-                         gpointer   user_data)
-{
-  StampMessageList *self = STAMP_MESSAGE_LIST (user_data);
-
-  if (g_strcmp0 (response, "confirm") == 0) {
-    g_autoptr (StampMimeParser) parser = NULL;
-
-    parser = stamp_mime_parser_new (CAMEL_SESSION (stamp_session_get_default ()));
-    stamp_mime_parser_parse (parser, self->unsubscribe_message, self->cancellable, NULL);
-    stamp_mime_parser_send_unsubscribe (parser, NULL, self->cancellable);
-    gtk_widget_set_visible (GTK_WIDGET (self->unsubscribe_button), FALSE);
-  }
-}
-
-static void
-on_unsubscribe_clicked (GtkWidget *button,
-                        gpointer   user_data)
-{
-  StampMessageList *self = STAMP_MESSAGE_LIST (user_data);
-  AdwDialog *dialog;
-  const gchar *sender = self->unsubscribe_sender;
-  g_autofree char *body = g_strdup_printf (_("Are you sure you want to unsubscribe from the mailing list?\n\nSender: %s\nUnsubscribe URL: %s"), sender, self->unsubscribe_url);
-
-  dialog = adw_alert_dialog_new (_("Unsubscribe"), body);
-
-  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "cancel", _("Cancel"));
-  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "confirm", _("Unsubscribe"));
-  adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "confirm", ADW_RESPONSE_DESTRUCTIVE);
-
-  adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "cancel");
-  adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "cancel");
-  g_signal_connect (dialog, "response", G_CALLBACK (on_unsubscribe_response), self);
-
-  adw_dialog_present (dialog, GTK_WIDGET (self));
 }
 
 enum {
@@ -227,13 +183,11 @@ stamp_message_list_class_init (StampMessageListClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, search_bar);
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, search_entry);
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, edit_button);
-  gtk_widget_class_bind_template_child (widget_class, StampMessageList, unsubscribe_button);
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, external);
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, carousel);
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, message_stack);
 
   gtk_widget_class_bind_template_callback (widget_class, on_message_search_entry_changed);
-  gtk_widget_class_bind_template_callback (widget_class, on_unsubscribe_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_drag_begin);
   gtk_widget_class_bind_template_callback (widget_class, on_drag_update);
   gtk_widget_class_bind_template_callback (widget_class, on_carousel_page_changed);
@@ -595,7 +549,6 @@ stamp_message_list_set_conversation (StampMessageList      *self,
   self->messages = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
 
   gtk_label_set_text (GTK_LABEL (self->message_title), camel_message_info_get_subject (camel_folder_thread_node_get_item (node)));
-  gtk_widget_set_visible (GTK_WIDGET (self->unsubscribe_button), FALSE);
 
   self->subject = g_strdup (camel_message_info_get_subject (camel_folder_thread_node_get_item (node)));
 
@@ -764,18 +717,6 @@ stamp_message_list_view_source (StampMessageList *self,
   item = STAMP_MESSAGE_LIST_ITEM (child);
 
   stamp_message_list_item_view_source (item);
-}
-
-void
-stamp_message_list_set_unsubscribe (StampMessageList *self,
-                                    const gchar      *sender,
-                                    const gchar      *url,
-                                    CamelMimeMessage *message)
-{
-  gtk_widget_set_visible (GTK_WIDGET (self->unsubscribe_button), TRUE);
-  g_set_str (&self->unsubscribe_sender, sender);
-  g_set_str (&self->unsubscribe_url, url);
-  g_set_object (&self->unsubscribe_message, message);
 }
 
 void

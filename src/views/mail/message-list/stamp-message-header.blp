@@ -344,6 +344,12 @@ menu menu_model {
 
   section {
     item {
+      label: _("Unsubscribe");
+      action: "message-list-item.unsubscribe";
+      hidden-when: "action-disabled";
+    }
+
+    item {
       label: _("Print…");
       action: "message-list-item.print";
     }

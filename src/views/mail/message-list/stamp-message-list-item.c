@@ -69,6 +69,7 @@ struct _StampMessageListItem {
   GCancellable *cancellable;
   CamelMimeMessage *message;
   ICalComponent *calendar;
+  StampMimeListUnsubscribe *unsubscribe;
 
   guint progress_handle;
   gboolean loading_done;
@@ -86,6 +87,28 @@ typedef enum {
 } StampMessageListItemProps;
 
 static GParamSpec *properties[PROP_EXPANDED + 1];
+
+static void
+update_actions (StampMessageListItem *self)
+{
+  GAction *action;
+  guint32 flags = camel_message_info_get_flags (self->message_info);
+  gboolean flagged = (flags & CAMEL_MESSAGE_FLAGGED) != 0;
+  gboolean read = (flags & CAMEL_MESSAGE_SEEN) != 0;
+
+  action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-unflag");
+  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), flagged);
+  action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-flag");
+  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), !flagged);
+
+  action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-unread");
+  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), read);
+  action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-read");
+  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), !read);
+
+  action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "unsubscribe");
+  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), self->unsubscribe != NULL);
+}
 
 static void
 open_message (StampMessageListItem *self,
@@ -197,9 +220,7 @@ open_message (StampMessageListItem *self,
 
   list_unsubscribe = stamp_mime_parser_get_list_unsubscribe (self->parser);
   if (list_unsubscribe) {
-    StampMimeListUnsubscribe *unsubscribe = list_unsubscribe->data;
-
-    stamp_message_list_set_unsubscribe (message_list, camel_message_info_get_from (self->message_info), unsubscribe->uri, self->message);
+    self->unsubscribe = list_unsubscribe->data;
   }
 
   body = stamp_mime_parser_get_body (self->parser);
@@ -237,6 +258,8 @@ open_message (StampMessageListItem *self,
       stamp_webview_load_plain_text (self->web_view, self->message_content);
     }
   }
+
+  update_actions (self);
 }
 
 static void
@@ -690,25 +713,6 @@ on_size_request (GtkWidget  *web_view,
 }
 
 static void
-update_actions (StampMessageListItem *self)
-{
-  GAction *action;
-  guint32 flags = camel_message_info_get_flags (self->message_info);
-  gboolean flagged = (flags & CAMEL_MESSAGE_FLAGGED) != 0;
-  gboolean read = (flags & CAMEL_MESSAGE_SEEN) != 0;
-
-  action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-unflag");
-  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), flagged);
-  action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-flag");
-  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), !flagged);
-
-  action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-unread");
-  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), read);
-  action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-read");
-  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), !read);
-}
-
-static void
 on_mark_read_activate (GSimpleAction *action,
                        GVariant      *parameter,
                        gpointer       user_data)
@@ -848,6 +852,50 @@ on_forward (GSimpleAction *action,
   stamp_message_list_item_compose (self, STAMP_COMPOSER_FORWARD);
 }
 
+
+static void
+on_unsubscribe_response (GtkWidget *dialog,
+                         gchar     *response,
+                         gpointer   user_data)
+{
+  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
+
+  if (g_strcmp0 (response, "confirm") == 0) {
+    g_autoptr (StampMimeParser) parser = NULL;
+
+    parser = stamp_mime_parser_new (CAMEL_SESSION (stamp_session_get_default ()));
+    stamp_mime_parser_parse (parser, self->message, self->cancellable, NULL);
+    stamp_mime_parser_send_unsubscribe (parser, self->unsubscribe, self->cancellable);
+  }
+}
+
+static void
+on_unsubscribe_activate (GSimpleAction *action,
+                         GVariant      *parameter,
+                         gpointer       user_data)
+{
+  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
+  AdwDialog *dialog;
+  g_autofree char *body = NULL;
+
+  if (!self->unsubscribe)
+    return;
+
+  body = g_strdup_printf (_("Are you sure you want to unsubscribe from the mailing list?\n\nUnsubscribe URL: %s"), self->unsubscribe->uri);
+
+  dialog = adw_alert_dialog_new (_("Unsubscribe"), body);
+
+  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "cancel", _("Cancel"));
+  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "confirm", _("Unsubscribe"));
+  adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "confirm", ADW_RESPONSE_DESTRUCTIVE);
+
+  adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "cancel");
+  adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "cancel");
+  g_signal_connect (dialog, "response", G_CALLBACK (on_unsubscribe_response), self);
+
+  adw_dialog_present (dialog, GTK_WIDGET (self));
+}
+
 static const GActionEntry actions[] = {
   { "reply", on_reply},
   { "reply-all", on_reply_all},
@@ -856,6 +904,7 @@ static const GActionEntry actions[] = {
   { "mark-unread", on_mark_unread_activate},
   { "mark-flag", on_mark_flag_activate},
   { "mark-unflag", on_mark_unflag_activate},
+  { "unsubscribe", on_unsubscribe_activate},
   { "print", on_print},
   { "view-source", on_view_source_activate},
 };
