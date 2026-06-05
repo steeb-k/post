@@ -73,7 +73,6 @@ struct _StampConversationList {
   GCancellable *transfer_cancellable;
   GHashTable *folders;
   GList *moved_messages;
-  gint mark_read_timeout_id;
   gboolean is_pulling;
   GtkSorter *sorter;
   GtkFilter *filter;
@@ -1037,47 +1036,6 @@ on_unbind_list_item (GtkListItemFactory *factory,
   g_signal_handlers_disconnect_by_func (list_item, on_selection_changed, check_button);
 }
 
-typedef struct {
-  StampConversationList *self;
-  StampConversationItem *item;
-} MarkReadData;
-
-static void
-mark_read_data_free (MarkReadData *data)
-{
-  g_clear_object (&data->self);
-  g_clear_object (&data->item);
-  g_clear_pointer (&data, g_free);
-}
-
-static void
-set_thread_flag (CamelFolderThreadNode *node,
-                 CamelMessageFlags      flag)
-{
-  if (!node)
-    return;
-
-  if (!(flag & camel_message_info_get_flags (camel_folder_thread_node_get_item (node)))) {
-    camel_message_info_set_flags (CAMEL_MESSAGE_INFO (camel_folder_thread_node_get_item (node)), flag, ~0);
-  }
-
-  for (CamelFolderThreadNode *child = camel_folder_thread_node_get_child (node); child != NULL; child = camel_folder_thread_node_get_next (child)) {
-    set_thread_flag (child, flag);
-  }
-}
-
-static gboolean
-mark_read (gpointer user_data)
-{
-  MarkReadData *data = user_data;
-
-  set_thread_flag (stamp_conversation_item_get_node (data->item), CAMEL_MESSAGE_SEEN);
-  data->self->mark_read_timeout_id = 0;
-  stamp_conversation_item_notify_unread (data->item);
-
-  return G_SOURCE_REMOVE;
-}
-
 static void
 on_single_selection_changed (GtkSelectionModel *model,
                              guint              position,
@@ -1090,21 +1048,7 @@ on_single_selection_changed (GtkSelectionModel *model,
   if (self->selection_mode)
     return;
 
-  g_clear_handle_id (&self->mark_read_timeout_id, g_source_remove);
-
   if (conversation_item) {
-    if (stamp_conversation_item_get_unread (conversation_item)) {
-      g_autoptr (GSettings) settings = g_settings_new ("org.tabos.stamp.mail");
-      MarkReadData *data = g_new (MarkReadData, 1);
-      gdouble mark_timeout = g_settings_get_double (settings, "mark-read-timeout");
-      gint timeout = mark_timeout * 1000;
-
-      data->self = g_object_ref (self);
-      data->item = g_object_ref (conversation_item);
-
-      self->mark_read_timeout_id = g_timeout_add_full (G_PRIORITY_HIGH_IDLE, timeout, mark_read, data, (GDestroyNotify)mark_read_data_free);
-    }
-
     g_signal_emit (self, signals[CONVERSATION_SELECTED], 0, stamp_conversation_item_get_node (conversation_item));
   } else {
     g_signal_emit (self, signals[CONVERSATION_SELECTED], 0, 0);

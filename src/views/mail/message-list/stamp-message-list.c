@@ -279,8 +279,54 @@ update_header (GtkListBoxRow *row,
 }
 
 static void
+mark_visible_messages_as_read (StampMessageList *self)
+{
+  GtkAdjustment *adj = gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (self->scrolled_window));
+  GtkWidget *row;
+  gdouble viewport_height = gtk_adjustment_get_page_size (adj);
+
+  for (row = gtk_widget_get_first_child (GTK_WIDGET (self->list_box)); row != NULL; row = gtk_widget_get_next_sibling (row)) {
+    StampMessageListItem *item;
+    CamelMessageInfo *info;
+    const CamelMessageInfo *const_info;
+    graphene_point_t in_point;
+    graphene_point_t out_point;
+    gdouble row_height;
+
+    if (!STAMP_IS_MESSAGE_LIST_ITEM (row))
+      continue;
+
+    item = STAMP_MESSAGE_LIST_ITEM (row);
+    const_info = stamp_message_list_item_get_message_info (item);
+    if ((camel_message_info_get_flags (const_info) & CAMEL_MESSAGE_SEEN) != 0)
+      continue;
+
+    graphene_point_init (&in_point, 0, 0);
+
+    if (!gtk_widget_compute_point (row, GTK_WIDGET (self->scrolled_window), &in_point, &out_point))
+      continue;
+
+    row_height = gtk_widget_get_height (row);
+
+    if (out_point.y + row_height > 0 && out_point.y < viewport_height) {
+      info = (CamelMessageInfo *)const_info;
+      camel_message_info_set_flags (info, CAMEL_MESSAGE_SEEN, ~0);
+    }
+  }
+}
+
+static void
+on_vadjustment_value_changed (GtkAdjustment *adj,
+                              gpointer       user_data)
+{
+  mark_visible_messages_as_read (STAMP_MESSAGE_LIST (user_data));
+}
+
+static void
 stamp_message_list_init (StampMessageList *self)
 {
+  GtkAdjustment *adj;
+
   gtk_widget_init_template (GTK_WIDGET (self));
 
   stamp_message_list_hovering_over_link (self, NULL, NULL);
@@ -289,6 +335,9 @@ stamp_message_list_init (StampMessageList *self)
   gtk_list_box_set_header_func (GTK_LIST_BOX (self->list_box), update_header, self, NULL);
 
   gtk_search_bar_connect_entry (GTK_SEARCH_BAR (self->search_bar), GTK_EDITABLE (self->search_entry));
+
+  adj = gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (self->scrolled_window));
+  g_signal_connect (adj, "value-changed", G_CALLBACK (on_vadjustment_value_changed), self);
 }
 
 GtkWidget *
@@ -328,6 +377,8 @@ scroll_to_bottom (gpointer user_data)
 
   gtk_adjustment_set_value (adj, gtk_adjustment_get_upper (adj));
   self->scroll_to_bottom_handler = 0;
+
+  mark_visible_messages_as_read (self);
 }
 
 static GtkWidget *
