@@ -64,7 +64,7 @@ stamp_item_dispose (GObject *object)
   if (priv->list_store)
     g_clear_object (&priv->list_store);
 
-  g_clear_object (&priv->error);
+  g_clear_error (&priv->error);
 
   G_OBJECT_CLASS (stamp_item_parent_class)->dispose (object);
 }
@@ -247,6 +247,8 @@ stamp_item_set_error (StampItem *self,
 {
   StampItemPrivate *priv = stamp_item_get_instance_private (self);
 
-  priv->error = error;
+  g_clear_error (&priv->error);
+  priv->error = g_error_copy (error);
+
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_ERROR]);
 }
