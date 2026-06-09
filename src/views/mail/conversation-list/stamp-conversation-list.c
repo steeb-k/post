@@ -65,6 +65,7 @@ struct _StampConversationList {
   GtkBitset *selected;
   GtkToggleButton *sidebar_button;
   GtkBox *sort_is_active;
+  GtkMenuButton *move_selection_button;
 
   GListStore *list_store;
   GtkSingleSelection *single_selection;
@@ -97,6 +98,7 @@ struct _StampConversationList {
 
   GSimpleActionGroup *actions;
   GMenu *cat_menu;
+  GMenu *move_menu;
   guint load_folder_handler;
   guint load_more_items_handler;
 };
@@ -377,6 +379,90 @@ on_items_changed (GListModel *model,
 }
 
 static void
+append_folder_items (GMenu           *menu,
+                     CamelFolderInfo *fi,
+                     const gchar     *current_folder)
+{
+  GMenu *section = g_menu_new ();
+
+  while (fi) {
+    if (fi->flags & (CAMEL_FOLDER_NOSELECT | CAMEL_FOLDER_VIRTUAL)) {
+      fi = fi->next;
+      continue;
+    }
+
+    if (current_folder && g_strcmp0 (fi->full_name, current_folder) == 0) {
+      if (fi->child)
+        append_folder_items (menu, fi->child, current_folder);
+
+      fi = fi->next;
+      continue;
+    }
+
+    if (fi->child) {
+      GMenu *submenu = g_menu_new ();
+
+      append_folder_items (submenu, fi->child, current_folder);
+      g_menu_append_submenu (section, fi->display_name, G_MENU_MODEL (submenu));
+    } else {
+      gchar *action = g_strdup_printf ("conversation-list.move-folder::%s", fi->full_name);
+
+      g_menu_append (section, fi->display_name, action);
+      g_free (action);
+    }
+
+    fi = fi->next;
+  }
+
+  if (g_menu_model_get_n_items (G_MENU_MODEL (section)) > 0)
+    g_menu_append_section (menu, NULL, G_MENU_MODEL (section));
+  else
+    g_clear_object (&section);
+}
+
+static void
+on_folder_info_for_move_menu (GObject      *src,
+                              GAsyncResult *res,
+                              gpointer      user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+  g_autoptr (GError) error = NULL;
+  g_autoptr (CamelFolderInfo) root = camel_store_get_folder_info_finish (CAMEL_STORE (src), res, &error);
+
+  if (error) {
+    g_warning ("Could not get folder info: %s", error->message);
+
+    self->move_menu = g_menu_new ();
+    gtk_menu_button_set_menu_model (GTK_MENU_BUTTON (self->move_selection_button), G_MENU_MODEL (self->move_menu));
+    return;
+  }
+
+  self->move_menu = g_menu_new ();
+
+  if (root)
+    append_folder_items (self->move_menu, root, self->full_name);
+
+  gtk_menu_button_set_menu_model (GTK_MENU_BUTTON (self->move_selection_button), G_MENU_MODEL (self->move_menu));
+}
+
+static void
+rebuild_move_menu (StampConversationList *self)
+{
+  StampMailService *mail_service;
+  CamelStore *store;
+
+  if (!self->account)
+    return;
+
+  g_clear_object (&self->move_menu);
+
+  mail_service = stamp_account_get_mail_service (self->account);
+  store = CAMEL_STORE (stamp_mail_service_get_service (mail_service));
+
+  camel_store_get_folder_info (store, NULL, CAMEL_STORE_FOLDER_INFO_RECURSIVE | CAMEL_STORE_FOLDER_INFO_NO_VIRTUAL, G_PRIORITY_DEFAULT, NULL, on_folder_info_for_move_menu, self);
+}
+
+static void
 on_get_folder (GObject      *source,
                GAsyncResult *res,
                gpointer      user_data)
@@ -461,6 +547,8 @@ on_get_folder (GObject      *source,
     g_clear_handle_id (&self->load_more_items_handler, g_source_remove);
     self->load_more_items_handler = g_idle_add (load_more_items_idle, self);
   }
+
+  rebuild_move_menu (self);
 }
 
 static gboolean
@@ -1195,6 +1283,7 @@ stamp_conversation_list_class_init (StampConversationListClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, sidebar_button);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, sort_is_active);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, context_menu_model);
+  gtk_widget_class_bind_template_child (widget_class, StampConversationList, move_selection_button);
 
   gtk_widget_class_bind_template_callback (widget_class, on_mail_search_entry_changed);
   gtk_widget_class_bind_template_callback (widget_class, on_new_message);
@@ -1477,6 +1566,120 @@ on_mark_unstarred (GSimpleAction *action,
   update_actions (self);
 }
 
+static GPtrArray *
+collect_messages (CamelFolderThreadNode *node,
+                  GPtrArray             *array)
+{
+  CamelFolderThreadNode *child = camel_folder_thread_node_get_child (node);
+
+  if (!array) {
+    array = g_ptr_array_new ();
+  }
+
+  g_ptr_array_add (array, node);
+
+  while (child) {
+    array = collect_messages (child, array);
+    child = camel_folder_thread_node_get_next (child);
+  }
+
+  return array;
+}
+
+static void
+on_transfer_messages_to (GObject      *source,
+                         GAsyncResult *res,
+                         gpointer      user_data)
+{
+  CamelFolder *folder = CAMEL_FOLDER (source);
+  g_autoptr (GError) error = NULL;
+
+  if (!camel_folder_transfer_messages_to_finish (folder, res, NULL, &error)) {
+    g_warning ("%s: Could not move message: %s", G_STRFUNC, error->message);
+    return;
+  }
+
+  camel_folder_synchronize_sync (folder, FALSE, NULL, &error);
+  if (error) {
+    g_warning ("%s: Could not synchronize folder: %s", G_STRFUNC, error->message);
+  }
+}
+
+static void
+on_move_folder (GSimpleAction *action,
+                GVariant      *parameter,
+                gpointer       user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+  const gchar *target_full_name = g_variant_get_string (parameter, NULL);
+  StampMailService *mail_service;
+  CamelStore *store;
+  CamelFolder *target;
+  g_autoptr (GError) error = NULL;
+  g_autoptr (GPtrArray) node_array = g_ptr_array_new_with_free_func (g_object_unref);
+  g_autoptr (GPtrArray) array = NULL;
+  g_autoptr (GPtrArray) uid_array = NULL;
+
+  if (self->selection_mode) {
+    GtkBitset *selected_items = self->selected;
+    GtkBitsetIter iter;
+    guint32 pos;
+
+    gtk_bitset_iter_init_first (&iter, selected_items, &pos);
+    while (gtk_bitset_iter_is_valid (&iter)) {
+      g_autoptr (StampConversationItem) item = STAMP_CONVERSATION_ITEM (
+        g_list_model_get_item (G_LIST_MODEL (self->multi_selection), pos));
+
+      g_ptr_array_add (node_array, g_object_ref (item));
+      gtk_bitset_iter_next (&iter, &pos);
+    }
+  }
+
+  for (gint idx = 0; idx < node_array->len; idx++) {
+    StampConversationItem *item = g_ptr_array_index (node_array, idx);
+
+    stamp_conversation_item_set_hidden (item, TRUE);
+    array = collect_messages (stamp_conversation_item_get_node (item), array);
+  }
+
+  g_list_model_items_changed (G_LIST_MODEL (self->list_store),
+                              0,
+                              g_list_model_get_n_items (G_LIST_MODEL (self->list_store)),
+                              g_list_model_get_n_items (G_LIST_MODEL (self->list_store)));
+
+  uid_array = g_ptr_array_new ();
+  for (gint idx = array->len - 1; idx >= 0; idx--) {
+    CamelFolderThreadNode *child_node = array->pdata[idx];
+    const CamelMessageInfo *info = camel_folder_thread_node_get_item (child_node);
+
+    g_ptr_array_add (uid_array, g_strdup (camel_message_info_get_uid (info)));
+  }
+
+  mail_service = stamp_account_get_mail_service (self->account);
+  store = CAMEL_STORE (stamp_mail_service_get_service (mail_service));
+  target = camel_store_get_folder_sync (store, target_full_name, 0, NULL, &error);
+  if (error) {
+    g_warning ("Could not open target folder %s: %s", target_full_name, error->message);
+    return;
+  }
+
+  if (self->transfer_cancellable) {
+    g_cancellable_cancel (self->transfer_cancellable);
+    g_clear_object (&self->transfer_cancellable);
+  }
+  self->transfer_cancellable = g_cancellable_new ();
+
+  camel_folder_transfer_messages_to (self->folder, uid_array, target, TRUE,
+                                     G_PRIORITY_DEFAULT, self->transfer_cancellable,
+                                     on_transfer_messages_to, uid_array);
+
+  gtk_bitset_remove_all (self->selected);
+  update_selection_title (self);
+  refresh_checkboxes (self);
+  set_selection_active (self, FALSE);
+
+  g_object_unref (target);
+}
 
 static const GActionEntry stamp_conversation_list_action_entries[] = {
   { .name = "mark-category", .activate = on_mark_category, .parameter_type = "s" },
@@ -1484,6 +1687,7 @@ static const GActionEntry stamp_conversation_list_action_entries[] = {
   { .name = "mark-unread", .activate = on_mark_unread },
   { .name = "mark-starred", .activate = on_mark_starred },
   { .name = "mark-unstarred", .activate = on_mark_unstarred },
+  { .name = "move-folder", .activate = on_move_folder, .parameter_type = "s" },
 };
 
 static void
@@ -1577,27 +1781,6 @@ stamp_conversation_list_new (void)
 {
   return g_object_new (STAMP_TYPE_CONVERSATION_LIST, NULL);
 }
-
-static GPtrArray *
-collect_messages (CamelFolderThreadNode *node,
-                  GPtrArray             *array)
-{
-  CamelFolderThreadNode *child = camel_folder_thread_node_get_child (node);
-
-  if (!array) {
-    array = g_ptr_array_new ();
-  }
-
-  g_ptr_array_add (array, node);
-
-  while (child) {
-    array = collect_messages (child, array);
-    child = camel_folder_thread_node_get_next (child);
-  }
-
-  return array;
-}
-
 
 void
 stamp_conversation_list_mark_read (StampConversationList *self,
@@ -1714,25 +1897,6 @@ stamp_conversation_list_unselect (StampConversationList *self)
 {
   gtk_selection_model_unselect_all (GTK_SELECTION_MODEL (self->single_selection));
   gtk_bitset_remove_all (self->selected);
-}
-
-static void
-on_transfer_messages_to (GObject      *source,
-                         GAsyncResult *res,
-                         gpointer      user_data)
-{
-  CamelFolder *folder = CAMEL_FOLDER (source);
-  g_autoptr (GError) error = NULL;
-
-  if (!camel_folder_transfer_messages_to_finish (folder, res, NULL, &error)) {
-    g_warning ("%s: Could not move message: %s", G_STRFUNC, error->message);
-    return;
-  }
-
-  camel_folder_synchronize_sync (folder, FALSE, NULL, &error);
-  if (error) {
-    g_warning ("%s: Could not synchronize folder: %s", G_STRFUNC, error->message);
-  }
 }
 
 void
