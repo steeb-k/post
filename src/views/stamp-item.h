@@ -70,5 +70,8 @@ void
 stamp_item_set_error (StampItem *self,
                       GError    *error);
 
+GError *
+stamp_item_get_error (StampItem *self);
+
 G_END_DECLS
 

@@ -246,9 +246,21 @@ stamp_item_set_error (StampItem *self,
                       GError    *error)
 {
   StampItemPrivate *priv = stamp_item_get_instance_private (self);
+  gboolean changed = !!priv->error != !!error;
 
   g_clear_error (&priv->error);
-  priv->error = g_error_copy (error);
 
-  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_ERROR]);
+  if (error)
+    priv->error = g_error_copy (error);
+
+  if (changed)
+    g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_ERROR]);
+}
+
+GError *
+stamp_item_get_error (StampItem *self)
+{
+  StampItemPrivate *priv = stamp_item_get_instance_private (self);
+
+  return priv->error;
 }

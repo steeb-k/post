@@ -387,14 +387,18 @@ on_refresh (GObject      *source,
   GListStore *store = stamp_item_get_list_store (STAMP_ITEM (self));
   StampFolderItem *folder_item;
 
-  if (!camel_folder_refresh_info_finish (folder, result, &error)) {
-    g_warning ("Could not refresh folder %s: %s", camel_folder_get_display_name (folder), error->message);
-    /* Continue */
-  }
-
   folder_item = find_folder_item_by_folder (store, folder);
-  if (folder_item)
-    stamp_item_set_loading (STAMP_ITEM (folder_item), FALSE);
+  stamp_item_set_loading (STAMP_ITEM (folder_item), FALSE);
+
+  if (!camel_folder_refresh_info_finish (folder, result, &error)) {
+    if (!stamp_item_get_error (STAMP_ITEM (folder_item)))
+      g_warning ("Could not refresh folder %s: %s", camel_folder_get_display_name (folder), error->message);
+
+    stamp_item_set_error (STAMP_ITEM (folder_item), error);
+    /* Continue */
+  } else {
+    stamp_item_set_error (STAMP_ITEM (folder_item), NULL);
+  }
 
   self->refresh_queue_running = FALSE;
 
