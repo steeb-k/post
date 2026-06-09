@@ -48,7 +48,6 @@ struct _StampMessageListItem {
   GtkWidget *blocked_images_banner;
   GtkWidget *signature_banner;
   GtkWidget *encryption_banner;
-  GtkWidget *stack;
   GtkWidget *attachment_flow_box;
   GtkWidget *disposition_banner;
 
@@ -71,8 +70,6 @@ struct _StampMessageListItem {
   ICalComponent *calendar;
   StampMimeListUnsubscribe *unsubscribe;
 
-  guint progress_handle;
-  gboolean loading_done;
   GSimpleActionGroup *actions;
   StampComposerType type;
   gchar *save_img;
@@ -246,12 +243,7 @@ open_message (StampMessageListItem *self,
   }
   gtk_widget_set_visible (self->attachment_flow_box, attachments != NULL);
 
-  if (!self->message_content) {
-    self->loading_done = TRUE;
-    g_clear_handle_id (&self->progress_handle, g_source_remove);
-
-    gtk_stack_set_visible_child_name (GTK_STACK (self->stack), "webview");
-  } else {
+  if (self->message_content) {
     if (self->message_is_html) {
       stamp_webview_load_html (self->web_view, self->message_content);
     } else {
@@ -279,8 +271,6 @@ on_get_message (GObject      *source,
       self = STAMP_MESSAGE_LIST_ITEM (user_data);
 
       g_warning ("Could not get message: %s", error->message);
-      self->loading_done = TRUE;
-      g_clear_handle_id (&self->progress_handle, g_source_remove);
     }
     return;
   }
@@ -302,18 +292,6 @@ on_get_message (GObject      *source,
   open_message (self, message);
 }
 
-static gboolean
-on_progress (gpointer user_data)
-{
-  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
-
-  if (!self->loading_done)
-    gtk_stack_set_visible_child_name (GTK_STACK (self->stack), "progress");
-
-  self->progress_handle = 0;
-  return G_SOURCE_REMOVE;
-}
-
 static void
 start_get_message (StampMessageListItem *self,
                    GAsyncReadyCallback   callback,
@@ -328,9 +306,6 @@ start_get_message (StampMessageListItem *self,
   }
 
   self->cancellable = g_cancellable_new ();
-
-  self->loading_done = FALSE;
-  self->progress_handle = g_timeout_add (500, on_progress, self);
 
   g_object_get (G_OBJECT (self->message_info), "summary", &summary, NULL);
 
@@ -355,10 +330,8 @@ stamp_message_list_item_set_expanded (StampMessageListItem *self,
       self->message_loaded = TRUE;
     }
 
-    gtk_widget_set_visible (GTK_WIDGET (self->stack), TRUE);
     gtk_widget_add_css_class (GTK_WIDGET (self), "expanded");
   } else {
-    gtk_widget_set_visible (GTK_WIDGET (self->stack), FALSE);
     gtk_widget_remove_css_class (GTK_WIDGET (self), "expanded");
   }
 }
@@ -585,20 +558,6 @@ on_rsvp (AdwBanner *banner,
 }
 
 static void
-on_loaded (GtkWidget *web_view,
-           gboolean   loaded,
-           gpointer   user_data)
-{
-  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
-
-  if (loaded) {
-    self->loading_done = TRUE;
-    g_clear_handle_id (&self->progress_handle, g_source_remove);
-    gtk_stack_set_visible_child_name (GTK_STACK (self->stack), "webview");
-  }
-}
-
-static void
 stamp_message_list_item_dispose (GObject *object)
 {
   StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (object);
@@ -607,8 +566,6 @@ stamp_message_list_item_dispose (GObject *object)
     g_cancellable_cancel (self->cancellable);
     g_clear_object (&self->cancellable);
   }
-
-  g_clear_handle_id (&self->progress_handle, g_source_remove);
 
   g_clear_pointer (&self->message_content, g_free);
   g_clear_pointer (&self->signature_details, g_free);
@@ -640,7 +597,6 @@ stamp_message_list_item_class_init (StampMessageListItemClass *klass)
   gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/views/mail/message-list/stamp-message-list-item.ui");
 
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, header);
-  gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, stack);
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, error_banner);
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, blocked_images_banner);
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, disposition_banner);
@@ -656,7 +612,6 @@ stamp_message_list_item_class_init (StampMessageListItemClass *klass)
   gtk_widget_class_bind_template_callback (widget_class, on_show_signatures);
   gtk_widget_class_bind_template_callback (widget_class, on_rsvp);
   gtk_widget_class_bind_template_callback (widget_class, on_image_load_blocked);
-  gtk_widget_class_bind_template_callback (widget_class, on_loaded);
   gtk_widget_class_bind_template_callback (widget_class, on_mouse_target_changed);
   gtk_widget_class_bind_template_callback (widget_class, on_send_disposition);
 
