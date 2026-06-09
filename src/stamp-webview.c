@@ -103,6 +103,8 @@ on_cid_request (WebKitURISchemeRequest *request,
   }
 }
 
+#define MAX_PIXELS 8 * 1024 * 1024
+
 static void
 on_get_page_size (GObject      *source,
                   GAsyncResult *res,
@@ -122,6 +124,9 @@ on_get_page_size (GObject      *source,
 
   variant = webkit_user_message_get_parameters (response);
   g_variant_get (variant, "(uu)", &width, &height);
+
+  if (width * height > MAX_PIXELS)
+    height = floor (MAX_PIXELS / width);
 
   self->width_request = width;
   self->height_request = height;
