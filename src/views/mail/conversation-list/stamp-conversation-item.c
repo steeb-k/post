@@ -30,11 +30,13 @@ struct _StampConversationItem {
   gchar *subject;
   gchar *sender;
   gchar *service_uid;
+  gchar *uid;
   gchar *preview;
   GPtrArray *labels;
   gboolean unread;
-  gboolean starred;
+  gboolean flagged;
   gboolean hidden;
+  gboolean important;
 };
 
 G_DEFINE_FINAL_TYPE (StampConversationItem, stamp_conversation_item, G_TYPE_OBJECT);
@@ -42,7 +44,7 @@ G_DEFINE_FINAL_TYPE (StampConversationItem, stamp_conversation_item, G_TYPE_OBJE
 typedef enum {
   PROP_THREAD_NODE = 1,
   PROP_UNREAD,
-  PROP_STARRED,
+  PROP_FLAGGED,
   PROP_SERVICE_UID,
   PROP_SUBJECT,
   PROP_FROM,
@@ -56,6 +58,49 @@ typedef enum {
 } StampConversationItemProps;
 
 static GParamSpec *properties[PROP_LABELS + 1];
+
+static gboolean
+has_thread_flag_one (CamelFolderThreadNode *node,
+                     CamelMessageFlags      flag)
+{
+  gboolean has_flag = FALSE;
+
+  if (!node)
+    return FALSE;
+
+  has_flag = (camel_message_info_get_flags (camel_folder_thread_node_get_item (node)) & flag) != 0;
+  if (!has_flag) {
+    for (CamelFolderThreadNode *child = camel_folder_thread_node_get_child (node); child; child = camel_folder_thread_node_get_next (child)) {
+      has_flag |= has_thread_flag_one (child, flag);
+      if (has_flag)
+        break;
+    }
+  }
+
+  return has_flag;
+}
+
+static gboolean
+has_thread_flag_all (CamelFolderThreadNode *node,
+                     CamelMessageFlags      flag)
+{
+  gboolean has_flag = FALSE;
+
+  if (!node)
+    return FALSE;
+
+  has_flag = camel_message_info_get_flags (camel_folder_thread_node_get_item (node)) & flag;
+  if (!has_flag)
+    return FALSE;
+
+  for (CamelFolderThreadNode *child = camel_folder_thread_node_get_child (node); child; child = camel_folder_thread_node_get_next (child)) {
+    has_flag = has_thread_flag_all (child, flag);
+    if (!has_flag)
+      return FALSE;
+  }
+
+  return TRUE;
+}
 
 const gchar *
 stamp_conversation_item_get_subject (StampConversationItem *self)
@@ -103,7 +148,7 @@ stamp_conversation_item_get_property (GObject    *object,
     case PROP_UNREAD:
       g_value_set_boolean (value, stamp_conversation_item_get_unread (self));
       break;
-    case PROP_STARRED:
+    case PROP_FLAGGED:
       g_value_set_boolean (value, stamp_conversation_item_get_flagged (self));
       break;
     case PROP_SUBJECT:
@@ -164,6 +209,29 @@ get_newest_timestamp (CamelFolderThreadNode *node,
   return time;
 }
 
+static gboolean
+is_important (StampConversationItem *self)
+{
+  const CamelMessageInfo *message = camel_folder_thread_node_get_item (self->thread_node);
+  gboolean important = FALSE;
+
+  self->uid = g_strdup (camel_message_info_get_uid (message));
+
+  if (message) {
+    const CamelNamedFlags *flags = camel_message_info_get_user_flags (message);
+    guint len = camel_named_flags_get_length (flags);
+
+    for (guint idx = 0; idx < len; idx++) {
+      if (g_strcmp0 (camel_named_flags_get (flags, idx), "$Labelimportant") == 0) {
+        important = TRUE;
+        break;
+      }
+    }
+  }
+
+  return important;
+}
+
 static void
 stamp_conversation_item_set_property (GObject      *object,
                                       guint         property_id,
@@ -171,18 +239,28 @@ stamp_conversation_item_set_property (GObject      *object,
                                       GParamSpec   *pspec)
 {
   StampConversationItem *self = STAMP_CONVERSATION_ITEM (object);
+  const CamelMessageInfo *message;
 
   switch ((StampConversationItemProps)property_id) {
     case PROP_THREAD_NODE:
       self->thread_node = g_value_get_pointer (value);
       self->timestamp = get_newest_timestamp (self->thread_node, -1);
+      self->unread = !has_thread_flag_all (self->thread_node, CAMEL_MESSAGE_SEEN);
+      self->flagged = has_thread_flag_one (self->thread_node, CAMEL_MESSAGE_FLAGGED);
+      self->important = is_important (self);
+
+      if (self->thread_node) {
+        message = camel_folder_thread_node_get_item (self->thread_node);
+        self->uid = g_strdup (camel_message_info_get_uid (message));
+      }
+
       break;
     case PROP_SERVICE_UID:
       self->service_uid = g_strdup (g_value_get_string (value));
       break;
     case PROP_FROM:
     case PROP_SUBJECT:
-    case PROP_STARRED:
+    case PROP_FLAGGED:
     case PROP_UNREAD:
     case PROP_PREVIEW:
     case PROP_HAS_ATTACHMENT:
@@ -204,6 +282,7 @@ stamp_conversation_item_dispose (GObject *object)
   g_clear_pointer (&self->subject, g_free);
   g_clear_pointer (&self->sender, g_free);
   g_clear_pointer (&self->service_uid, g_free);
+  g_clear_pointer (&self->uid, g_free);
   g_clear_pointer (&self->preview, g_free);
 
   G_OBJECT_CLASS (stamp_conversation_item_parent_class)->dispose (object);
@@ -234,7 +313,7 @@ stamp_conversation_item_class_init (StampConversationItemClass *klass)
                                                   NULL,
                                                   FALSE,
                                                   G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-  properties[PROP_STARRED] = g_param_spec_boolean ("starred",
+  properties[PROP_FLAGGED] = g_param_spec_boolean ("flagged",
                                                    NULL,
                                                    NULL,
                                                    FALSE,
@@ -325,8 +404,8 @@ stamp_conversation_item_get_from (StampConversationItem *self)
   const gchar *ia_name;
   const gchar *ia_address;
 
-  /* if (self->sender) */
-  /*   return self->sender; */
+  if (self->sender)
+    return self->sender;
 
   senders = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
 
@@ -395,54 +474,11 @@ stamp_conversation_item_get_num_messages (StampConversationItem *self)
   return count_thread_messages (self->thread_node);
 }
 
-static gboolean
-has_thread_flag_one (CamelFolderThreadNode *node,
-                     CamelMessageFlags      flag)
-{
-  gboolean has_flag = FALSE;
-
-  if (!node)
-    return FALSE;
-
-  has_flag = camel_message_info_get_flags (camel_folder_thread_node_get_item (node)) & flag;
-  if (!has_flag) {
-    for (CamelFolderThreadNode *child = camel_folder_thread_node_get_child (node); child; child = camel_folder_thread_node_get_next (child)) {
-      has_flag |= has_thread_flag_one (child, flag);
-      if (has_flag)
-        break;
-    }
-  }
-
-  return has_flag;
-}
-
-static gboolean
-has_thread_flag_all (CamelFolderThreadNode *node,
-                     CamelMessageFlags      flag)
-{
-  gboolean has_flag = FALSE;
-
-  if (!node)
-    return FALSE;
-
-  has_flag = camel_message_info_get_flags (camel_folder_thread_node_get_item (node)) & flag;
-  if (!has_flag)
-    return FALSE;
-
-  for (CamelFolderThreadNode *child = camel_folder_thread_node_get_child (node); child; child = camel_folder_thread_node_get_next (child)) {
-    has_flag = has_thread_flag_all (child, flag);
-    if (!has_flag)
-      return FALSE;
-  }
-
-  return TRUE;
-}
-
 /* Check whether all nodes are SEEN */
 gboolean
 stamp_conversation_item_get_unread (StampConversationItem *self)
 {
-  return !has_thread_flag_all (self->thread_node, CAMEL_MESSAGE_SEEN);
+  return self->unread;
 }
 
 void
@@ -470,7 +506,7 @@ stamp_conversation_item_has_attachment (StampConversationItem *self)
 gboolean
 stamp_conversation_item_get_flagged (StampConversationItem *self)
 {
-  return has_thread_flag_one (self->thread_node, CAMEL_MESSAGE_FLAGGED);
+  return self->flagged;
 }
 
 void
@@ -561,13 +597,7 @@ stamp_conversation_item_get_service_uid (StampConversationItem *self)
 const gchar *
 stamp_conversation_item_get_uid (StampConversationItem *self)
 {
-  const CamelMessageInfo *message;
-
-  if (!self->thread_node)
-    return NULL;
-
-  message = camel_folder_thread_node_get_item (self->thread_node);
-  return camel_message_info_get_uid (message);
+  return self->uid;
 }
 
 gboolean
@@ -612,34 +642,18 @@ void
 stamp_conversation_item_update (StampConversationItem *self,
                                 CamelMessageInfo      *info)
 {
+  self->unread = !has_thread_flag_all (self->thread_node, CAMEL_MESSAGE_SEEN);
+  self->flagged = has_thread_flag_one (self->thread_node, CAMEL_MESSAGE_FLAGGED);
+  self->important = is_important (self);
+
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_UNREAD]);
-  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_STARRED]);
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_FLAGGED]);
 }
 
 gboolean
 stamp_conversation_item_is_important (StampConversationItem *self)
 {
-  const CamelMessageInfo *message;
-  const CamelNamedFlags *flags;
-  guint len;
-
-  if (!self->thread_node)
-    return FALSE;
-
-  message = camel_folder_thread_node_get_item (self->thread_node);
-  g_assert (message);
-
-  flags = camel_message_info_get_user_flags (message);
-
-  len = camel_named_flags_get_length (flags);
-  for (guint idx = 0; idx < len; idx++) {
-    const gchar *name = camel_named_flags_get (flags, idx);
-
-    if (g_strcmp0 (name, "$Labelimportant") == 0)
-      return TRUE;
-  }
-
-  return FALSE;
+  return self->important;
 }
 
 void

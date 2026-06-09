@@ -543,7 +543,7 @@ stamp_conversation_row_bind_mail (StampConversationRow  *self,
   add_binding (self, g_object_bind_property_full (item, "from", self->avatar, "text", G_BINDING_SYNC_CREATE, transfer_avatar_to, NULL, NULL, NULL));
   add_binding (self, g_object_bind_property (item, "unread", self, "unread", G_BINDING_SYNC_CREATE));
   add_binding (self, g_object_bind_property (item, "preview", self->body, "markup", G_BINDING_SYNC_CREATE));
-  add_binding (self, g_object_bind_property_full (item, "starred", self->flagged_icon, "icon-name", G_BINDING_SYNC_CREATE, transform_flagged_to, NULL, self, NULL));
+  add_binding (self, g_object_bind_property_full (item, "flagged", self->flagged_icon, "icon-name", G_BINDING_SYNC_CREATE, transform_flagged_to, NULL, self, NULL));
   add_binding (self, g_object_bind_property (item, "has-attachment", self->attachment_icon, "visible", G_BINDING_SYNC_CREATE));
   add_binding (self, g_object_bind_property (item, "has-calendar", self->calendar_icon, "visible", G_BINDING_SYNC_CREATE));
   add_binding (self, g_object_bind_property (item, "important", self, "important", G_BINDING_SYNC_CREATE));
