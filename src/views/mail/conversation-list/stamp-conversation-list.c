@@ -99,7 +99,6 @@ struct _StampConversationList {
   GMenu *cat_menu;
   guint load_folder_handler;
   guint load_more_items_handler;
-  guint scroll_to_top_handler;
 };
 
 G_DEFINE_FINAL_TYPE (StampConversationList, stamp_conversation_list, ADW_TYPE_BIN);
@@ -1064,14 +1063,21 @@ on_selection_button_clicked (GtkWidget *button,
   set_selection_active (self, !self->selection_mode);
 }
 
-static void
-scroll_to_top_idle (gpointer user_data)
+static gboolean
+scroll_to_top_tick (GtkWidget     *widget,
+                    GdkFrameClock *clock,
+                    gpointer       user_data)
 {
   StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+  GtkAdjustment *adj = gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (self->scrolled_window));
 
-  gtk_list_view_scroll_to (GTK_LIST_VIEW (self->listview), 0, GTK_LIST_SCROLL_NONE, NULL);
+  if (gtk_adjustment_get_value (adj) > 1.0) {
+    gtk_adjustment_set_value (adj, 0.0);
+    return G_SOURCE_CONTINUE;
+  }
+
   gtk_widget_set_visible (self->scroll_to_top, FALSE);
-  self->scroll_to_top_handler = 0;
+  return G_SOURCE_REMOVE;
 }
 
 static void
@@ -1080,8 +1086,8 @@ on_scroll_to_top (GtkButton *button,
 {
   StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
 
-  g_clear_handle_id (&self->scroll_to_top_handler, g_source_remove);
-  self->scroll_to_top_handler = g_idle_add_once (scroll_to_top_idle, user_data);
+  gtk_list_view_scroll_to (GTK_LIST_VIEW (self->listview), 0, GTK_LIST_SCROLL_NONE, NULL);
+  gtk_widget_add_tick_callback (GTK_WIDGET (self), scroll_to_top_tick, self, NULL);
 }
 
 static void
@@ -1124,7 +1130,6 @@ stamp_conversation_list_dispose (GObject *object)
 
   g_clear_handle_id (&self->load_folder_handler, g_source_remove);
   g_clear_handle_id (&self->load_more_items_handler, g_source_remove);
-  g_clear_handle_id (&self->scroll_to_top_handler, g_source_remove);
 
   g_clear_object (&self->thread);
   g_clear_object (&self->list_store);
