@@ -29,6 +29,7 @@ struct _StampMailService {
   CamelFolder *trash_folder;
   CamelFolder *sent_folder;
   CamelFolder *drafts_folder;
+  CamelFolder *junk_folder;
   ESource *source;
   ESource *transport_source;
   ESource *identity_source;
@@ -44,12 +45,6 @@ struct _StampContactsService {
   gboolean enabled;
 };
 
-struct _StampCalendarService {
-  ECalClient *client;
-  ESource *source;
-  gboolean enabled;
-};
-
 struct _StampAccount {
   GObject parent_instance;
 
@@ -59,7 +54,6 @@ struct _StampAccount {
 
   ESource *collection;
   StampMailService *mail;
-  GPtrArray *calendars;
   GPtrArray *address_books;
 
   GCancellable *cancellable;
@@ -83,7 +77,6 @@ enum {
   MAIL_REMOVED,
   BOOK_ADDED,
   BOOK_REMOVED,
-  CALENDAR_ADDED,
   LAST_SIGNAL,
 };
 
@@ -136,7 +129,6 @@ stamp_account_init (StampAccount *self)
 {
   self->cancellable = g_cancellable_new ();
 
-  self->calendars = g_ptr_array_new_with_free_func (g_free);
   self->address_books = g_ptr_array_new_with_free_func (g_free);
 }
 
@@ -149,6 +141,10 @@ stamp_account_mail_service_free (gpointer data)
   g_clear_object (&service->transport);
   g_clear_object (&service->session);
   g_clear_object (&service->source);
+  g_clear_object (&service->trash_folder);
+  g_clear_object (&service->sent_folder);
+  g_clear_object (&service->drafts_folder);
+  g_clear_object (&service->junk_folder);
   g_clear_pointer (&service, g_free);
 }
 
@@ -166,7 +162,6 @@ stamp_account_dispose (GObject *object)
   g_clear_object (&self->registry);
 
   g_clear_pointer (&self->mail, stamp_account_mail_service_free);
-  g_clear_pointer (&self->calendars, g_ptr_array_unref);
   g_clear_pointer (&self->address_books, g_ptr_array_unref);
 
   g_clear_pointer (&self->photo_cache, stamp_photo_cache_free);
@@ -205,12 +200,6 @@ stamp_account_class_init (StampAccountClass *klass)
                                         G_TYPE_NONE,
                                         2, STAMP_TYPE_ACCOUNT,
                                         G_TYPE_POINTER);
-  signals[CALENDAR_ADDED] = g_signal_new ("calendar-added", G_OBJECT_CLASS_TYPE (klass),
-                                          G_SIGNAL_RUN_FIRST | G_SIGNAL_RUN_LAST,
-                                          0, NULL, NULL, NULL,
-                                          G_TYPE_NONE,
-                                          2, STAMP_TYPE_ACCOUNT,
-                                          G_TYPE_POINTER);
 }
 
 StampAccount *
@@ -369,16 +358,6 @@ stamp_account_add_mail (StampAccount *self,
 }
 
 void
-stamp_account_add_calendar (StampAccount *self,
-                            ESource      *source)
-{
-  StampCalendarService *cal = g_new0 (StampCalendarService, 1);
-
-  cal->source = g_object_ref (source);
-  g_ptr_array_add (self->calendars, cal);
-}
-
-void
 stamp_account_add_address_book (StampAccount *self,
                                 ESource      *source)
 {
@@ -420,23 +399,6 @@ find_book_by_source (StampAccount *self,
   return NULL;
 }
 
-static StampCalendarService *
-find_calendar_by_source (StampAccount *self,
-                         ESource      *source)
-{
-  if (!self->calendars)
-    return NULL;
-
-  for (guint idx = 0; idx < self->calendars->len; idx++) {
-    StampCalendarService *service = g_ptr_array_index (self->calendars, idx);
-
-    if (service->source == source || g_strcmp0 (e_source_get_uid (service->source), e_source_get_uid (source)) == 0)
-      return service;
-  }
-
-  return NULL;
-}
-
 static void
 on_book_client_ready (GObject      *src,
                       GAsyncResult *res,
@@ -465,35 +427,6 @@ on_book_client_ready (GObject      *src,
       stamp_disk_cache_purge_negative (ctx->account->photo_cache);
 
       g_signal_emit (ctx->account, signals[BOOK_ADDED], 0, ctx->account, service);
-    } else {
-      g_clear_object (&client);
-    }
-  }
-
-  init_context_finish_one (ctx);
-}
-
-static void
-on_cal_client_ready (GObject      *src,
-                     GAsyncResult *res,
-                     gpointer      user_data)
-{
-  InitContext *ctx = user_data;
-  g_autoptr (GError) error = NULL;
-  g_autoptr (EClient) client = e_cal_client_connect_finish (res, &error);
-
-  if (error) {
-    g_warning ("%s: ECalClient failed: %s", G_STRFUNC, error->message);
-    init_context_set_error (ctx, g_steal_pointer (&error));
-  } else {
-    ESource *source = e_client_get_source (client);
-    StampCalendarService *service = find_calendar_by_source (ctx->account, source);
-
-    if (service) {
-      service->client = E_CAL_CLIENT (g_object_ref (client));
-      service->enabled = TRUE;
-      g_debug ("%s: Calendar '%s' connected", G_STRFUNC, e_source_get_display_name (service->source));
-      g_signal_emit (ctx->account, signals[CALENDAR_ADDED], 0, ctx->account, service);
     } else {
       g_clear_object (&client);
     }
@@ -546,75 +479,6 @@ find_folder_info_recursive (CamelFolderInfo      *fi,
   return NULL;
 }
 
-static CamelFolder *
-open_folder_from_fi (CamelStore       *store,
-                     CamelFolderInfo  *fi,
-                     GError          **error)
-{
-  g_return_val_if_fail (fi != NULL, NULL);
-
-  return camel_store_get_folder_sync (store, fi->full_name,
-                                      0, NULL, error);
-}
-
-static CamelFolder *
-find_sent_folder (CamelStore *store)
-{
-  g_autoptr (GError) error = NULL;
-  CamelFolderInfo *root = NULL;
-  g_autoptr (CamelFolderInfo) fi = NULL;
-  CamelFolder *folder = NULL;
-
-  root = camel_store_get_folder_info_sync (store, NULL, CAMEL_STORE_FOLDER_INFO_RECURSIVE | CAMEL_STORE_FOLDER_INFO_NO_VIRTUAL, NULL, &error);
-  if (error) {
-    g_warning ("%s: get_folder_info: %s", G_STRFUNC, error->message);
-    return NULL;
-  }
-
-  {
-    FindFolderData data = { .type = FIND_BY_FLAGS, .flags = CAMEL_FOLDER_TYPE_SENT };
-    fi = find_folder_info_recursive (root, &data);
-  }
-  if (fi) {
-    folder = camel_store_get_folder_sync (store, fi->full_name, 0, NULL, &error);
-    if (error) {
-      g_warning ("%s: get_folder '%s': %s", G_STRFUNC, fi->full_name, error->message);
-      folder = NULL;
-    }
-
-    if (folder)
-      goto out;
-  }
-
-  /* Strategy 3 – well-known display names */
-  {
-    static const gchar *sent_names[] = {
-      "Sent",
-      "Sent Items",
-      "Sent Messages",
-      "Gesendete Elemente", /* codespell:ignore */
-      "Gesendete Objekte", /* codespell:ignore */
-      NULL
-    };
-
-    for (gint i = 0; sent_names[i]; i++) {
-      FindFolderData data = { .type = FIND_BY_NAME, .name = sent_names[i] };
-      fi = find_folder_info_recursive (root, &data);
-      if (fi) {
-        folder = open_folder_from_fi (store, fi, &error);
-        if (error) {
-          g_clear_error (&error);
-          folder = NULL;
-        }
-        if (folder) goto out;
-      }
-    }
-  }
-
-out:
-  return folder;
-}
-
 static gboolean
 is_drafts_folder (CamelFolderInfo *fi)
 {
@@ -627,27 +491,121 @@ is_drafts_folder (CamelFolderInfo *fi)
   return g_ascii_strcasecmp (name, "Drafts") == 0;
 }
 
-static CamelFolder *
-get_drafts_folder (CamelStore    *store,
-                   GCancellable  *cancellable,
-                   GError       **error)
-{
-  CamelFolderInfo *root = camel_store_get_folder_info_sync (store, NULL, CAMEL_STORE_FOLDER_INFO_RECURSIVE, cancellable, error);
-  CamelFolderInfo *fi;
-  const gchar *drafts_path;
-  CamelFolder *folder;
+typedef struct {
+  StampAccount *account;
+  InitContext *ctx;
+  gint pending;
+} MailEnableData;
 
-  if (!root)
-    return NULL;
+static void
+mail_enable_one_done (MailEnableData *data)
+{
+  if (--data->pending > 0)
+    return;
+
+  if (data->account->mail && data->account->mail->service)
+    g_signal_emit (data->account, signals[MAIL_ADDED], 0, data->account, data->account->mail->service);
+
+  if (data->ctx)
+    init_context_finish_one (data->ctx);
+
+  g_free (data);
+}
+
+static void
+on_junk_folder_ready (GObject      *src,
+                      GAsyncResult *res,
+                      gpointer      user_data)
+{
+  MailEnableData *data = user_data;
+  g_autoptr (GError) error = NULL;
+  CamelFolder *folder = camel_store_get_junk_folder_finish (CAMEL_STORE (src), res, &error);
+
+  if (folder)
+    data->account->mail->junk_folder = folder;
+  else
+    g_warning ("%s: %s", G_STRFUNC, error ? error->message : "");
+
+  mail_enable_one_done (data);
+}
+
+static void
+on_trash_folder_ready (GObject      *src,
+                       GAsyncResult *res,
+                       gpointer      user_data)
+{
+  MailEnableData *data = user_data;
+  g_autoptr (GError) error = NULL;
+  CamelFolder *folder = camel_store_get_trash_folder_finish (CAMEL_STORE (src), res, &error);
+
+  if (folder)
+    data->account->mail->trash_folder = folder;
+  else
+    g_warning ("%s: %s", G_STRFUNC, error ? error->message : "");
+
+  mail_enable_one_done (data);
+}
+
+static void
+on_sent_folder_ready (GObject      *src,
+                      GAsyncResult *res,
+                      gpointer      user_data)
+{
+  MailEnableData *data = user_data;
+  g_autoptr (GError) error = NULL;
+  CamelFolder *folder = camel_store_get_folder_finish (CAMEL_STORE (src), res, &error);
+
+  if (folder)
+    data->account->mail->sent_folder = folder;
+  else
+    g_warning ("%s: %s", G_STRFUNC, error ? error->message : "");
+
+  mail_enable_one_done (data);
+}
+
+static void
+on_drafts_folder_ready (GObject      *src,
+                        GAsyncResult *res,
+                        gpointer      user_data)
+{
+  MailEnableData *data = user_data;
+  g_autoptr (GError) error = NULL;
+  CamelFolder *folder = camel_store_get_folder_finish (CAMEL_STORE (src), res, &error);
+
+  if (folder)
+    data->account->mail->drafts_folder = folder;
+  else
+    g_warning ("%s: %s", G_STRFUNC, error ? error->message : "");
+
+  mail_enable_one_done (data);
+}
+
+static void
+on_folder_info_for_sent_drafts (GObject      *src,
+                                GAsyncResult *res,
+                                gpointer      user_data)
+{
+  MailEnableData *data = user_data;
+  g_autoptr (GError) error = NULL;
+  g_autoptr (CamelFolderInfo) root = camel_store_get_folder_info_finish (CAMEL_STORE (src), res, &error);
+  CamelFolderInfo *fi;
+  const gchar *sent_path = NULL;
+  const gchar *drafts_path = NULL;
+
+  if (error) {
+    g_warning ("%s: get_folder_info: %s", G_STRFUNC, error->message);
+    mail_enable_one_done (data);
+    return;
+  }
 
   fi = root;
-  drafts_path = NULL;
-
   while (fi) {
-    if (is_drafts_folder (fi)) {
+    if (!sent_path && ((fi->flags & CAMEL_FOLDER_TYPE_MASK) == CAMEL_FOLDER_TYPE_SENT))
+      sent_path = fi->full_name;
+
+    if (!drafts_path && is_drafts_folder (fi))
       drafts_path = fi->full_name;
-      break;
-    }
+
     if (fi->child) {
       fi = fi->child;
       continue;
@@ -658,22 +616,45 @@ get_drafts_folder (CamelStore    *store,
       fi = fi->next;
   }
 
-  /* Fallback falls kein \Drafts vom Server gemeldet */
-  if (!drafts_path)
-    drafts_path = "Drafts";
+  /* Fallback display name match for sent */
+  if (!sent_path) {
+    static const gchar *sent_names[] = {
+      "Sent", "Sent Items", "Sent Messages",
+      "Gesendete Elemente", "Gesendete Objekte", /* codespell:ignore */
+      NULL
+    };
 
-  folder = camel_store_get_folder_sync (
-    store, drafts_path,
-    0,
-    cancellable, error);
+    for (gint i = 0; sent_names[i]; i++) {
+      FindFolderData fdata = { .type = FIND_BY_NAME, .name = sent_names[i] };
+      CamelFolderInfo *found = find_folder_info_recursive (root, &fdata);
 
-  camel_folder_info_free (root);
-  return folder;
+      if (found) {
+        sent_path = found->full_name;
+        break;
+      }
+    }
+
+    if (!drafts_path)
+      drafts_path = "Drafts";
+
+    data->pending += 2;
+
+    camel_store_get_folder (CAMEL_STORE (src), sent_path ? sent_path : "Sent", 0,
+                            G_PRIORITY_DEFAULT, NULL,
+                            on_sent_folder_ready, data);
+    camel_store_get_folder (CAMEL_STORE (src), drafts_path, 0,
+                            G_PRIORITY_DEFAULT, NULL,
+                            on_drafts_folder_ready, data);
+  }
+
+  mail_enable_one_done (data);
 }
 
 static void
-stamp_account_enable_mail (StampAccount *self)
+stamp_account_enable_mail_async (StampAccount *self,
+                                 InitContext  *ctx)
 {
+  MailEnableData *data;
   g_autoptr (GError) error = NULL;
   ESourceMailAccount *extension;
   ESourceMailTransport *transport_extension;
@@ -686,19 +667,46 @@ stamp_account_enable_mail (StampAccount *self)
                                                    e_source_backend_get_backend_name (E_SOURCE_BACKEND (extension)),
                                                    CAMEL_PROVIDER_STORE,
                                                    NULL);
+  if (!self->mail->service) {
+    g_warning ("%s: Failed to add mail service", G_STRFUNC);
+    if (ctx)
+      init_context_finish_one (ctx);
+    return;
+  }
 
   transport_extension = e_source_get_extension (self->mail->transport_source, E_SOURCE_EXTENSION_MAIL_TRANSPORT);
   self->mail->transport = CAMEL_TRANSPORT (camel_session_add_service (CAMEL_SESSION (stamp_session_get_default ()),
                                                                       e_source_get_uid (self->mail->transport_source),
                                                                       e_source_backend_get_backend_name (E_SOURCE_BACKEND (transport_extension)),
                                                                       CAMEL_PROVIDER_TRANSPORT, &error));
+  if (!self->mail->transport)
+    g_warning ("%s: Failed to add transport: %s", G_STRFUNC, error ? error->message : "");
 
-  self->mail->trash_folder = camel_store_get_trash_folder_sync (CAMEL_STORE (self->mail->service), NULL, &error);
-  self->mail->sent_folder = find_sent_folder (CAMEL_STORE (self->mail->service));
-  self->mail->drafts_folder = get_drafts_folder (CAMEL_STORE (self->mail->service), NULL, &error);
+  data = g_new0 (MailEnableData, 1);
+  data->account = self;
+  data->ctx = ctx;
+  data->pending = 3;
 
-  if (g_strcmp0 (e_source_backend_get_backend_name (E_SOURCE_BACKEND (extension)), "microsoft365") == 0)
-    self->categories = stamp_m365_get_categories_sync (self->mail->source, self->cancellable, &error);
+  camel_store_get_trash_folder (CAMEL_STORE (self->mail->service),
+                                G_PRIORITY_DEFAULT, NULL,
+                                on_trash_folder_ready, data);
+
+  camel_store_get_folder_info (CAMEL_STORE (self->mail->service), NULL,
+                               CAMEL_STORE_FOLDER_INFO_RECURSIVE | CAMEL_STORE_FOLDER_INFO_NO_VIRTUAL,
+                               G_PRIORITY_DEFAULT, NULL,
+                               on_folder_info_for_sent_drafts, data);
+
+  camel_store_get_junk_folder (CAMEL_STORE (self->mail->service),
+                               G_PRIORITY_DEFAULT, NULL,
+                               on_junk_folder_ready, data);
+
+  if (g_strcmp0 (e_source_backend_get_backend_name (E_SOURCE_BACKEND (extension)), "microsoft365") == 0) {
+    /* Microsoft 365 categories fetch via Graph API */
+    g_autoptr (GError) cat_error = NULL;
+    self->categories = stamp_m365_get_categories_sync (self->mail->source, self->cancellable, &cat_error);
+    if (cat_error)
+      g_warning ("%s: Categories: %s", G_STRFUNC, cat_error->message);
+  }
 }
 
 void
@@ -710,16 +718,15 @@ stamp_account_init_async (StampAccount        *self,
   g_autoptr (GTask) task = g_task_new (self, cancellable, callback, user_data);
   gboolean mail_enabled = self->mail && e_source_get_enabled (self->mail->source);
   InitContext *ctx;
-  guint pending = 1;
+  guint pending = 0;
 
   g_task_set_source_tag (task, stamp_account_init_async);
   g_task_set_task_data (task, self, NULL);
-  if (mail_enabled) {
-    /* pending += 2; */
-  }
+
+  if (mail_enabled)
+    pending++;
 
   pending += self->address_books->len;
-  pending += self->calendars->len;
 
   if (pending == 0) {
     g_debug ("%s: No active services (%s)", G_STRFUNC, self->display_name);
@@ -731,46 +738,11 @@ stamp_account_init_async (StampAccount        *self,
   ctx = g_new0 (InitContext, 1);
   ctx->account = self;
   ctx->parent_task = g_object_ref (task);
-  ctx->pending = pending;
+  ctx->pending = pending + 1;
   g_mutex_init (&ctx->lock);
 
-  if (mail_enabled) {
-    stamp_account_enable_mail (self);
-    g_signal_emit (self, signals[MAIL_ADDED], 0, self, self->mail->service);
-  }
-
-  for (guint i = 0; i < self->calendars->len; i++) {
-    StampCalendarService *service = g_ptr_array_index (self->calendars, i);
-
-    if (is_goa_disabled (self, service->source)) {
-      g_debug ("%s: Calendar '%s' in account '%s' disabled", G_STRFUNC, e_source_get_display_name (service->source), self->display_name);
-      service->enabled = FALSE;
-      g_mutex_lock (&ctx->lock);
-      ctx->pending--;
-      g_mutex_unlock (&ctx->lock);
-      continue;
-    }
-
-    g_debug ("%s: Connecting to calendar '%s' in account '%s'", G_STRFUNC, e_source_get_display_name (service->source), self->display_name);
-#ifdef CALENDAR_ASYNC
-    e_cal_client_connect (service->source, E_CAL_CLIENT_SOURCE_TYPE_EVENTS, 10, cancellable, on_cal_client_ready, ctx);
-#else
-    {
-      g_autoptr (GError) error = NULL;
-      g_autoptr (EClient) client = e_cal_client_connect_sync (service->source, E_CAL_CLIENT_SOURCE_TYPE_EVENTS, 10, cancellable, &error);
-      if (error) {
-        g_warning ("%s: ECalClient failed: %s", G_STRFUNC, error->message);
-        init_context_set_error (ctx, g_steal_pointer (&error));
-      } else {
-        service->client = E_CAL_CLIENT (g_object_ref (client));
-        service->enabled = TRUE;
-        g_debug ("Calendar '%s' connected", e_source_get_display_name (service->source));
-        g_signal_emit (ctx->account, signals[CALENDAR_ADDED], 0, ctx->account, service);
-      }
-      init_context_finish_one (ctx);
-    }
-#endif
-  }
+  if (mail_enabled)
+    stamp_account_enable_mail_async (self, ctx);
 
   for (guint i = 0; i < self->address_books->len; i++) {
     StampContactsService *service = g_ptr_array_index (self->address_books, i);
@@ -815,6 +787,34 @@ find_contacts_by_source (StampAccount *self,
   return NULL;
 }
 
+static void
+on_book_client_connect (GObject      *src,
+                        GAsyncResult *res,
+                        gpointer      user_data)
+{
+  StampAccount *self = STAMP_ACCOUNT (user_data);
+  StampContactsService *service;
+  ESource *source;
+  g_autoptr (GError) error = NULL;
+  g_autoptr (EClient) client = e_book_client_connect_finish (res, &error);
+
+  if (error) {
+    g_warning ("%s: EBookClient failed: %s", G_STRFUNC, error->message);
+    return;
+  }
+
+  source = e_client_get_source (client);
+  service = find_book_by_source (self, source);
+  if (service) {
+    service->client = E_BOOK_CLIENT (g_steal_pointer (&client));
+    service->enabled = TRUE;
+    g_debug ("%s: Book '%s' connected", G_STRFUNC, e_source_get_display_name (service->source));
+
+    stamp_disk_cache_purge_negative (self->photo_cache);
+    g_signal_emit (self, signals[BOOK_ADDED], 0, self, service);
+  }
+}
+
 void
 stamp_account_contacts_changed (StampAccount *self,
                                 ESource      *source)
@@ -834,7 +834,7 @@ stamp_account_contacts_changed (StampAccount *self,
   } else if (enabled && !cal->client) {
     g_debug ("%s: Address book '%s' from '%s' enabled\n", G_STRFUNC, e_source_get_display_name (source), self->display_name);
 
-    e_book_client_connect (source, 10, NULL, on_cal_client_ready, self);
+    e_book_client_connect (source, 10, NULL, on_book_client_connect, self);
   }
 }
 
@@ -852,8 +852,8 @@ stamp_account_mail_changed (StampAccount *self,
     g_clear_object (&self->mail->transport);
   } else if (enabled) {
     g_debug ("%s: Mail '%s' from '%s' enabled\n", G_STRFUNC, e_source_get_display_name (source), self->display_name);
-    stamp_account_enable_mail (self);
-    g_signal_emit (self, signals[MAIL_ADDED], 0, self, self->mail->service);
+
+    stamp_account_enable_mail_async (self, NULL);
   }
 }
 
@@ -1131,24 +1131,6 @@ stamp_contacts_service_get_source (StampContactsService *self)
   return self->source;
 }
 
-gboolean
-stamp_calendar_service_get_enabled (StampCalendarService *self)
-{
-  return self->enabled;
-}
-
-ECalClient *
-stamp_calendar_service_get_client (StampCalendarService *self)
-{
-  return self->client;
-}
-
-ESource *
-stamp_calendar_service_get_source (StampCalendarService *self)
-{
-  return self->source;
-}
-
 static void
 on_folder_synchronized (GObject      *source,
                         GAsyncResult *res,
@@ -1394,4 +1376,10 @@ GHashTable *
 stamp_mail_service_get_aliases (StampMailService *self)
 {
   return self->aliases;
+}
+
+CamelFolder *
+stamp_account_get_mail_junk_folder (StampAccount *self)
+{
+  return self->mail->junk_folder;
 }

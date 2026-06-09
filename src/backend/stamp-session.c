@@ -41,7 +41,6 @@ struct _StampSession {
   GList *accounts;
   GList *signatures;
   GCancellable *cancellable;
-  guint accounts_loaded_handler;
 };
 
 typedef struct _TryCredentialsData {
@@ -128,33 +127,6 @@ on_account_ready (GObject      *src,
   g_debug ("%s: '%s' services ready", G_STRFUNC, stamp_account_get_name (account));
 }
 
-static gboolean
-on_accounts_loaded_idle (gpointer user_data)
-{
-  StampSession *self = STAMP_SESSION (user_data);
-  StampAccount *account = NULL;
-  GPtrArray *accounts = g_object_get_data (G_OBJECT (self), "accounts-to-load");
-  guint idx = GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (self), "accounts-idx"));
-
-  if (!accounts || idx >= accounts->len) {
-    g_object_set_data (G_OBJECT (self), "accounts-to-load", NULL);
-    self->accounts_loaded_handler = 0;
-    return G_SOURCE_REMOVE;
-  }
-
-  account = g_ptr_array_index (accounts, idx);
-  g_debug ("%s: Loading account %s", G_STRFUNC, stamp_account_get_name (account));
-
-  self->accounts = g_list_append (self->accounts, account);
-  g_signal_emit (self, signals[ACCOUNT_ADDED], 0, account, NULL);
-
-  stamp_account_init_async (g_object_ref (account), self->cancellable, on_account_ready, self);
-
-  g_object_set_data (G_OBJECT (self), "accounts-idx", GUINT_TO_POINTER (idx + 1));
-
-  return G_SOURCE_CONTINUE;
-}
-
 static void
 on_accounts_loaded (GObject      *src,
                     GAsyncResult *res,
@@ -174,10 +146,15 @@ on_accounts_loaded (GObject      *src,
   if (accounts->len == 0)
     return;
 
-  g_object_set_data_full (G_OBJECT (self), "accounts-to-load", g_steal_pointer (&accounts), (GDestroyNotify)g_ptr_array_unref);
-  g_object_set_data (G_OBJECT (self), "accounts-idx", GUINT_TO_POINTER (0));
+  for (guint idx = 0; idx < accounts->len; idx++) {
+    StampAccount *account = g_ptr_array_index (accounts, idx);
 
-  self->accounts_loaded_handler = g_idle_add (on_accounts_loaded_idle, self);
+    g_debug ("%s: Loading account %s", G_STRFUNC, stamp_account_get_name (account));
+    self->accounts = g_list_append (self->accounts, account);
+    g_signal_emit (self, signals[ACCOUNT_ADDED], 0, account, NULL);
+
+    stamp_account_init_async (g_object_ref (account), self->cancellable, on_account_ready, self);
+  }
 }
 
 static GPtrArray *
@@ -633,8 +610,6 @@ stamp_session_dispose (GObject *object)
 
   g_cancellable_cancel (self->cancellable);
   g_clear_object (&self->cancellable);
-
-  g_clear_handle_id (&self->accounts_loaded_handler, g_source_remove);
 
   g_clear_object (&self->registry);
   g_clear_list (&self->accounts, g_object_unref);

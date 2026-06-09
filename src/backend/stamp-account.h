@@ -225,6 +225,9 @@ stamp_account_get_mail_drafts_folder (StampAccount *self);
 CamelFolder *
 stamp_account_get_mail_sent_folder (StampAccount *self);
 
+CamelFolder *
+stamp_account_get_mail_junk_folder (StampAccount *self);
+
 GList *
 stamp_account_get_categories (StampAccount *self);
 
