@@ -29,6 +29,7 @@
 #include "stamp-conversation-row.h"
 #include "stamp-item.h"
 #include "stamp-message-list.h"
+#include "stamp-settings.h"
 
 #define INITIAL_LOAD_COUNT 200
 #define BATCH_LOAD_COUNT 100
@@ -207,11 +208,10 @@ sorter_func (gconstpointer a,
   StampConversationItem *item2 = (StampConversationItem *)(b);
   guint timestamp1 = stamp_conversation_item_get_timestamp (item1);
   guint timestamp2 = stamp_conversation_item_get_timestamp (item2);
-  g_autoptr (GSettings) settings = g_settings_new ("org.tabos.stamp.mail");
   gint64 uid1;
   gint64 uid2;
 
-  if (g_settings_get_boolean (settings, "important-first")) {
+  if (g_settings_get_boolean (STAMP_SETTINGS_MAIL, "important-first")) {
     if (stamp_conversation_item_is_important (item1) && !stamp_conversation_item_is_important (item2)) {
       return -1;
     }
