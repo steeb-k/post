@@ -401,6 +401,8 @@ on_get_folder (GObject      *source,
     g_warning ("Could not get folder: %s", error->message);
     gtk_widget_set_visible (self->spinner, FALSE);
     gtk_widget_set_margin_top (self->spinner, 12);
+
+    rebuild_category_actions (self);
     return;
   }
 
@@ -534,8 +536,6 @@ stamp_conversation_list_load_folder (StampConversationList *self,
 
   mail_service = stamp_account_get_mail_service (account);
   self->account = account;
-
-  rebuild_category_actions (self);
 
   g_set_str (&self->full_name, full_name);
 

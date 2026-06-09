@@ -47,6 +47,7 @@ struct _StampMailView {
   StampAccount *account;
 
   gint saved_paned_pos;
+  guint load_folder_handler;
 };
 
 G_DEFINE_FINAL_TYPE (StampMailView, stamp_mail_view, ADW_TYPE_BREAKPOINT_BIN);
@@ -108,6 +109,37 @@ close_overlay_sidebar (StampMailView *self)
   gtk_toggle_button_set_active (stamp_conversation_list_get_sidebar_button (self->conversation_list), FALSE);
 }
 
+typedef struct {
+  StampMailView *self;
+  StampAccount *account;
+  gchar *full_name;
+} LoadFolderData;
+
+static void
+load_folder_data_free (gpointer user_data)
+{
+  LoadFolderData *data = user_data;
+
+  g_object_unref (data->account);
+  g_clear_pointer (&data->full_name, g_free);
+  g_free (data);
+}
+
+static gboolean
+load_folder_idle (gpointer user_data)
+{
+  LoadFolderData *data = user_data;
+  StampMailView *self = data->self;
+
+  close_overlay_sidebar (self);
+
+  g_set_object (&self->account, data->account);
+  stamp_conversation_list_load_folder (self->conversation_list, data->account, data->full_name);
+
+  self->load_folder_handler = 0;
+  return G_SOURCE_REMOVE;
+}
+
 static void
 on_folder_selected (GtkWidget    *object,
                     StampAccount *account,
@@ -115,11 +147,15 @@ on_folder_selected (GtkWidget    *object,
                     gpointer      user_data)
 {
   StampMailView *self = STAMP_MAIL_VIEW (user_data);
+  LoadFolderData *data;
 
-  close_overlay_sidebar (self);
+  data = g_new0 (LoadFolderData, 1);
+  data->self = self;
+  data->account = g_object_ref (account);
+  data->full_name = g_strdup (full_name);
 
-  g_set_object (&self->account, account);
-  stamp_conversation_list_load_folder (self->conversation_list, account, full_name);
+  g_clear_handle_id (&self->load_folder_handler, g_source_remove);
+  self->load_folder_handler = g_idle_add_full (G_PRIORITY_DEFAULT, load_folder_idle, data, load_folder_data_free);
 }
 
 static void
@@ -171,6 +207,7 @@ stamp_mail_view_dispose (GObject *object)
 {
   StampMailView *self = STAMP_MAIL_VIEW (object);
 
+  g_clear_handle_id (&self->load_folder_handler, g_source_remove);
   g_clear_object (&self->actions);
   g_clear_object (&self->account);
 
