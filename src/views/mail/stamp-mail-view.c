@@ -360,6 +360,28 @@ on_edit (GSimpleAction *action,
   stamp_message_list_compose (self->message_list, STAMP_COMPOSER_DRAFT, parameter);
 }
 
+static void
+junk (StampMailView         *self,
+      StampConversationItem *item)
+{
+  AdwToast *toast;
+
+  stamp_conversation_list_junk (self->conversation_list, item);
+
+  toast = adw_toast_new (_("Conversations moved to junk"));
+  adw_toast_overlay_add_toast (self->toast_overlay, toast);
+}
+
+static void
+on_junk (GSimpleAction *action,
+         GVariant      *parameter,
+         gpointer       user_data)
+{
+  StampMailView *self = STAMP_MAIL_VIEW (user_data);
+
+  junk (self, NULL);
+}
+
 static const GActionEntry stamp_mail_view_action_entries[] = {
   { .name = "composer-new", .activate = on_composer_new },
   { .name = "edit", .activate = on_edit },
@@ -370,6 +392,7 @@ static const GActionEntry stamp_mail_view_action_entries[] = {
   { .name = "reply-all-current", .activate = on_reply_all },
   { .name = "reply-current", .activate = on_reply },
   { .name = "trash", .activate = on_trash },
+  { .name = "junk", .activate = on_junk },
 };
 
 static void
@@ -434,6 +457,7 @@ static const Shortcut MailShortcuts[] = {
   { "mail.mark-unread-current", "<primary><shift>u" },
   { "mail.print-current", "<primary>p" },
   { "mail.trash", "<primary>d" },
+  { "mail.junk", "<primary>j" },
   { "mail.view-source", "<primary>s" },
 };
 

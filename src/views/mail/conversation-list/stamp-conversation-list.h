@@ -82,4 +82,8 @@ StampConversationItem *
 stamp_conversation_list_get_adjacent_item (StampConversationList *self,
                                            gint                    offset);
 
+void
+stamp_conversation_list_junk (StampConversationList *self,
+                              StampConversationItem *item);
+
 G_END_DECLS

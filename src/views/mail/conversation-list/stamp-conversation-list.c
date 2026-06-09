@@ -1901,3 +1901,77 @@ stamp_conversation_list_get_adjacent_item (StampConversationList *self,
 
   return g_list_model_get_item (model, new_pos);
 }
+
+void
+stamp_conversation_list_junk (StampConversationList *self,
+                              StampConversationItem *item)
+{
+  g_autoptr (GPtrArray) node_array = g_ptr_array_new ();
+  g_autoptr (GPtrArray) array = NULL;
+  CamelFolder *folder;
+  CamelFolder *junk_folder;
+  g_autoptr (GError) error = NULL;
+  GPtrArray *uid_array;
+
+  if (self->selection_mode) {
+    GtkBitset *selected_items = self->selected;
+    GtkBitsetIter iter;
+    guint32 current_item_position;
+
+    gtk_bitset_iter_init_first (&iter, selected_items, &current_item_position);
+
+    while (gtk_bitset_iter_is_valid (&iter)) {
+      g_autoptr (StampConversationItem) child_item = STAMP_CONVERSATION_ITEM (g_list_model_get_item (G_LIST_MODEL (self->multi_selection), current_item_position));
+
+      g_ptr_array_add (node_array, child_item);
+      gtk_bitset_iter_next (&iter, &current_item_position);
+    }
+
+    gtk_bitset_remove_all (self->selected);
+    update_selection_title (self);
+    refresh_checkboxes (self);
+  } else {
+    if (!item)
+      item = STAMP_CONVERSATION_ITEM (gtk_single_selection_get_selected_item (GTK_SINGLE_SELECTION (self->single_selection)));
+
+    if (!item)
+      return;
+
+    g_ptr_array_add (node_array, item);
+  }
+
+  for (gint idx = 0; idx < node_array->len; idx++) {
+    StampConversationItem *child_item = STAMP_CONVERSATION_ITEM (node_array->pdata[idx]);
+    CamelFolderThreadNode *child_node = stamp_conversation_item_get_node (child_item);
+
+    stamp_conversation_item_set_hidden (child_item, TRUE);
+    array = collect_messages (child_node, array);
+  }
+
+  g_list_model_items_changed (G_LIST_MODEL (self->list_store),
+                              0,
+                              g_list_model_get_n_items (G_LIST_MODEL (self->list_store)),
+                              g_list_model_get_n_items (G_LIST_MODEL (self->list_store)));
+
+  folder = self->folder;
+  junk_folder = stamp_account_get_mail_junk_folder (self->account);
+
+  uid_array = g_ptr_array_new ();
+  for (gint idx = array->len - 1; idx >= 0; idx--) {
+    CamelFolderThreadNode *child_node = array->pdata[idx];
+    const CamelMessageInfo *info;
+
+    info = camel_folder_thread_node_get_item (child_node);
+    g_ptr_array_add (uid_array, g_strdup (camel_message_info_get_uid (info)));
+  }
+
+  if (self->transfer_cancellable) {
+    g_cancellable_cancel (self->transfer_cancellable);
+    g_clear_object (&self->transfer_cancellable);
+  }
+  self->transfer_cancellable = g_cancellable_new ();
+
+  camel_folder_transfer_messages_to (folder, uid_array, junk_folder, TRUE, G_PRIORITY_DEFAULT, self->transfer_cancellable, on_transfer_messages_to, uid_array);
+
+  stamp_conversation_list_unselect (self);
+}
