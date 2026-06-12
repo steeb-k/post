@@ -27,8 +27,6 @@
 
 struct _StampBookAccountItem {
   StampItem parent_instance;
-
-  StampAccount *account;
 };
 
 G_DEFINE_FINAL_TYPE (StampBookAccountItem, stamp_book_account_item, STAMP_TYPE_ITEM);

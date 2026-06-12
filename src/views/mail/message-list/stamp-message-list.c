@@ -42,8 +42,6 @@ struct _StampMessageList {
   GtkWidget *edit_button;
   GtkWidget *external;
 
-  GCancellable *cancellable;
-
   GHashTable *messages;
   StampAccount *account;
 
@@ -338,7 +336,6 @@ mark_visible_messages_as_read (StampMessageList *self)
 
   for (row = gtk_widget_get_first_child (GTK_WIDGET (self->list_box)); row != NULL; row = gtk_widget_get_next_sibling (row)) {
     StampMessageListItem *item;
-    CamelMessageInfo *info;
     const CamelMessageInfo *const_info;
     graphene_point_t in_point;
     graphene_point_t out_point;
@@ -360,6 +357,8 @@ mark_visible_messages_as_read (StampMessageList *self)
     row_height = gtk_widget_get_height (row);
 
     if (out_point.y + row_height > 0 && out_point.y < viewport_height) {
+      CamelMessageInfo *info;
+
       info = (CamelMessageInfo *)const_info;
       camel_message_info_set_flags (info, CAMEL_MESSAGE_SEEN, ~0);
     }
@@ -504,6 +503,10 @@ create_carousel_page_view (StampAccount          *account,
   GtkWidget *scrolled;
   GtkWidget *list_box;
   GtkWidget *subject_label;
+  GtkWidget *content_box;
+  GtkWidget *header_box;
+  GtkWidget *item;
+  CamelMessageInfo *root_msg;
   CamelMessageInfo *message;
 
   toolbar_view = adw_toolbar_view_new ();
@@ -522,44 +525,38 @@ create_carousel_page_view (StampAccount          *account,
   gtk_label_set_wrap_mode (GTK_LABEL (subject_label), PANGO_WRAP_WORD_CHAR);
   gtk_widget_add_css_class (subject_label, "title-2");
 
-  {
-    GtkWidget *content_box;
-    GtkWidget *header_box;
+  content_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+  gtk_widget_set_hexpand (content_box, TRUE);
+  gtk_widget_set_vexpand (content_box, TRUE);
+  gtk_widget_add_css_class (content_box, "message-list-conversation");
 
-    content_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-    gtk_widget_set_hexpand (content_box, TRUE);
-    gtk_widget_set_vexpand (content_box, TRUE);
-    gtk_widget_add_css_class (content_box, "message-list-conversation");
+  header_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+  gtk_box_append (GTK_BOX (header_box), subject_label);
+  gtk_box_append (GTK_BOX (content_box), header_box);
 
-    header_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
-    gtk_box_append (GTK_BOX (header_box), subject_label);
-    gtk_box_append (GTK_BOX (content_box), header_box);
+  scrolled = gtk_scrolled_window_new ();
+  gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolled), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+  gtk_widget_set_hexpand (scrolled, TRUE);
+  gtk_widget_set_vexpand (scrolled, TRUE);
 
-    scrolled = gtk_scrolled_window_new ();
-    gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolled), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
-    gtk_widget_set_hexpand (scrolled, TRUE);
-    gtk_widget_set_vexpand (scrolled, TRUE);
+  list_box = gtk_list_box_new ();
+  gtk_list_box_set_selection_mode (GTK_LIST_BOX (list_box), GTK_SELECTION_NONE);
+  gtk_widget_add_css_class (list_box, "message-list");
+  gtk_widget_add_css_class (list_box, "background");
+  gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (scrolled), list_box);
 
-    list_box = gtk_list_box_new ();
-    gtk_list_box_set_selection_mode (GTK_LIST_BOX (list_box), GTK_SELECTION_NONE);
-    gtk_widget_add_css_class (list_box, "message-list");
-    gtk_widget_add_css_class (list_box, "background");
-    gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (scrolled), list_box);
+  root_msg = camel_folder_thread_node_get_item (node);
+  item = stamp_message_list_item_new (account, node);
+  gtk_list_box_append (GTK_LIST_BOX (list_box), item);
+  if ((camel_message_info_get_flags (root_msg) & CAMEL_MESSAGE_SEEN) == 0)
+    stamp_message_list_item_set_expanded (STAMP_MESSAGE_LIST_ITEM (item), TRUE);
 
-    {
-      CamelMessageInfo *root_msg = camel_folder_thread_node_get_item (node);
-      GtkWidget *item = stamp_message_list_item_new (account, node);
-      gtk_list_box_append (GTK_LIST_BOX (list_box), item);
-      if ((camel_message_info_get_flags (root_msg) & CAMEL_MESSAGE_SEEN) == 0)
-        stamp_message_list_item_set_expanded (STAMP_MESSAGE_LIST_ITEM (item), TRUE);
-    }
-    if (camel_folder_thread_node_get_child (node))
-      populate_list_box_from_thread (account, GTK_LIST_BOX (list_box), camel_folder_thread_node_get_child (node));
+  if (camel_folder_thread_node_get_child (node))
+    populate_list_box_from_thread (account, GTK_LIST_BOX (list_box), camel_folder_thread_node_get_child (node));
 
-    gtk_box_append (GTK_BOX (content_box), scrolled);
+  gtk_box_append (GTK_BOX (content_box), scrolled);
 
-    adw_toolbar_view_set_content (ADW_TOOLBAR_VIEW (toolbar_view), content_box);
-  }
+  adw_toolbar_view_set_content (ADW_TOOLBAR_VIEW (toolbar_view), content_box);
 
   return toolbar_view;
 }
@@ -695,7 +692,6 @@ stamp_message_list_set_conversation (StampMessageList      *self,
     StampMessageListItem *list_item = STAMP_MESSAGE_LIST_ITEM (child);
 
     stamp_message_list_item_set_expanded (list_item, TRUE);
-    item = GTK_WIDGET (list_item);
   }
 
   g_clear_handle_id (&self->scroll_to_bottom_handler, g_source_remove);

@@ -503,8 +503,6 @@ refresh_folder_main (gpointer user_data)
 
   /* Always refresh the first folder in the queue (which is now prioritized) */
   if (!self->refresh_queue_running) {
-    CamelFolder *folder;
-
     /* Clear the queue before adding new items */
     g_queue_clear (self->refresh_queue);
 
@@ -523,6 +521,8 @@ refresh_folder_main (gpointer user_data)
     }
 
     if (folder_item) {
+      CamelFolder *folder;
+
       /* Remove from queue if not already removed */
       if (g_queue_find (self->refresh_queue, folder_item)) {
         g_queue_remove (self->refresh_queue, folder_item);

@@ -701,9 +701,7 @@ handle_attachment (StampMimeParser *self,
   att->is_inline = (disp && g_strcmp0 (disp, "inline") == 0);
 
   if (g_strcmp0 (type_lc, "application") == 0 && g_strcmp0 (sub_lc, "octet-stream") == 0) {
-    const gchar *guessed = NULL;
-
-    att->mime_type = g_strdup (guessed ? guessed : "application/octet-stream");
+    att->mime_type = g_strdup ("application/octet-stream");
   } else {
     att->mime_type = camel_content_type_simple (content_type);
   }

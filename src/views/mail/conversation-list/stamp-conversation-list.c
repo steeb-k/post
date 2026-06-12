@@ -98,7 +98,6 @@ struct _StampConversationList {
   guint pending_load_count;
 
   GSimpleActionGroup *actions;
-  GMenu *cat_menu;
   GMenu *move_menu;
   guint load_folder_handler;
   guint load_more_items_handler;
@@ -924,9 +923,6 @@ on_row_pressed (GtkGestureClick *gesture,
   ctrl = (state & GDK_CONTROL_MASK) != 0;
   shift = (state & GDK_SHIFT_MASK) != 0;
 
-  if (!self->selection_mode)
-    return;
-
   if (ctrl && !shift) {
     /* Ctrl: einzelne Row toggeln, Anchor setzen */
     if (gtk_bitset_contains (self->selected, position))
@@ -1530,23 +1526,23 @@ on_mark_category (GSimpleAction *action,
 static void
 update_actions (StampConversationList *self)
 {
-  GAction *action;
-  guint32 flags = 0;
+  /* GAction *action; */
+  /* guint32 flags = 0; */
   /* guint32 flags = camel_message_info_get_flags (self->message_info); */
-  gboolean flagged = (flags & CAMEL_MESSAGE_FLAGGED) != 0;
-  gboolean read = (flags & CAMEL_MESSAGE_SEEN) != 0;
+  /* gboolean flagged = (flags & CAMEL_MESSAGE_FLAGGED) != 0; */
+  /* gboolean read = (flags & CAMEL_MESSAGE_SEEN) != 0; */
 
-  return;
+  /* return; */
 
-  action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-unflag");
-  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), flagged);
-  action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-flag");
-  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), !flagged);
+  /* action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-unflag"); */
+  /* g_simple_action_set_enabled (G_SIMPLE_ACTION (action), flagged); */
+  /* action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-flag"); */
+  /* g_simple_action_set_enabled (G_SIMPLE_ACTION (action), !flagged); */
 
-  action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-unread");
-  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), read);
-  action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-read");
-  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), !read);
+  /* action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-unread"); */
+  /* g_simple_action_set_enabled (G_SIMPLE_ACTION (action), read); */
+  /* action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "mark-read"); */
+  /* g_simple_action_set_enabled (G_SIMPLE_ACTION (action), !read); */
 }
 
 static void

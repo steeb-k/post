@@ -30,7 +30,6 @@ struct _StampMailView {
   AdwBreakpointBin parent_instance;
 
   AdwMultiLayoutView *mail_layout;
-  AdwOverlaySplitView *outer_osv;
   AdwOverlaySplitView *tablet_osv;
   AdwOverlaySplitView *mobile_osv;
   AdwNavigationView *mobile_nav;
@@ -289,7 +288,6 @@ stamp_mail_view_class_init (StampMailViewClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampMailView, toast_overlay);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, desktop_paned);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, tablet_paned);
-  gtk_widget_class_bind_template_child (widget_class, StampMailView, outer_osv);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, tablet_osv);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, mobile_osv);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, mobile_nav);

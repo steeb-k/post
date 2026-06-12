@@ -40,7 +40,6 @@ struct _StampWindow {
   AdwViewStack *main_view_stack;
   StampMailView *mail_view;
   StampContactView *contact_view;
-  StampCalendarView *calendar_view;
 
   gint current_width;
   gint current_height;
@@ -145,7 +144,6 @@ stamp_window_class_init (StampWindowClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampWindow, main_view_stack);
   gtk_widget_class_bind_template_child (widget_class, StampWindow, mail_view);
   gtk_widget_class_bind_template_child (widget_class, StampWindow, contact_view);
-  gtk_widget_class_bind_template_child (widget_class, StampWindow, calendar_view);
 
   gtk_widget_class_bind_template_callback (widget_class, on_open_settings_clicked);
 }

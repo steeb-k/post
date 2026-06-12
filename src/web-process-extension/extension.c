@@ -91,10 +91,11 @@ on_user_message_received (WebKitWebPage     *page,
     GVariant *parameters = webkit_user_message_get_parameters (message);
     g_autoptr (JSCValue) value = NULL;
     gboolean enabled = g_variant_get_boolean (parameters);
-    JSCException *exception;
 
     show_images = enabled;
     if (enabled) {
+      JSCException *exception;
+
       value = jsc_context_evaluate (jsc_context,
                                     "var images = document.images;" \
                                     "for(var i = 0; i < images.length; i++) {" \

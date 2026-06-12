@@ -850,7 +850,7 @@ stamp_account_mail_changed (StampAccount *self,
     camel_service_disconnect_sync (self->mail->service, TRUE, NULL, NULL);
     g_clear_object (&self->mail->service);
     g_clear_object (&self->mail->transport);
-  } else if (enabled) {
+  } else {
     g_debug ("%s: Mail '%s' from '%s' enabled\n", G_STRFUNC, e_source_get_display_name (source), self->display_name);
 
     stamp_account_enable_mail_async (self, NULL);
@@ -999,7 +999,6 @@ stamp_account_send_mail_finish (StampAccount  *account,
 }
 
 typedef struct {
-  StampAccount *account;
   CamelMimeMessage *message;
   CamelInternetAddress *sender;
   CamelInternetAddress *recipient;

@@ -235,12 +235,11 @@ stamp_time_helpers_utf_friendly_time (time_t   date,
   }
 
   if (!done) {
+    gint i;
+
     yesdate = nowdate - 60 * 60 * 24;
     localtime_r (&yesdate, &yesterday);
-  }
 
-  if (!done) {
-    gint i;
     for (i = 1; i < 7; i++) {
       yesdate = nowdate - 60 * 60 * 24 * i;
       localtime_r (&yesdate, &yesterday);

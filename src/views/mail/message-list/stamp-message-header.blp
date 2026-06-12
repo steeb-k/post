@@ -46,18 +46,6 @@ template $StampMessageHeader: Grid {
         xalign: 0;
         valign: fill;
       }
-
-      Label external {
-        label: _("External");
-        tooltip-text: _("The sender is not part of your organization");
-        visible: false;
-        valign: center;
-
-        styles [
-          "message-header-external-pill",
-          "warning",
-        ]
-      }
     }
 
     Image attachment_icon {

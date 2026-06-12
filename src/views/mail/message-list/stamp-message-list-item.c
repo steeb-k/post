@@ -41,12 +41,9 @@
 struct _StampMessageListItem {
   GtkListBoxRow parent_instance;
 
-  GtkWidget *box;
   GtkWidget *header;
   GtkWidget *secondary_revealer;
   GtkWidget *vcard_banner;
-  GtkWidget *blocked_images_revealer;
-  GtkWidget *error_banner;
   GtkWidget *blocked_images_banner;
   GtkWidget *signature_banner;
   GtkWidget *encryption_banner;
@@ -61,7 +58,6 @@ struct _StampMessageListItem {
   StampMimeParser *parser;
 
   const CamelMessageInfo *message_info;
-  gchar *calendar_content;
   gchar *message_content;
   gchar *signature_details;
   CamelCipherValiditySign signature_status;
@@ -287,11 +283,8 @@ on_get_message (GObject      *source,
   folder = CAMEL_FOLDER (source);
   message = camel_folder_get_message_finish (folder, res, &error);
   if (error) {
-    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-      self = STAMP_MESSAGE_LIST_ITEM (user_data);
-
-      g_warning ("Could not get message: %s", error->message);
-    }
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+      g_warning ("%s: Could not get message: %s", G_STRFUNC, error->message);
     return;
   }
 
@@ -696,7 +689,6 @@ stamp_message_list_item_class_init (StampMessageListItemClass *klass)
   gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/views/mail/message-list/stamp-message-list-item.ui");
 
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, header);
-  gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, error_banner);
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, blocked_images_banner);
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, disposition_banner);
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, signature_banner);

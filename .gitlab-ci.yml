@@ -4,6 +4,18 @@ stages:
 - check
 - lint
 
+cppcheck:
+  stage: lint
+  script:
+    - dnf install -y meson ninja-build gcc cppcheck glib2-devel gtk4-devel
+      evolution-data-server-devel gstreamer1-devel libsoup3-devel
+      libportal-gtk4-devel libpsl-devel nss-devel json-glib-devel
+      webkitgtk6.0-devel blueprint-compiler gettext itstool pcre2-devel
+      gsettings-desktop-schemas-devel desktop-file-utils
+    - meson setup build
+    - ninja -C build
+    - tests/run-cppcheck.sh build
+
 sast:
   stage: check
 include:

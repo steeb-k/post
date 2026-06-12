@@ -32,7 +32,6 @@ struct _StampConversationItem {
   gchar *service_uid;
   gchar *uid;
   gchar *preview;
-  GPtrArray *labels;
   gboolean unread;
   gboolean flagged;
   gboolean hidden;
@@ -239,7 +238,6 @@ stamp_conversation_item_set_property (GObject      *object,
                                       GParamSpec   *pspec)
 {
   StampConversationItem *self = STAMP_CONVERSATION_ITEM (object);
-  const CamelMessageInfo *message;
 
   switch ((StampConversationItemProps)property_id) {
     case PROP_THREAD_NODE:
@@ -250,6 +248,8 @@ stamp_conversation_item_set_property (GObject      *object,
       self->important = is_important (self);
 
       if (self->thread_node) {
+        const CamelMessageInfo *message;
+
         message = camel_folder_thread_node_get_item (self->thread_node);
         self->uid = g_strdup (camel_message_info_get_uid (message));
       }

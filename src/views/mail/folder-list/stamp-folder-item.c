@@ -106,8 +106,6 @@ void
 stamp_folder_item_set_folder_info (StampFolderItem *self,
                                    CamelFolderInfo *info)
 {
-  CamelFolderSummary *summary;
-
   if (self->folder_info == info)
     return;
 
@@ -134,6 +132,8 @@ stamp_folder_item_set_folder_info (StampFolderItem *self,
   }
 
   if (self->folder) {
+    CamelFolderSummary *summary;
+
     summary = camel_folder_get_folder_summary (self->folder);
     self->unread = camel_folder_summary_get_unread_count (summary);
     g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_UNREAD]);

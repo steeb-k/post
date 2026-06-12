@@ -56,7 +56,6 @@ struct _StampMessageHeader {
   GtkWidget *popover_avatar;
   GtkWidget *popover_name;
   GtkWidget *popover_email;
-  GtkWidget *external;
   GtkWidget *internal;
 
   gboolean to_filled;
@@ -377,7 +376,6 @@ stamp_message_header_class_init (StampMessageHeaderClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampMessageHeader, popover_avatar);
   gtk_widget_class_bind_template_child (widget_class, StampMessageHeader, popover_name);
   gtk_widget_class_bind_template_child (widget_class, StampMessageHeader, popover_email);
-  gtk_widget_class_bind_template_child (widget_class, StampMessageHeader, external);
   gtk_widget_class_bind_template_child (widget_class, StampMessageHeader, internal);
 
   gtk_widget_class_bind_template_callback (widget_class, on_more_button_clicked);

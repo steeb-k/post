@@ -30,7 +30,6 @@ struct _StampFolderList {
   AdwBin parent_instance;
 
   GtkCustomSorter *sorter;
-  GtkListView *folders_list;
   GtkSortListModel *sort_list_model;
   GtkSingleSelection *selection;
 
@@ -580,7 +579,6 @@ stamp_folder_list_class_init (StampFolderListClass *klass)
 
   object_class->dispose = stamp_folder_list_dispose;
 
-  gtk_widget_class_bind_template_child (widget_class, StampFolderList, folders_list);
   gtk_widget_class_bind_template_child (widget_class, StampFolderList, selection);
   gtk_widget_class_bind_template_child (widget_class, StampFolderList, sorter);
   gtk_widget_class_bind_template_child (widget_class, StampFolderList, sort_list_model);

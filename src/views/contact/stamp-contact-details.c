@@ -113,12 +113,13 @@ add_phone_row (GtkWidget   *list_box,
   GtkWidget *row;
   g_autoptr (GError) error = NULL;
   g_autofree char *region = e_phone_number_get_default_region (&error);
-  EPhoneNumber *phone_number;
   g_autofree char *formatted_number = NULL;
   g_autofree char *url = NULL;
   GtkWidget *tel_button;
 
   if (region) {
+    EPhoneNumber *phone_number;
+
     phone_number = e_phone_number_from_string (number, region, &error);
     if (!error)
       formatted_number = g_strdup (e_phone_number_to_string (phone_number, E_PHONE_NUMBER_FORMAT_INTERNATIONAL));

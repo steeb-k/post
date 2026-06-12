@@ -11,14 +11,12 @@ struct _StampContactView {
 
   AdwMultiLayoutView *contacts_layout;
   AdwNavigationView *mobile_nav;
-  AdwOverlaySplitView *outer_osv;
   AdwOverlaySplitView *tablet_osv;
   AdwOverlaySplitView *mobile_osv;
   GtkPaned *desktop_paned;
   GtkPaned *tablet_paned;
 
   GtkWidget *book_list;
-  GtkWidget *book_list_bin;
   GtkWidget *contact_list;
   GtkWidget *contact_details;
   AdwViewStack *stack;
@@ -185,7 +183,6 @@ stamp_contact_view_class_init (StampContactViewClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampContactView, contact_list);
   gtk_widget_class_bind_template_child (widget_class, StampContactView, contact_details);
   gtk_widget_class_bind_template_child (widget_class, StampContactView, book_list);
-  gtk_widget_class_bind_template_child (widget_class, StampContactView, outer_osv);
   gtk_widget_class_bind_template_child (widget_class, StampContactView, tablet_osv);
   gtk_widget_class_bind_template_child (widget_class, StampContactView, mobile_osv);
   gtk_widget_class_bind_template_child (widget_class, StampContactView, desktop_paned);

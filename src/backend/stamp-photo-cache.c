@@ -70,14 +70,11 @@ typedef struct {
 } StampCancelData;
 
 typedef struct {
-  GtkWidget *image_widget;
-  gchar *current_email;
   guint generation;
   GCancellable *cancellable;
 } StampEmailRow;
 
 typedef struct {
-  StampEmailRow *row;
   guint generation;
 } StampPhotoToken;
 

@@ -452,7 +452,6 @@ apply_crypto (CamelSession         *session,
         }
       } else {
         g_object_unref (mime_message);
-        mime_message = CAMEL_MIME_MESSAGE (opart);
       }
     }
   }
@@ -1464,7 +1463,6 @@ stamp_composer_set_quote_content (StampComposer          *self,
       g_autoptr (GDateTime) when = NULL;
       g_autofree char *date_received = NULL;
       gchar *date_format = _("%a, %b %-e, %Y at %-l:%M %p");
-      gchar *who;
 
       message_content = g_string_append (message_content, "<br/><br/>");
 
@@ -1473,6 +1471,7 @@ stamp_composer_set_quote_content (StampComposer          *self,
 
       if (type == STAMP_COMPOSER_REPLY || type == STAMP_COMPOSER_REPLY_ALL) {
         CamelInternetAddress *reply_to = camel_mime_message_get_reply_to (message);
+        gchar *who;
 
         if (reply_to) {
           remove_own_address (self, reply_to);

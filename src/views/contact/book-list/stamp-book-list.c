@@ -31,10 +31,8 @@ struct _StampBookList {
 
   GListStore *list_store;
   GtkWidget *sorter;
-  GtkWidget *book_list;
   GtkWidget *sort_list_model;
   GtkSingleSelection *selection;
-  GList *inactive_accounts;
   GHashTable *account_table;
 
   gboolean already_selected;

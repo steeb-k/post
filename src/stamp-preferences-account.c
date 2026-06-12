@@ -27,9 +27,7 @@ struct _StampPreferencesAccount {
   AdwNavigationPage parent_instance;
 
   AdwWindowTitle *window_title;
-  AdwPreferencesPage *page;
   AdwPreferencesGroup *alias_group;
-  AdwButtonRow *add_alias;
 
   StampAccount *account;
   GHashTable *aliases;
@@ -66,9 +64,10 @@ refresh_alias_list (StampPreferencesAccount *self)
 {
   StampMailService *service;
   GList *mails;
-  guint i;
 
   if (self->alias_rows) {
+    guint i;
+
     for (i = 0; i < self->alias_rows->len; i++)
       adw_preferences_group_remove (self->alias_group, GTK_WIDGET (g_ptr_array_index (self->alias_rows, i)));
 
@@ -219,9 +218,7 @@ stamp_preferences_account_class_init (StampPreferencesAccountClass *klass)
   gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/stamp-preferences-account.ui");
 
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccount, window_title);
-  gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccount, page);
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccount, alias_group);
-  gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccount, add_alias);
 
   gtk_widget_class_bind_template_callback (widget_class, on_add_alias_clicked);
 
@@ -248,18 +245,10 @@ stamp_preferences_account_new (StampAccount *account)
   return g_object_new (STAMP_TYPE_PREFERENCES_ACCOUNT, "account", account, NULL);
 }
 
-
-
-
-
-
-
-
 struct _StampPreferencesAccountEditor {
   AdwNavigationPage parent_instance;
 
   AdwWindowTitle *editor_window_title;
-  AdwPreferencesPage *editor_page;
   AdwEntryRow *mail_row;
   AdwEntryRow *name_row;
   AdwButtonRow *save;
@@ -360,7 +349,6 @@ stamp_preferences_account_editor_class_init (StampPreferencesAccountEditorClass 
   gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/stamp-preferences-account-editor.ui");
 
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccountEditor, editor_window_title);
-  gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccountEditor, editor_page);
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccountEditor, mail_row);
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccountEditor, name_row);
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccountEditor, save);
