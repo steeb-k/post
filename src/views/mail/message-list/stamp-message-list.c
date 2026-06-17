@@ -56,6 +56,9 @@ struct _StampMessageList {
   gboolean rebuilding;
   guint scroll_to_bottom_handler;
   guint navigate_back_handler;
+
+  guint pending_searches;
+  gboolean search_found_match;
 };
 
 G_DEFINE_FINAL_TYPE (StampMessageList, stamp_message_list, ADW_TYPE_BREAKPOINT_BIN);
@@ -68,6 +71,41 @@ enum {
 static gint signals[LAST_SIGNAL] = { 0 };
 
 static void
+check_search_results (StampMessageList *self)
+{
+  gtk_widget_remove_css_class (self->search_entry, "error");
+
+  if (!self->search_found_match)
+    gtk_widget_add_css_class (self->search_entry, "error");
+}
+
+static void
+on_item_found_text (WebKitFindController *controller,
+                    guint                 match_count,
+                    gpointer              user_data)
+{
+  StampMessageList *self = STAMP_MESSAGE_LIST (user_data);
+
+  self->pending_searches--;
+  if (match_count > 0)
+    self->search_found_match = TRUE;
+
+  if (self->pending_searches == 0)
+    check_search_results (self);
+}
+
+static void
+on_item_failed_to_find_text (WebKitFindController *controller,
+                             gpointer              user_data)
+{
+  StampMessageList *self = STAMP_MESSAGE_LIST (user_data);
+
+  self->pending_searches--;
+  if (self->pending_searches == 0)
+    check_search_results (self);
+}
+
+static void
 on_message_search_entry_changed (GtkWidget *search_entry,
                                  gpointer   user_data)
 {
@@ -78,10 +116,23 @@ on_message_search_entry_changed (GtkWidget *search_entry,
   if (!self->messages)
     return;
 
+  if (strlen (search_text) == 0) {
+    gtk_widget_remove_css_class (self->search_entry, "error");
+    return;
+  }
+
+  self->pending_searches = g_hash_table_size (self->messages);
+  self->search_found_match = FALSE;
+
   keys = g_hash_table_get_keys (self->messages);
   for (GList *iter = keys; iter && iter->data; iter = g_list_next (iter)) {
     const gchar *key = iter->data;
     StampMessageListItem *item = STAMP_MESSAGE_LIST_ITEM (g_hash_table_lookup (self->messages, key));
+    WebKitFindController *controller = webkit_web_view_get_find_controller (WEBKIT_WEB_VIEW (stamp_message_list_item_get_web_view (item)));
+
+    g_signal_handlers_disconnect_by_data (controller, self);
+    g_signal_connect (controller, "found-text", G_CALLBACK (on_item_found_text), self);
+    g_signal_connect (controller, "failed-to-find-text", G_CALLBACK (on_item_failed_to_find_text), self);
 
     stamp_message_list_item_search (item, search_text);
   }
