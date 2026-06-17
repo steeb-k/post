@@ -60,7 +60,7 @@ struct _StampConversationList {
   GtkWidget *selection_label;
   GtkWidget *spinner;
   GtkAdjustment *vadj;
-  GtkWidget *sort_button;
+  GtkWidget *sort_or_filter_button;
   GtkWidget *mail_list_stack;
   GtkBitset *selected;
   GtkToggleButton *sidebar_button;
@@ -1278,7 +1278,7 @@ stamp_conversation_list_class_init (StampConversationListClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, selection_headerbar);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, selection_label);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, spinner);
-  gtk_widget_class_bind_template_child (widget_class, StampConversationList, sort_button);
+  gtk_widget_class_bind_template_child (widget_class, StampConversationList, sort_or_filter_button);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, mail_list_stack);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, sidebar_button);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, sort_is_active);
@@ -1732,7 +1732,7 @@ stamp_conversation_list_init (StampConversationList *self)
   g_menu_append_section (menu, "Sort Order", G_MENU_MODEL (sort_menu));
   g_menu_append (sort_menu, _("Newest First"), "conversation.mail-sort::newest-first");
   g_menu_append (sort_menu, _("Oldest First"), "conversation.mail-sort::oldest-first");
-  gtk_menu_button_set_menu_model (GTK_MENU_BUTTON (self->sort_button), G_MENU_MODEL (menu));
+  gtk_menu_button_set_menu_model (GTK_MENU_BUTTON (self->sort_or_filter_button), G_MENU_MODEL (menu));
 
   self->is_pulling = FALSE;
 
