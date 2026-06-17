@@ -13,6 +13,26 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+document.body.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || e.shiftKey) return;
+
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return;
+
+  let node = sel.anchorNode;
+  if (!node) return;
+  if (node.nodeType === 3) node = node.parentNode;
+
+  let n = node;
+  while (n && n !== document.body) {
+    if (n.nodeName === 'BLOCKQUOTE') return;
+    n = n.parentNode;
+  }
+
+  e.preventDefault();
+  document.execCommand('insertLineBreak', false, null);
+}, true);
+
 document.body.addEventListener('keyup', (e) => {
   if (e.key !== 'Enter' || e.shiftKey) return;
 
