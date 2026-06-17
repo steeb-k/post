@@ -457,6 +457,7 @@ static const Shortcut MailShortcuts[] = {
   { "mail.mark-unread-current", "<primary><shift>u" },
   { "mail.print-current", "<primary>p" },
   { "mail.trash", "<primary>d" },
+  { "mail.trash", "Delete" },
   { "mail.junk", "<primary>j" },
   { "mail.view-source", "<primary>s" },
 };
