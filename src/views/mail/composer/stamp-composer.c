@@ -1144,6 +1144,9 @@ stamp_composer_init (StampComposer *self)
 
   shortcut = gtk_shortcut_new (gtk_shortcut_trigger_parse_string ("<primary>Return"), gtk_named_action_new ("composer.send"));
   gtk_shortcut_controller_add_shortcut (GTK_SHORTCUT_CONTROLLER (controller), shortcut);
+
+  shortcut = gtk_shortcut_new (gtk_shortcut_trigger_parse_string ("Escape"), gtk_named_action_new ("window.close"));
+  gtk_shortcut_controller_add_shortcut (GTK_SHORTCUT_CONTROLLER (controller), shortcut);
 }
 
 static void
