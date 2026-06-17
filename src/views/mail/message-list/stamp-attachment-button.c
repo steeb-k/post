@@ -242,6 +242,17 @@ on_open_activate (GAction  *action,
 }
 
 static void
+on_open_folder (AdwToast *toast,
+                gpointer  user_data)
+{
+  GFile *file = G_FILE (user_data);
+  GtkWindow *window = g_object_get_data (G_OBJECT (toast), "open-folder-window");
+  g_autoptr (GtkFileLauncher) launcher = gtk_file_launcher_new (file);
+
+  gtk_file_launcher_open_containing_folder (launcher, window, NULL, NULL, NULL);
+}
+
+static void
 on_save_as (GObject      *source_object,
             GAsyncResult *res,
             gpointer      user_data)
@@ -253,6 +264,7 @@ on_save_as (GObject      *source_object,
   g_autoptr (GFileOutputStream) file_output_stream = NULL;
   g_autoptr (GFileIOStream) file_io_stream = NULL;
   GOutputStream *stream = NULL;
+  AdwToastOverlay *overlay;
 
   file = gtk_file_dialog_save_finish (dialog, res, &error);
   if (error) {
@@ -291,6 +303,16 @@ on_save_as (GObject      *source_object,
   if (error) {
     g_warning ("Could not write file, abort: %s", error->message);
     return;
+  }
+
+  overlay = ADW_TOAST_OVERLAY (gtk_widget_get_ancestor (GTK_WIDGET (self), ADW_TYPE_TOAST_OVERLAY));
+  if (overlay) {
+    AdwToast *toast = adw_toast_new (_("Attachment Saved"));
+
+    adw_toast_set_button_label (toast, _("Open Folder"));
+    g_object_set_data (G_OBJECT (toast), "open-folder-window", GTK_WINDOW (gtk_widget_get_root (GTK_WIDGET (self))));
+    g_signal_connect_data (toast, "button-clicked", G_CALLBACK (on_open_folder), g_object_ref (file), (GClosureNotify)g_object_unref, 0);
+    adw_toast_overlay_add_toast (overlay, toast);
   }
 }
 
