@@ -1201,7 +1201,7 @@ on_draft_response (AdwAlertDialog *dialog,
   StampComposer *self = STAMP_COMPOSER (user_data);
 
   if (g_strcmp0 (response, "save-draft") == 0) {
-    if (!self->is_dirty)
+    if (self->is_dirty)
       stamp_webview_get_body_html (self->webview, self->cancellable, on_draft_get_body_html, self);
     else
       gtk_window_destroy (GTK_WINDOW (self));
