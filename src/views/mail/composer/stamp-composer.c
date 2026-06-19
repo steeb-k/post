@@ -1230,7 +1230,7 @@ on_close_request (GtkWindow *source,
   adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "continue", ADW_RESPONSE_SUGGESTED);
   adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "close", ADW_RESPONSE_DESTRUCTIVE);
 
-  adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "save-draft");
+  adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "continue");
   adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "save-draft");
 
   g_signal_connect (dialog, "response", G_CALLBACK (on_draft_response), self);

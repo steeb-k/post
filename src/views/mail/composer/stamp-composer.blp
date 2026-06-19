@@ -78,6 +78,11 @@ template $StampComposer: Adw.ApplicationWindow {
             column: 2;
             row: 1;
           }
+
+          accessibility {
+            label: _("From");
+            labelled-by: from;
+          }
         }
 
         Separator {
@@ -114,6 +119,7 @@ template $StampComposer: Adw.ApplicationWindow {
 
         ToggleButton toggle {
           icon-name: "view-more-symbolic";
+          tooltip-text: _("Show CC/BCC");
 
           styles [
             "flat",
@@ -122,6 +128,10 @@ template $StampComposer: Adw.ApplicationWindow {
           layout {
             column: 3;
             row: 3;
+          }
+
+          accessibility {
+            label: _("Show CC/BCC");
           }
         }
 
@@ -222,6 +232,11 @@ template $StampComposer: Adw.ApplicationWindow {
           hexpand: true;
           changed => $on_subject_changed();
 
+          accessibility {
+            label: _("Subject");
+            labelled-by: subject_label;
+          }
+
           styles [
             "flat",
             "no-focus",
@@ -285,6 +300,10 @@ template $StampComposer: Adw.ApplicationWindow {
           styles [
             "flat",
           ]
+
+          accessibility {
+            label: _("Bold");
+          }
         }
 
         ToggleButton {
@@ -296,6 +315,10 @@ template $StampComposer: Adw.ApplicationWindow {
           styles [
             "flat",
           ]
+
+          accessibility {
+            label: _("Italic");
+          }
         }
 
         ToggleButton {
@@ -307,6 +330,10 @@ template $StampComposer: Adw.ApplicationWindow {
           styles [
             "flat",
           ]
+
+          accessibility {
+            label: _("Underline");
+          }
         }
 
         ToggleButton {
@@ -318,6 +345,10 @@ template $StampComposer: Adw.ApplicationWindow {
           styles [
             "flat",
           ]
+
+          accessibility {
+            label: _("Strike Through");
+          }
         }
 
         Separator {
@@ -328,12 +359,16 @@ template $StampComposer: Adw.ApplicationWindow {
 
         Button {
           action-name: "composer.remove-format";
-          tooltip-text: _("Remove format");
+          tooltip-text: _("Remove Format");
           icon-name: "edit-clear-symbolic";
 
           styles [
             "flat",
           ]
+
+          accessibility {
+            label: _("Remove Format");
+          }
         }
 
         Button {
@@ -344,6 +379,10 @@ template $StampComposer: Adw.ApplicationWindow {
           styles [
             "flat",
           ]
+
+          accessibility {
+            label: _("Insert Signature");
+          }
         }
 
         Button {
@@ -354,6 +393,10 @@ template $StampComposer: Adw.ApplicationWindow {
           styles [
             "flat",
           ]
+
+          accessibility {
+            label: _("Add Attachment");
+          }
         }
 
         ToggleButton request_disposition {
@@ -363,6 +406,10 @@ template $StampComposer: Adw.ApplicationWindow {
           styles [
             "flat",
           ]
+
+          accessibility {
+            label: _("Request Disposition");
+          }
         }
 
         MenuButton security_menu {
@@ -371,6 +418,10 @@ template $StampComposer: Adw.ApplicationWindow {
           styles [
             "flat",
           ]
+
+          accessibility {
+            label: _("Security Menu");
+          }
 
           Popover popover {
             Box {
@@ -389,11 +440,19 @@ template $StampComposer: Adw.ApplicationWindow {
               ToggleButton pgp_sign {
                 label: _("Sign");
                 icon-name: "signature-symbolic";
+
+                accessibility {
+                  label: _("PGP Sign");
+                }
               }
 
               ToggleButton pgp_encrypt {
                 label: _("Encrypt");
                 icon-name: "locked-symbolic";
+
+                accessibility {
+                  label: _("PGP Encrypt");
+                }
               }
 
               Separator {}
@@ -410,11 +469,19 @@ template $StampComposer: Adw.ApplicationWindow {
               ToggleButton smime_sign {
                 label: _("Sign");
                 icon-name: "signature-symbolic";
+
+                accessibility {
+                  label: _("S/MIME Sign");
+                }
               }
 
               ToggleButton smime_encrypt {
                 label: _("Encrypt");
                 icon-name: "locked-symbolic";
+
+                accessibility {
+                  label: _("S/MIME Encrypt");
+                }
               }
             }
           }
