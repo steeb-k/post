@@ -22,6 +22,11 @@ template $StampFolderRow: Box {
 
   Adw.Spinner spinner {
     visible: false;
+    tooltip-text: _("Loading…");
+
+    accessibility {
+      label: _("Loading…");
+    }
   }
 
   Label unread {
@@ -33,6 +38,11 @@ template $StampFolderRow: Box {
     ]
 
     visible: false;
+    tooltip-text: _("Unread Messages");
+
+    accessibility {
+      label: _("Unread Messages");
+    }
   }
 
   Image error {

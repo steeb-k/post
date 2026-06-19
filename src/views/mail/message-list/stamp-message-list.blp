@@ -32,6 +32,10 @@ template $StampMessageList: Adw.BreakpointBin {
               icon-name: 'mail-reply-sender-symbolic';
               tooltip-text: _("Reply");
               action-name: 'mail.reply-current';
+
+              styles [
+                "flat",
+              ]
             }
 
             [start]
@@ -39,6 +43,10 @@ template $StampMessageList: Adw.BreakpointBin {
               icon-name: 'mail-reply-all-symbolic';
               tooltip-text: _("Reply All");
               action-name: 'mail.reply-all-current';
+
+              styles [
+                "flat",
+              ]
             }
 
             [start]
@@ -46,6 +54,10 @@ template $StampMessageList: Adw.BreakpointBin {
               icon-name: 'mail-forward-symbolic';
               tooltip-text: _("Forward");
               action-name: 'mail.forward-current';
+
+              styles [
+                "flat",
+              ]
             }
 
             [start]
@@ -60,19 +72,24 @@ template $StampMessageList: Adw.BreakpointBin {
             ToggleButton {
               icon-name: 'edit-find-symbolic';
               active: bind search_bar.search-mode-enabled bidirectional;
+              tooltip-text: _("Search Messages");
+
+              accessibility {
+                label: _("Search Messages");
+              }
             }
 
             [end]
             Button delete_btn {
               icon-name: 'user-trash-symbolic';
-              tooltip-text: _("Delete");
+              tooltip-text: _("Move Message to Trash");
               action-name: 'mail.trash';
             }
 
             [end]
             Button spam_btn {
               icon-name: 'junk-symbolic';
-              tooltip-text: _("Mark Spam");
+              tooltip-text: _("Mark Message as Spam");
               action-name: 'mail.junk';
             }
           }
@@ -88,6 +105,12 @@ template $StampMessageList: Adw.BreakpointBin {
                 hexpand: true;
                 search-delay: 500;
                 search-changed => $on_message_search_entry_changed();
+
+                placeholder-text: _("Search Messages");
+
+                accessibility {
+                  label: _("Search Messages");
+                }
               };
             };
           }
@@ -184,20 +207,22 @@ template $StampMessageList: Adw.BreakpointBin {
 
             Button {
               accessibility {
-                label: _("Reply Current");
+                label: _("Reply");
               }
 
               icon-name: 'mail-reply-sender-symbolic';
               action-name: 'mail.reply-current';
+              tooltip-text: _("Reply");
             }
 
             Button {
               accessibility {
-                label: _("Reply All Current");
+                label: _("Reply All");
               }
 
               icon-name: 'mail-reply-all-symbolic';
               action-name: 'mail.reply-all-current';
+              tooltip-text: _("Reply All");
             }
 
             Button {
@@ -207,6 +232,7 @@ template $StampMessageList: Adw.BreakpointBin {
 
               icon-name: 'mail-forward-symbolic';
               action-name: 'mail.forward-current';
+              tooltip-text: _("Forward");
             }
 
             Button {
@@ -216,6 +242,7 @@ template $StampMessageList: Adw.BreakpointBin {
 
               icon-name: 'junk-symbolic';
               action-name: 'mail.junk';
+              tooltip-text: _("Mark Junk");
             }
 
             Button {
@@ -225,6 +252,7 @@ template $StampMessageList: Adw.BreakpointBin {
 
               icon-name: 'user-trash-symbolic';
               action-name: 'mail.trash';
+              tooltip-text: _("Move To Trash");
             }
 
             styles [
@@ -251,4 +279,24 @@ template $StampMessageList: Adw.BreakpointBin {
       }
     }
   };
+
+  // Adw.Breakpoint breakpoint_tablet {
+  //   condition ("max-width: 799sp")
+
+  //   setters {
+  //     reply_btn.icon-name: 'mail-reply-sender-symbolic';
+  //     reply_all_btn.icon-name: 'mail-reply-all-symbolic';
+  //     forward_btn.icon-name: 'mail-forward-symbolic';
+  //   }
+  // }
+
+  // Adw.Breakpoint breakpoint_desktop {
+  //   condition ("min-width: 800sp")
+
+  //   setters {
+  //     reply_btn.label: _("Reply");
+  //     reply_all_btn.label: _("Reply All");
+  //     forward_btn.label: _("Forward");
+  //   }
+  // }
 }

@@ -34,15 +34,23 @@ template $StampConversationList: Adw.Bin {
         ToggleButton start_search_btn {
           active: bind search_bar.search-mode-enabled bidirectional;
           icon-name: "edit-find-symbolic";
-          tooltip-text: _("Search");
+          tooltip-text: _("Search Conversations");
+
+          accessibility {
+            label: _("Search Conversations");
+          }
         }
 
         [end]
         ToggleButton end_search_btn {
           active: bind search_bar.search-mode-enabled bidirectional;
           icon-name: "edit-find-symbolic";
-          tooltip-text: _("Search");
+          tooltip-text: _("Search Conversations");
           visible: false;
+
+          accessibility {
+            label: _("Search Conversations");
+          }
         }
 
         [end]
@@ -131,6 +139,11 @@ template $StampConversationList: Adw.Bin {
           search-changed => $on_mail_search_entry_changed();
           search-delay: 500;
           hexpand: true;
+          placeholder-text: _("Search Conversations");
+
+          accessibility {
+            label: _("Search Conversations");
+          }
         };
       };
     }
@@ -153,6 +166,7 @@ template $StampConversationList: Adw.Bin {
                 halign: end;
                 valign: end;
                 icon-name: "document-edit-symbolic";
+                tooltip-text: _("New Message");
 
                 styles [
                   "suggested-action",

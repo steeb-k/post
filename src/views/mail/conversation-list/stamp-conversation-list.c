@@ -68,6 +68,8 @@ struct _StampConversationList {
   GtkBox *sort_is_active;
   GtkMenuButton *move_selection_button;
   AdwBanner *trash_folder_banner;
+  GtkButton *trash_selection_button;
+  GtkButton *mark_read_selection_button;
 
   GListStore *list_store;
   GtkSingleSelection *single_selection;
@@ -825,8 +827,37 @@ update_selection_title (StampConversationList *self)
   guint n_selected = gtk_bitset_get_size (self->selected);
   gchar buf[64];
 
-  g_snprintf (buf, sizeof buf, _("%u selected"), n_selected);
+  if (n_selected) {
+    g_autofree char *tooltip = g_strdup_printf (g_dngettext (NULL, "Move Selected Message to Trash", "Move %u Selected Messages to Trash", n_selected), n_selected);
 
+    gtk_widget_set_tooltip_text (GTK_WIDGET (self->trash_selection_button), tooltip);
+    gtk_widget_set_sensitive (GTK_WIDGET (self->trash_selection_button), TRUE);
+  } else {
+    gtk_widget_set_tooltip_text (GTK_WIDGET (self->trash_selection_button), NULL);
+    gtk_widget_set_sensitive (GTK_WIDGET (self->trash_selection_button), FALSE);
+  }
+
+  if (n_selected) {
+    g_autofree char *tooltip = g_strdup_printf (g_dngettext (NULL, "Mark Selected Message as Read", "Mark %u Selected Messages as Read", n_selected), n_selected);
+
+    gtk_widget_set_tooltip_text (GTK_WIDGET (self->mark_read_selection_button), tooltip);
+    gtk_widget_set_sensitive (GTK_WIDGET (self->mark_read_selection_button), TRUE);
+  } else {
+    gtk_widget_set_tooltip_text (GTK_WIDGET (self->mark_read_selection_button), NULL);
+    gtk_widget_set_sensitive (GTK_WIDGET (self->mark_read_selection_button), FALSE);
+  }
+
+  if (n_selected) {
+    g_autofree char *tooltip = g_strdup_printf (g_dngettext (NULL, "Move Selected Message…", "Move %u Selected Messages…", n_selected), n_selected);
+
+    gtk_widget_set_tooltip_text (GTK_WIDGET (self->move_selection_button), tooltip);
+    gtk_widget_set_sensitive (GTK_WIDGET (self->move_selection_button), TRUE);
+  } else {
+    gtk_widget_set_tooltip_text (GTK_WIDGET (self->move_selection_button), NULL);
+    gtk_widget_set_sensitive (GTK_WIDGET (self->move_selection_button), FALSE);
+  }
+
+  g_snprintf (buf, sizeof buf, _("%u selected"), n_selected);
   adw_window_title_set_title (ADW_WINDOW_TITLE (self->selection_label), buf);
 }
 
@@ -1385,6 +1416,8 @@ stamp_conversation_list_class_init (StampConversationListClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, context_menu_model);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, move_selection_button);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, trash_folder_banner);
+  gtk_widget_class_bind_template_child (widget_class, StampConversationList, trash_selection_button);
+  gtk_widget_class_bind_template_child (widget_class, StampConversationList, mark_read_selection_button);
 
   gtk_widget_class_bind_template_callback (widget_class, on_mail_search_entry_changed);
   gtk_widget_class_bind_template_callback (widget_class, on_new_message);

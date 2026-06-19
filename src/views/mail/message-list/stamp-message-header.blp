@@ -15,6 +15,10 @@ template $StampMessageHeader: Grid {
       row-span: 4;
     }
 
+    accessibility {
+      label: _("Sender");
+    }
+
     GestureClick {
       released => $on_released();
     }
