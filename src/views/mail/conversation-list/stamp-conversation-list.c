@@ -66,6 +66,7 @@ struct _StampConversationList {
   GtkToggleButton *sidebar_button;
   GtkBox *sort_is_active;
   GtkMenuButton *move_selection_button;
+  AdwBanner *trash_folder_banner;
 
   GListStore *list_store;
   GtkSingleSelection *single_selection;
@@ -524,6 +525,11 @@ on_get_folder (GObject      *source,
 
   thread = get_thread (self, folder);
   self->thread = thread;
+
+  adw_banner_set_revealed (self->trash_folder_banner,
+                           thread &&
+                           (self->folder == stamp_account_get_mail_trash_folder (self->account) ||
+                            self->folder == stamp_account_get_mail_junk_folder (self->account)));
 
   array = g_ptr_array_new_with_free_func (g_object_unref);
 
@@ -1308,6 +1314,7 @@ stamp_conversation_list_class_init (StampConversationListClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, sort_is_active);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, context_menu_model);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, move_selection_button);
+  gtk_widget_class_bind_template_child (widget_class, StampConversationList, trash_folder_banner);
 
   gtk_widget_class_bind_template_callback (widget_class, on_mail_search_entry_changed);
   gtk_widget_class_bind_template_callback (widget_class, on_new_message);
@@ -1705,6 +1712,48 @@ on_move_folder (GSimpleAction *action,
   g_object_unref (target);
 }
 
+static void
+on_trash_folder (GSimpleAction *action,
+                 GVariant      *parameter,
+                 gpointer       user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+  g_autoptr (GPtrArray) array = NULL;
+  g_autoptr (GPtrArray) uid_array = NULL;
+  guint n_items;
+
+  n_items = g_list_model_get_n_items (G_LIST_MODEL (self->list_store));
+  if (n_items == 0)
+    return;
+
+  for (guint i = 0; i < n_items; i++) {
+    StampConversationItem *item = STAMP_CONVERSATION_ITEM (g_list_model_get_item (G_LIST_MODEL (self->list_store), i));
+    CamelFolderThreadNode *node = stamp_conversation_item_get_node (item);
+
+    array = collect_messages (node, array);
+  }
+
+  uid_array = g_ptr_array_new_with_free_func (g_free);
+
+  for (guint i = 0; i < array->len; i++) {
+    CamelFolderThreadNode *child_node = array->pdata[i];
+    const CamelMessageInfo *info = camel_folder_thread_node_get_item (child_node);
+    g_ptr_array_add (uid_array, g_strdup (camel_message_info_get_uid (info)));
+  }
+
+  if (uid_array->len > 0) {
+    g_autoptr (GError) error = NULL;
+
+    for (guint i = 0; i < uid_array->len; i++)
+      camel_folder_set_message_flags (self->folder, uid_array->pdata[i], CAMEL_MESSAGE_DELETED, CAMEL_MESSAGE_DELETED);
+
+    camel_folder_expunge_sync (self->folder, NULL, &error);
+    if (error) {
+      g_warning ("%s: Could not expunge folder: %s", G_STRFUNC, error->message);
+    }
+  }
+}
+
 static const GActionEntry stamp_conversation_list_action_entries[] = {
   { .name = "mark-category", .activate = on_mark_category, .parameter_type = "s" },
   { .name = "mark-read", .activate = on_mark_read },
@@ -1712,6 +1761,7 @@ static const GActionEntry stamp_conversation_list_action_entries[] = {
   { .name = "mark-starred", .activate = on_mark_starred },
   { .name = "mark-unstarred", .activate = on_mark_unstarred },
   { .name = "move-folder", .activate = on_move_folder, .parameter_type = "s" },
+  { .name = "trash-folder", .activate = on_trash_folder },
 };
 
 static void
@@ -1931,6 +1981,7 @@ stamp_conversation_list_trash (StampConversationList *self,
   g_autoptr (GPtrArray) array = NULL;
   CamelFolder *folder;
   CamelFolder *trash_folder;
+  CamelFolder *junk_folder;
   g_autoptr (GError) error = NULL;
   GPtrArray *uid_array;
 
@@ -1978,6 +2029,7 @@ stamp_conversation_list_trash (StampConversationList *self,
 
   folder = self->folder;
   trash_folder = stamp_account_get_mail_trash_folder (self->account);
+  junk_folder = stamp_account_get_mail_junk_folder (self->account);
 
   /* Mark all items as read */
   uid_array = g_ptr_array_new ();
@@ -1995,9 +2047,17 @@ stamp_conversation_list_trash (StampConversationList *self,
     g_cancellable_cancel (self->transfer_cancellable);
     g_clear_object (&self->transfer_cancellable);
   }
-  self->transfer_cancellable = g_cancellable_new ();
 
-  camel_folder_transfer_messages_to (folder, uid_array, trash_folder, TRUE, G_PRIORITY_DEFAULT, self->transfer_cancellable, on_transfer_messages_to, uid_array);
+  if (folder != trash_folder && folder != junk_folder) {
+    self->transfer_cancellable = g_cancellable_new ();
+
+    camel_folder_transfer_messages_to (folder, uid_array, trash_folder, TRUE, G_PRIORITY_DEFAULT, self->transfer_cancellable, on_transfer_messages_to, uid_array);
+  } else {
+    camel_folder_synchronize_sync (folder, FALSE, NULL, &error);
+    if (error) {
+      g_warning ("%s: Could not synchronize folder: %s", G_STRFUNC, error->message);
+    }
+  }
 
   stamp_conversation_list_unselect (self);
 }
