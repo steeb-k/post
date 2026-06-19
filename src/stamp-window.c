@@ -75,6 +75,42 @@ on_account_changed (GObject      *object,
 }
 
 static void
+on_show_mail (GSimpleAction *action,
+              GVariant      *parameter,
+              gpointer       user_data)
+{
+  StampWindow *self = STAMP_WINDOW (user_data);
+
+  adw_view_stack_set_visible_child_name (self->main_view_stack, "mail");
+}
+
+static void
+on_show_contacts (GSimpleAction *action,
+                  GVariant      *parameter,
+                  gpointer       user_data)
+{
+  StampWindow *self = STAMP_WINDOW (user_data);
+
+  adw_view_stack_set_visible_child_name (self->main_view_stack, "contacts");
+}
+
+static void
+on_show_calendar (GSimpleAction *action G_GNUC_UNUSED,
+                  GVariant *parameter   G_GNUC_UNUSED,
+                  gpointer              user_data)
+{
+  StampWindow *self = STAMP_WINDOW (user_data);
+
+  adw_view_stack_set_visible_child_name (self->main_view_stack, "calendar");
+}
+
+static const GActionEntry stamp_window_action_entries[] = {
+  { .name = "show-mail", .activate = on_show_mail },
+  { .name = "show-contacts", .activate = on_show_contacts },
+  { .name = "show-calendar", .activate = on_show_calendar },
+};
+
+static void
 stamp_window_dispose (GObject *object)
 {
   StampWindow *self = STAMP_WINDOW (object);
@@ -121,6 +157,11 @@ stamp_window_init (StampWindow *self)
   g_autofree char *view = NULL;
 
   gtk_widget_init_template (GTK_WIDGET (self));
+
+  g_action_map_add_action_entries (G_ACTION_MAP (self),
+                                   stamp_window_action_entries,
+                                   G_N_ELEMENTS (stamp_window_action_entries),
+                                   self);
 
   g_signal_connect_object (session, "account-added", G_CALLBACK (on_account_changed), self, 0);
   g_signal_connect_object (session, "account-removed", G_CALLBACK (on_account_changed), self, 0);

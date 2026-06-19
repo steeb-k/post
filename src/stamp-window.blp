@@ -8,6 +8,23 @@ template $StampWindow: Adw.ApplicationWindow {
   default-height: 600;
   title: _("Stamp");
 
+  ShortcutController {
+    Shortcut {
+      trigger: "<primary>1";
+      action: "action(win.show-mail)";
+    }
+
+    Shortcut {
+      trigger: "<primary>2";
+      action: "action(win.show-contacts)";
+    }
+
+    // Shortcut {
+    //   trigger: "<primary>3";
+    //   action: "action(win.show-calendar)";
+    // }
+  }
+
   content: Adw.ViewStack app_view_stack {
     Adw.ViewStackPage {
       name: "loading";
