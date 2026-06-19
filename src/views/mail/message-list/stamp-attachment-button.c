@@ -575,6 +575,34 @@ stamp_attachment_button_activate (StampAttachmentButton *self)
   on_open_activate (NULL, NULL, self);
 }
 
+const gchar *
+stamp_attachment_button_get_filename (StampAttachmentButton *self)
+{
+  return gtk_label_get_text (GTK_LABEL (self->filename_label));
+}
+
+gboolean
+stamp_attachment_button_save_to_file (StampAttachmentButton  *self,
+                                      GFile                  *file,
+                                      GError                **error)
+{
+  if (self->mime_part) {
+    g_autoptr (GFileOutputStream) stream = g_file_replace (file, NULL, FALSE, G_FILE_CREATE_NONE, NULL, error);
+    if (!stream)
+      return FALSE;
+
+    return camel_data_wrapper_decode_to_output_stream_sync (CAMEL_DATA_WRAPPER (camel_medium_get_content (CAMEL_MEDIUM (self->mime_part))), G_OUTPUT_STREAM (stream), NULL, error);
+  }
+
+  if (self->data) {
+    return g_file_replace_contents (file, g_bytes_get_data (self->data, NULL), g_bytes_get_size (self->data), NULL, FALSE, G_FILE_CREATE_NONE, NULL, NULL, error);
+  }
+
+  g_set_error (error, G_IO_ERROR, G_IO_ERROR_INVALID_DATA, "Attachment has no data to save");
+
+  return FALSE;
+}
+
 CamelMimePart *
 stamp_attachment_button_get_mime_part (StampAttachmentButton *self)
 {

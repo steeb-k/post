@@ -45,4 +45,12 @@ stamp_attachment_button_activate (StampAttachmentButton *self);
 CamelMimePart *
 stamp_attachment_button_get_mime_part (StampAttachmentButton *self);
 
+const gchar *
+stamp_attachment_button_get_filename (StampAttachmentButton *self);
+
+gboolean
+stamp_attachment_button_save_to_file (StampAttachmentButton *self,
+                                      GFile                *file,
+                                      GError              **error);
+
 G_END_DECLS

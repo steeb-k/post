@@ -27,6 +27,8 @@
 #include <nss.h>
 #include <webkit/webkit.h>
 
+#include <adwaita.h>
+
 #include "stamp-attachment-button.h"
 #include "stamp-message-header.h"
 #include "stamp-message-list.h"
@@ -49,6 +51,8 @@ struct _StampMessageListItem {
   GtkWidget *signature_banner;
   GtkWidget *encryption_banner;
   GtkWidget *attachment_flow_box;
+  GtkWidget *attachment_info_label;
+  GtkWidget *save_all_button;
   GtkWidget *disposition_banner;
 
   StampWebView *web_view;
@@ -235,13 +239,29 @@ open_message (StampMessageListItem *self,
   }
 
   attachments = stamp_mime_parser_get_attachments (self->parser);
-  for (GList *iter = attachments; iter && iter->data; iter = g_list_next (iter)) {
-    StampMimeAttachment *att = iter->data;
-    GtkWidget *button = stamp_attachment_button_new_from_data (att->filename, att->mime_type, att->size, att->data);
+  if (attachments) {
+    guint count = 0;
+    gsize total_size = 0;
+    g_autofree char *label = NULL;
 
-    adw_wrap_box_append (ADW_WRAP_BOX (self->attachment_flow_box), button);
+    for (GList *iter = attachments; iter && iter->data; iter = g_list_next (iter)) {
+      StampMimeAttachment *att = iter->data;
+      GtkWidget *button = stamp_attachment_button_new_from_data (att->filename, att->mime_type, att->size, att->data);
+
+      adw_wrap_box_append (ADW_WRAP_BOX (self->attachment_flow_box), button);
+
+      count++;
+      total_size += att->size;
+    }
+
+    label = g_strdup_printf (ngettext ("%d Attachment (%s)", "%d Attachments (%s)", count), count, g_format_size (total_size));
+    gtk_label_set_text (GTK_LABEL (self->attachment_info_label), label);
   }
+
   gtk_widget_set_visible (self->attachment_flow_box, attachments != NULL);
+  gtk_widget_set_visible (self->attachment_info_label, attachments && g_list_length (attachments) > 1);
+  gtk_widget_set_visible (self->save_all_button, attachments && g_list_length (attachments) > 1);
+  g_list_free (attachments);
 
   if (self->message_content) {
     if (self->message_is_html) {
@@ -377,6 +397,85 @@ stamp_message_list_item_set_property (GObject      *object,
       stamp_message_list_item_set_expanded (self, g_value_get_boolean (value));
       break;
   }
+}
+
+static void
+on_open_save_all_folder (AdwToast *toast,
+                         gpointer  user_data)
+{
+  GFile *file = G_FILE (user_data);
+  GtkWindow *window = g_object_get_data (G_OBJECT (toast), "open-folder-window");
+  g_autoptr (GtkFileLauncher) launcher = gtk_file_launcher_new (file);
+
+  gtk_file_launcher_open_containing_folder (launcher, window, NULL, NULL, NULL);
+}
+
+static void
+on_save_all_folder_selected (GObject      *source,
+                             GAsyncResult *res,
+                             gpointer      user_data)
+{
+  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
+  g_autoptr (GtkFileDialog) dialog = GTK_FILE_DIALOG (source);
+  g_autoptr (GError) error = NULL;
+  g_autoptr (GFile) folder = NULL;
+  GList *attachments;
+  GFile *first_file = NULL;
+
+  folder = gtk_file_dialog_select_folder_finish (dialog, res, &error);
+  if (error) {
+    if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+      return;
+
+    g_warning ("%s: %s", G_STRFUNC, error->message);
+    return;
+  }
+
+  attachments = stamp_mime_parser_get_attachments (self->parser);
+  for (GList *iter = attachments; iter; iter = g_list_next (iter)) {
+    StampMimeAttachment *att = iter->data;
+    g_autoptr (GFile) file = g_file_get_child (folder, att->filename);
+    g_autoptr (GError) save_error = NULL;
+
+    if (!first_file)
+      first_file = g_object_ref (file);
+
+    if (!g_file_replace_contents (file,
+                                  g_bytes_get_data (att->data, NULL),
+                                  g_bytes_get_size (att->data),
+                                  NULL, FALSE, G_FILE_CREATE_NONE,
+                                  NULL, NULL, &save_error))
+      g_warning ("%s: Could not save '%s': %s", G_STRFUNC, att->filename, save_error->message);
+  }
+
+  g_list_free (attachments);
+
+  if (first_file) {
+    AdwToastOverlay *overlay = ADW_TOAST_OVERLAY (gtk_widget_get_ancestor (GTK_WIDGET (self), ADW_TYPE_TOAST_OVERLAY));
+
+    if (overlay) {
+      AdwToast *toast = adw_toast_new (_("Attachments Saved"));
+
+      adw_toast_set_button_label (toast, _("Open Folder"));
+      g_object_set_data (G_OBJECT (toast), "open-folder-window", GTK_WINDOW (gtk_widget_get_root (GTK_WIDGET (self))));
+      g_signal_connect_data (toast, "button-clicked", G_CALLBACK (on_open_save_all_folder), first_file, (GClosureNotify)g_object_unref, 0);
+      adw_toast_overlay_add_toast (overlay, toast);
+    } else {
+      g_object_unref (first_file);
+    }
+  }
+}
+
+static void
+on_save_all (GtkButton *button,
+             gpointer   user_data)
+{
+  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
+  GtkRoot *root = gtk_widget_get_root (GTK_WIDGET (self));
+  GtkFileDialog *dialog = gtk_file_dialog_new ();
+
+  gtk_file_dialog_set_title (dialog, _("Select destination folder"));
+  gtk_file_dialog_select_folder (dialog, GTK_WINDOW (root), NULL, on_save_all_folder_selected, self);
 }
 
 static void
@@ -606,6 +705,8 @@ stamp_message_list_item_class_init (StampMessageListItemClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, web_view);
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, secondary_revealer);
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, attachment_flow_box);
+  gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, attachment_info_label);
+  gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, save_all_button);
 
   gtk_widget_class_bind_template_callback (widget_class, on_header_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_show_images);
@@ -1016,6 +1117,7 @@ stamp_message_list_item_init (StampMessageListItem *self)
 
   stamp_webview_set_cid_handler (self->web_view, on_cid_request, self);
   g_signal_connect (self->web_view, "context-menu", G_CALLBACK (on_context_menu), self);
+  g_signal_connect (self->save_all_button, "clicked", G_CALLBACK (on_save_all), self);
 }
 
 GtkWidget *

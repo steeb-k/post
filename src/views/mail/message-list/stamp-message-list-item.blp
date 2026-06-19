@@ -80,8 +80,31 @@ template $StampMessageListItem: ListBoxRow {
           ]
         }
 
-        Adw.WrapBox attachment_flow_box {
-          visible: false;
+        Box {
+          orientation: vertical;
+
+          Adw.WrapBox attachment_flow_box {
+            visible: false;
+          }
+
+          Box {
+            orientation: horizontal;
+            margin-bottom: 6;
+            margin-start: 6;
+            margin-end: 6;
+
+            Label attachment_info_label {
+              visible: false;
+              halign: start;
+              hexpand: true;
+            }
+
+            Button save_all_button {
+              label: _("Save All…");
+              visible: false;
+              halign: end;
+            }
+          }
         }
 
         $StampWebView web_view {
