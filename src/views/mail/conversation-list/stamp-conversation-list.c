@@ -246,40 +246,64 @@ filter_func (gpointer object,
 
   if (search_text_len) {
     g_autofree char *search = g_utf8_strdown (search_text, search_text_len);
-    gboolean found = FALSE;
+    g_auto (GStrv) words = g_strsplit (search, " ", -1);
+    gboolean all_found = TRUE;
 
-    if (!found) {
-      const gchar *item_from = stamp_conversation_item_get_from (item);
+    for (gint i = 0; words[i] && all_found; i++) {
+      gboolean word_found = FALSE;
 
-      if (item_from && strlen (item_from) > 0) {
-        g_autofree char *from = g_utf8_strdown (item_from, -1);
-        if (g_strstr_len (from, -1, search))
-          found = TRUE;
+      if (strlen (words[i]) == 0)
+        continue;
+
+      if (!word_found) {
+        const gchar *item_from = stamp_conversation_item_get_from (item);
+
+        if (item_from && strlen (item_from) > 0) {
+          g_autofree char *from = g_utf8_strdown (item_from, -1);
+
+          if (g_strstr_len (from, -1, words[i]))
+            word_found = TRUE;
+        }
       }
+
+      if (!word_found) {
+        const gchar *item_subject = stamp_conversation_item_get_subject (item);
+
+        if (item_subject && strlen (item_subject) > 0) {
+          g_autofree char *subject = g_utf8_strdown (item_subject, -1);
+
+          if (g_strstr_len (subject, -1, words[i]))
+            word_found = TRUE;
+        }
+      }
+
+      if (!word_found) {
+        const gchar *item_mail = stamp_conversation_item_get_mail (item);
+
+        if (item_mail && strlen (item_mail) > 0) {
+          g_autofree char *mail = g_utf8_strdown (item_mail, -1);
+
+          if (g_strstr_len (mail, -1, words[i]))
+            word_found = TRUE;
+        }
+      }
+
+      if (!word_found) {
+        const gchar *item_preview = stamp_conversation_item_get_preview (item);
+
+        if (item_preview && strlen (item_preview) > 0) {
+          g_autofree char *preview = g_utf8_strdown (item_preview, -1);
+
+          if (g_strstr_len (preview, -1, words[i]))
+            word_found = TRUE;
+        }
+      }
+
+      if (!word_found)
+        all_found = FALSE;
     }
 
-    if (!found) {
-      const gchar *item_subject = stamp_conversation_item_get_subject (item);
-
-      if (item_subject && strlen (item_subject) > 0) {
-        g_autofree char *subject = g_utf8_strdown (item_subject, -1);
-        if (g_strstr_len (subject, -1, search))
-          found = TRUE;
-      }
-    }
-
-    if (!found) {
-      const gchar *item_mail = stamp_conversation_item_get_mail (item);
-
-      if (item_mail && strlen (item_mail) > 0) {
-        g_autofree char *mail = g_utf8_strdown (item_mail, -1);
-
-        if (g_strstr_len (mail, -1, search))
-          found = TRUE;
-      }
-    }
-
-    if (!found)
+    if (!all_found)
       return FALSE;
   }
 
