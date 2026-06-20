@@ -44,3 +44,12 @@
 .message-list-header-between {
   margin-bottom: 48px;
 }
+
+.message-list-item-clickable {
+  padding: 12px;
+  transition: background-color 150ms ease;
+}
+
+.message-list-item-clickable:hover {
+  background-color: alpha(currentColor, 0.05);
+}

@@ -472,13 +472,24 @@ on_save_all (GtkButton *button,
 }
 
 static void
-on_header_clicked (GObject  *object,
-                   gint      n_press,
-                   gdouble   x,
-                   gdouble   y,
-                   gpointer  user_data)
+on_row_clicked (GObject  *object,
+                gint      n_press,
+                gdouble   x,
+                gdouble   y,
+                gpointer  user_data)
 {
   StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
+
+  if (self->expanded) {
+    GtkGestureClick *gesture = GTK_GESTURE_CLICK (object);
+    GtkWidget *gesture_widget = gtk_event_controller_get_widget (GTK_EVENT_CONTROLLER (gesture));
+    graphene_rect_t web_view_bounds;
+
+    if (gtk_widget_compute_bounds (GTK_WIDGET (self->web_view), gesture_widget, &web_view_bounds) &&
+        x >= web_view_bounds.origin.x && x <= web_view_bounds.origin.x + web_view_bounds.size.width &&
+        y >= web_view_bounds.origin.y && y <= web_view_bounds.origin.y + web_view_bounds.size.height)
+      return;
+  }
 
   stamp_message_list_item_set_expanded (self, !self->expanded);
 }
@@ -700,7 +711,7 @@ stamp_message_list_item_class_init (StampMessageListItemClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, attachment_info_label);
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, save_all_button);
 
-  gtk_widget_class_bind_template_callback (widget_class, on_header_clicked);
+  gtk_widget_class_bind_template_callback (widget_class, on_row_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_show_images);
   gtk_widget_class_bind_template_callback (widget_class, on_show_signatures);
   gtk_widget_class_bind_template_callback (widget_class, on_rsvp);

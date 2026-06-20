@@ -11,10 +11,16 @@ template $StampMessageListItem: ListBoxRow {
   child: Box {
     orientation: vertical;
 
+    GestureClick {
+      released => $on_row_clicked();
+    }
+
     $StampMessageHeader header {
-      GestureClick {
-        released => $on_header_clicked();
-      }
+      styles [
+        "message-list-item-clickable",
+      ]
+
+      hexpand: true;
     }
 
     Revealer secondary_revealer {
