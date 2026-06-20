@@ -56,12 +56,15 @@ stamp_conversation_list_mark_flag_selected_messages (StampConversationList *self
 void
 stamp_conversation_list_unselect (StampConversationList *self);
 
-void
+gboolean
 stamp_conversation_list_trash (StampConversationList *self,
-                               StampConversationItem *item);
+                                StampConversationItem *item);
 
 void
 stamp_conversation_list_undo_trash (StampConversationList *self);
+
+void
+stamp_conversation_list_finalize_trash (StampConversationList *self);
 
 void
 stamp_mail_conversation_list_search_contact (StampConversationList *self,

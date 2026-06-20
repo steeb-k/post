@@ -180,15 +180,37 @@ on_conversation_selected (GtkWidget *object,
 }
 
 static void
+on_trash_undo (AdwToast *toast,
+               gpointer  user_data)
+{
+  StampMailView *self = STAMP_MAIL_VIEW (user_data);
+
+  stamp_conversation_list_undo_trash (self->conversation_list);
+}
+
+static void
+on_trash_dismissed (AdwToast *toast,
+                    gpointer  user_data)
+{
+  StampMailView *self = STAMP_MAIL_VIEW (user_data);
+
+  stamp_conversation_list_finalize_trash (self->conversation_list);
+}
+
+static void
 trash (StampMailView         *self,
        StampConversationItem *item)
 {
-  AdwToast *toast;
+  if (stamp_conversation_list_trash (self->conversation_list, item)) {
+    AdwToast *toast;
 
-  stamp_conversation_list_trash (self->conversation_list, item);
-
-  toast = adw_toast_new (_("Conversations moved to trash"));
-  adw_toast_overlay_add_toast (self->toast_overlay, toast);
+    toast = adw_toast_new (_("Conversations moved to trash"));
+    adw_toast_set_button_label (toast, _("_Undo"));
+    adw_toast_set_timeout (toast, 5);
+    g_signal_connect (toast, "button-clicked", G_CALLBACK (on_trash_undo), self);
+    g_signal_connect (toast, "dismissed", G_CALLBACK (on_trash_dismissed), self);
+    adw_toast_overlay_add_toast (self->toast_overlay, toast);
+  }
 }
 
 static void
