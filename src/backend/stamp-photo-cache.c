@@ -318,8 +318,6 @@ check_bimi (StampPhotoCache *self,
 
     if (domain && strlen (domain) > 1) {
       url = stamp_query_bimi_logo (domain + 1);
-    } else {
-      g_warning ("%s: Sender domain invalid: %s", G_STRFUNC, email);
     }
 
     if (url) {
