@@ -483,6 +483,9 @@ handle_pgp_inline (StampMimeParser         *self,
       body->length = strlen (cleartext);
       body->charset = g_strdup (charset);
 
+      convert_newlines_to_br (&body->text);
+      body->length = strlen (body->text);
+
       g_clear_pointer (&self->plain_body, stamp_mime_body_free);
       self->plain_body = body;
     }
