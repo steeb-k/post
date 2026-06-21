@@ -338,6 +338,7 @@ try_credentials_sync (ECredentialsPrompter    *prompter,
   TryCredentialsData *data = user_data;
   g_autofree char *credential_name = NULL;
   CamelAuthenticationResult result;
+  GError *local_error = NULL;
 
   g_return_val_if_fail (E_IS_SOURCE (source), FALSE);
   g_return_val_if_fail (credentials != NULL, FALSE);
@@ -359,7 +360,11 @@ try_credentials_sync (ECredentialsPrompter    *prompter,
   camel_service_set_password (data->service, e_named_parameters_get (credentials,
                                                                      credential_name ? credential_name : E_SOURCE_CREDENTIAL_PASSWORD));
 
-  result = camel_service_authenticate_sync (data->service, data->mechanism, cancellable, error);
+  result = camel_service_authenticate_sync (data->service, data->mechanism, cancellable, &local_error);
+  if (local_error) {
+    g_propagate_error (error, local_error);
+    return FALSE;
+  }
 
   *out_authenticated = result == CAMEL_AUTHENTICATION_ACCEPTED;
 
@@ -408,6 +413,10 @@ authenticate_sync (CamelSession  *session,
    * password, then it gets one shot to authenticate. */
   if (authtype != NULL && !authtype->need_password) {
     result = camel_service_authenticate_sync (service, mechanism, cancellable, &local_error);
+    if (local_error) {
+      g_propagate_error (error, local_error);
+      return FALSE;
+    }
     return result == CAMEL_AUTHENTICATION_ACCEPTED;
   }
 
@@ -459,7 +468,11 @@ authenticate_sync (CamelSession  *session,
   result = CAMEL_AUTHENTICATION_REJECTED;
 
   if (try_empty_password) {
-    result = camel_service_authenticate_sync (service, mechanism, cancellable, error);
+    result = camel_service_authenticate_sync (service, mechanism, cancellable, &local_error);
+    if (local_error) {
+      g_propagate_error (error, local_error);
+      return FALSE;
+    }
   }
 
   if (result == CAMEL_AUTHENTICATION_REJECTED) {
