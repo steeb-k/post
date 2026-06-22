@@ -677,6 +677,7 @@ stamp_message_list_item_dispose (GObject *object)
 
   g_clear_object (&self->message);
   g_clear_object (&self->calendar);
+  g_clear_object (&self->parser);
 
   gtk_widget_dispose_template (GTK_WIDGET (self), STAMP_TYPE_MESSAGE_LIST_ITEM);
 
