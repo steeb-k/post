@@ -399,14 +399,22 @@ stamp_on_contacts_received (GObject      *source,
     EContact *contact = E_CONTACT (contacts->data);
     EContactPhoto *photo = e_contact_get (contact, E_CONTACT_PHOTO);
 
-    if (photo) {
-      if (photo->type == E_CONTACT_PHOTO_TYPE_INLINED) {
-        g_autoptr (GBytes) bytes = g_bytes_new (photo->data.inlined.data, photo->data.inlined.length);
+    if (!photo) {
+      g_debug ("%s: Contact found for '%s' but no photo field", G_STRFUNC, pending->email);
+    } else if (photo->type == E_CONTACT_PHOTO_TYPE_INLINED) {
+      g_autoptr (GBytes) bytes = g_bytes_new (photo->data.inlined.data, photo->data.inlined.length);
 
-        texture = gdk_texture_new_from_bytes (bytes, NULL);
-        if (texture)
-          stamp_disk_cache_store (cache, pending->email, photo->data.inlined.data, photo->data.inlined.length);
-      } else if (photo->type == E_CONTACT_PHOTO_TYPE_URI) {
+      g_debug ("%s: Found inline photo for '%s'", G_STRFUNC, pending->email);
+
+      texture = gdk_texture_new_from_bytes (bytes, NULL);
+      if (texture)
+        stamp_disk_cache_store (cache, pending->email, photo->data.inlined.data, photo->data.inlined.length);
+      else
+        g_warning ("%s: Could not parse inline photo for '%s'", G_STRFUNC, pending->email);
+    } else if (photo->type == E_CONTACT_PHOTO_TYPE_URI) {
+      g_debug ("%s: Found URI photo for '%s': %s", G_STRFUNC, pending->email, photo->data.uri);
+
+      if (g_str_has_prefix (photo->data.uri, "file://")) {
         g_autoptr (GFile) file = g_file_new_for_uri (photo->data.uri);
 
         texture = gdk_texture_new_from_file (file, &error);
@@ -414,6 +422,7 @@ stamp_on_contacts_received (GObject      *source,
           g_autofree char *data = NULL;
           gsize length = 0;
 
+          g_debug ("%s: Successfully loaded file URI photo for '%s'", G_STRFUNC, pending->email);
           if (g_file_load_contents (file, NULL, &data, &length, NULL, NULL))
             stamp_disk_cache_store (cache, pending->email, (guchar *)data, length);
         } else {
@@ -453,6 +462,7 @@ book_done:
     return;
   }
 
+  g_debug ("%s: All books exhausted, creating NEGATIVE cache for '%s'", G_STRFUNC, pending->email);
   g_hash_table_insert (cache->negative_cache,
                        g_strdup (pending->email), GINT_TO_POINTER (TRUE));
   stamp_disk_cache_store_negative (cache, pending->email);
@@ -537,7 +547,7 @@ stamp_photo_cache_lookup_async (StampPhotoCache *self,
   GSList *books = NULL;
   g_autofree char *query_string = NULL;
   EBookQuery *query[2];
-  EBookQuery *or_query;
+  g_autoptr (EBookQuery) or_query = NULL;
 
   g_return_if_fail (g_main_context_is_owner (g_main_context_default ()));
 
@@ -613,6 +623,8 @@ stamp_photo_cache_lookup_async (StampPhotoCache *self,
 
   if (!books) {
     g_autoptr (GTask) task = NULL;
+
+    g_debug ("%s: No enabled books for '%s', trying BIMI only", G_STRFUNC, search_string);
 
     pending = g_new0 (StampPendingLookup, 1);
     pending->cache = self;

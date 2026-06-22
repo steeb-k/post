@@ -1382,4 +1382,3 @@ stamp_account_get_mail_junk_folder (StampAccount *self)
 {
   return self->mail->junk_folder;
 }
-
