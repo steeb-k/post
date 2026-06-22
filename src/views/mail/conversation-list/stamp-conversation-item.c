@@ -214,8 +214,6 @@ is_important (StampConversationItem *self)
   const CamelMessageInfo *message = camel_folder_thread_node_get_item (self->thread_node);
   gboolean important = FALSE;
 
-  self->uid = g_strdup (camel_message_info_get_uid (message));
-
   if (message) {
     const CamelNamedFlags *flags = camel_message_info_get_user_flags (message);
     guint len = camel_named_flags_get_length (flags);
@@ -618,11 +616,12 @@ stamp_conversation_item_get_labels (StampConversationItem *self)
 {
   const CamelMessageInfo *message;
   const CamelNamedFlags *flags;
-  GPtrArray *array = g_ptr_array_new_with_free_func (g_free);
+  GPtrArray *array;
 
   if (!self->thread_node)
     return FALSE;
 
+  array = g_ptr_array_new_with_free_func (g_free);
   message = camel_folder_thread_node_get_item (self->thread_node);
 
   flags = camel_message_info_get_user_flags (message);
