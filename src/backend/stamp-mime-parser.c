@@ -318,7 +318,6 @@ convert_links (StampMimeParser *self)
 {
   static GRegex *email_regex = NULL;
   static GRegex *url_regex = NULL;
-  g_autofree char *linked_content = NULL;
 
   if (!email_regex) {
     email_regex = g_regex_new (
@@ -338,14 +337,14 @@ convert_links (StampMimeParser *self)
 
   if (self->plain_body->text) {
     if (email_regex) {
-      linked_content = g_regex_replace (email_regex, self->plain_body->text, -1, 0, "<a href=\"mailto:\\1\">\\1</a>", 0, NULL);
+      g_autofree char *linked_content = g_regex_replace (email_regex, self->plain_body->text, -1, 0, "<a href=\"mailto:\\1\">\\1</a>", 0, NULL);
 
       if (linked_content)
         g_set_str (&self->plain_body->text, g_steal_pointer (&linked_content));
     }
 
     if (url_regex) {
-      linked_content = g_regex_replace (url_regex, self->plain_body->text, -1, 0, "<a href=\"\\1\">\\1</a>", 0, NULL);
+      g_autofree char *linked_content = g_regex_replace (url_regex, self->plain_body->text, -1, 0, "<a href=\"\\1\">\\1</a>", 0, NULL);
 
       if (linked_content)
         g_set_str (&self->plain_body->text, g_steal_pointer (&linked_content));
@@ -606,29 +605,36 @@ create_calendar (StampMimeParser     *self,
   const gchar *ical_text = NULL;
   const gchar *ical_start = NULL;
   const gchar *body = NULL;
+  gsize len;
 
-  ical_text = g_bytes_get_data (attachment->data, NULL);
+  ical_text = g_bytes_get_data (attachment->data, &len);
   if (!ical_text)
     return FALSE;
 
-  ical_start = strstr (ical_text, "BEGIN:VCALENDAR");
+  ical_start = g_strstr_len (ical_text, len, "BEGIN:VCALENDAR");
+
   if (!ical_start)
-    ical_start = strstr (ical_text, "BEGIN:VCARD");
+    ical_start = g_strstr_len (ical_text, len, "BEGIN:VCARD");
 
   if (!ical_start) {
-    body = strstr (ical_text, "\r\n\r\n");
+    body = g_strstr_len (ical_text, len, "\r\n\r\n");
     if (!body)
-      body = strstr (ical_text, "\n\n");
+      body = g_strstr_len (ical_text, len, "\n\n");
+
     if (body) {
+      gsize body_len = len - (body - ical_text);
+
       body += (body[0] == '\r') ? 4 : 2;
-      ical_start = strstr (body, "BEGIN:VCALENDAR");
+      ical_start = g_strstr_len (body, body_len, "BEGIN:VCALENDAR");
       if (!ical_start)
-        ical_start = strstr (body, "BEGIN:VCARD");
+        ical_start = g_strstr_len (body, body_len, "BEGIN:VCARD");
     }
   }
 
   if (ical_start) {
-    g_autofree char *tmp = g_strdup (ical_start);
+    gsize start_len = len - (ical_start - ical_text);
+    g_autofree char *tmp = g_strndup (ical_start, start_len);
+
     ical = e_cal_util_parse_ics_string (tmp);
   } else {
     ical = e_cal_util_parse_ics_string (ical_text);
