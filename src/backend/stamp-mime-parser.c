@@ -604,7 +604,6 @@ create_calendar (StampMimeParser     *self,
   ICalComponent *ical = NULL;
   const gchar *ical_text = NULL;
   const gchar *ical_start = NULL;
-  const gchar *body = NULL;
   gsize len;
 
   ical_text = g_bytes_get_data (attachment->data, &len);
@@ -617,6 +616,8 @@ create_calendar (StampMimeParser     *self,
     ical_start = g_strstr_len (ical_text, len, "BEGIN:VCARD");
 
   if (!ical_start) {
+    const gchar *body = NULL;
+
     body = g_strstr_len (ical_text, len, "\r\n\r\n");
     if (!body)
       body = g_strstr_len (ical_text, len, "\n\n");
