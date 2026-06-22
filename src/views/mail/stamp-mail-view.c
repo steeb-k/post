@@ -527,6 +527,8 @@ stamp_mail_view_init (StampMailView *self)
   g_signal_connect (self->mail_layout, "notify::layout-name", G_CALLBACK (on_layout_changed), self);
   g_signal_connect (stamp_conversation_list_get_sidebar_button (self->conversation_list), "clicked", G_CALLBACK (on_toggle_sidebar), self);
 
+  stamp_folder_list_set_conversation_list (self->folder_list, self->conversation_list);
+
   /* Remember paned position */
   g_signal_connect (self->desktop_paned, "notify::position", G_CALLBACK (on_paned_changed), self);
   g_signal_connect (self->tablet_paned, "notify::position", G_CALLBACK (on_paned_changed), self);

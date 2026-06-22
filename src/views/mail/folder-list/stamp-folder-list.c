@@ -20,6 +20,8 @@
 #include "stamp-folder-list.h"
 
 #include "stamp-account-item.h"
+#include "stamp-conversation-item.h"
+#include "stamp-conversation-list.h"
 #include "stamp-folder-item.h"
 #include "stamp-folder-row.h"
 #include "stamp-helper.h"
@@ -36,6 +38,8 @@ struct _StampFolderList {
   gboolean already_selected;
   GListStore *list_store;
   guint expand_handler;
+
+  StampConversationList *conversation_list;
 };
 
 G_DEFINE_FINAL_TYPE (StampFolderList, stamp_folder_list, ADW_TYPE_BIN);
@@ -521,6 +525,42 @@ on_drag_begin (GtkDragSource  *source,
   gtk_drag_source_set_icon (source, paintable, 0, 0);
 }
 
+static gboolean
+on_conversation_accept (GtkDropTarget *target,
+                        GdkDrop       *drop,
+                        gpointer       user_data)
+{
+  GtkListItem *list_item = GTK_LIST_ITEM (user_data);
+  GtkTreeExpander *expander = GTK_TREE_EXPANDER (gtk_list_item_get_child (list_item));
+  StampItem *item = STAMP_ITEM (gtk_tree_expander_get_item (expander));
+
+  return STAMP_IS_FOLDER_ITEM (item);
+}
+
+static gboolean
+on_conversation_drop (GtkDropTarget *target,
+                      const GValue  *value,
+                      gdouble        x,
+                      gdouble        y,
+                      gpointer       user_data)
+{
+  StampFolderList *self = STAMP_FOLDER_LIST (user_data);
+  StampConversationItem *conv_item = g_value_get_object (value);
+  StampFolderRow *row = STAMP_FOLDER_ROW (gtk_event_controller_get_widget (GTK_EVENT_CONTROLLER (target)));
+  GtkListItem *list_item = g_object_get_data (G_OBJECT (row), "list-item");
+  GtkTreeExpander *expander = GTK_TREE_EXPANDER (gtk_list_item_get_child (list_item));
+  StampItem *folder_item = STAMP_ITEM (gtk_tree_expander_get_item (expander));
+
+  if (!STAMP_IS_FOLDER_ITEM (folder_item) || !self->conversation_list)
+    return FALSE;
+
+  stamp_conversation_list_move_conversation (self->conversation_list,
+                                             conv_item,
+                                             stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (folder_item)));
+
+  return TRUE;
+}
+
 static void
 on_setup_folder (GtkListItemFactory *factory,
                  GtkListItem        *list_item,
@@ -532,6 +572,7 @@ on_setup_folder (GtkListItemFactory *factory,
   GtkGesture *click = gtk_gesture_click_new ();
   GtkDragSource *drag = gtk_drag_source_new ();
   GtkDropTarget *drop = gtk_drop_target_new (STAMP_TYPE_ITEM, GDK_ACTION_MOVE);
+  GtkDropTarget *conv_drop = gtk_drop_target_new (STAMP_TYPE_CONVERSATION_ITEM, GDK_ACTION_MOVE);
 
   gtk_list_item_set_activatable (list_item, TRUE);
 
@@ -554,6 +595,19 @@ on_setup_folder (GtkListItemFactory *factory,
   g_signal_connect (drop, "accept", G_CALLBACK (on_accept), list_item);
   g_signal_connect (drop, "drop", G_CALLBACK (on_drop), self);
   gtk_widget_add_controller (row, GTK_EVENT_CONTROLLER (drop));
+
+  g_signal_connect (conv_drop, "accept", G_CALLBACK (on_conversation_accept), list_item);
+  g_signal_connect (conv_drop, "drop", G_CALLBACK (on_conversation_drop), self);
+  gtk_widget_add_controller (row, GTK_EVENT_CONTROLLER (conv_drop));
+}
+
+void
+stamp_folder_list_set_conversation_list (StampFolderList       *self,
+                                         StampConversationList *conversation_list)
+{
+  g_return_if_fail (STAMP_IS_FOLDER_LIST (self));
+
+  self->conversation_list = conversation_list;
 }
 
 static void
@@ -565,6 +619,8 @@ stamp_folder_list_dispose (GObject *object)
     g_clear_object (&self->list_store);
 
   g_clear_handle_id (&self->expand_handler, g_source_remove);
+
+  self->conversation_list = NULL;
 
   G_OBJECT_CLASS (stamp_folder_list_parent_class)->dispose (object);
 }

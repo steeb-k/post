@@ -21,6 +21,8 @@
 
 #include <adwaita.h>
 
+#include "stamp-conversation-list.h"
+
 G_BEGIN_DECLS
 
 #define STAMP_TYPE_FOLDER_LIST (stamp_folder_list_get_type())
@@ -32,5 +34,9 @@ stamp_folder_list_new (void);
 
 void
 stamp_folder_list_unselect (StampFolderList *self);
+
+void
+stamp_folder_list_set_conversation_list (StampFolderList        *self,
+                                          StampConversationList *conversation_list);
 
 G_END_DECLS

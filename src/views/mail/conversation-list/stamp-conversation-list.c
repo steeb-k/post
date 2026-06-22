@@ -1013,6 +1013,67 @@ on_touch_released (GtkGestureClick *gesture,
   refresh_checkboxes (self);
 }
 
+static GdkContentProvider *
+on_conversation_drag_prepare (GtkDragSource *source,
+                              gdouble        x,
+                              gdouble        y,
+                              gpointer       user_data)
+{
+  GdkEvent *event;
+  GtkListItem *list_item;
+  StampConversationItem *item;
+
+  event = gtk_event_controller_get_current_event (GTK_EVENT_CONTROLLER (source));
+  if (event) {
+    GdkDevice *device;
+
+    device = gdk_event_get_device (event);
+    if (device && gdk_device_get_source (device) == GDK_SOURCE_TOUCHSCREEN)
+      return NULL;
+  }
+
+  list_item = GTK_LIST_ITEM (user_data);
+  item = STAMP_CONVERSATION_ITEM (gtk_list_item_get_item (list_item));
+
+  if (!item)
+    return NULL;
+
+  g_type_ensure (STAMP_TYPE_CONVERSATION_ITEM);
+  return gdk_content_provider_new_typed (STAMP_TYPE_CONVERSATION_ITEM, item);
+}
+
+static void
+on_conversation_drag_begin (GtkDragSource *source,
+                            GdkDrag       *drag,
+                            GtkWidget     *row)
+{
+  GtkWidget *parent;
+  graphene_size_t size;
+  g_autoptr (GtkSnapshot) snapshot = NULL;
+  g_autoptr (GdkPaintable) paintable = NULL;
+
+  parent = gtk_widget_get_parent (row);
+  if (!parent)
+    return;
+
+  size = GRAPHENE_SIZE_INIT (gtk_widget_get_width (row),
+                             gtk_widget_get_height (row));
+  snapshot = gtk_snapshot_new ();
+  gtk_widget_snapshot_child (parent, row, snapshot);
+  paintable = gtk_snapshot_free_to_paintable (snapshot, &size);
+
+  if (paintable)
+    gtk_drag_source_set_icon (source, paintable, 0, 0);
+}
+
+static void
+on_conversation_drag_cancel (GtkDragSource *source,
+                             GdkDrag       *drag,
+                             GdkDragAction  action,
+                             gpointer       user_data)
+{
+}
+
 static void
 on_setup_list_item (GtkListItemFactory *factory,
                     GtkListItem        *list_item,
@@ -1024,6 +1085,7 @@ on_setup_list_item (GtkListItemFactory *factory,
   GtkGesture *long_press = gtk_gesture_long_press_new ();
   GtkGesture *press_gesture;
   RowData *row_data;
+  GtkDragSource *drag_source;
 
   GtkGesture *touch = gtk_gesture_click_new ();
   gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (touch), TRUE);
@@ -1068,6 +1130,13 @@ on_setup_list_item (GtkListItemFactory *factory,
   g_signal_connect_object (row, "mark-read", G_CALLBACK (on_row_mark_read), self, 0);
   g_signal_connect_object (row, "mark-unread", G_CALLBACK (on_row_mark_unread), self, 0);
   g_signal_connect_object (row, "trash", G_CALLBACK (on_row_trash), self, 0);
+
+  drag_source = gtk_drag_source_new ();
+  gtk_drag_source_set_actions (drag_source, GDK_ACTION_MOVE);
+  g_signal_connect (drag_source, "prepare", G_CALLBACK (on_conversation_drag_prepare), list_item);
+  g_signal_connect (drag_source, "drag-begin", G_CALLBACK (on_conversation_drag_begin), row);
+  g_signal_connect (drag_source, "drag-cancel", G_CALLBACK (on_conversation_drag_cancel), row);
+  gtk_widget_add_controller (row, GTK_EVENT_CONTROLLER (drag_source));
 
   g_object_bind_property (list_item, "selected", row, "selected", G_BINDING_SYNC_CREATE);
   g_object_set_data (G_OBJECT (list_item), "model", self->multi_selection);
@@ -1635,6 +1704,59 @@ on_transfer_messages_to (GObject      *source,
   if (error) {
     g_warning ("%s: Could not synchronize folder: %s", G_STRFUNC, error->message);
   }
+}
+
+void
+stamp_conversation_list_move_conversation (StampConversationList *self,
+                                           StampConversationItem *item,
+                                           const gchar           *target_full_name)
+{
+  StampMailService *mail_service;
+  CamelStore *store;
+  CamelFolder *target;
+  g_autoptr (GError) error = NULL;
+  g_autoptr (GPtrArray) array = NULL;
+  g_autoptr (GPtrArray) uid_array = NULL;
+
+  g_return_if_fail (STAMP_IS_CONVERSATION_LIST (self));
+  g_return_if_fail (STAMP_IS_CONVERSATION_ITEM (item));
+
+  stamp_conversation_item_set_hidden (item, TRUE);
+
+  array = collect_messages (stamp_conversation_item_get_node (item), NULL);
+
+  g_list_model_items_changed (G_LIST_MODEL (self->list_store),
+                              0,
+                              g_list_model_get_n_items (G_LIST_MODEL (self->list_store)),
+                              g_list_model_get_n_items (G_LIST_MODEL (self->list_store)));
+
+  uid_array = g_ptr_array_new ();
+  for (gint idx = array->len - 1; idx >= 0; idx--) {
+    CamelFolderThreadNode *child_node = array->pdata[idx];
+    const CamelMessageInfo *info = camel_folder_thread_node_get_item (child_node);
+
+    g_ptr_array_add (uid_array, g_strdup (camel_message_info_get_uid (info)));
+  }
+
+  mail_service = stamp_account_get_mail_service (self->account);
+  store = CAMEL_STORE (stamp_mail_service_get_service (mail_service));
+  target = camel_store_get_folder_sync (store, target_full_name, 0, NULL, &error);
+  if (error) {
+    g_warning ("%s: Could not open target folder %s: %s", G_STRFUNC, target_full_name, error->message);
+    return;
+  }
+
+  if (self->transfer_cancellable) {
+    g_cancellable_cancel (self->transfer_cancellable);
+    g_clear_object (&self->transfer_cancellable);
+  }
+  self->transfer_cancellable = g_cancellable_new ();
+
+  camel_folder_transfer_messages_to (self->folder, uid_array, target, TRUE,
+                                     G_PRIORITY_DEFAULT, self->transfer_cancellable,
+                                     on_transfer_messages_to, self);
+
+  g_object_unref (target);
 }
 
 static void
