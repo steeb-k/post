@@ -434,6 +434,8 @@ stamp_message_list_init (StampMessageList *self)
 
   gtk_widget_init_template (GTK_WIDGET (self));
 
+  gtk_stack_set_visible_child_name (GTK_STACK (self->message_stack), "no-conversation");
+
   stamp_message_list_hovering_over_link (self, NULL, NULL);
 
   gtk_list_box_set_sort_func (GTK_LIST_BOX (self->list_box), sort_mails, NULL, NULL);
@@ -704,8 +706,11 @@ stamp_message_list_set_conversation (StampMessageList      *self,
   if (!node) {
     /* Show empty stack */
     gtk_stack_set_visible_child_name (GTK_STACK (self->stack), "empty");
+    gtk_stack_set_visible_child_name (GTK_STACK (self->message_stack), "no-conversation");
     return;
   }
+
+  gtk_stack_set_visible_child_name (GTK_STACK (self->message_stack), "content");
 
   /* E-D-S does not mark messages as DRAFT nor the folder as TYPE_DRAFTS for MS365…, check full name for the moment
    */

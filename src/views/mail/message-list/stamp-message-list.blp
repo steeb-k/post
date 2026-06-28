@@ -235,6 +235,8 @@ template $StampMessageList: Adw.BreakpointBin {
       }
 
       StackPage {
+        name: "no-conversation";
+
         child: Adw.ToolbarView {
           [top]
           Adw.HeaderBar {
@@ -242,7 +244,8 @@ template $StampMessageList: Adw.BreakpointBin {
           }
 
           Adw.StatusPage {
-            title: _("No Mail Selected");
+            icon-name: "mail-unread-symbolic";
+            title: _("No Conversation Selected");
           }
         };
       }
