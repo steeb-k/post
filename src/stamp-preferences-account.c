@@ -309,6 +309,16 @@ on_remove_clicked (GtkWidget *button,
 }
 
 static void
+on_entry_changed (GtkWidget *button,
+                  gpointer   user_data)
+{
+  StampPreferencesAccountEditor *self = STAMP_PREFERENCES_ACCOUNT_EDITOR (user_data);
+  const char *mail = gtk_editable_get_text (GTK_EDITABLE (self->mail_row));
+
+  gtk_widget_set_sensitive (GTK_WIDGET (self->save), strlen (mail) != 0);
+}
+
+static void
 stamp_preferences_account_editor_get_property (GObject    *object,
                                                guint       property_id,
                                                GValue     *value,
@@ -356,6 +366,7 @@ stamp_preferences_account_editor_class_init (StampPreferencesAccountEditorClass 
 
   gtk_widget_class_bind_template_callback (widget_class, on_save_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_remove_clicked);
+  gtk_widget_class_bind_template_callback (widget_class, on_entry_changed);
 }
 
 void

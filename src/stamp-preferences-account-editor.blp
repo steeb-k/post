@@ -18,6 +18,7 @@ template $StampPreferencesAccountEditor: Adw.NavigationPage {
 
         Adw.EntryRow mail_row {
           title: _("Email");
+          changed => $on_entry_changed();
         }
 
         Adw.EntryRow name_row {
@@ -29,6 +30,7 @@ template $StampPreferencesAccountEditor: Adw.NavigationPage {
         Adw.ButtonRow save {
           title: _("Save");
           visible: false;
+          sensitive: false;
           activated => $on_save_clicked();
 
           styles [
