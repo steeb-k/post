@@ -248,17 +248,4 @@ template $StampMessageList: Adw.BreakpointBin {
       }
     }
   };
-
-  Adw.Breakpoint breakpoint_small {
-    condition ("max-width: 500sp")
-
-    setters {
-      reply_btn.visible: false;
-      reply_all_btn.visible: false;
-      forward_btn.visible: false;
-      delete_btn.visible: false;
-      spam_btn.visible: false;
-      toolbar.visible: true;
-    }
-  }
 }

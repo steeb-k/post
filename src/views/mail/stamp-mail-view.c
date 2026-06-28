@@ -441,6 +441,8 @@ on_layout_changed (AdwMultiLayoutView *view,
 
   gtk_widget_set_visible (GTK_WIDGET (toggle_button), narrow);
 
+  stamp_message_list_set_mobile_mode (self->message_list, g_strcmp0 (name, "mobile") == 0);
+
   if (!narrow && self->saved_paned_pos > 50) {
     gtk_paned_set_position (self->desktop_paned, self->saved_paned_pos);
     gtk_paned_set_position (self->tablet_paned, self->saved_paned_pos);

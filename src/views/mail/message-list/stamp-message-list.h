@@ -67,4 +67,8 @@ void
 stamp_message_list_set_external (StampMessageList *self,
                                  gboolean          is_external);
 
+void
+stamp_message_list_set_mobile_mode (StampMessageList *self,
+                                    gboolean          mobile);
+
 G_END_DECLS

@@ -42,6 +42,13 @@ struct _StampMessageList {
   GtkWidget *edit_button;
   GtkWidget *external;
 
+  GtkWidget *reply_btn;
+  GtkWidget *reply_all_btn;
+  GtkWidget *forward_btn;
+  GtkWidget *delete_btn;
+  GtkWidget *spam_btn;
+  GtkWidget *toolbar;
+
   GHashTable *messages;
   StampAccount *account;
 
@@ -57,6 +64,8 @@ struct _StampMessageList {
 
   guint pending_searches;
   gboolean search_found_match;
+
+  gboolean mobile_mode;
 };
 
 G_DEFINE_FINAL_TYPE (StampMessageList, stamp_message_list, ADW_TYPE_BREAKPOINT_BIN);
@@ -215,6 +224,44 @@ on_drag_update (GtkGestureDrag *gesture,
 }
 
 static void
+stamp_message_list_size_allocate (GtkWidget *widget,
+                                  int        width,
+                                  int        height,
+                                  int        baseline)
+{
+  StampMessageList *self = STAMP_MESSAGE_LIST (widget);
+
+  GTK_WIDGET_CLASS (stamp_message_list_parent_class)->size_allocate (widget, width, height, baseline);
+
+  if (self->mobile_mode) {
+    gboolean narrow = width < 500;
+
+    gtk_widget_set_visible (self->reply_btn, !narrow);
+    gtk_widget_set_visible (self->reply_all_btn, !narrow);
+    gtk_widget_set_visible (self->forward_btn, !narrow);
+    gtk_widget_set_visible (self->delete_btn, !narrow);
+    gtk_widget_set_visible (self->spam_btn, !narrow);
+    gtk_widget_set_visible (self->toolbar, narrow);
+  }
+}
+
+void
+stamp_message_list_set_mobile_mode (StampMessageList *self,
+                                    gboolean          mobile)
+{
+  self->mobile_mode = mobile;
+
+  if (!mobile) {
+    gtk_widget_set_visible (self->reply_btn, TRUE);
+    gtk_widget_set_visible (self->reply_all_btn, TRUE);
+    gtk_widget_set_visible (self->forward_btn, TRUE);
+    gtk_widget_set_visible (self->delete_btn, TRUE);
+    gtk_widget_set_visible (self->spam_btn, TRUE);
+    gtk_widget_set_visible (self->toolbar, FALSE);
+  }
+}
+
+static void
 stamp_message_list_class_init (StampMessageListClass *klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
@@ -233,6 +280,12 @@ stamp_message_list_class_init (StampMessageListClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, search_entry);
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, edit_button);
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, external);
+  gtk_widget_class_bind_template_child (widget_class, StampMessageList, reply_btn);
+  gtk_widget_class_bind_template_child (widget_class, StampMessageList, reply_all_btn);
+  gtk_widget_class_bind_template_child (widget_class, StampMessageList, forward_btn);
+  gtk_widget_class_bind_template_child (widget_class, StampMessageList, delete_btn);
+  gtk_widget_class_bind_template_child (widget_class, StampMessageList, spam_btn);
+  gtk_widget_class_bind_template_child (widget_class, StampMessageList, toolbar);
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, carousel);
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, message_stack);
 
@@ -240,6 +293,8 @@ stamp_message_list_class_init (StampMessageListClass *klass)
   gtk_widget_class_bind_template_callback (widget_class, on_drag_begin);
   gtk_widget_class_bind_template_callback (widget_class, on_drag_update);
   gtk_widget_class_bind_template_callback (widget_class, on_carousel_page_changed);
+
+  widget_class->size_allocate = stamp_message_list_size_allocate;
 
   signals[HOVERING_OVER_LINK] = g_signal_new ("hovering-over-link", G_OBJECT_CLASS_TYPE (klass),
                                               G_SIGNAL_RUN_FIRST | G_SIGNAL_RUN_LAST,
