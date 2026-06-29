@@ -541,7 +541,10 @@ update_from (StampMessageHeader *self)
                               self->from_name,
                               self->from_mail);
   } else {
-    markup = g_strdup_printf ("<b>%s</b> <small>(%s)</small>", self->from_name, self->from_mail);
+    g_autofree char *tmp_sender_name = g_markup_escape_text (self->from_name, -1);
+    g_autofree char *tmp_sender_mail = g_markup_escape_text (self->from_mail, -1);
+
+    markup = g_strdup_printf ("<b>%s</b> <small>(%s)</small>", tmp_sender_name, tmp_sender_mail);
   }
 
   gtk_label_set_markup (GTK_LABEL (self->from_full), markup);
