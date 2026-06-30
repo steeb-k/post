@@ -455,28 +455,16 @@ static gboolean
 has_thread_flag (CamelFolderThreadNode *node,
                  CamelMessageFlags      flag)
 {
-  gboolean has_flag;
-
   if (!node)
     return FALSE;
 
-  has_flag = !(camel_message_info_get_flags (camel_folder_thread_node_get_item (node)) & flag);
-
-  if (!has_flag) {
-    for (CamelFolderThreadNode *child = camel_folder_thread_node_get_child (node); child; child = camel_folder_thread_node_get_next (child)) {
-      has_flag = has_thread_flag (child, flag);
-      if (has_flag)
-        break;
-    }
-  }
-
-  return has_flag;
+  return (camel_message_info_get_flags (camel_folder_thread_node_get_item (node)) & flag) != 0;
 }
 
 static gboolean
 has_attachment (CamelFolderThreadNode *thread_node)
 {
-  return !has_thread_flag (thread_node, CAMEL_MESSAGE_ATTACHMENTS);
+  return has_thread_flag (thread_node, CAMEL_MESSAGE_ATTACHMENTS);
 }
 
 static gboolean

@@ -105,7 +105,6 @@ template $StampMessageList: Adw.BreakpointBin {
                 hexpand: true;
                 search-delay: 500;
                 search-changed => $on_message_search_entry_changed();
-
                 placeholder-text: _("Search Messages");
 
                 accessibility {
@@ -282,17 +281,14 @@ template $StampMessageList: Adw.BreakpointBin {
 
   // Adw.Breakpoint breakpoint_tablet {
   //   condition ("max-width: 799sp")
-
   //   setters {
   //     reply_btn.icon-name: 'mail-reply-sender-symbolic';
   //     reply_all_btn.icon-name: 'mail-reply-all-symbolic';
   //     forward_btn.icon-name: 'mail-forward-symbolic';
   //   }
   // }
-
   // Adw.Breakpoint breakpoint_desktop {
   //   condition ("min-width: 800sp")
-
   //   setters {
   //     reply_btn.label: _("Reply");
   //     reply_all_btn.label: _("Reply All");
