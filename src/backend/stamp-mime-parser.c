@@ -45,13 +45,8 @@ struct _StampMimeParser {
 
 G_DEFINE_FINAL_TYPE (StampMimeParser, stamp_mime_parser, G_TYPE_OBJECT);
 
-#define HELPER(fmt, ...) g_debug (fmt "%s\n", __VA_ARGS__)
-#define PARSER_LOG(...) do { \
-          g_debug ("%s: ", G_STRFUNC); \
-          for (guint idx = 0; idx < self->depth; idx++) \
-          g_debug (" "); \
-          HELPER (__VA_ARGS__, ""); \
-} while (0)
+#define PARSER_LOG(fmt, ...) \
+        g_debug ("%*s%s " fmt, self->depth, "", G_STRFUNC,  ## __VA_ARGS__);
 
 typedef gboolean (*StampPartHandlerFunc)(StampMimeParser *self,
                                          CamelMimePart   *part,
@@ -733,6 +728,9 @@ handle_attachment (StampMimeParser *self,
   } else if (g_strcmp0 (type_lc, "application") == 0 && g_strcmp0 (sub_lc, "pgp-keys") == 0) {
     att->kind = STAMP_MIME_ATTACHMENT_PGP_KEY;
     att->is_inline = FALSE;
+  } else if (g_strcmp0 (type_lc, "message") == 0 && g_strcmp0 (sub_lc, "rfc822") == 0) {
+    att->kind = STAMP_MIME_ATTACHMENT_MESSAGE;
+    att->mime_type = g_strdup ("message/rfc822");
   } else {
     att->kind = STAMP_MIME_ATTACHMENT_GENERIC;
   }
@@ -1074,10 +1072,12 @@ dispatch_rfc822 (StampMimeParser  *self,
 {
   CamelDataWrapper *data_wrapper = camel_medium_get_content (CAMEL_MEDIUM (part));
 
-  if (CAMEL_IS_MIME_MESSAGE (data_wrapper))
-    return dispatch_part (self, CAMEL_MIME_PART (data_wrapper), cancellable, error);
+  if (CAMEL_IS_MIME_MESSAGE (data_wrapper)) {
+    handle_attachment (self, part);
 
-  handle_attachment (self, part);
+    return dispatch_part (self, CAMEL_MIME_PART (data_wrapper), cancellable, error);
+  }
+
   return TRUE;
 }
 
@@ -1230,7 +1230,7 @@ stamp_mime_parser_get_attachments (StampMimeParser *self)
 {
   g_return_val_if_fail (self != NULL, NULL);
 
-  return stamp_mime_parser_filter_by_kind (self, STAMP_MIME_ATTACHMENT_GENERIC | STAMP_MIME_ATTACHMENT_IMAGE | STAMP_MIME_ATTACHMENT_CALENDAR, FALSE);
+  return stamp_mime_parser_filter_by_kind (self, STAMP_MIME_ATTACHMENT_GENERIC | STAMP_MIME_ATTACHMENT_IMAGE | STAMP_MIME_ATTACHMENT_CALENDAR | STAMP_MIME_ATTACHMENT_MESSAGE, FALSE);
 }
 
 const GList *
