@@ -143,6 +143,14 @@ request_page_size (StampWebView *self)
 }
 
 static void
+collapse_quotes_in_page (WebKitWebView *web_view)
+{
+  g_autoptr (GBytes) data = g_resources_lookup_data ("/org/tabos/stamp/stamp-quote-collapse.js", G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
+
+  webkit_web_view_evaluate_javascript (web_view, g_bytes_get_data (data, NULL), -1, NULL, NULL, NULL, NULL, NULL);
+}
+
+static void
 on_load_changed (WebKitWebView   *web_view,
                  WebKitLoadEvent  load_event,
                  gpointer         user_data)
@@ -191,6 +199,9 @@ on_load_changed (WebKitWebView   *web_view,
       "document.head.appendChild(style);",
       -1, NULL, NULL, NULL, NULL, NULL
       );
+
+    if (!self->queued_body_content)
+      collapse_quotes_in_page (web_view);
   }
 }
 
@@ -498,6 +509,8 @@ on_set_body_html (GObject      *source,
   WebKitWebView *web_view = WEBKIT_WEB_VIEW (source);
 
   webkit_web_view_send_message_to_page_finish (web_view, res, NULL);
+
+  collapse_quotes_in_page (web_view);
 
   gtk_widget_grab_focus (GTK_WIDGET (self));
 }
