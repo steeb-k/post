@@ -171,7 +171,7 @@ transfer_sort_mode_to (GBinding     *binding,
     }
 
     if (!given_name && !family_name)
-      g_string_append (tmp, stamp_contact_item_get_mail (item));
+      g_string_append (tmp, stamp_contact_item_get_mail (item) ?: "");
   } else {
     if (family_name && strlen (family_name) > 0)
       g_string_append (tmp, family_name);
@@ -184,13 +184,13 @@ transfer_sort_mode_to (GBinding     *binding,
     }
 
     if (!given_name && !family_name)
-      g_string_append (tmp, stamp_contact_item_get_mail (item));
+      g_string_append (tmp, stamp_contact_item_get_mail (item) ?: "");
   }
 
   /* Fallback to primary phone number */
   if (tmp->len == 0) {
     EContact *contact = stamp_contact_item_get_contact (item);
-    g_string_append (tmp, e_contact_get_const (contact, E_CONTACT_PHONE_PRIMARY));
+    g_string_append (tmp, e_contact_get_const (contact, E_CONTACT_PHONE_PRIMARY) ?: "");
   }
 
   g_value_set_string (to_value, tmp->str);
