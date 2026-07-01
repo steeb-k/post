@@ -555,7 +555,7 @@ stamp_message_list_item_send_rsvp (StampMessageListItem  *self,
   StampMailService *service = stamp_account_get_mail_service (self->account);
   const gchar *collection_uid = e_source_get_parent (stamp_mail_service_get_source (service));
   GList *sources = e_source_registry_list_sources (registry, E_SOURCE_EXTENSION_CALENDAR);
-  ESource *source;
+  ESource *source = NULL;
   CamelInternetAddress *address = stamp_account_get_address (self->account);
   const gchar *name;
   const gchar *email;
@@ -570,6 +570,11 @@ stamp_message_list_item_send_rsvp (StampMessageListItem  *self,
       source = g_object_ref (src);
       break;
     }
+  }
+
+  if (!source) {
+    g_warning ("%s: Could not find source, abort", G_STRFUNC);
+    return;
   }
 
   event = i_cal_component_get_first_component (self->calendar, I_CAL_VEVENT_COMPONENT);

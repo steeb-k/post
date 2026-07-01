@@ -1834,6 +1834,11 @@ on_move_folder (GSimpleAction *action,
                               g_list_model_get_n_items (G_LIST_MODEL (self->list_store)),
                               g_list_model_get_n_items (G_LIST_MODEL (self->list_store)));
 
+  if (!array) {
+    g_warning ("%s: No array, abort", G_STRFUNC);
+    return;
+  }
+
   uid_array = g_ptr_array_new ();
   for (gint idx = array->len - 1; idx >= 0; idx--) {
     CamelFolderThreadNode *child_node = array->pdata[idx];
@@ -2051,6 +2056,11 @@ stamp_conversation_list_mark_read (StampConversationList *self,
     array = collect_messages (child_node, array);
   }
 
+  if (!array) {
+    g_warning ("%s: No array, abort", G_STRFUNC);
+    return;
+  }
+
   for (gint idx = array->len - 1; idx >= 0; idx--) {
     CamelFolderThreadNode *child_node = array->pdata[idx];
     camel_message_info_set_flags (CAMEL_MESSAGE_INFO (camel_folder_thread_node_get_item (child_node)), CAMEL_MESSAGE_SEEN, ~0);
@@ -2094,6 +2104,11 @@ stamp_conversation_list_mark_unread (StampConversationList *self,
     CamelFolderThreadNode *child_node = node_array->pdata[idx];
 
     array = collect_messages (child_node, array);
+  }
+
+  if (!array) {
+    g_warning ("%s: No array, abort", G_STRFUNC);
+    return;
   }
 
   for (gint idx = array->len - 1; idx >= 0; idx--) {
@@ -2182,6 +2197,11 @@ stamp_conversation_list_trash (StampConversationList *self,
       g_clear_object (&self->transfer_cancellable);
     }
 
+    if (!array) {
+      g_warning ("%s: No array, abort", G_STRFUNC);
+      return FALSE;
+    }
+
     for (gint idx = array->len - 1; idx >= 0; idx--) {
       const CamelMessageInfo *info = camel_folder_thread_node_get_item (array->pdata[idx]);
       camel_folder_set_message_flags (folder, camel_message_info_get_uid (info), CAMEL_MESSAGE_SEEN, CAMEL_MESSAGE_SEEN);
@@ -2228,6 +2248,11 @@ stamp_conversation_list_trash (StampConversationList *self,
                               0,
                               g_list_model_get_n_items (G_LIST_MODEL (self->list_store)),
                               g_list_model_get_n_items (G_LIST_MODEL (self->list_store)));
+
+  if (!array) {
+    g_warning ("%s: No array, abort", G_STRFUNC);
+    return FALSE;
+  }
 
   uid_array = g_ptr_array_new_with_free_func (g_free);
 
@@ -2429,6 +2454,11 @@ stamp_conversation_list_junk (StampConversationList *self,
                               0,
                               g_list_model_get_n_items (G_LIST_MODEL (self->list_store)),
                               g_list_model_get_n_items (G_LIST_MODEL (self->list_store)));
+
+  if (!array) {
+    g_warning ("%s: No array, abort", G_STRFUNC);
+    return;
+  }
 
   folder = self->folder;
   junk_folder = stamp_account_get_mail_junk_folder (self->account);

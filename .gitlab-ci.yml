@@ -1,62 +1,108 @@
-image: fedora:latest
+include:
+  - project: 'GNOME/citemplates'
+    file: 'flatpak/flatpak_ci_initiative.yml'
+  - component: gitlab.gnome.org/GNOME/citemplates/release-service@master
+    inputs:
+      dist-job-name: "flatpak"
+  - project: 'Infrastructure/freedesktop-ci-templates'
+    file: 'templates/fedora.yml'
+    ref: 'b61a03cabbf308e81289f7aaaf0b5a80a34ffb99'
+  - component: "gitlab.gnome.org/GNOME/citemplates/goblint@master"
+    inputs:
+      job-stage: "analysis"
+      job-name: "gobject-linter-latest"
+      allow-failure: false
+      image-ref: "ghcr.io/bilelmoussaoui/gobject-linter:latest"
+
+variables:
+  BUNDLE: 'stamp-git.flatpak'
+  MANIFEST_PATH: 'org.tabos.stamp.json'
+  RUNTIME_REPO: 'https://nightly.gnome.org/gnome-nightly.flatpakrepo'
+  FLATPAK_MODULE: 'stamp'
+  APP_ID: 'org.tabos.stamp'
+  FDO_UPSTREAM_REPO: jbrummer/stamp
 
 stages:
-- check
-- lint
+  - prepare
+  - build
+  - analysis
+  - test
+  - deploy
 
-cppcheck:
-  stage: lint
-  script:
-    - dnf install -y meson ninja-build gcc cppcheck glib2-devel gtk4-devel
-      evolution-data-server-devel gstreamer1-devel libsoup3-devel
-      libportal-gtk4-devel libpsl-devel nss-devel json-glib-devel
-      webkitgtk6.0-devel blueprint-compiler gettext itstool pcre2-devel
-      gsettings-desktop-schemas-devel desktop-file-utils
-    - meson setup build
-    - ninja -C build
-    - tests/run-cppcheck.sh build
+# Use freedesktop-ci-templates for code style check.
+# Everything else uses flatpak-ci-initiative
 
-sast:
-  stage: check
-include:
-- template: Security/SAST.gitlab-ci.yml
+.fedora.container.common:
+  variables:
+    FDO_DISTRIBUTION_TAG: '2025-05-19.1'
+    FDO_DISTRIBUTION_VERSION: '42'
 
-goblint:
-  stage: lint
-  allow_failure: true
-  image:
-    name: "ghcr.io/bilelmoussaoui/goblint:latest"
-    entrypoint: [""]
-  script:
-    # Only available in Enterprise Edition
-    - goblint --format sarif > goblint.sarif
-    # Available in the Community Edition
-    - goblint --format gitlab-codequality > goblint-codequality.json
-  artifacts:
-    expire_in: "1 week"
-    reports:
-      # Only available in Enterprise Edition
-      sarif: goblint.sarif
-      # Available in the Community Edition
-      codequality: goblint-codequality.json
+build.container.fedora@x86_64:
+  extends:
+  - '.fdo.container-build@fedora'
+  - '.fedora.container.common'
+  stage: 'prepare'
+  variables:
+    GIT_STRATEGY: none
+    FDO_EXPIRES_AFTER: 8w
+    FDO_DISTRIBUTION_PACKAGES: >-
+      colordiff
+      diffutils
+      python3
+      uncrustify
 
-codespell:
-  stage: check
-  script:
-    - dnf install -y codespell
-    - codespell src -L crate -S "*.png,*.po,.git,*.jpg,eff_large_wordlist.txt,.mypy_cache,_build" -f
+flatpak:
+  extends:
+    - '.flatpak'
+  needs: []
+
+flatpak aarch64:
+  extends:
+    - '.flatpak@aarch64'
+  needs: []
+
+nightly:
+  extends: '.publish_nightly'
+  stage: .post
+  needs: ['flatpak']
+
+nightly aarch64:
+  extends: '.publish_nightly'
+  stage: .post
+  needs: ['flatpak aarch64']
 
 check-code-style:
-  stage: check
+  extends:
+    - '.fdo.distribution-image@fedora'
+    - '.fedora.container.common'
+  stage: 'test'
+  needs: [ 'build.container.fedora@x86_64' ]
+  interruptible: true
   script:
-    - dnf install -y uncrustify diff blueprint-compiler
     - bash data/check-code-style
   artifacts:
     when: on_failure
+  rules:
+    - if: $CI_COMMIT_BRANCH !~ /gnome-\d\d+/
 
-check-pot-files:
-  stage: check
+scanbuild:
+  extends: '.flatpak'
+  needs: []
   script:
-    - bash data/check-potfiles
+    - flatpak-builder --user --disable-rofiles-fuse --stop-at=${FLATPAK_MODULE} flatpak_app ${MANIFEST_PATH}
+    - flatpak build flatpak_app bash -c "source /usr/lib/sdk/llvm20/enable.sh; meson setup --prefix=/app ${CONFIG_OPTS} _build; SCANBUILD=$(pwd)/.run-scan-build ninja -C _build scan-build"
   artifacts:
     when: on_failure
+    paths:
+      - _build/meson-logs/scanbuild
+  rules:
+    - if: $CI_COMMIT_BRANCH !~ /gnome-\d\d+/
+
+codespell:
+  extends:
+    - '.fdo.distribution-image@fedora'
+    - '.fedora.container.common'
+  stage: 'test'
+  script:
+    - dnf install -y codespell
+    - codespell src -L crate -S "*.png,*.po,.git,*.jpg,eff_large_wordlist.txt,.mypy_cache,_build" -f
