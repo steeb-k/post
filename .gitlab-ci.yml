@@ -63,12 +63,12 @@ flatpak aarch64:
 
 nightly:
   extends: '.publish_nightly'
-  stage: .post
+  stage: deploy
   needs: ['flatpak']
 
 nightly aarch64:
   extends: '.publish_nightly'
-  stage: .post
+  stage: deploy
   needs: ['flatpak aarch64']
 
 check-code-style:
