@@ -877,7 +877,7 @@ on_bind_selected (GtkSignalListItemFactory *f,
   GtkWidget *name = gtk_list_item_get_child (item);
   const gchar *name_str = stamp_composer_from_get_name (from);
   const gchar *mail_str = stamp_composer_from_get_mail (from);
-  g_autofree gchar *markup = g_strdup_printf ("<b>%s</b> <small&lt;%s&gt;</small>", name_str, g_markup_escape_text (mail_str, -1));
+  g_autofree gchar *markup = g_strdup_printf ("<b>%s</b> (%s)", name_str, g_markup_escape_text (mail_str, -1));
 
   gtk_label_set_markup (GTK_LABEL (name), markup);
   gtk_widget_set_tooltip_text (name, mail_str);
