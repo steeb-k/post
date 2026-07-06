@@ -114,7 +114,7 @@ stamp_deps = [
 stamp_sources += gnome.compile_resources('stamp-resources',
   'stamp.gresource.xml',
   c_name: 'stamp',
-  dependencies: blueprints,
+  dependencies: [blueprints, appstream_file],
 )
 
 stamp_includes = include_directories(
