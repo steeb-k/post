@@ -25,6 +25,11 @@
 #define LIBICAL_GLIB_UNSTABLE_API 1
 #include <libical-glib/libical-glib.h>
 
+/* Ensure G_GNUC_FLAG_ENUM is defined (glib < 2.88) */
+#ifndef G_GNUC_FLAG_ENUM
+#define G_GNUC_FLAG_ENUM __attribute__((__flag_enum__))
+#endif
+
 G_BEGIN_DECLS
 
 typedef struct _ICalComponent ICalComponent;
