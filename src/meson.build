@@ -133,7 +133,7 @@ stamp_includes = include_directories(
 )
 
 executable('stamp', stamp_sources,
-  dependencies: stamp_deps,
+  dependencies: [stamp_deps, config_h],
   include_directories: stamp_includes,
        install: true,
 )
