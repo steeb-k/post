@@ -32,6 +32,7 @@
 #include "stamp-contact-completion.h"
 #include "stamp-mail-view.h"
 #include "stamp-session.h"
+#include "stamp-settings.h"
 #include "stamp-signature.h"
 #include "stamp-tag.h"
 #include "stamp-webview.h"
@@ -1209,6 +1210,10 @@ stamp_composer_init (StampComposer *self)
   g_signal_connect (drop, "accept", G_CALLBACK (on_accept), self);
   g_signal_connect (drop, "drop", G_CALLBACK (on_drop), self);
   gtk_widget_add_controller (GTK_WIDGET (self), GTK_EVENT_CONTROLLER (drop));
+
+  g_settings_bind (STAMP_SETTINGS, STAMP_PREFS_COMPOSER_WIDTH, self, "default-width", G_SETTINGS_BIND_DEFAULT);
+  g_settings_bind (STAMP_SETTINGS, STAMP_PREFS_COMPOSER_HEIGHT, self, "default-height", G_SETTINGS_BIND_DEFAULT);
+  g_settings_bind (STAMP_SETTINGS, STAMP_PREFS_COMPOSER_MAXIMIZED, self, "maximized", G_SETTINGS_BIND_DEFAULT);
 }
 
 static void

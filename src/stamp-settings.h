@@ -33,6 +33,9 @@ G_BEGIN_DECLS
 #define STAMP_PREFS_BACKGROUND_AUTOSTART      "autostart"
 #define STAMP_PREFS_VIEW                      "view"
 #define STAMP_PREFS_ACCOUNT_ORDER             "account-order"
+#define STAMP_PREFS_COMPOSER_MAXIMIZED        "composer-maximized"
+#define STAMP_PREFS_COMPOSER_WIDTH            "composer-width"
+#define STAMP_PREFS_COMPOSER_HEIGHT           "composer-height"
 
 #define STAMP_PREFS_MAIL_SCHEMA               "org.tabos.stamp.mail"
 #define STAMP_PREFS_MAIL_SELECTED_FOLDER      "selected-folder"
