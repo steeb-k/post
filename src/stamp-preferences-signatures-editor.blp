@@ -1,0 +1,78 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampPreferencesSignatureEditor: Adw.NavigationPage {
+  title: _("Signature");
+
+  child: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {
+      title-widget: Adw.WindowTitle editor_window_title {
+        title: _("Signature");
+      };
+    }
+
+    content: Adw.Clamp {
+      maximum-size: 600;
+
+      child: Box {
+        orientation: vertical;
+        spacing: 12;
+        margin-top: 12;
+        margin-bottom: 12;
+        margin-start: 12;
+        margin-end: 12;
+
+        Adw.PreferencesGroup {
+          Adw.EntryRow name_row {
+            title: _("Name");
+          }
+        }
+
+        Gtk.ScrolledWindow {
+          vexpand: true;
+          hexpand: true;
+
+          styles [
+            "card",
+          ]
+
+          $StampWebView web_view {
+            vexpand: true;
+            hexpand: true;
+            margin-top: 3;
+            margin-bottom: 3;
+            margin-start: 3;
+            margin-end: 3;
+          }
+        }
+
+        Adw.PreferencesGroup {
+          Adw.ButtonRow save {
+            title: _("Save");
+            visible: false;
+
+            styles [
+              "suggested-action",
+            ]
+
+            activated => $on_editor_save_clicked();
+          }
+        }
+
+        Adw.PreferencesGroup {
+          Adw.ButtonRow remove {
+            title: _("Remove");
+            visible: false;
+
+            styles [
+              "destructive-action",
+            ]
+
+            activated => $on_editor_remove_clicked();
+          }
+        }
+      };
+    };
+  };
+}
