@@ -212,6 +212,8 @@ trash (StampMailView         *self,
     g_signal_connect (toast, "dismissed", G_CALLBACK (on_trash_dismissed), self);
     adw_toast_overlay_add_toast (self->toast_overlay, toast);
   }
+
+  stamp_message_list_set_conversation (self->message_list, NULL, NULL);
 }
 
 static void
