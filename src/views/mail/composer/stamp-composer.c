@@ -144,6 +144,16 @@ update_actions (StampComposer *self)
 }
 
 static void
+set_send_action_enabled (StampComposer *self,
+                         gboolean       enabled)
+{
+  GAction *action;
+
+  action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "send");
+  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), enabled);
+}
+
+static void
 on_edit_activate (GSimpleAction *action,
                   GVariant      *parameter,
                   gpointer       user_data)
@@ -330,7 +340,7 @@ on_send_mail (GObject      *account,
       g_warning ("%s", tmp);
       toast = adw_toast_new (tmp);
       adw_toast_overlay_add_toast (self->toast_overlay, toast);
-      gtk_widget_set_sensitive (self->send_button, TRUE);
+      set_send_action_enabled (self, TRUE);
     }
     return;
   }
@@ -502,7 +512,7 @@ on_attachment_reminder_response (GtkWidget *dialog,
     self->ignore_missing_attachments = TRUE;
     stamp_webview_get_body_html (self->webview, NULL, on_get_body_html, self);
   } else {
-    gtk_widget_set_sensitive (self->send_button, TRUE);
+    set_send_action_enabled (self, TRUE);
   }
 }
 
@@ -671,7 +681,7 @@ on_send_activated (GSimpleAction *action,
 {
   StampComposer *self = STAMP_COMPOSER (user_data);
 
-  gtk_widget_set_sensitive (self->send_button, FALSE);
+  set_send_action_enabled (self, FALSE);
 
   if (strlen (gtk_editable_get_text (GTK_EDITABLE (self->subject))) == 0) {
     AdwDialog *dialog = adw_alert_dialog_new ("Send without subject?", "This message has an empty subject field. The recipient may be unable to infer its scope or importance.");
@@ -1133,6 +1143,7 @@ stamp_composer_init (StampComposer *self)
   GtkShortcut *shortcut;
   GtkEventController *controller;
   GtkDropTarget *drop = gtk_drop_target_new (GDK_TYPE_FILE_LIST, GDK_ACTION_COPY);
+  GAction *action;
 
   gtk_widget_init_template (GTK_WIDGET (self));
 
@@ -1163,7 +1174,6 @@ stamp_composer_init (StampComposer *self)
   g_signal_connect_object (self->from, "notify::selected-item", G_CALLBACK (on_from_selected_item), self, 0);
   load_from_combobox (self);
 
-  g_object_bind_property (self->to, "has-entries", self->send_button, "sensitive", G_BINDING_DEFAULT);
   gtk_widget_grab_focus (self->to);
 
   manager = webkit_web_view_get_user_content_manager (WEBKIT_WEB_VIEW (self->webview));
@@ -1182,6 +1192,9 @@ stamp_composer_init (StampComposer *self)
                                    G_N_ELEMENTS (stamp_composer_action_entries),
                                    self);
   gtk_widget_insert_action_group (GTK_WIDGET (self), "composer", G_ACTION_GROUP (self->actions));
+
+  action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "send");
+  g_object_bind_property (self->to, "has-entries", action, "enabled", G_BINDING_SYNC_CREATE);
 
   controller = gtk_shortcut_controller_new ();
   gtk_widget_add_controller (GTK_WIDGET (self), controller);
