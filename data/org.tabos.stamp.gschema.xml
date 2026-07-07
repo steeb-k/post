@@ -95,5 +95,15 @@
       <summary>The list of all the expanded folders</summary>
       <description>The list of all the expanded folders</description>
     </key>
+    <key name="notification-mode" type="s">
+      <default>'inbox'</default>
+      <summary>Notification mode for this account</summary>
+      <description>Controls which folders trigger notifications: 'inbox', 'all', or 'custom'</description>
+    </key>
+    <key name="notification-folders" type="as">
+      <default>[]</default>
+      <summary>Custom notification folders for this account</summary>
+      <description>List of folder full names that trigger notifications when notification-mode is 'custom'</description>
+    </key>
   </schema>
 </schemalist>

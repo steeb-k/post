@@ -19,19 +19,28 @@
 
 #include "stamp-preferences-account.h"
 
+#include <camel/camel.h>
 #include <glib/gi18n.h>
 
 #include "stamp-account.h"
+#include "stamp-helper.h"
+#include "stamp-settings.h"
 
 struct _StampPreferencesAccount {
   AdwNavigationPage parent_instance;
 
   AdwWindowTitle *window_title;
   AdwPreferencesGroup *alias_group;
+  AdwComboRow *notification_mode;
+  AdwPreferencesGroup *notification_folders_group;
 
   StampAccount *account;
   GHashTable *aliases;
   GPtrArray *alias_rows;
+
+  GSettings *account_settings;
+  GPtrArray *folder_rows;
+  GCancellable *cancellable;
 };
 
 G_DEFINE_FINAL_TYPE (StampPreferencesAccount, stamp_preferences_account, ADW_TYPE_NAVIGATION_PAGE);
@@ -48,6 +57,7 @@ static void on_alias_activated (AdwActionRow *row,
                                 gpointer      user_data);
 
 static void refresh_alias_list (StampPreferencesAccount *self);
+static void setup_notifications (StampPreferencesAccount *self);
 
 static void
 set_account (StampPreferencesAccount *self,
@@ -57,6 +67,7 @@ set_account (StampPreferencesAccount *self,
   adw_window_title_set_title (self->window_title, stamp_account_get_name (self->account));
 
   refresh_alias_list (self);
+  setup_notifications (self);
 }
 
 static void
@@ -166,6 +177,159 @@ on_add_alias_clicked (GtkWidget *button,
 }
 
 static void
+on_notification_folder_toggled (GtkWidget *widget,
+                                gpointer   user_data)
+{
+  StampPreferencesAccount *self = STAMP_PREFERENCES_ACCOUNT (user_data);
+  const gchar *full_name = g_object_get_data (G_OBJECT (widget), "folder-full-name");
+  gboolean active = adw_switch_row_get_active (ADW_SWITCH_ROW (widget));
+  gchar **folders = g_settings_get_strv (self->account_settings, "notification-folders");
+  gchar **new_folders;
+
+  if (active)
+    new_folders = g_strv_append ((const gchar * const *)folders, full_name);
+  else
+    new_folders = g_strv_remove ((const gchar * const *)folders, full_name);
+
+  g_settings_set_strv (self->account_settings, "notification-folders", (const char * const *)new_folders);
+  g_strfreev (new_folders);
+}
+
+static void
+add_folder_recursive (StampPreferencesAccount *self,
+                      CamelFolderInfo         *info)
+{
+  if (!info)
+    return;
+
+  if (!(info->flags & CAMEL_FOLDER_NOSELECT)) {
+    g_auto (GStrv) folders = g_settings_get_strv (self->account_settings, "notification-folders");
+    GtkWidget *row = adw_switch_row_new ();
+    gboolean active = g_strv_contains ((const char **)folders, info->full_name);
+
+    adw_preferences_row_set_title (ADW_PREFERENCES_ROW (row), info->display_name ? info->display_name : info->full_name);
+    adw_switch_row_set_active (ADW_SWITCH_ROW (row), active);
+
+    g_object_set_data_full (G_OBJECT (row), "folder-full-name", g_strdup (info->full_name), g_free);
+    g_signal_connect (row, "notify::active", G_CALLBACK (on_notification_folder_toggled), self);
+
+    adw_preferences_group_add (self->notification_folders_group, row);
+    g_ptr_array_add (self->folder_rows, row);
+  }
+
+  add_folder_recursive (self, info->child);
+}
+
+static void
+on_get_folder_info (GObject      *source,
+                    GAsyncResult *res,
+                    gpointer      user_data)
+{
+  StampPreferencesAccount *self = STAMP_PREFERENCES_ACCOUNT (user_data);
+  CamelStore *store = CAMEL_STORE (source);
+  g_autoptr (CamelFolderInfo) folder_info = NULL;
+  g_autoptr (GError) error = NULL;
+
+  folder_info = camel_store_get_folder_info_finish (store, res, &error);
+  if (error) {
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+      g_warning ("%s: Error loading folders: %s", G_STRFUNC, error->message);
+    return;
+  }
+
+  for (CamelFolderInfo *fi = folder_info; fi; fi = fi->next)
+    add_folder_recursive (self, fi);
+}
+
+static void
+load_folders (StampPreferencesAccount *self)
+{
+  StampMailService *mail_service = stamp_account_get_mail_service (self->account);
+  CamelService *service;
+
+  if (!mail_service)
+    return;
+
+  service = stamp_mail_service_get_service (mail_service);
+  if (!service)
+    return;
+
+  camel_store_get_folder_info (CAMEL_STORE (service),
+                               NULL,
+                               CAMEL_STORE_FOLDER_INFO_RECURSIVE | CAMEL_STORE_FOLDER_INFO_FAST,
+                               G_PRIORITY_DEFAULT,
+                               self->cancellable,
+                               on_get_folder_info,
+                               self);
+}
+
+static void
+on_notification_mode_changed (GObject    *gobject,
+                              GParamSpec *pspec,
+                              gpointer    user_data)
+{
+  StampPreferencesAccount *self = STAMP_PREFERENCES_ACCOUNT (user_data);
+  guint selected = adw_combo_row_get_selected (self->notification_mode);
+  const gchar *mode;
+
+  switch (selected) {
+    case 1:
+      mode = "all";
+      break;
+    case 2:
+      mode = "custom";
+      break;
+    default:
+      mode = "inbox";
+      break;
+  }
+
+  g_settings_set_string (self->account_settings, "notification-mode", mode);
+
+  if (selected == 2) {
+    gtk_widget_set_visible (GTK_WIDGET (self->notification_folders_group), TRUE);
+
+    if (self->folder_rows->len == 0)
+      load_folders (self);
+  } else {
+    gtk_widget_set_visible (GTK_WIDGET (self->notification_folders_group), FALSE);
+  }
+}
+
+static void
+setup_notifications (StampPreferencesAccount *self)
+{
+  g_autofree char *settings_path = NULL;
+  g_autoptr (GtkStringList) model = NULL;
+  const gchar *mode;
+  guint selected;
+
+  settings_path = g_strconcat ("/org/tabos/stamp/mail/accounts/", stamp_account_get_name (self->account), "/", NULL);
+  self->account_settings = g_settings_new_with_path ("org.tabos.stamp.mail.accounts", settings_path);
+
+  model = gtk_string_list_new ((const char *[]){_("Inbox"), _("All"), _("Custom"), NULL});
+  adw_combo_row_set_model (self->notification_mode, G_LIST_MODEL (model));
+
+  mode = g_settings_get_string (self->account_settings, "notification-mode");
+  if (g_strcmp0 (mode, "all") == 0)
+    selected = 1;
+  else if (g_strcmp0 (mode, "custom") == 0)
+    selected = 2;
+  else
+    selected = 0;
+
+  adw_combo_row_set_selected (self->notification_mode, selected);
+  g_free ((gchar *)mode);
+
+  gtk_widget_set_visible (GTK_WIDGET (self->notification_folders_group), selected == 2);
+
+  g_signal_connect_object (self->notification_mode, "notify::selected", G_CALLBACK (on_notification_mode_changed), self, 0);
+
+  if (selected == 2)
+    load_folders (self);
+}
+
+static void
 stamp_preferences_account_get_property (GObject    *object,
                                         guint       property_id,
                                         GValue     *value,
@@ -200,7 +364,14 @@ stamp_preferences_account_dispose (GObject *object)
 {
   StampPreferencesAccount *self = STAMP_PREFERENCES_ACCOUNT (object);
 
+  if (self->cancellable)
+    g_cancellable_cancel (self->cancellable);
+  g_clear_object (&self->cancellable);
   g_clear_object (&self->account);
+  g_clear_object (&self->account_settings);
+
+  if (self->folder_rows)
+    g_ptr_array_unref (self->folder_rows);
 
   G_OBJECT_CLASS (stamp_preferences_account_parent_class)->dispose (object);
 }
@@ -219,6 +390,8 @@ stamp_preferences_account_class_init (StampPreferencesAccountClass *klass)
 
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccount, window_title);
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccount, alias_group);
+  gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccount, notification_mode);
+  gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccount, notification_folders_group);
 
   gtk_widget_class_bind_template_callback (widget_class, on_add_alias_clicked);
 
@@ -235,6 +408,9 @@ void
 stamp_preferences_account_init (StampPreferencesAccount *self)
 {
   gtk_widget_init_template (GTK_WIDGET (self));
+
+  self->cancellable = g_cancellable_new ();
+  self->folder_rows = g_ptr_array_new ();
 
   g_signal_connect_swapped (self, "shown", G_CALLBACK (refresh_alias_list), self);
 }

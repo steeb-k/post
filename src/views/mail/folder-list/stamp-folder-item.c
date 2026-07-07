@@ -22,6 +22,7 @@
 #include <glib/gi18n.h>
 #include <gst/gst.h>
 
+#include "stamp-account.h"
 #include "stamp-item.h"
 #include "stamp-settings.h"
 
@@ -238,12 +239,31 @@ on_folder_item_folder_changed (CamelFolder           *folder,
   CamelFolderSummary *summary;
   CamelFolder *trash_folder = stamp_account_get_mail_trash_folder (stamp_item_get_account (STAMP_ITEM (self)));
   CamelFolder *draft_folder = stamp_account_get_mail_drafts_folder (stamp_item_get_account (STAMP_ITEM (self)));
+  StampAccount *account = stamp_item_get_account (STAMP_ITEM (self));
+  g_autofree char *settings_path = g_strconcat ("/org/tabos/stamp/mail/accounts/", stamp_account_get_name (account), "/", NULL);
+  g_autoptr (GSettings) account_settings = g_settings_new_with_path ("org.tabos.stamp.mail.accounts", settings_path);
+  g_autofree char *mode = g_settings_get_string (account_settings, "notification-mode");
+  gboolean notify = TRUE;
 
   summary = camel_folder_get_folder_summary (folder);
   self->unread = camel_folder_summary_get_unread_count (summary);
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_UNREAD]);
 
   if (!changes->uid_added || folder == trash_folder || folder == draft_folder)
+    return;
+
+  if (g_strcmp0 (mode, "inbox") == 0) {
+    const gchar *full_name = camel_folder_get_full_name (folder);
+
+    notify = (g_strcmp0 (full_name, "INBOX") == 0 || g_strcmp0 (full_name, "Inbox") == 0 || g_strcmp0 (full_name, "Posteingang") == 0 || g_str_has_prefix (full_name, "INBOX/"));
+  } else if (g_strcmp0 (mode, "custom") == 0) {
+    const gchar *full_name = camel_folder_get_full_name (folder);
+    g_auto (GStrv) folders = g_settings_get_strv (account_settings, "notification-folders");
+
+    notify = g_strv_contains ((const char **)folders, full_name);
+  }
+
+  if (!notify)
     return;
 
   for (gint idx = 0; idx < (int)changes->uid_added->len; idx++) {

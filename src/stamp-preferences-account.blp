@@ -28,6 +28,25 @@ template $StampPreferencesAccount: Adw.NavigationPage {
           activated => $on_add_alias_clicked();
         }
       }
+
+      Adw.PreferencesGroup {
+        title: _("Notifications");
+
+        Adw.ComboRow notification_mode {
+          title: _("Folder Notifications");
+          subtitle: _("Select which folders trigger notifications");
+
+          accessibility {
+            label: _("Notification Mode");
+          }
+        }
+      }
+
+      Adw.PreferencesGroup notification_folders_group {
+        title: _("Custom Folders");
+        description: _("Enable notifications for selected folders");
+        visible: false;
+      }
     };
   };
 }
