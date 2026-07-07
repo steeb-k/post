@@ -730,19 +730,24 @@ on_attachment_added (GObject      *obj,
   StampComposer *self = STAMP_COMPOSER (user_data);
   GtkFileDialog *dialog = GTK_FILE_DIALOG (obj);
   g_autoptr (GError) error = NULL;
-  g_autoptr (GFile) file = NULL;
-  GtkWidget *button;
+  g_autoptr (GListModel) model = NULL;
 
-  file = gtk_file_dialog_open_finish (dialog, res, &error);
+  model = gtk_file_dialog_open_multiple_finish (dialog, res, &error);
   if (error) {
-    g_warning ("%s: Could not get attachment file: %s", G_STRFUNC, error->message);
+    g_warning ("%s: Could not get attachment file(s): %s", G_STRFUNC, error->message);
     return;
   }
 
-  button = stamp_attachment_button_new_from_file (file);
-  self->attachments = g_list_append (self->attachments, button);
+  for (int idx = 0; idx < g_list_model_get_n_items (model); idx++) {
+    GtkWidget *button;
+    g_autoptr (GFile) file = g_list_model_get_item (model, idx);
 
-  adw_wrap_box_append (ADW_WRAP_BOX (self->attachment_box), button);
+    button = stamp_attachment_button_new_from_file (file);
+    self->attachments = g_list_append (self->attachments, button);
+
+    adw_wrap_box_append (ADW_WRAP_BOX (self->attachment_box), button);
+  }
+
   gtk_revealer_set_reveal_child (GTK_REVEALER (self->attachment_revealer), TRUE);
 }
 
@@ -754,7 +759,7 @@ on_add_attachment_activated (GSimpleAction *action,
   StampComposer *self = STAMP_COMPOSER (user_data);
   GtkFileDialog *dialog = gtk_file_dialog_new ();
 
-  gtk_file_dialog_open (dialog, GTK_WINDOW (self), NULL, on_attachment_added, self);
+  gtk_file_dialog_open_multiple (dialog, GTK_WINDOW (self), self->cancellable, on_attachment_added, self);
 }
 
 static void
