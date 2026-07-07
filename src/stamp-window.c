@@ -22,6 +22,7 @@
 #include "stamp-window.h"
 
 #include <gio/gdesktopappinfo.h>
+#include <glib/gi18n.h>
 #include <gtk/gtk.h>
 #include <libportal-gtk4/portal-gtk4.h>
 
@@ -149,10 +150,27 @@ stamp_window_class_init (StampWindowClass *klass)
 }
 
 static void
+on_background_status (GObject      *source_object,
+                      GAsyncResult *res,
+                      gpointer      user_data)
+{
+  XdpPortal *portal = XDP_PORTAL (source_object);
+  g_autoptr (GError) error = NULL;
+
+  if (!xdp_portal_set_background_status_finish (portal, res, &error)) {
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+      g_warning ("%s: Could not set background status: %s", G_STRFUNC, error->message);
+    return;
+  }
+}
+
+static void
 stamp_window_init (StampWindow *self)
 {
   StampSession *session = stamp_session_get_default ();
   g_autofree char *view = NULL;
+  XdpPortal *portal = xdp_portal_new ();
+  g_autoptr (XdpParent) parent_window = xdp_parent_new_gtk (GTK_WINDOW (self));
 
   gtk_widget_init_template (GTK_WIDGET (self));
 
@@ -163,6 +181,9 @@ stamp_window_init (StampWindow *self)
 
   g_signal_connect_object (session, "account-added", G_CALLBACK (on_account_changed), self, 0);
   g_signal_connect_object (session, "account-removed", G_CALLBACK (on_account_changed), self, 0);
+
+  if (g_settings_get_boolean (STAMP_SETTINGS, STAMP_PREFS_BACKGROUND_NOTIFICATIONS))
+    xdp_portal_set_background_status (portal, _("Waiting for new emails"), NULL, on_background_status, self);
 
   g_settings_bind (STAMP_SETTINGS, STAMP_PREFS_BACKGROUND_NOTIFICATIONS, self, "hide-on-close", G_SETTINGS_BIND_DEFAULT);
   g_settings_bind (STAMP_SETTINGS, STAMP_PREFS_WINDOW_WIDTH, self, "default-width", G_SETTINGS_BIND_DEFAULT);

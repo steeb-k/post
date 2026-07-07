@@ -101,11 +101,40 @@ on_request_background (GObject      *source_object,
                        gpointer      user_data)
 {
   XdpPortal *portal = XDP_PORTAL (source_object);
+  StampPreferences *self = STAMP_PREFERENCES (user_data);
   g_autoptr (GError) error = NULL;
 
   if (!xdp_portal_request_background_finish (portal, res, &error)) {
     if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
       g_warning ("%s: Could not request background: %s", G_STRFUNC, error->message);
+    return;
+  }
+}
+
+static void
+on_background_notifications (GObject    *object,
+                             GParamSpec *pspec,
+                             gpointer    user_data)
+{
+  XdpPortal *portal = XDP_PORTAL (object);
+  StampPreferences *self = STAMP_PREFERENCES (user_data);
+  GtkWindow *window = gtk_application_get_active_window (GTK_APPLICATION (g_application_get_default ()));
+  g_autoptr (XdpParent) parent_window = xdp_parent_new_gtk (window);
+
+  xdp_portal_request_background (portal, parent_window, _("Waiting for new emails"), NULL, 0, self->cancellable, on_request_background, self);
+}
+
+static void
+on_request_autostart (GObject      *source_object,
+                      GAsyncResult *res,
+                      gpointer      user_data)
+{
+  XdpPortal *portal = XDP_PORTAL (source_object);
+  g_autoptr (GError) error = NULL;
+
+  if (!xdp_portal_request_background_finish (portal, res, &error)) {
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+      g_warning ("%s: Could not request autostart: %s", G_STRFUNC, error->message);
     return;
   }
 }
@@ -124,7 +153,7 @@ on_autostart (GObject    *object,
   g_ptr_array_add (commandline, g_strdup ("stamp"));
   g_ptr_array_add (commandline, g_strdup ("--hidden"));
 
-  xdp_portal_request_background (portal, parent_window, _("Notifications"), commandline, XDP_BACKGROUND_FLAG_AUTOSTART, self->cancellable, on_request_background, self);
+  xdp_portal_request_background (portal, parent_window, NULL, commandline, XDP_BACKGROUND_FLAG_AUTOSTART, self->cancellable, on_request_autostart, self);
 }
 
 static void
@@ -196,6 +225,7 @@ stamp_preferences_init (StampPreferences *self)
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_ALWAYS_SHOW_IMAGES, self->always_show_images, "active", G_SETTINGS_BIND_DEFAULT);
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_PLAY_INCOMING_SOUND, self->play_incoming_sound, "active", G_SETTINGS_BIND_DEFAULT);
   g_signal_connect_object (self->autostart, "notify::active", G_CALLBACK (on_autostart), self, 0);
+  g_signal_connect_object (self->background_notifications, "notify::active", G_CALLBACK (on_background_notifications), self, 0);
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_LOAD_BIMI_IMAGES, self->bimi_images, "active", G_SETTINGS_BIND_DEFAULT);
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_IMPORTANT_FIRST, self->important_first, "active", G_SETTINGS_BIND_DEFAULT);
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_MARK_READ_TIMEOUT, self->mark_read, "value", G_SETTINGS_BIND_DEFAULT);
