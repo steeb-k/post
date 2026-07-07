@@ -128,7 +128,6 @@ on_request_background (GObject      *source_object,
                        gpointer      user_data)
 {
   XdpPortal *portal = XDP_PORTAL (source_object);
-  StampPreferences *self = STAMP_PREFERENCES (user_data);
   g_autoptr (GError) error = NULL;
 
   if (!xdp_portal_request_background_finish (portal, res, &error)) {

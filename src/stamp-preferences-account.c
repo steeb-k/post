@@ -205,38 +205,6 @@ refresh_default_signature (StampPreferencesAccount *self)
   g_signal_handlers_unblock_by_func (self->default_signature, on_default_signature_selected, self);
 }
 
-
-static void
-set_account (StampPreferencesAccount *self,
-             StampAccount            *account)
-{
-  g_autofree char *path = NULL;
-  const gchar *name;
-
-  g_set_object (&self->account, account);
-  name = stamp_account_get_name (self->account);
-  adw_window_title_set_title (self->window_title, name);
-
-  path = g_strdup_printf ("/org/tabos/stamp/mail/accounts/%s/", stamp_account_get_uid (self->account));
-  self->account_settings = g_settings_new_with_path ("org.tabos.stamp.mail.accounts", path);
-
-  refresh_default_signature (self);
-  refresh_alias_list (self);
-}
-
-static void
-on_add_alias_clicked (GtkWidget *button,
-                      gpointer   user_data)
-{
-  StampPreferencesAccount *self = STAMP_PREFERENCES_ACCOUNT (user_data);
-  AdwNavigationPage *page;
-  GtkWidget *parent;
-
-  parent = gtk_widget_get_parent (GTK_WIDGET (self));
-  page = ADW_NAVIGATION_PAGE (stamp_preferences_account_editor_new (self->account, NULL, NULL));
-  adw_navigation_view_push (ADW_NAVIGATION_VIEW (parent), page);
-}
-
 static void
 on_notification_folder_toggled (GtkWidget *widget,
                                 gpointer   user_data)
@@ -388,6 +356,39 @@ setup_notifications (StampPreferencesAccount *self)
 
   if (selected == 2)
     load_folders (self);
+}
+
+static void
+set_account (StampPreferencesAccount *self,
+             StampAccount            *account)
+{
+  g_autofree char *path = NULL;
+  const gchar *name;
+
+  g_set_object (&self->account, account);
+  name = stamp_account_get_name (self->account);
+  adw_window_title_set_title (self->window_title, name);
+
+  path = g_strdup_printf ("/org/tabos/stamp/mail/accounts/%s/", stamp_account_get_uid (self->account));
+  self->account_settings = g_settings_new_with_path ("org.tabos.stamp.mail.accounts", path);
+
+  refresh_default_signature (self);
+  refresh_alias_list (self);
+
+  setup_notifications (self);
+}
+
+static void
+on_add_alias_clicked (GtkWidget *button,
+                      gpointer   user_data)
+{
+  StampPreferencesAccount *self = STAMP_PREFERENCES_ACCOUNT (user_data);
+  AdwNavigationPage *page;
+  GtkWidget *parent;
+
+  parent = gtk_widget_get_parent (GTK_WIDGET (self));
+  page = ADW_NAVIGATION_PAGE (stamp_preferences_account_editor_new (self->account, NULL, NULL));
+  adw_navigation_view_push (ADW_NAVIGATION_VIEW (parent), page);
 }
 
 static void
