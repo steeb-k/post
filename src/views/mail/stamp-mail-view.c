@@ -155,6 +155,7 @@ on_folder_selected (GtkWidget    *object,
 
   g_clear_handle_id (&self->load_folder_handler, g_source_remove);
   self->load_folder_handler = g_idle_add_full (G_PRIORITY_DEFAULT, load_folder_idle, data, load_folder_data_free);
+  stamp_message_list_set_conversation (self->message_list, self->account, NULL);
 }
 
 static void
