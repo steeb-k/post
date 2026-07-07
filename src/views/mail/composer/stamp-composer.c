@@ -1078,6 +1078,45 @@ static const GActionEntry stamp_composer_action_entries[] = {
   { "add-attachment", on_add_attachment_activated },
 };
 
+static gboolean
+on_accept (GtkDropTarget *self,
+           GdkDrop       *drop,
+           gpointer       user_data)
+{
+  return TRUE;
+}
+
+static gboolean
+on_drop (GtkDropTarget *target,
+         const GValue  *value,
+         gdouble        x,
+         gdouble        y,
+         gpointer       user_data)
+{
+  StampComposer *self = STAMP_COMPOSER (user_data);
+  GdkFileList *list = g_value_get_boxed (value);
+  GSList *files;
+
+  if (!G_VALUE_HOLDS (value, GDK_TYPE_FILE_LIST))
+    return FALSE;
+
+  files = gdk_file_list_get_files (list);
+  for (GSList *iter = files; iter && iter->data; iter = g_slist_next (iter)) {
+    GFile *file = G_FILE (iter->data);
+    GtkWidget *button;
+
+    button = stamp_attachment_button_new_from_file (file);
+    self->attachments = g_list_append (self->attachments, button);
+
+    adw_wrap_box_append (ADW_WRAP_BOX (self->attachment_box), button);
+  }
+
+  gtk_revealer_set_reveal_child (GTK_REVEALER (self->attachment_revealer), TRUE);
+
+
+  return TRUE;
+}
+
 static void
 stamp_composer_init (StampComposer *self)
 {
@@ -1088,6 +1127,7 @@ stamp_composer_init (StampComposer *self)
   g_autofree char *tmp = NULL;
   GtkShortcut *shortcut;
   GtkEventController *controller;
+  GtkDropTarget *drop = gtk_drop_target_new (GDK_TYPE_FILE_LIST, GDK_ACTION_COPY);
 
   gtk_widget_init_template (GTK_WIDGET (self));
 
@@ -1146,6 +1186,11 @@ stamp_composer_init (StampComposer *self)
 
   shortcut = gtk_shortcut_new (gtk_shortcut_trigger_parse_string ("Escape"), gtk_named_action_new ("window.close"));
   gtk_shortcut_controller_add_shortcut (GTK_SHORTCUT_CONTROLLER (controller), shortcut);
+
+  gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (drop), GTK_PHASE_CAPTURE);
+  g_signal_connect (drop, "accept", G_CALLBACK (on_accept), self);
+  g_signal_connect (drop, "drop", G_CALLBACK (on_drop), self);
+  gtk_widget_add_controller (GTK_WIDGET (self), GTK_EVENT_CONTROLLER (drop));
 }
 
 static void
