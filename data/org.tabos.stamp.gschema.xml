@@ -119,6 +119,7 @@
       <default>[]</default>
       <summary>Custom notification folders for this account</summary>
       <description>List of folder full names that trigger notifications when notification-mode is 'custom'</description>
+    </key>
     <key name="default-signature" type="s">
       <default>''</default>
       <summary>Default signature UID</summary>
