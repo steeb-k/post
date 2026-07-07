@@ -34,6 +34,7 @@
 #include "stamp-session.h"
 #include "stamp-settings.h"
 #include "stamp-signature.h"
+#include "stamp-settings.h"
 #include "stamp-tag.h"
 #include "stamp-webview.h"
 #include "stamp-window.h"
@@ -65,9 +66,14 @@ struct _StampComposer {
   GSimpleActionGroup *actions;
   AdwToastOverlay *toast_overlay;
 
+  GtkWidget *signature;
+  GSimpleAction *signature_action;
+  gboolean has_loaded;
+
   GList *attachments;
   StampComposerFrom *composer_from;
   gboolean is_dirty;
+  StampSignature *active_signature;
 
   GCancellable *cancellable;
   gboolean discard_draft;
@@ -717,20 +723,80 @@ on_remove_format_activated (GSimpleAction *action,
 }
 
 static void
-on_insert_signature_activated (GSimpleAction *action,
-                               GVariant      *parameter,
-                               gpointer       user_data)
+on_insert_signature_finished (GObject      *source,
+                              GAsyncResult *res,
+                              gpointer      user_data)
+{
+  g_autoptr (GError) error = NULL;
+
+  webkit_web_view_evaluate_javascript_finish (WEBKIT_WEB_VIEW (source), res, &error);
+  if (error)
+    g_warning ("insert_signature: JS error: %s", error->message);
+}
+
+static void
+insert_signature (StampComposer  *self,
+                  StampSignature *sig)
+{
+  const char *content = stamp_signature_get_content (sig);
+  g_autofree char *encoded = g_base64_encode ((const guchar *)content, strlen (content));
+  g_autofree char *js = g_strdup_printf (
+    "(function(){"
+    "  var html = atob('%s'), el = document.getElementById('mail-signature');"
+    "  var ed = document.getElementById('message-body');"
+    "  if (!ed) return 'no-editor';"
+    "  if (el) { el.outerHTML = '<div id=\"mail-signature\">' + html + '</div>'; return 'replaced'; }"
+    "  ed.appendChild(document.createElement('br'));"
+    "  ed.focus();"
+    "  var div = document.createElement('div');"
+    "  div.id = 'mail-signature';"
+    "  div.innerHTML = html;"
+    "  ed.appendChild(div);"
+    "  return 'appended';"
+    "})()",
+    encoded);
+
+  gtk_widget_grab_focus (GTK_WIDGET (self->webview));
+  webkit_web_view_evaluate_javascript (WEBKIT_WEB_VIEW (self->webview), js, -1, NULL, NULL, NULL, (GAsyncReadyCallback)on_insert_signature_finished, self);
+  self->active_signature = sig;
+}
+
+static void
+on_signature_activated (GSimpleAction *action,
+                        GVariant      *parameter,
+                        gpointer       user_data)
 {
   StampComposer *self = STAMP_COMPOSER (user_data);
-  StampSession *session = stamp_session_get_default ();
-  GList *signatures = stamp_session_get_signatures (session);
-  StampSignature *signature;
+  const char *target = g_variant_get_string (parameter, NULL);
+  StampSignature *new_sig = NULL;
 
-  if (!signatures)
+  if (target && target[0]) {
+    GList *sigs = stamp_session_get_signatures (stamp_session_get_default ());
+
+    for (GList *iter = sigs; iter && iter->data; iter = g_list_next (iter)) {
+      StampSignature *s = (StampSignature *)iter->data;
+
+      if (g_strcmp0 (stamp_signature_get_name (s), target) == 0) {
+        new_sig = s;
+        break;
+      }
+    }
+  }
+
+  if (new_sig == self->active_signature)
     return;
 
-  signature = signatures->data;
-  stamp_web_view_execute_editor_command (self->webview, "insertHTML", stamp_signature_get_content (signature));
+  if (self->active_signature)
+    webkit_web_view_evaluate_javascript (WEBKIT_WEB_VIEW (self->webview),
+                                         "(function(){ var el = document.getElementById('mail-signature'); if (el) { el.remove(); return 'removed'; } return 'not-found'; })()",
+                                         -1, NULL, NULL, NULL, NULL, NULL);
+
+  self->active_signature = NULL;
+
+  if (new_sig)
+    insert_signature (self, new_sig);
+
+  g_simple_action_set_state (action, parameter);
 }
 
 static void
@@ -1009,6 +1075,7 @@ on_load_changed (WebKitWebView   *view,
                  WebKitLoadEvent  load_event,
                  gpointer         user_data)
 {
+  StampComposer *self = STAMP_COMPOSER (user_data);
   g_autoptr (GBytes) js = NULL;
 
   if (load_event != WEBKIT_LOAD_FINISHED)
@@ -1023,6 +1090,32 @@ on_load_changed (WebKitWebView   *view,
   webkit_web_view_evaluate_javascript (view,
                                        g_bytes_get_data (js, NULL),
                                        -1, NULL, NULL, NULL, NULL, NULL);
+
+  if (self->has_loaded)
+    return;
+
+  self->has_loaded = TRUE;
+
+  if (!self->active_signature && self->composer_from) {
+    StampAccount *account = stamp_composer_from_get_account (self->composer_from);
+    g_autofree char *path = g_strdup_printf ("/org/tabos/stamp/mail/accounts/%s/", stamp_account_get_uid (account));
+    g_autoptr (GSettings) account_settings = g_settings_new_with_path ("org.tabos.stamp.mail.accounts", path);
+    g_autofree char *default_uid = g_settings_get_string (account_settings, STAMP_PREFS_MAIL_DEFAULT_SIGNATURE);
+
+    if (default_uid && default_uid[0]) {
+      GList *sigs = stamp_session_get_signatures (stamp_session_get_default ());
+
+      for (GList *iter = sigs; iter && iter->data; iter = g_list_next (iter)) {
+        StampSignature *sig = (StampSignature *)iter->data;
+
+        if (g_strcmp0 (e_source_get_uid (stamp_signature_get_source (sig)), default_uid) == 0) {
+          insert_signature (self, sig);
+          g_simple_action_set_state (self->signature_action, g_variant_new_string (stamp_signature_get_name (sig)));
+          break;
+        }
+      }
+    }
+  }
 }
 
 static void
@@ -1090,7 +1183,6 @@ static const GActionEntry stamp_composer_action_entries[] = {
   { "strikethrough", on_edit_activate, "s", "''", NULL},
   { "send", on_send_activated },
   { "remove-format", on_remove_format_activated },
-  { "insert-signature", on_insert_signature_activated },
   { "add-attachment", on_add_attachment_activated },
 };
 
@@ -1131,6 +1223,39 @@ on_drop (GtkDropTarget *target,
 
 
   return TRUE;
+}
+
+static void
+build_signature_menu (StampComposer *self)
+{
+  GMenu *menu = g_menu_new ();
+  GMenu *section;
+  GMenuItem *item;
+  GList *sigs;
+
+  section = g_menu_new ();
+  item = g_menu_item_new (_("No Signature"), "composer.signature");
+  g_menu_item_set_attribute_value (item, "target", g_variant_new_string (""));
+  g_menu_append_item (section, item);
+  g_menu_append_section (menu, NULL, G_MENU_MODEL (section));
+
+  section = g_menu_new ();
+
+  sigs = stamp_session_get_signatures (stamp_session_get_default ());
+  for (GList *iter = sigs; iter && iter->data; iter = g_list_next (iter)) {
+    StampSignature *sig = (StampSignature *)iter->data;
+
+    item = g_menu_item_new (stamp_signature_get_name (sig), "composer.signature");
+    g_menu_item_set_attribute_value (item, "target", g_variant_new_string (stamp_signature_get_name (sig)));
+    g_menu_append_item (section, item);
+  }
+  g_menu_append_section (menu, NULL, G_MENU_MODEL (section));
+
+  gtk_menu_button_set_menu_model (GTK_MENU_BUTTON (self->signature), G_MENU_MODEL (menu));
+
+  self->signature_action = g_simple_action_new_stateful ("signature", G_VARIANT_TYPE_STRING, g_variant_new_string (""));
+  g_signal_connect (self->signature_action, "activate", G_CALLBACK (on_signature_activated), self);
+  g_action_map_add_action (G_ACTION_MAP (self->actions), G_ACTION (self->signature_action));
 }
 
 static void
@@ -1186,6 +1311,8 @@ stamp_composer_init (StampComposer *self)
   /* self->auto_save_draft_handler = g_timeout_add_seconds (3, auto_save_draft, self); */
 
   self->cancellable = g_cancellable_new ();
+  self->active_signature = NULL;
+  self->has_loaded = FALSE;
 
   self->actions = g_simple_action_group_new ();
   g_action_map_add_action_entries (G_ACTION_MAP (self->actions),
@@ -1196,6 +1323,7 @@ stamp_composer_init (StampComposer *self)
 
   action = g_action_map_lookup_action (G_ACTION_MAP (self->actions), "send");
   g_object_bind_property (self->to, "has-entries", action, "enabled", G_BINDING_SYNC_CREATE);
+  build_signature_menu (self);
 
   controller = gtk_shortcut_controller_new ();
   gtk_widget_add_controller (GTK_WIDGET (self), controller);
@@ -1383,6 +1511,7 @@ stamp_composer_class_init (StampComposerClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampComposer, security_menu);
   gtk_widget_class_bind_template_child (widget_class, StampComposer, toggle);
   gtk_widget_class_bind_template_child (widget_class, StampComposer, toast_overlay);
+  gtk_widget_class_bind_template_child (widget_class, StampComposer, signature);
 
   gtk_widget_class_bind_template_callback (widget_class, on_close_button_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_close_request);

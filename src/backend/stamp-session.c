@@ -257,7 +257,7 @@ on_signature_loaded (GObject      *source_object,
   StampSignature *signature;
 
   if (!e_source_mail_signature_load_finish (source, result, &contents, &length, &error)) {
-    g_warning ("Error loading signature: %s", error->message);
+    g_debug ("Error loading signature: %s\n", error->message);
     return;
   }
 
@@ -690,6 +690,73 @@ GList *
 stamp_session_get_accounts (StampSession *self)
 {
   return self->accounts;
+}
+
+ESourceRegistry *
+stamp_session_get_registry (StampSession *self)
+{
+  return self->registry;
+}
+
+void
+stamp_session_remove_signature (StampSession   *self,
+                                StampSignature *signature)
+{
+  g_autoptr (GError) error = NULL;
+
+  e_source_remove_sync (stamp_signature_get_source (signature), self->cancellable, &error);
+  if (error) {
+    g_warning ("%s: Could not remove signature: %s", G_STRFUNC, error->message);
+    return;
+  }
+
+  self->signatures = g_list_remove (self->signatures, signature);
+  stamp_signature_clear (signature);
+}
+
+StampSignature *
+stamp_session_create_signature (StampSession *self,
+                                const gchar  *name,
+                                const gchar  *content,
+                                const gchar  *mime_type)
+{
+  g_autoptr (ESource) new_source = NULL;
+  g_autoptr (ESource) source = NULL;
+  g_autoptr (GError) error = NULL;
+  g_autofree gchar *uid = NULL;
+  ESourceMailSignature *ext;
+  StampSignature *signature;
+
+  new_source = e_source_new (NULL, NULL, &error);
+  if (error) {
+    g_warning ("%s: Could not create signature source: %s", G_STRFUNC, error->message);
+    return NULL;
+  }
+
+  e_source_set_display_name (new_source, name);
+
+  ext = e_source_get_extension (new_source, E_SOURCE_EXTENSION_MAIL_SIGNATURE);
+  e_source_mail_signature_replace (new_source, content, strlen (content), G_PRIORITY_DEFAULT, NULL, NULL, NULL);
+  e_source_mail_signature_set_mime_type (ext, mime_type);
+
+  e_source_registry_commit_source_sync (self->registry, new_source, NULL, &error);
+  if (error) {
+    g_warning ("%s: Could not commit signature source: %s", G_STRFUNC, error->message);
+    return NULL;
+  }
+
+  uid = g_strdup (e_source_get_uid (new_source));
+
+  source = e_source_registry_ref_source (self->registry, uid);
+  if (!source) {
+    g_warning ("%s: Could not ref committed signature", G_STRFUNC);
+    return NULL;
+  }
+
+  signature = stamp_signature_new (source, mime_type, content);
+  self->signatures = g_list_append (self->signatures, signature);
+
+  return signature;
 }
 
 GList *

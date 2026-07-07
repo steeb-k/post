@@ -56,8 +56,21 @@ stamp_signature_save (StampSignature *self,
   if (!ext)
     return;
 
+  g_free (self->content);
+  self->content = g_strdup (html_signature);
+  self->mime_type = g_strdup ("text/html");
+
   e_source_mail_signature_set_mime_type (ext, "text/html");
   e_source_mail_signature_replace (self->source, html_signature, strlen (html_signature), G_PRIORITY_DEFAULT, self->cancellable, on_signature_replace, NULL);
+}
+
+void
+stamp_signature_set_name (StampSignature *self,
+                          const gchar    *name)
+{
+  g_assert (self);
+
+  g_set_str (&self->name, name);
 }
 
 void
@@ -87,7 +100,7 @@ stamp_signature_new (ESource     *source,
   self->name = g_strdup (e_source_get_display_name (source));
   self->mime_type = g_strdup (mime_type);
   self->content = g_strdup (content);
-  self->source = source;
+  self->source = g_object_ref (source);
   self->cancellable = g_cancellable_new ();
 
   return self;
@@ -105,4 +118,18 @@ stamp_signature_get_content (StampSignature *self)
 {
   g_assert (self);
   return self->content;
+}
+
+const gchar *
+stamp_signature_get_name (StampSignature *self)
+{
+  g_assert (self);
+  return self->name;
+}
+
+ESource *
+stamp_signature_get_source (StampSignature *self)
+{
+  g_assert (self);
+  return self->source;
 }

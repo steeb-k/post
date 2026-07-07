@@ -31,6 +31,10 @@ stamp_signature_save (StampSignature *signature,
                       gchar           *html_signature);
 
 void
+stamp_signature_set_name (StampSignature *self,
+                          const gchar    *name);
+
+void
 stamp_signature_clear (gpointer user_data);
 
 StampSignature *
@@ -43,6 +47,12 @@ stamp_signature_get_mime_type (StampSignature *self);
 
 const gchar *
 stamp_signature_get_content (StampSignature *self);
+
+const gchar *
+stamp_signature_get_name (StampSignature *self);
+
+ESource *
+stamp_signature_get_source (StampSignature *self);
 
 G_END_DECLS
 

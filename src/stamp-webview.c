@@ -173,7 +173,7 @@ on_load_changed (WebKitWebView   *web_view,
     }
 
     webkit_web_view_evaluate_javascript (web_view,
-                                         "document.querySelector('[contenteditable]').focus();",
+                                         "var ed = document.getElementById('message-body'); if (ed) ed.focus();",
                                          -1, NULL, NULL, NULL, NULL, NULL);
 
     webkit_web_view_evaluate_javascript (
@@ -265,6 +265,7 @@ stamp_prefs_init (gpointer user_data)
                                                 "enable-javascript", TRUE,
                                                 "enable-javascript-markup", FALSE,
                                                 "enable-media-stream", FALSE,
+                                                "enable-write-console-messages-to-stdout", TRUE,
                                                 NULL);
 
   web_context = webkit_web_context_get_default ();

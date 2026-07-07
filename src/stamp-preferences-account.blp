@@ -13,6 +13,14 @@ template $StampPreferencesAccount: Adw.NavigationPage {
     }
 
     content: Adw.PreferencesPage page {
+      Adw.PreferencesGroup {
+        title: _("Composing");
+
+        Adw.ComboRow default_signature {
+          title: _("Default Signature");
+        }
+      }
+
       Adw.PreferencesGroup alias_group {
         title: _("Aliases");
         description: _("Add different names or email addresses to your account");

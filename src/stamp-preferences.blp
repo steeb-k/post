@@ -98,21 +98,13 @@ template $StampPreferences: Adw.PreferencesDialog {
       }
     }
 
-    Adw.PreferencesGroup composer_group {
+    Adw.PreferencesGroup signatures_group {
       title: _("Signatures");
 
-      Adw.ActionRow signature {
-        title: _("Signatures");
-        activatable: true;
-        activated => $on_signature_row_activated();
-
-        Image {
-          accessibility {
-            label: _("Go Next");
-          }
-
-          icon-name: "go-next-symbolic";
-        }
+      Adw.ButtonRow add_signature {
+        title: _("Add Signature");
+        start-icon-name: "list-add-symbolic";
+        activated => $on_add_signature_clicked();
       }
     }
   }

@@ -46,8 +46,12 @@ G_BEGIN_DECLS
 #define STAMP_PREFS_MAIL_IMPORTANT_FIRST      "important-first"
 #define STAMP_PREFS_MAIL_REFRESH_INTERVAL     "refresh-interval"
 
+#define STAMP_PREFS_ACCOUNTS_SCHEMA            "org.tabos.stamp.accounts"
+#define STAMP_PREFS_MAIL_DEFAULT_SIGNATURE     "default-signature"
+
 #define STAMP_SETTINGS stamp_settings_get (STAMP_PREFS_SCHEMA)
 #define STAMP_SETTINGS_MAIL stamp_settings_get (STAMP_PREFS_MAIL_SCHEMA)
+#define STAMP_SETTINGS_ACCOUNTS stamp_settings_get (STAMP_PREFS_ACCOUNTS_SCHEMA)
 
 GSettings *
 stamp_settings_get (const gchar *schema);

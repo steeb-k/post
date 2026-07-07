@@ -22,6 +22,7 @@
     "--filesystem=/tmp",
     "--filesystem=~/.pki/nssdb:rw",
     "--filesystem=~/.cache/evolution:rw",
+    "--filesystem=~/.config/evolution:rw",
     "--filesystem=xdg-config/pki:rw",
     "--filesystem=~/.gnupg:rw",
     "--filesystem=xdg-config/gnupg:rw",

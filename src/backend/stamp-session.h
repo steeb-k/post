@@ -22,6 +22,8 @@
 #include <camel/camel.h>
 #include <gtk/gtk.h>
 
+#include "stamp-signature.h"
+
 G_BEGIN_DECLS
 
 #define STAMP_TYPE_SESSION (stamp_session_get_type ())
@@ -35,6 +37,19 @@ stamp_session_get_accounts (StampSession *self);
 
 GList *
 stamp_session_get_signatures (StampSession *self);
+
+ESourceRegistry *
+stamp_session_get_registry (StampSession *self);
+
+void
+stamp_session_remove_signature (StampSession   *self,
+                                StampSignature *signature);
+
+StampSignature *
+stamp_session_create_signature (StampSession *self,
+                                const gchar  *name,
+                                const gchar  *content,
+                                const gchar  *mime_type);
 
 G_END_DECLS
 

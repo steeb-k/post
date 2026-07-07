@@ -217,7 +217,7 @@ on_row_expanded (GtkTreeListRow *row,
   g_auto (GStrv) new_folders = NULL;
   const gchar *full_name = stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item));
 
-  settings_path = g_strconcat ("/org/tabos/stamp/mail/accounts/", stamp_account_get_name (account), "/", NULL);
+  settings_path = g_strconcat ("/org/tabos/stamp/mail/accounts/", stamp_account_get_uid (account), "/", NULL);
   account_settings = g_settings_new_with_path ("org.tabos.stamp.mail.accounts", settings_path);
   folders = g_settings_get_strv (account_settings, "expanded-folders");
 
@@ -271,7 +271,7 @@ on_bind_folder (GtkListItemFactory *factory,
   /* FIXME: Optimize the following code */
   account = stamp_item_get_account (STAMP_ITEM (item));
 
-  settings_path = g_strconcat ("/org/tabos/stamp/mail/accounts/", stamp_account_get_name (account), "/", NULL);
+  settings_path = g_strconcat ("/org/tabos/stamp/mail/accounts/", stamp_account_get_uid (account), "/", NULL);
   account_settings = g_settings_new_with_path ("org.tabos.stamp.mail.accounts", settings_path);
 
   if (STAMP_IS_FOLDER_ITEM (item)) {

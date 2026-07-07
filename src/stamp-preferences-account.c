@@ -24,12 +24,16 @@
 
 #include "stamp-account.h"
 #include "stamp-helper.h"
+#include "stamp-session.h"
 #include "stamp-settings.h"
+#include "stamp-signature.h"
 
 struct _StampPreferencesAccount {
   AdwNavigationPage parent_instance;
 
   AdwWindowTitle *window_title;
+  AdwPreferencesPage *page;
+  AdwComboRow *default_signature;
   AdwPreferencesGroup *alias_group;
   AdwComboRow *notification_mode;
   AdwPreferencesGroup *notification_folders_group;
@@ -51,23 +55,35 @@ typedef enum {
 
 static GParamSpec *props[PROP_ACCOUNT + 1] = { NULL, };
 
-static void on_alias_edit_clicked (GtkWidget *button,
-                                   gpointer   user_data);
-static void on_alias_activated (AdwActionRow *row,
-                                gpointer      user_data);
+static void
+on_alias_edit_clicked (GtkWidget *button,
+                       gpointer   user_data)
+{
+  StampPreferencesAccount *self = STAMP_PREFERENCES_ACCOUNT (user_data);
+  AdwActionRow *row = ADW_ACTION_ROW (g_object_get_data (G_OBJECT (button), "row"));
+  const gchar *mail = adw_preferences_row_get_title (ADW_PREFERENCES_ROW (row));
+  const gchar *name = adw_action_row_get_subtitle (row);
+  AdwNavigationPage *page;
+  GtkWidget *parent;
 
-static void refresh_alias_list (StampPreferencesAccount *self);
-static void setup_notifications (StampPreferencesAccount *self);
+  parent = gtk_widget_get_parent (GTK_WIDGET (self));
+  page = ADW_NAVIGATION_PAGE (stamp_preferences_account_editor_new (self->account, mail, name));
+  adw_navigation_view_push (ADW_NAVIGATION_VIEW (parent), page);
+}
 
 static void
-set_account (StampPreferencesAccount *self,
-             StampAccount            *account)
+on_alias_activated (AdwActionRow *row,
+                    gpointer      user_data)
 {
-  g_set_object (&self->account, account);
-  adw_window_title_set_title (self->window_title, stamp_account_get_name (self->account));
+  StampPreferencesAccount *self = STAMP_PREFERENCES_ACCOUNT (user_data);
+  const gchar *mail = g_object_get_data (G_OBJECT (row), "email");
+  const gchar *name = g_object_get_data (G_OBJECT (row), "name");
+  AdwNavigationPage *page;
+  GtkWidget *parent;
 
-  refresh_alias_list (self);
-  setup_notifications (self);
+  parent = gtk_widget_get_parent (GTK_WIDGET (self));
+  page = ADW_NAVIGATION_PAGE (stamp_preferences_account_editor_new (self->account, mail, name));
+  adw_navigation_view_push (ADW_NAVIGATION_VIEW (parent), page);
 }
 
 static void
@@ -127,38 +143,85 @@ refresh_alias_list (StampPreferencesAccount *self)
 }
 
 static void
-on_alias_edit_clicked (GtkWidget *button,
-                       gpointer   user_data)
+on_default_signature_selected (GObject    *combo,
+                               GParamSpec *pspec,
+                               gpointer    user_data)
 {
   StampPreferencesAccount *self = STAMP_PREFERENCES_ACCOUNT (user_data);
-  AdwActionRow *row = ADW_ACTION_ROW (g_object_get_data (G_OBJECT (button), "row"));
-  const gchar *mail = adw_preferences_row_get_title (ADW_PREFERENCES_ROW (row));
-  const gchar *name = adw_action_row_get_subtitle (row);
-  AdwNavigationPage *page;
-  GtkWidget *parent;
+  guint selected = adw_combo_row_get_selected (self->default_signature);
+  gint sig_idx = 0;
 
-  parent = gtk_widget_get_parent (GTK_WIDGET (self));
-  g_assert (ADW_IS_NAVIGATION_VIEW (parent));
+  if (selected == GTK_INVALID_LIST_POSITION || !self->account_settings)
+    return;
 
-  page = ADW_NAVIGATION_PAGE (stamp_preferences_account_editor_new (self->account, mail, name));
-  adw_navigation_view_push (ADW_NAVIGATION_VIEW (parent), page);
+  if (selected == 0) {
+    g_settings_set_string (self->account_settings, STAMP_PREFS_MAIL_DEFAULT_SIGNATURE, "");
+    return;
+  }
+
+  for (GList *iter = stamp_session_get_signatures (stamp_session_get_default ()); iter && iter->data; iter = g_list_next (iter), sig_idx++) {
+    if (sig_idx == (gint)selected - 1) {
+      StampSignature *sig = (StampSignature *)iter->data;
+
+      g_settings_set_string (self->account_settings, STAMP_PREFS_MAIL_DEFAULT_SIGNATURE, e_source_get_uid (stamp_signature_get_source (sig)));
+      return;
+    }
+  }
 }
 
 static void
-on_alias_activated (AdwActionRow *row,
-                    gpointer      user_data)
+refresh_default_signature (StampPreferencesAccount *self)
 {
-  StampPreferencesAccount *self = STAMP_PREFERENCES_ACCOUNT (user_data);
-  const gchar *mail = g_object_get_data (G_OBJECT (row), "email");
-  const gchar *name = g_object_get_data (G_OBJECT (row), "name");
-  AdwNavigationPage *page;
-  GtkWidget *parent;
+  GList *sigs;
+  GtkStringList *list;
+  g_autofree gchar *default_uid = NULL;
+  gint selected = 0;
+  gint sig_idx = 0;
 
-  parent = gtk_widget_get_parent (GTK_WIDGET (self));
-  g_assert (ADW_IS_NAVIGATION_VIEW (parent));
+  list = gtk_string_list_new (NULL);
+  gtk_string_list_append (list, _("None"));
 
-  page = ADW_NAVIGATION_PAGE (stamp_preferences_account_editor_new (self->account, mail, name));
-  adw_navigation_view_push (ADW_NAVIGATION_VIEW (parent), page);
+  sigs = stamp_session_get_signatures (stamp_session_get_default ());
+
+  for (GList *iter = sigs; iter && iter->data; iter = g_list_next (iter)) {
+    StampSignature *sig = iter->data;
+
+    gtk_string_list_append (list, stamp_signature_get_name (sig));
+  }
+
+  default_uid = self->account_settings ? g_settings_get_string (self->account_settings, STAMP_PREFS_MAIL_DEFAULT_SIGNATURE) : g_strdup ("");
+  for (GList *iter = sigs; iter && iter->data; iter = g_list_next (iter), sig_idx++) {
+    StampSignature *sig = (StampSignature *)iter->data;
+
+    if (g_strcmp0 (e_source_get_uid (stamp_signature_get_source (sig)), default_uid) == 0) {
+      selected = sig_idx + 1;
+      break;
+    }
+  }
+
+  g_signal_handlers_block_by_func (self->default_signature, on_default_signature_selected, self);
+  adw_combo_row_set_model (self->default_signature, G_LIST_MODEL (list));
+  adw_combo_row_set_selected (self->default_signature, selected);
+  g_signal_handlers_unblock_by_func (self->default_signature, on_default_signature_selected, self);
+}
+
+
+static void
+set_account (StampPreferencesAccount *self,
+             StampAccount            *account)
+{
+  g_autofree char *path = NULL;
+  const gchar *name;
+
+  g_set_object (&self->account, account);
+  name = stamp_account_get_name (self->account);
+  adw_window_title_set_title (self->window_title, name);
+
+  path = g_strdup_printf ("/org/tabos/stamp/mail/accounts/%s/", stamp_account_get_uid (self->account));
+  self->account_settings = g_settings_new_with_path ("org.tabos.stamp.mail.accounts", path);
+
+  refresh_default_signature (self);
+  refresh_alias_list (self);
 }
 
 static void
@@ -170,8 +233,6 @@ on_add_alias_clicked (GtkWidget *button,
   GtkWidget *parent;
 
   parent = gtk_widget_get_parent (GTK_WIDGET (self));
-  g_assert (ADW_IS_NAVIGATION_VIEW (parent));
-
   page = ADW_NAVIGATION_PAGE (stamp_preferences_account_editor_new (self->account, NULL, NULL));
   adw_navigation_view_push (ADW_NAVIGATION_VIEW (parent), page);
 }
@@ -389,6 +450,8 @@ stamp_preferences_account_class_init (StampPreferencesAccountClass *klass)
   gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/stamp-preferences-account.ui");
 
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccount, window_title);
+  gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccount, page);
+  gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccount, default_signature);
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccount, alias_group);
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccount, notification_mode);
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccount, notification_folders_group);
@@ -412,6 +475,8 @@ stamp_preferences_account_init (StampPreferencesAccount *self)
   self->cancellable = g_cancellable_new ();
   self->folder_rows = g_ptr_array_new ();
 
+  g_signal_connect (self->default_signature, "notify::selected", G_CALLBACK (on_default_signature_selected), self);
+  g_signal_connect_swapped (self, "shown", G_CALLBACK (refresh_default_signature), self);
   g_signal_connect_swapped (self, "shown", G_CALLBACK (refresh_alias_list), self);
 }
 
