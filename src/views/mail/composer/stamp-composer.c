@@ -60,6 +60,7 @@ struct _StampComposer {
   GtkWidget *smime_sign;
   GtkWidget *smime_encrypt;
   GtkWidget *security_menu;
+  GtkWidget *insert_link_button;
   StampComposerType type;
   CamelMimeMessage *orig_message;
   gchar *draft_uid;
@@ -142,12 +143,30 @@ on_query_strikethrough_command (GObject      *source,
 }
 
 static void
+on_query_bullet_list_command (GObject      *source,
+                              GAsyncResult *res,
+                              gpointer      user_data)
+{
+  on_query_command (source, "insertUnorderedList", res, user_data);
+}
+
+static void
+on_query_numbered_list_command (GObject      *source,
+                                GAsyncResult *res,
+                                gpointer      user_data)
+{
+  on_query_command (source, "insertOrderedList", res, user_data);
+}
+
+static void
 update_actions (StampComposer *self)
 {
   stamp_web_view_query_command_state (self->webview, "bold", self->cancellable, on_query_bold_command, self);
   stamp_web_view_query_command_state (self->webview, "italic", self->cancellable, on_query_italic_command, self);
   stamp_web_view_query_command_state (self->webview, "underline", self->cancellable, on_query_underline_command, self);
   stamp_web_view_query_command_state (self->webview, "strikethrough", self->cancellable, on_query_strikethrough_command, self);
+  stamp_web_view_query_command_state (self->webview, "insertUnorderedList", self->cancellable, on_query_bullet_list_command, self);
+  stamp_web_view_query_command_state (self->webview, "insertOrderedList", self->cancellable, on_query_numbered_list_command, self);
 }
 
 static void
@@ -1176,11 +1195,77 @@ on_context_menu (WebKitWebView       *web_view,
   return FALSE;
 }
 
+static void
+on_insert_link_response (AdwAlertDialog *dialog,
+                         const gchar    *response,
+                         gpointer        user_data)
+{
+  StampComposer *self = STAMP_COMPOSER (user_data);
+
+  if (g_strcmp0 (response, "insert") == 0) {
+    GtkWidget *extra_child = adw_alert_dialog_get_extra_child (dialog);
+    GtkWidget *text_entry = g_object_get_data (G_OBJECT (extra_child), "text-entry");
+    GtkWidget *url_entry = g_object_get_data (G_OBJECT (extra_child), "url-entry");
+    const gchar *text = gtk_editable_get_text (GTK_EDITABLE (text_entry));
+    const gchar *url = gtk_editable_get_text (GTK_EDITABLE (url_entry));
+
+    if (url && *url) {
+      if (text && *text) {
+        g_autofree char *html = g_strdup_printf ("<a href=\"%s\">%s</a>", url, text);
+
+        stamp_web_view_execute_editor_command (self->webview, "insertHTML", html);
+      } else {
+        stamp_web_view_execute_editor_command (self->webview, "createLink", url);
+      }
+    }
+  }
+}
+
+static void
+on_insert_link_activated (GSimpleAction *action,
+                          GVariant      *parameter,
+                          gpointer       user_data)
+{
+  StampComposer *self = STAMP_COMPOSER (user_data);
+  GtkWidget *dialog;
+  GtkWidget *box;
+  GtkWidget *text_entry;
+  GtkWidget *url_entry;
+
+  dialog = GTK_WIDGET (adw_alert_dialog_new (_("Insert Link"), NULL));
+
+  box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+
+  text_entry = gtk_entry_new ();
+  gtk_entry_set_placeholder_text (GTK_ENTRY (text_entry), _("Text"));
+  gtk_box_append (GTK_BOX (box), text_entry);
+
+  url_entry = gtk_entry_new ();
+  gtk_entry_set_placeholder_text (GTK_ENTRY (url_entry), _("URL"));
+  gtk_box_append (GTK_BOX (box), url_entry);
+
+  g_object_set_data (G_OBJECT (box), "text-entry", text_entry);
+  g_object_set_data (G_OBJECT (box), "url-entry", url_entry);
+
+  adw_alert_dialog_set_extra_child (ADW_ALERT_DIALOG (dialog), box);
+  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "cancel", _("_Cancel"));
+  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "insert", _("_Insert"));
+  adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "insert", ADW_RESPONSE_SUGGESTED);
+  adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "insert");
+  adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "cancel");
+
+  g_signal_connect (dialog, "response", G_CALLBACK (on_insert_link_response), self);
+  adw_dialog_present (ADW_DIALOG (dialog), GTK_WIDGET (self));
+}
+
 static const GActionEntry stamp_composer_action_entries[] = {
   { "bold", on_edit_activate, "s", "''", NULL},
   { "italic", on_edit_activate, "s", "''", NULL},
   { "underline", on_edit_activate, "s", "''", NULL},
   { "strikethrough", on_edit_activate, "s", "''", NULL},
+  { "bullet-list", on_edit_activate, "s", "''", NULL},
+  { "numbered-list", on_edit_activate, "s", "''", NULL},
+  { "insert-link", on_insert_link_activated },
   { "send", on_send_activated },
   { "remove-format", on_remove_format_activated },
   { "add-attachment", on_add_attachment_activated },
@@ -1509,6 +1594,7 @@ stamp_composer_class_init (StampComposerClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampComposer, smime_sign);
   gtk_widget_class_bind_template_child (widget_class, StampComposer, smime_encrypt);
   gtk_widget_class_bind_template_child (widget_class, StampComposer, security_menu);
+  gtk_widget_class_bind_template_child (widget_class, StampComposer, insert_link_button);
   gtk_widget_class_bind_template_child (widget_class, StampComposer, toggle);
   gtk_widget_class_bind_template_child (widget_class, StampComposer, toast_overlay);
   gtk_widget_class_bind_template_child (widget_class, StampComposer, signature);

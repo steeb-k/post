@@ -26,6 +26,7 @@ document.body.addEventListener('keydown', (e) => {
   let n = node;
   while (n && n !== document.body) {
     if (n.nodeName === 'BLOCKQUOTE') return;
+    if (n.nodeName === 'LI' || n.nodeName === 'UL' || n.nodeName === 'OL') return;
     n = n.parentNode;
   }
 
