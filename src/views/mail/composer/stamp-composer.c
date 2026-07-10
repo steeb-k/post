@@ -90,6 +90,37 @@ typedef enum {
 
 static GParamSpec *props[PROP_ACCOUNT + 1] = { NULL, };
 
+typedef struct {
+  StampMailView *mail_view;
+  StampAccount *account;
+  gchar *draft_uid;
+} SendCompletedData;
+
+static SendCompletedData *
+send_completed_data_new (StampMailView *mail_view,
+                         StampAccount  *account,
+                         const gchar   *draft_uid)
+{
+  SendCompletedData *data = g_new0 (SendCompletedData, 1);
+
+  data->mail_view = g_object_ref (mail_view);
+  data->account = g_object_ref (account);
+  data->draft_uid = g_strdup (draft_uid);
+
+  return data;
+}
+
+static void
+send_completed_data_free (gpointer data)
+{
+  SendCompletedData *scd = data;
+
+  g_clear_object (&scd->mail_view);
+  g_clear_object (&scd->account);
+  g_free (scd->draft_uid);
+  g_free (scd);
+}
+
 static void
 on_query_command (GObject      *source,
                   const gchar  *command,
@@ -353,30 +384,26 @@ on_send_mail (GObject      *account,
               GAsyncResult *res,
               gpointer      user_data)
 {
-  StampComposer *self = user_data;
-  StampWindow *window = STAMP_WINDOW (stamp_get_main_window ());
-  StampMailView *mail_view = stamp_window_get_mail_view (window);
+  SendCompletedData *data = user_data;
   g_autoptr (GError) error = NULL;
 
   if (!stamp_account_send_mail_finish (STAMP_ACCOUNT (account), res, &error)) {
     if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
       g_autofree char *tmp = g_strdup_printf (_("Failed to send mail: %s"), error->message);
-      AdwToast *toast;
 
       g_warning ("%s", tmp);
-      toast = adw_toast_new (tmp);
-      adw_toast_overlay_add_toast (self->toast_overlay, toast);
-      set_send_action_enabled (self, TRUE);
+      stamp_mail_view_show_toast (data->mail_view, tmp);
     }
+
+    send_completed_data_free (data);
     return;
   }
 
-  if (self->draft_uid)
-    stamp_account_remove_draft (stamp_composer_from_get_account (self->composer_from), self->draft_uid);
+  if (data->draft_uid)
+    stamp_account_remove_draft (data->account, data->draft_uid);
 
-  self->is_dirty = FALSE;
-  stamp_mail_view_show_toast (mail_view, _("Mail sent"));
-  gtk_window_destroy (GTK_WINDOW (self));
+  stamp_mail_view_show_toast (data->mail_view, _("Mail sent"));
+  send_completed_data_free (data);
 }
 
 static void
@@ -569,12 +596,15 @@ on_get_body_html (GObject      *source_object,
 {
   StampComposer *self = user_data;
   StampWebView *web_view = STAMP_WEB_VIEW (source_object);
+  StampMailView *mail_view = NULL;
+  StampAccount *account;
   g_autoptr (GError) error = NULL;
   g_autofree char *body_plain = NULL;
   g_autofree char *body = stamp_webview_get_body_html_finish (web_view, res, &body_plain, &error);
   CamelMimeMessage *mime_message;
   CamelInternetAddress *sender;
   CamelInternetAddress *recipient;
+  SendCompletedData *data;
   const gchar *name;
   const gchar *mail;
   gboolean do_pgp_sign;
@@ -645,8 +675,17 @@ on_get_body_html (GObject      *source_object,
     apply_crypto (session, mime_message, recipient, do_pgp_sign, do_pgp_encrypt, do_smime_sign, do_smime_encrypt, self->cancellable);
   }
 
-  stamp_account_send_mail (stamp_composer_from_get_account (self->composer_from), mime_message, sender, recipient,
-                           do_pgp_sign || do_smime_sign, do_pgp_encrypt || do_smime_encrypt, self->cancellable, on_send_mail, self);
+  mail_view = stamp_window_get_mail_view (STAMP_WINDOW (stamp_get_main_window ()));
+  account = stamp_composer_from_get_account (self->composer_from);
+
+  data = send_completed_data_new (mail_view, account, self->draft_uid);
+
+  stamp_account_send_mail (account, mime_message, sender, recipient,
+                           do_pgp_sign || do_smime_sign, do_pgp_encrypt || do_smime_encrypt, NULL, on_send_mail, data);
+
+  self->is_dirty = FALSE;
+  stamp_mail_view_show_toast (mail_view, _("Sending Mail…"));
+  gtk_window_destroy (GTK_WINDOW (self));
 }
 
 static void
