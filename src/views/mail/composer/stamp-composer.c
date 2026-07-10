@@ -761,7 +761,7 @@ insert_signature (StampComposer  *self,
   g_autofree char *encoded = g_base64_encode ((const guchar *)content, strlen (content));
   g_autofree char *js = g_strdup_printf (
     "(function(){"
-    "  var html = atob('%s'), el = document.getElementById('mail-signature');"
+    "  var bytes = Uint8Array.from(atob('%s'), function(c){return c.charCodeAt(0)}), html = new TextDecoder('utf-8').decode(bytes), el = document.getElementById('mail-signature');"
     "  var ed = document.getElementById('message-body');"
     "  if (!ed) return 'no-editor';"
     "  if (el) { el.outerHTML = '<div id=\"mail-signature\">' + html + '</div>'; return 'replaced'; }"
