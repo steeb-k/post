@@ -118,6 +118,7 @@
     btn.addEventListener("click", function () {
       q.classList.remove("stamp-quote-collapsed");
       btn.remove();
+      window.webkit.messageHandlers.stampResize.postMessage("");
     });
 
     q.parentNode.insertBefore(btn, q.nextSibling);

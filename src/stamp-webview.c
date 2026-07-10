@@ -143,6 +143,15 @@ request_page_size (StampWebView *self)
 }
 
 static void
+request_page_size_timeout (gpointer user_data)
+{
+  StampWebView *self = STAMP_WEB_VIEW (user_data);
+
+  request_page_size (self);
+  self->page_size_timeout_handler = 0;
+}
+
+static void
 collapse_quotes_in_page (WebKitWebView *web_view)
 {
   g_autoptr (GBytes) data = g_resources_lookup_data ("/org/tabos/stamp/stamp-quote-collapse.js", G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
@@ -168,8 +177,6 @@ on_load_changed (WebKitWebView   *web_view,
 
     if (self->queued_load_images) {
       stamp_web_view_load_images (self);
-    } else {
-      request_page_size (self);
     }
 
     webkit_web_view_evaluate_javascript (web_view,
@@ -200,8 +207,12 @@ on_load_changed (WebKitWebView   *web_view,
       -1, NULL, NULL, NULL, NULL, NULL
       );
 
-    if (!self->queued_body_content)
+    if (!self->queued_body_content) {
       collapse_quotes_in_page (web_view);
+
+      g_clear_handle_id (&self->page_size_timeout_handler, g_source_remove);
+      self->page_size_timeout_handler = g_timeout_add_once (150, request_page_size_timeout, self);
+    }
   }
 }
 
@@ -310,15 +321,29 @@ on_key_released (GtkEventControllerKey *controller,
 }
 
 static void
+on_resize_script_message (WebKitUserContentManager *manager,
+                          WebKitUserMessage        *message,
+                          StampWebView             *self)
+{
+  g_clear_handle_id (&self->page_size_timeout_handler, g_source_remove);
+  self->page_size_timeout_handler = g_timeout_add_once (150, request_page_size_timeout, self);
+}
+
+static void
 stamp_webview_constructed (GObject *object)
 {
   StampWebView *self = STAMP_WEB_VIEW (object);
   GtkEventController *controller;
+  WebKitUserContentManager *content_manager;
 
   G_OBJECT_CLASS (stamp_webview_parent_class)->constructed (object);
 
   self->internal_resources = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
   self->queued_body_content = NULL;
+
+  content_manager = webkit_web_view_get_user_content_manager (WEBKIT_WEB_VIEW (self));
+  g_signal_connect_object (content_manager, "script-message-received::stampResize", G_CALLBACK (on_resize_script_message), self, 0);
+  webkit_user_content_manager_register_script_message_handler (content_manager, "stampResize", NULL);
 
   webkit_web_view_set_settings (WEBKIT_WEB_VIEW (self), stamp_get_webkit_settings (self));
 
@@ -513,6 +538,9 @@ on_set_body_html (GObject      *source,
 
   collapse_quotes_in_page (web_view);
 
+  g_clear_handle_id (&self->page_size_timeout_handler, g_source_remove);
+  self->page_size_timeout_handler = g_timeout_add_once (150, request_page_size_timeout, self);
+
   gtk_widget_grab_focus (GTK_WIDGET (self));
 }
 
@@ -536,15 +564,6 @@ stamp_web_view_set_body_content (StampWebView *self,
 
     g_set_str (&self->queued_body_content, content);
   }
-}
-
-static void
-request_page_size_timeout (gpointer user_data)
-{
-  StampWebView *self = STAMP_WEB_VIEW (user_data);
-
-  request_page_size (self);
-  self->page_size_timeout_handler = 0;
 }
 
 static void
