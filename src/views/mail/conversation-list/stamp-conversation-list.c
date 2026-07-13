@@ -124,6 +124,27 @@ enum {
 
 static gint signals[LAST_SIGNAL] = { 0 };
 
+static gboolean
+find_uid_in_thread_node (CamelFolderThreadNode *node,
+                         const gchar           *uid)
+{
+  CamelMessageInfo *info;
+
+  if (!node || !uid)
+    return FALSE;
+
+  info = camel_folder_thread_node_get_item (node);
+  if (info && g_strcmp0 (camel_message_info_get_uid (info), uid) == 0)
+    return TRUE;
+
+  for (CamelFolderThreadNode *child = camel_folder_thread_node_get_child (node); child; child = camel_folder_thread_node_get_next (child)) {
+    if (find_uid_in_thread_node (child, uid))
+      return TRUE;
+  }
+
+  return FALSE;
+}
+
 static StampConversationItem *
 stamp_conversation_item_find_item (GListStore  *store,
                                    const gchar *uid)
@@ -132,19 +153,9 @@ stamp_conversation_item_find_item (GListStore  *store,
 
   for (guint idx = 0; idx < list_len; idx++) {
     g_autoptr (StampConversationItem) item = g_list_model_get_item (G_LIST_MODEL (store), idx);
-    CamelFolderThreadNode *node;
 
-    if (item && g_strcmp0 (stamp_conversation_item_get_uid (item), uid) == 0) {
+    if (item && find_uid_in_thread_node (stamp_conversation_item_get_node (item), uid))
       return g_steal_pointer (&item);
-    }
-
-    node = stamp_conversation_item_get_node (item);
-    for (CamelFolderThreadNode *iter = camel_folder_thread_node_get_child (node); iter; iter = camel_folder_thread_node_get_next (iter)) {
-      CamelMessageInfo *info = camel_folder_thread_node_get_item (iter);
-
-      if (g_strcmp0 (camel_message_info_get_uid (info), uid) == 0)
-        return g_steal_pointer (&item);
-    }
   }
   return NULL;
 }
@@ -166,7 +177,7 @@ on_conversation_list_folder_changed (CamelFolder           *folder,
   if (changes->uid_changed && changes->uid_changed->len > 0) {
     GPtrArray *changed = changes->uid_changed;
     for (gint idx = 0; idx < changed->len; idx++) {
-      StampConversationItem *item = stamp_conversation_item_find_item (self->list_store, changed->pdata[idx]);
+      g_autoptr (StampConversationItem) item = stamp_conversation_item_find_item (self->list_store, changed->pdata[idx]);
       CamelMessageInfo *message_info;
       gchar *uid = (char *)changed->pdata[idx];
 
