@@ -32,7 +32,6 @@ stamp_sources = [
   'views/contact/stamp-contact-view.c',
   'views/contact/contact-list/stamp-contact-item.c',
   'views/contact/contact-list/stamp-contact-list.c',
-  'views/contact/contact-list/stamp-contact-list-store.c',
   'views/contact/contact-list/stamp-contact-row.c',
   'views/contact/book-list/stamp-book-account-item.c',
   'views/contact/book-list/stamp-book-item.c',

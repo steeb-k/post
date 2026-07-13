@@ -18,7 +18,6 @@
  */
 
 #include "stamp-contact-list.h"
-#include "stamp-contact-list-store.h"
 #include "stamp-contact-row.h"
 #include "stamp-type-builtins.h"
 
@@ -34,7 +33,7 @@ struct _StampContactList {
   GtkWidget *sidebar_button;
   GtkWidget *normal_headerbar;
 
-  StampContactListStore *list_store;
+  GListStore *list_store;
   GtkSortListModel *sort_list_model;
   GtkFilterListModel *filter_list_model;
   GtkSorter *sorter;
@@ -90,6 +89,7 @@ on_get_contacts (GObject      *object,
   g_autoslist (EContact) contacts = NULL;
   g_autoptr (GError) error = NULL;
   guint old;
+  g_autoptr (GPtrArray) items = NULL;
 
   self->loading_done = TRUE;
   g_clear_handle_id (&self->loading_timeout_id, g_source_remove);
@@ -104,15 +104,15 @@ on_get_contacts (GObject      *object,
   }
 
   old = g_list_model_get_n_items (G_LIST_MODEL (self->list_store));
-  stamp_contact_list_store_remove_all (self->list_store);
+  items = g_ptr_array_new_full (g_slist_length (contacts), g_object_unref);
 
   for (GSList *iter = contacts; iter && iter->data; iter = g_slist_next (iter)) {
     EContact *c = iter->data;
-    g_autoptr (StampContactItem) item = stamp_contact_item_new (c);
-    stamp_contact_list_store_add (self->list_store, item);
+    StampContactItem *item = stamp_contact_item_new (c);
+    g_ptr_array_add (items, item);
   }
 
-  g_list_model_items_changed (G_LIST_MODEL (self->list_store), 0, old, g_list_model_get_n_items (G_LIST_MODEL (self->list_store)));
+  g_list_store_splice (self->list_store, 0, old, (gpointer *)items->pdata, items->len);
 }
 
 void
@@ -411,7 +411,7 @@ stamp_contact_list_init (StampContactList *self)
 
   gtk_widget_init_template (GTK_WIDGET (self));
 
-  self->list_store = stamp_contact_list_store_new ();
+  self->list_store = g_list_store_new (STAMP_TYPE_CONTACT_ITEM);
 
   gtk_sort_list_model_set_model (self->sort_list_model, G_LIST_MODEL (self->list_store));
   self->sorter = GTK_SORTER (gtk_custom_sorter_new (sorter_func, self, NULL));

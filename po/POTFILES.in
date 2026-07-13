@@ -21,7 +21,6 @@ src/views/contact/book-list/stamp-book-row.c
 src/views/contact/contact-list/stamp-contact-item.c
 src/views/contact/contact-list/stamp-contact-list.blp
 src/views/contact/contact-list/stamp-contact-list.c
-src/views/contact/contact-list/stamp-contact-list-store.c
 src/views/contact/contact-list/stamp-contact-row.blp
 src/views/contact/contact-list/stamp-contact-row.c
 src/views/contact/stamp-contact-details.blp
