@@ -435,60 +435,10 @@ on_book_client_ready (GObject      *src,
   init_context_finish_one (ctx);
 }
 
-typedef enum {
-  FIND_BY_FLAGS,
-  FIND_BY_NAME,
-} FindFolderType;
-
-typedef struct {
-  FindFolderType type;
-  guint32 flags;
-  const gchar *name;
-} FindFolderData;
-
-static gboolean
-match_folder_info (CamelFolderInfo      *fi,
-                   const FindFolderData *data)
-{
-  if (data->type == FIND_BY_FLAGS)
-    return (fi->flags & CAMEL_FOLDER_TYPE_MASK) == data->flags;
-
-  if (data->type == FIND_BY_NAME && data->name)
-    return fi->display_name && g_ascii_strcasecmp (fi->display_name, data->name) == 0;
-
-  return FALSE;
-}
-
-static CamelFolderInfo *
-find_folder_info_recursive (CamelFolderInfo      *fi,
-                            const FindFolderData *data)
-{
-  while (fi) {
-    if (match_folder_info (fi, data))
-      return fi;
-
-    if (fi->child) {
-      CamelFolderInfo *found = find_folder_info_recursive (fi->child, data);
-      if (found)
-        return found;
-    }
-
-    fi = fi->next;
-  }
-
-  return NULL;
-}
-
 static gboolean
 is_drafts_folder (CamelFolderInfo *fi)
 {
-  const gchar *name;
-
-  if ((fi->flags & CAMEL_FOLDER_TYPE_MASK) == CAMEL_FOLDER_TYPE_DRAFTS)
-    return TRUE;
-
-  name = fi->display_name ? fi->display_name : fi->full_name;
-  return g_ascii_strcasecmp (name, "Drafts") == 0;
+  return (fi->flags & CAMEL_FOLDER_TYPE_MASK) == CAMEL_FOLDER_TYPE_DRAFTS;
 }
 
 typedef struct {
@@ -530,13 +480,13 @@ on_junk_folder_ready (GObject      *src,
 }
 
 static void
-on_trash_folder_ready (GObject      *src,
-                       GAsyncResult *res,
-                       gpointer      user_data)
+on_trash_folder_from_info_ready (GObject      *src,
+                                 GAsyncResult *res,
+                                 gpointer      user_data)
 {
   MailEnableData *data = user_data;
   g_autoptr (GError) error = NULL;
-  CamelFolder *folder = camel_store_get_trash_folder_finish (CAMEL_STORE (src), res, &error);
+  CamelFolder *folder = camel_store_get_folder_finish (CAMEL_STORE (src), res, &error);
 
   if (folder)
     data->account->mail->trash_folder = folder;
@@ -591,6 +541,8 @@ on_folder_info_for_sent_drafts (GObject      *src,
   CamelFolderInfo *fi;
   const gchar *sent_path = NULL;
   const gchar *drafts_path = NULL;
+  const gchar *trash_path = NULL;
+  gint new_pending = 0;
 
   if (error) {
     g_warning ("%s: get_folder_info: %s", G_STRFUNC, error->message);
@@ -606,6 +558,9 @@ on_folder_info_for_sent_drafts (GObject      *src,
     if (!drafts_path && is_drafts_folder (fi))
       drafts_path = fi->full_name;
 
+    if (!trash_path && ((fi->flags & CAMEL_FOLDER_TYPE_MASK) == CAMEL_FOLDER_TYPE_TRASH))
+      trash_path = fi->full_name;
+
     if (fi->child) {
       fi = fi->child;
       continue;
@@ -616,36 +571,21 @@ on_folder_info_for_sent_drafts (GObject      *src,
       fi = fi->next;
   }
 
-  /* Fallback display name match for sent */
-  if (!sent_path) {
-    static const gchar *sent_names[] = {
-      "Sent", "Sent Items", "Sent Messages",
-      "Gesendete Elemente", "Gesendete Objekte", /* codespell:ignore */
-      NULL
-    };
+  new_pending = (sent_path ? 1 : 0) + (drafts_path ? 1 : 0) + (trash_path ? 1 : 0);
+  data->pending += new_pending;
 
-    for (gint i = 0; sent_names[i]; i++) {
-      FindFolderData fdata = { .type = FIND_BY_NAME, .name = sent_names[i] };
-      CamelFolderInfo *found = find_folder_info_recursive (root, &fdata);
-
-      if (found) {
-        sent_path = found->full_name;
-        break;
-      }
-    }
-
-    if (!drafts_path)
-      drafts_path = "Drafts";
-
-    data->pending += 2;
-
-    camel_store_get_folder (CAMEL_STORE (src), sent_path ? sent_path : "Sent", 0,
+  if (sent_path)
+    camel_store_get_folder (CAMEL_STORE (src), sent_path, 0,
                             G_PRIORITY_DEFAULT, NULL,
                             on_sent_folder_ready, data);
+  if (drafts_path)
     camel_store_get_folder (CAMEL_STORE (src), drafts_path, 0,
                             G_PRIORITY_DEFAULT, NULL,
                             on_drafts_folder_ready, data);
-  }
+  if (trash_path)
+    camel_store_get_folder (CAMEL_STORE (src), trash_path, 0,
+                            G_PRIORITY_DEFAULT, NULL,
+                            on_trash_folder_from_info_ready, data);
 
   mail_enable_one_done (data);
 }
@@ -685,11 +625,7 @@ stamp_account_enable_mail_async (StampAccount *self,
   data = g_new0 (MailEnableData, 1);
   data->account = self;
   data->ctx = ctx;
-  data->pending = 3;
-
-  camel_store_get_trash_folder (CAMEL_STORE (self->mail->service),
-                                G_PRIORITY_DEFAULT, NULL,
-                                on_trash_folder_ready, data);
+  data->pending = 2;
 
   camel_store_get_folder_info (CAMEL_STORE (self->mail->service), NULL,
                                CAMEL_STORE_FOLDER_INFO_RECURSIVE | CAMEL_STORE_FOLDER_INFO_NO_VIRTUAL,
