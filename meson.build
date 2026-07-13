@@ -19,6 +19,7 @@ conf.set_quoted('GETTEXT_PACKAGE', 'stamp')
 conf.set_quoted('LOCALEDIR', get_option('prefix') / get_option('localedir'))
 conf.set_quoted('STAMP_WEB_PROCESS_EXTENSIONS_DIR', webprocessextensionsdir)
 conf.set_quoted('VERSION', '@VCS_TAG@')
+conf.set('DEVEL', get_option('devel'))
 
 config_h = declare_dependency(
   sources: vcs_tag(

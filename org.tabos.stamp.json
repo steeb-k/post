@@ -211,6 +211,9 @@
       "name": "stamp",
       "builddir": true,
       "buildsystem": "meson",
+      "config-opts" : [
+        "-Ddevel=true"
+      ],
       "sources": [
         {
           "type": "git",

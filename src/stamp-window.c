@@ -193,6 +193,10 @@ stamp_window_init (StampWindow *self)
 
   if (view)
     adw_view_stack_set_visible_child_name (self->main_view_stack, view);
+
+#ifdef DEVEL
+  gtk_widget_add_css_class (GTK_WIDGET (self), "devel");
+#endif
 }
 
 void
