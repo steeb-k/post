@@ -6,7 +6,7 @@ template $StampMailView: Adw.BreakpointBin {
   height-request: 200;
 
   Adw.Breakpoint bp_tablet {
-    condition ("max-width: 920sp")
+    condition ("max-width: 1600sp")
     apply => $on_apply_view();
     unapply => $on_apply_view();
 
@@ -16,7 +16,7 @@ template $StampMailView: Adw.BreakpointBin {
   }
 
   Adw.Breakpoint bp_mobile {
-    condition ("max-width: 550sp")
+    condition ("max-width: 1024sp")
     apply => $on_apply_view();
     unapply => $on_apply_view();
 
