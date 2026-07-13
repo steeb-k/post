@@ -54,9 +54,11 @@ typedef enum {
   PROP_DATE,
   PROP_NUM_MESSAGES,
   PROP_LABELS,
+  PROP_ANSWERED,
+  PROP_FORWARDED,
 } StampConversationItemProps;
 
-static GParamSpec *properties[PROP_LABELS + 1];
+static GParamSpec *properties[PROP_FORWARDED + 1];
 
 static gboolean
 has_thread_flag_one (CamelFolderThreadNode *node,
@@ -177,6 +179,12 @@ stamp_conversation_item_get_property (GObject    *object,
     case PROP_LABELS:
       g_value_set_pointer (value, stamp_conversation_item_get_labels (self));
       break;
+    case PROP_ANSWERED:
+      g_value_set_boolean (value, stamp_conversation_item_get_answered (self));
+      break;
+    case PROP_FORWARDED:
+      g_value_set_boolean (value, stamp_conversation_item_get_forwarded (self));
+      break;
   }
 }
 
@@ -267,6 +275,8 @@ stamp_conversation_item_set_property (GObject      *object,
     case PROP_DATE:
     case PROP_NUM_MESSAGES:
     case PROP_LABELS:
+    case PROP_ANSWERED:
+    case PROP_FORWARDED:
       break;
   }
 }
@@ -369,6 +379,18 @@ stamp_conversation_item_class_init (StampConversationItemClass *klass)
                                                   NULL,
                                                   NULL,
                                                   G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+
+  properties[PROP_ANSWERED] = g_param_spec_boolean ("answered",
+                                                    NULL,
+                                                    NULL,
+                                                    FALSE,
+                                                    G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+
+  properties[PROP_FORWARDED] = g_param_spec_boolean ("forwarded",
+                                                     NULL,
+                                                     NULL,
+                                                     FALSE,
+                                                     G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
   g_object_class_install_properties (object_class, G_N_ELEMENTS (properties), properties);
 }
@@ -528,6 +550,13 @@ stamp_conversation_item_get_answered (StampConversationItem *self)
   return has_thread_flag_one (self->thread_node, CAMEL_MESSAGE_ANSWERED);
 }
 
+/* Check if a node has been forwarded */
+gboolean
+stamp_conversation_item_get_forwarded (StampConversationItem *self)
+{
+  return has_thread_flag_one (self->thread_node, CAMEL_MESSAGE_FORWARDED);
+}
+
 const gchar *
 stamp_conversation_item_get_preview (StampConversationItem *self)
 {
@@ -647,6 +676,8 @@ stamp_conversation_item_update (StampConversationItem *self,
 
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_UNREAD]);
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_FLAGGED]);
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_ANSWERED]);
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_FORWARDED]);
 }
 
 gboolean

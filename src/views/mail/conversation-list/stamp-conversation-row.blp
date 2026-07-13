@@ -169,6 +169,24 @@ template $StampConversationRow: Box {
           ]
         }
 
+        Image reply_icon {
+          accessibility {
+            label: _("Replied to Mail");
+          }
+
+          icon-name: "mail-replied-symbolic";
+          visible: false;
+        }
+
+        Image forwarded_icon {
+          accessibility {
+            label: _("Forwarded Mail");
+          }
+
+          icon-name: "mail-forward-symbolic";
+          visible: false;
+        }
+
         Image calendar_icon {
           accessibility {
             label: _("Move to Trash");

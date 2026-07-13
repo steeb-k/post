@@ -79,6 +79,9 @@ gboolean
 stamp_conversation_item_get_answered (StampConversationItem *self);
 
 gboolean
+stamp_conversation_item_get_forwarded (StampConversationItem *self);
+
+gboolean
 stamp_conversation_item_get_calendar (StampConversationItem *self);
 
 gchar *

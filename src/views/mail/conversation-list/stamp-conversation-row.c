@@ -45,6 +45,8 @@ struct _StampConversationRow {
   GtkBox *right_action;
   GtkGrid *row;
   GtkImage *attachment_icon;
+  GtkImage *reply_icon;
+  GtkImage *forwarded_icon;
   GtkImage *calendar_icon;
   GtkFlowBox *labels;
 
@@ -281,6 +283,8 @@ stamp_conversation_row_class_init (StampConversationRowClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampConversationRow, right_action);
   gtk_widget_class_bind_template_child (widget_class, StampConversationRow, row);
   gtk_widget_class_bind_template_child (widget_class, StampConversationRow, attachment_icon);
+  gtk_widget_class_bind_template_child (widget_class, StampConversationRow, reply_icon);
+  gtk_widget_class_bind_template_child (widget_class, StampConversationRow, forwarded_icon);
   gtk_widget_class_bind_template_child (widget_class, StampConversationRow, calendar_icon);
   gtk_widget_class_bind_template_child (widget_class, StampConversationRow, labels);
 
@@ -545,6 +549,8 @@ stamp_conversation_row_bind_mail (StampConversationRow  *self,
   add_binding (self, g_object_bind_property (item, "preview", self->body, "markup", G_BINDING_SYNC_CREATE));
   add_binding (self, g_object_bind_property_full (item, "flagged", self->flagged_icon, "icon-name", G_BINDING_SYNC_CREATE, transform_flagged_to, NULL, self, NULL));
   add_binding (self, g_object_bind_property (item, "has-attachment", self->attachment_icon, "visible", G_BINDING_SYNC_CREATE));
+  add_binding (self, g_object_bind_property (item, "answered", self->reply_icon, "visible", G_BINDING_SYNC_CREATE));
+  add_binding (self, g_object_bind_property (item, "forwarded", self->forwarded_icon, "visible", G_BINDING_SYNC_CREATE));
   add_binding (self, g_object_bind_property (item, "has-calendar", self->calendar_icon, "visible", G_BINDING_SYNC_CREATE));
   add_binding (self, g_object_bind_property (item, "important", self, "important", G_BINDING_SYNC_CREATE));
   add_binding (self, g_object_bind_property_full (item, "date", self->date, "label", G_BINDING_SYNC_CREATE, transfer_date_to, NULL, NULL, NULL));
