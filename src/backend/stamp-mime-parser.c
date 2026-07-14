@@ -724,7 +724,7 @@ handle_attachment (StampMimeParser *self,
       att->kind = STAMP_MIME_ATTACHMENT_INVITATION;
       create_calendar (self, att);
     }
-    PARSER_LOG ("Calendar %s, internal %d, filename %s, size %ld\n", att->calendar_method, att->is_inline, att->filename, att->size);
+    PARSER_LOG ("Calendar %s, internal %d, filename %s, size %ld", att->calendar_method, att->is_inline, att->filename, att->size);
   } else if (g_strcmp0 (type_lc, "application") == 0 && g_strcmp0 (sub_lc, "pgp-keys") == 0) {
     att->kind = STAMP_MIME_ATTACHMENT_PGP_KEY;
     att->is_inline = FALSE;
@@ -1217,7 +1217,7 @@ stamp_mime_parser_filter_by_kind (StampMimeParser         *self,
   for (GList *l = self->attachments; l; l = l->next) {
     StampMimeAttachment *att = l->data;
 
-    PARSER_LOG ("%p %d %d %s\n", att, att->kind & kind, att->is_inline, att->filename);
+    PARSER_LOG ("%p %d %d %s", att, att->kind & kind, att->is_inline, att->filename);
     if (att->kind & kind && att->is_inline == is_inline)
       result = g_list_append (result, att);
   }

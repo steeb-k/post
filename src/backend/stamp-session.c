@@ -257,7 +257,7 @@ on_signature_loaded (GObject      *source_object,
   StampSignature *signature;
 
   if (!e_source_mail_signature_load_finish (source, result, &contents, &length, &error)) {
-    g_debug ("Error loading signature: %s\n", error->message);
+    g_debug ("Error loading signature: %s", error->message);
     return;
   }
 
