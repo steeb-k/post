@@ -57,6 +57,8 @@ struct _StampMessageHeader {
   GtkWidget *popover_name;
   GtkWidget *popover_email;
   GtkWidget *internal;
+  GtkWidget *reply_icon;
+  GtkWidget *forwarded_icon;
 
   gboolean to_filled;
   gboolean cc_filled;
@@ -377,6 +379,8 @@ stamp_message_header_class_init (StampMessageHeaderClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampMessageHeader, popover_name);
   gtk_widget_class_bind_template_child (widget_class, StampMessageHeader, popover_email);
   gtk_widget_class_bind_template_child (widget_class, StampMessageHeader, internal);
+  gtk_widget_class_bind_template_child (widget_class, StampMessageHeader, reply_icon);
+  gtk_widget_class_bind_template_child (widget_class, StampMessageHeader, forwarded_icon);
 
   gtk_widget_class_bind_template_callback (widget_class, on_more_button_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_cc_more_button_clicked);
@@ -473,12 +477,16 @@ transfer_flags_to_icon (GBinding     *binding,
                         GValue       *to_value,
                         gpointer      user_data)
 {
+  StampMessageHeader *self = STAMP_MESSAGE_HEADER (user_data);
   guint flags = g_value_get_flags (from_value);
 
   if (flags & CAMEL_MESSAGE_FLAGGED)
     g_value_set_static_string (to_value, "starred-symbolic");
   else
     g_value_set_static_string (to_value, "non-starred-symbolic");
+
+  gtk_widget_set_visible (self->reply_icon, flags & CAMEL_MESSAGE_ANSWERED);
+  gtk_widget_set_visible (self->forwarded_icon, flags & CAMEL_MESSAGE_FORWARDED);
 
   return TRUE;
 }
@@ -681,7 +689,7 @@ stamp_message_header_set_mail (StampMessageHeader    *self,
 
   gtk_widget_set_visible (self->attachment_icon, has_attachment (thread_node));
 
-  g_object_bind_property_full (G_OBJECT (message_info), "flags", self->starred_icon, "icon-name", G_BINDING_SYNC_CREATE, transfer_flags_to_icon, NULL, NULL, NULL);
+  g_object_bind_property_full (G_OBJECT (message_info), "flags", self->starred_icon, "icon-name", G_BINDING_SYNC_CREATE, transfer_flags_to_icon, NULL, self, NULL);
 
   time = stamp_time_helpers_utf_friendly_time (camel_message_info_get_date_received (message_info), FALSE);
   gtk_label_set_text (GTK_LABEL (self->date), time);
