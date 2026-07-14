@@ -164,6 +164,12 @@ on_background_status (GObject      *source_object,
   }
 }
 
+static gboolean
+stamp_is_running_inside_flatpak (void)
+{
+  return g_file_test ("/.flatpak-info", G_FILE_TEST_EXISTS);
+}
+
 static void
 stamp_window_init (StampWindow *self)
 {
@@ -182,7 +188,7 @@ stamp_window_init (StampWindow *self)
   g_signal_connect_object (session, "account-added", G_CALLBACK (on_account_changed), self, 0);
   g_signal_connect_object (session, "account-removed", G_CALLBACK (on_account_changed), self, 0);
 
-  if (g_settings_get_boolean (STAMP_SETTINGS, STAMP_PREFS_BACKGROUND_NOTIFICATIONS))
+  if (stamp_is_running_inside_flatpak () && g_settings_get_boolean (STAMP_SETTINGS, STAMP_PREFS_BACKGROUND_NOTIFICATIONS))
     xdp_portal_set_background_status (portal, _("Waiting for new emails"), NULL, on_background_status, self);
 
   g_settings_bind (STAMP_SETTINGS, STAMP_PREFS_BACKGROUND_NOTIFICATIONS, self, "hide-on-close", G_SETTINGS_BIND_DEFAULT);
