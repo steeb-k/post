@@ -257,7 +257,13 @@ template $StampComposer: Adw.ApplicationWindow {
         }
 
         Revealer attachment_revealer {
-          child: Adw.WrapBox attachment_box {};
+          child: ScrolledWindow scrolled_window {
+            vscrollbar-policy: automatic;
+            hscrollbar-policy: never;
+            propagate-natural-height: true;
+
+            child: Adw.WrapBox attachment_box {};
+          };
 
           layout {
             column: 1;

@@ -61,6 +61,7 @@ struct _StampComposer {
   GtkWidget *smime_encrypt;
   GtkWidget *security_menu;
   GtkWidget *insert_link_button;
+  GtkWidget *scrolled_window;
   StampComposerType type;
   CamelMimeMessage *orig_message;
   gchar *draft_uid;
@@ -858,6 +859,21 @@ on_signature_activated (GSimpleAction *action,
 }
 
 static void
+attach_box_update_max_height (GtkScrolledWindow *sw,
+                              AdwWrapBox        *wrap)
+{
+  GtkWidget *child = gtk_widget_get_first_child (GTK_WIDGET (wrap));
+  int nat = 0;
+
+  if (child == NULL)
+    return;
+
+  gtk_widget_measure (child, GTK_ORIENTATION_VERTICAL, -1, NULL, &nat, NULL, NULL);
+
+  gtk_scrolled_window_set_max_content_height (sw, 2.5 * nat + adw_wrap_box_get_line_spacing (wrap));
+}
+
+static void
 on_attachment_added (GObject      *obj,
                      GAsyncResult *res,
                      gpointer      user_data)
@@ -882,6 +898,8 @@ on_attachment_added (GObject      *obj,
 
     adw_wrap_box_append (ADW_WRAP_BOX (self->attachment_box), button);
   }
+
+  attach_box_update_max_height (GTK_SCROLLED_WINDOW (self->scrolled_window), ADW_WRAP_BOX (self->attachment_box));
 
   gtk_revealer_set_reveal_child (GTK_REVEALER (self->attachment_revealer), TRUE);
 }
@@ -1637,6 +1655,7 @@ stamp_composer_class_init (StampComposerClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampComposer, toggle);
   gtk_widget_class_bind_template_child (widget_class, StampComposer, toast_overlay);
   gtk_widget_class_bind_template_child (widget_class, StampComposer, signature);
+  gtk_widget_class_bind_template_child (widget_class, StampComposer, scrolled_window);
 
   gtk_widget_class_bind_template_callback (widget_class, on_close_button_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_close_request);
