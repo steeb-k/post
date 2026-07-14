@@ -743,6 +743,7 @@ handle_popover (RowData *row_data,
 {
   GtkWidget *popover;
   g_autoptr (GMenu) menu = NULL;
+  g_autoptr (GMenu) option_menu = NULL;
   g_autoptr (GMenu) sub_menu = NULL;
   GdkRectangle rect;
   StampConversationRow *child = STAMP_CONVERSATION_ROW (gtk_list_item_get_child (row_data->list_item));
@@ -752,6 +753,7 @@ handle_popover (RowData *row_data,
   GtkSelectionModel *model = gtk_list_view_get_model (GTK_LIST_VIEW (row_data->self->listview));
   GList *categories;
   GPtrArray *labels;
+  StampConversationItem *conversation_item;
 
   gtk_selection_model_select_item (model, position, TRUE);
 
@@ -760,8 +762,19 @@ handle_popover (RowData *row_data,
   g_menu_append (menu, _("Reply All"), "mail.reply-all-current");
   g_menu_append (menu, _("Forward"), "mail.forward-current");
 
-  g_menu_append (menu, _("Mark Read"), "mail.mark-read-current");
-  g_menu_append (menu, _("Mark Unread"), "mail.mark-unread-current");
+  option_menu = g_menu_new ();
+
+  conversation_item = stamp_conversation_row_get_item (child);
+
+  if (stamp_conversation_item_get_unread (conversation_item))
+    g_menu_append (menu, _("Mark Read"), "conversation-list.mark-read");
+  else
+    g_menu_append (menu, _("Mark Unread"), "conversation-list.mark-unread");
+
+  if (stamp_conversation_item_get_flagged (conversation_item))
+    g_menu_append (menu, _("Mark Unstarred"), "conversation-list.mark-unstarred");
+  else
+    g_menu_append (menu, _("Mark Starred"), "conversation-list.mark-starred");
 
   labels = stamp_conversation_item_get_labels (STAMP_CONVERSATION_ITEM (gtk_list_item_get_item (row_data->list_item)));
   categories = stamp_account_get_categories (row_data->self->account);
@@ -797,7 +810,7 @@ handle_popover (RowData *row_data,
     g_menu_append_submenu (menu, _("Category"), G_MENU_MODEL (sub_menu));
   }
 
-  popover = gtk_popover_menu_new_from_model (G_MENU_MODEL (row_data->self->context_menu_model));
+  popover = gtk_popover_menu_new_from_model (G_MENU_MODEL (menu));
   gtk_widget_set_halign (popover, GTK_ALIGN_START);
   gtk_widget_set_valign (popover, GTK_ALIGN_START);
   gtk_popover_set_has_arrow (GTK_POPOVER (popover), FALSE);
