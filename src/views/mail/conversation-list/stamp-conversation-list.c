@@ -26,6 +26,7 @@
 #include "stamp-composer.h"
 #include "stamp-conversation-item.h"
 #include "stamp-conversation-list-store.h"
+#include "stamp-mail-view.h"
 #include "stamp-conversation-row.h"
 #include "stamp-item.h"
 #include "stamp-message-list.h"
@@ -66,8 +67,9 @@ struct _StampConversationList {
   GtkBitset *selected;
   GtkToggleButton *sidebar_button;
   GtkBox *sort_is_active;
+  GtkWidget *new_message;
+  GtkWidget *selection_bottom_bar;
   GtkMenuButton *move_selection_button;
-  AdwBanner *trash_folder_banner;
   GtkButton *trash_selection_button;
   GtkButton *mark_read_selection_button;
 
@@ -540,11 +542,6 @@ on_get_folder (GObject      *source,
   thread = get_thread (self, folder);
   self->thread = thread;
 
-  adw_banner_set_revealed (self->trash_folder_banner,
-                           thread &&
-                           (self->folder == stamp_account_get_mail_trash_folder (self->account) ||
-                            self->folder == stamp_account_get_mail_junk_folder (self->account)));
-
   array = g_ptr_array_new_with_free_func (g_object_unref);
 
   if (thread) {
@@ -883,9 +880,13 @@ set_selection_active (StampConversationList *self,
     update_selection_title (self);
     gtk_stack_set_visible_child (GTK_STACK (self->header_stack), self->selection_headerbar);
     gtk_list_view_set_model (GTK_LIST_VIEW (self->listview), GTK_SELECTION_MODEL (self->multi_selection));
+    gtk_widget_set_visible (self->new_message, FALSE);
+    gtk_widget_set_visible (self->selection_bottom_bar, TRUE);
   } else {
     gtk_stack_set_visible_child (GTK_STACK (self->header_stack), self->normal_headerbar);
     gtk_list_view_set_model (GTK_LIST_VIEW (self->listview), GTK_SELECTION_MODEL (self->single_selection));
+    gtk_widget_set_visible (self->new_message, TRUE);
+    gtk_widget_set_visible (self->selection_bottom_bar, FALSE);
     stamp_conversation_list_unselect (self);
   }
 
@@ -1282,6 +1283,29 @@ on_single_selection_changed (GtkSelectionModel *model,
 }
 
 static void
+on_select_all (GtkWidget *button,
+               gpointer   user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+  guint n_items = g_list_model_get_n_items (G_LIST_MODEL (self->multi_selection));
+
+  gtk_bitset_add_range (self->selected, 0, n_items);
+  update_selection_title (self);
+  refresh_checkboxes (self);
+}
+
+static void
+on_unselect_all (GtkWidget *button,
+                 gpointer   user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+
+  gtk_bitset_remove_all (self->selected);
+  update_selection_title (self);
+  refresh_checkboxes (self);
+}
+
+static void
 on_selection_button_clicked (GtkWidget *button,
                              gpointer   user_data)
 {
@@ -1413,6 +1437,8 @@ stamp_conversation_list_class_init (StampConversationListClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, search_bar);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, search_entry);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, window_title);
+  gtk_widget_class_bind_template_child (widget_class, StampConversationList, new_message);
+  gtk_widget_class_bind_template_child (widget_class, StampConversationList, selection_bottom_bar);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, scroll_to_top);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, scrolled_window);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, header_stack);
@@ -1426,7 +1452,6 @@ stamp_conversation_list_class_init (StampConversationListClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, sort_is_active);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, context_menu_model);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, move_selection_button);
-  gtk_widget_class_bind_template_child (widget_class, StampConversationList, trash_folder_banner);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, trash_selection_button);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, mark_read_selection_button);
 
@@ -1438,6 +1463,8 @@ stamp_conversation_list_class_init (StampConversationListClass *klass)
   gtk_widget_class_bind_template_callback (widget_class, on_selection_button_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_scroll_to_top);
   gtk_widget_class_bind_template_callback (widget_class, on_scroll);
+  gtk_widget_class_bind_template_callback (widget_class, on_select_all);
+  gtk_widget_class_bind_template_callback (widget_class, on_unselect_all);
 
   signals[CONVERSATION_SELECTED] = g_signal_new ("conversation-selected", G_OBJECT_CLASS_TYPE (klass),
                                                  G_SIGNAL_RUN_FIRST | G_SIGNAL_RUN_LAST,
@@ -1926,6 +1953,16 @@ on_trash_folder (GSimpleAction *action,
   }
 }
 
+static void
+on_trash (GSimpleAction *action,
+          GVariant      *parameter,
+          gpointer       user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+
+  stamp_conversation_list_trash (self, NULL);
+}
+
 static const GActionEntry stamp_conversation_list_action_entries[] = {
   { .name = "mark-category", .activate = on_mark_category, .parameter_type = "s" },
   { .name = "mark-read", .activate = on_mark_read },
@@ -1934,6 +1971,7 @@ static const GActionEntry stamp_conversation_list_action_entries[] = {
   { .name = "mark-unstarred", .activate = on_mark_unstarred },
   { .name = "move-folder", .activate = on_move_folder, .parameter_type = "s" },
   { .name = "trash-folder", .activate = on_trash_folder },
+  { .name = "trash", .activate = on_trash },
 };
 
 static void
@@ -2215,7 +2253,7 @@ stamp_conversation_list_trash (StampConversationList *self,
 
     for (gint idx = array->len - 1; idx >= 0; idx--) {
       const CamelMessageInfo *info = camel_folder_thread_node_get_item (array->pdata[idx]);
-      camel_folder_set_message_flags (folder, camel_message_info_get_uid (info), CAMEL_MESSAGE_SEEN, CAMEL_MESSAGE_SEEN);
+      camel_folder_set_message_flags (folder, camel_message_info_get_uid (info), CAMEL_MESSAGE_SEEN | CAMEL_MESSAGE_DELETED, CAMEL_MESSAGE_SEEN | CAMEL_MESSAGE_DELETED);
     }
 
     camel_folder_synchronize_sync (folder, FALSE, NULL, &error);

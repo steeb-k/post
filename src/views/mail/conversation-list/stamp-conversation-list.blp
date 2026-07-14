@@ -6,6 +6,8 @@ template $StampConversationList: Adw.Bin {
   height-request: 300;
 
   child: Adw.ToolbarView conversation_view {
+    bottom-bar-style: raised;
+
     styles [
       "secondary-sidebar-pane",
     ]
@@ -97,7 +99,7 @@ template $StampConversationList: Adw.Bin {
             label: _("Trash");
           }
 
-          action-name: "mail.trash";
+          action-name: "conversation-list.trash";
           tooltip-text: _("Move to Trash");
           icon-name: "user-trash-symbolic";
         }
@@ -214,12 +216,6 @@ template $StampConversationList: Adw.Bin {
               child: Box {
                 orientation: vertical;
 
-                Adw.Banner trash_folder_banner {
-                  title: _("Folder is Full");
-                  button-label: _("Trash");
-                  action-name: "conversation-list.trash-folder";
-                }
-
                 ScrolledWindow scrolled_window {
                   hscrollbar-policy: never;
 
@@ -258,6 +254,29 @@ template $StampConversationList: Adw.Bin {
         };
       }
     };
+
+    [bottom]
+    Box selection_bottom_bar {
+      orientation: horizontal;
+      spacing: 6;
+      margin-top: 6;
+      margin-bottom: 6;
+      margin-start: 12;
+      margin-end: 12;
+      visible: false;
+
+      Button select_all_button {
+        label: _("Select All");
+        hexpand: true;
+        clicked => $on_select_all();
+      }
+
+      Button unselect_all_button {
+        label: _("Unselect All");
+        hexpand: true;
+        clicked => $on_unselect_all();
+      }
+    }
   };
 }
 
