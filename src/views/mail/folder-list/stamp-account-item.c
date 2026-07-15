@@ -102,11 +102,25 @@ show_info (StampAccountItem *self,
 
   array = g_ptr_array_new ();
   while (folder_info) {
-    g_autoptr (StampFolderItem) folder_item = stamp_folder_item_new (stamp_item_get_account (STAMP_ITEM (self)), folder_info);
+    if (folder_info->full_name && (g_ascii_strcasecmp (folder_info->full_name, "[Google Mail]") == 0 || g_ascii_strcasecmp (folder_info->full_name, "[Gmail]") == 0)) {
+      CamelFolderInfo *child = folder_info->child;
 
-    g_signal_connect_object (folder_item, "folder-item-added", G_CALLBACK (on_folder_item_changed), self, G_CONNECT_DEFAULT);
+      while (child) {
+        g_autoptr (StampFolderItem) folder_item = stamp_folder_item_new (stamp_item_get_account (STAMP_ITEM (self)), child);
 
-    g_ptr_array_add (array, g_steal_pointer (&folder_item));
+        g_signal_connect_object (folder_item, "folder-item-added", G_CALLBACK (on_folder_item_changed), self, G_CONNECT_DEFAULT);
+
+        g_ptr_array_add (array, g_steal_pointer (&folder_item));
+        child = child->next;
+      }
+    } else {
+      g_autoptr (StampFolderItem) folder_item = stamp_folder_item_new (stamp_item_get_account (STAMP_ITEM (self)), folder_info);
+
+      g_signal_connect_object (folder_item, "folder-item-added", G_CALLBACK (on_folder_item_changed), self, G_CONNECT_DEFAULT);
+
+      g_ptr_array_add (array, g_steal_pointer (&folder_item));
+    }
+
     folder_info = folder_info->next;
   }
 
