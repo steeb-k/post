@@ -1048,6 +1048,12 @@ stamp_mail_service_get_transport_source (StampMailService *self)
   return self->transport_source;
 }
 
+ESource *
+stamp_mail_service_get_identity_source (StampMailService *self)
+{
+  return self->identity_source;
+}
+
 gboolean
 stamp_contacts_service_get_enabled (StampContactsService *self)
 {

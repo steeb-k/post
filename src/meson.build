@@ -105,6 +105,7 @@ stamp_deps = [
   dependency('libportal-gtk4', version: '>= 0.6'),
   dependency('libpsl'),
   dependency('nss'),
+  dependency('gpgme'),
   dependency('webkitgtk-6.0'),
   cc.find_library('resolv'),
   cc.find_library('m')

@@ -125,5 +125,20 @@
       <summary>Default signature UID</summary>
       <description>The UID of the default signature to auto-insert in new mails.</description>
     </key>
+    <key name="pgp-key-id" type="s">
+      <default>''</default>
+      <summary>OpenPGP key ID</summary>
+      <description>The ID of the OpenPGP key used for signing and encryption.</description>
+    </key>
+    <key name="smime-sign-cert" type="s">
+      <default>''</default>
+      <summary>S/MIME signing certificate nickname</summary>
+      <description>The nickname of the S/MIME certificate used for signing.</description>
+    </key>
+    <key name="smime-encrypt-cert" type="s">
+      <default>''</default>
+      <summary>S/MIME encryption certificate nickname</summary>
+      <description>The nickname of the S/MIME certificate used for encryption.</description>
+    </key>
   </schema>
 </schemalist>

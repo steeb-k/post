@@ -468,79 +468,97 @@ template $StampComposer: Adw.ApplicationWindow {
           }
         }
 
-        MenuButton security_menu {
-          icon-name: "shield-symbolic";
+        Overlay {
+          [overlay]
+          Box security_is_active {
+            halign: end;
+            valign: start;
+            margin-end: 5;
+            margin-top: 5;
+            can-focus: false;
+            can-target: false;
+            visible: false;
 
-          styles [
-            "flat",
-          ]
-
-          accessibility {
-            label: _("Security Menu");
+            styles [
+              "circle-overlay",
+            ]
           }
 
-          Popover popover {
-            Box {
-              orientation: vertical;
-              spacing: 6;
+          child: MenuButton security_menu {
+            icon-name: "shield-safe-symbolic";
+            tooltip-text: _("Security Options");
 
-              Label {
-                label: _("PGP");
-                halign: start;
+            styles [
+              "flat",
+            ]
 
-                styles [
-                  "dim-label",
-                ]
-              }
-
-              ToggleButton pgp_sign {
-                label: _("Sign");
-                icon-name: "signature-symbolic";
-
-                accessibility {
-                  label: _("PGP Sign");
-                }
-              }
-
-              ToggleButton pgp_encrypt {
-                label: _("Encrypt");
-                icon-name: "locked-symbolic";
-
-                accessibility {
-                  label: _("PGP Encrypt");
-                }
-              }
-
-              Separator {}
-
-              Label {
-                label: _("S/MIME");
-                halign: start;
-
-                styles [
-                  "dim-label",
-                ]
-              }
-
-              ToggleButton smime_sign {
-                label: _("Sign");
-                icon-name: "signature-symbolic";
-
-                accessibility {
-                  label: _("S/MIME Sign");
-                }
-              }
-
-              ToggleButton smime_encrypt {
-                label: _("Encrypt");
-                icon-name: "locked-symbolic";
-
-                accessibility {
-                  label: _("S/MIME Encrypt");
-                }
-              }
+            accessibility {
+              label: _("Security Options");
             }
-          }
+
+            popover: Popover security_popover {
+              Box {
+                orientation: vertical;
+                spacing: 6;
+
+                Label {
+                  label: _("PGP");
+                  halign: start;
+
+                  styles [
+                    "dim-label",
+                  ]
+                }
+
+                CheckButton pgp_sign {
+                  label: _("PGP Sign");
+                  toggled => $on_security_toggle_toggled();
+
+                  accessibility {
+                    label: _("PGP Sign");
+                  }
+                }
+
+                CheckButton pgp_encrypt {
+                  label: _("PGP Encrypt");
+                  toggled => $on_security_toggle_toggled();
+
+                  accessibility {
+                    label: _("PGP Encrypt");
+                  }
+                }
+
+                Separator {}
+
+                Label {
+                  label: _("S/MIME");
+                  halign: start;
+
+                  styles [
+                    "dim-label",
+                  ]
+                }
+
+                CheckButton smime_sign {
+                  label: _("S/MIME Sign");
+                  toggled => $on_security_toggle_toggled();
+
+                  accessibility {
+                    label: _("S/MIME Sign");
+                  }
+                }
+
+                CheckButton smime_encrypt {
+                  label: _("S/MIME Encrypt");
+                  toggled => $on_security_toggle_toggled();
+
+                  accessibility {
+                    label: _("S/MIME Encrypt");
+                  }
+                }
+              }
+            };
+          };
         }
       }
     }

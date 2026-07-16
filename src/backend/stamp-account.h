@@ -128,6 +128,9 @@ stamp_mail_service_get_source (StampMailService *self);
 ESource *
 stamp_mail_service_get_transport_source (StampMailService *self);
 
+ESource *
+stamp_mail_service_get_identity_source (StampMailService *self);
+
 /*
  * Contacts
  */

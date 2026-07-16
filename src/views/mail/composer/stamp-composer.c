@@ -60,6 +60,8 @@ struct _StampComposer {
   GtkWidget *smime_sign;
   GtkWidget *smime_encrypt;
   GtkWidget *security_menu;
+  GtkWidget *security_is_active;
+  GtkWidget *security_popover;
   GtkWidget *insert_link_button;
   GtkWidget *scrolled_window;
   StampComposerType type;
@@ -407,44 +409,86 @@ on_send_mail (GObject      *account,
   send_completed_data_free (data);
 }
 
-static void
-apply_crypto (CamelSession         *session,
-              CamelMimeMessage     *mime_message,
-              CamelInternetAddress *recipient,
-              gboolean              pgp_sign,
-              gboolean              pgp_encrypt,
-              gboolean              smime_sign,
-              gboolean              smime_encrypt,
-              GCancellable         *cancellable)
+static CamelMimeMessage *
+wrap_part_in_message (CamelMimePart    *part,
+                      CamelMimeMessage *original)
 {
-  g_autoptr (GError) error = NULL;
+  CamelMimeMessage *msg = camel_mime_message_new ();
+  CamelDataWrapper *content = camel_medium_get_content (CAMEL_MEDIUM (part));
+
+  if (content)
+    camel_medium_set_content (CAMEL_MEDIUM (msg), content);
+
+  if (original) {
+    const CamelNameValueArray *hdrs = camel_medium_get_headers (CAMEL_MEDIUM (original));
+
+    for (gint i = 0; i < camel_name_value_array_get_length (hdrs); i++) {
+      const gchar *name = camel_name_value_array_get_name (hdrs, i);
+      const gchar *value;
+
+      if (!name)
+        continue;
+
+      if (g_ascii_strcasecmp (name, "content-type") == 0 ||
+          g_ascii_strcasecmp (name, "content-transfer-encoding") == 0 ||
+          g_ascii_strcasecmp (name, "mime-version") == 0 ||
+          g_ascii_strcasecmp (name, "content-disposition") == 0 ||
+          g_ascii_strcasecmp (name, "content-description") == 0 ||
+          g_ascii_strcasecmp (name, "content-id") == 0)
+        continue;
+
+      value = camel_name_value_array_get_value (hdrs, i);
+      if (value)
+        camel_medium_set_header (CAMEL_MEDIUM (msg), name, value);
+    }
+  }
+
+  return msg;
+}
+
+static gboolean
+apply_crypto (CamelSession          *session,
+              CamelMimeMessage     **mime_message,
+              CamelInternetAddress  *recipient,
+              ESource               *identity,
+              const gchar           *account_uid,
+              gboolean               pgp_sign,
+              gboolean               pgp_encrypt,
+              gboolean               smime_sign,
+              gboolean               smime_encrypt,
+              GCancellable          *cancellable,
+              GError               **error)
+{
+  g_autoptr (GError) local_error = NULL;
 
   if (pgp_sign || pgp_encrypt) {
     g_autoptr (CamelCipherContext) cipher = camel_gpg_context_new (session);
     g_autoptr (CamelMimePart) opart = camel_mime_part_new ();
     CamelMimePart *ipart;
 
-    ipart = CAMEL_MIME_PART (mime_message);
+    ipart = CAMEL_MIME_PART (*mime_message);
 
     if (pgp_sign) {
-      gboolean success = camel_cipher_context_sign_sync (cipher, NULL, CAMEL_CIPHER_HASH_SHA256,
-                                                         ipart, opart,
-                                                         cancellable, &error);
-      if (!success || error) {
-        if (error) {
-          g_warning ("PGP signing failed: %s", error->message);
-          g_clear_error (&error);
-        }
-      } else {
-        g_object_unref (mime_message);
-        mime_message = CAMEL_MIME_MESSAGE (opart);
-        ipart = CAMEL_MIME_PART (mime_message);
-        opart = camel_mime_part_new ();
+      g_autoptr (CamelMimeMessage) old = NULL;
+
+      camel_cipher_context_sign_sync (cipher, NULL, CAMEL_CIPHER_HASH_SHA256, ipart, opart, cancellable, &local_error);
+      if (local_error) {
+        g_set_error (error, G_IO_ERROR, 0, "PGP signing failed: %s", local_error->message);
+        return FALSE;
       }
+
+      old = *mime_message;
+      if (CAMEL_IS_MIME_MESSAGE (opart))
+        *mime_message = CAMEL_MIME_MESSAGE (g_object_ref (opart));
+      else
+        *mime_message = wrap_part_in_message (opart, old);
+
+      ipart = CAMEL_MIME_PART (*mime_message);
+      opart = camel_mime_part_new ();
     }
 
-    if (pgp_encrypt && !error) {
-      gboolean success;
+    if (pgp_encrypt) {
+      g_autoptr (CamelMimeMessage) old = NULL;
       g_autoptr (GPtrArray) recipients_list = g_ptr_array_new ();
 
       for (gint i = 0; i < camel_address_length (CAMEL_ADDRESS (recipient)); i++) {
@@ -454,71 +498,88 @@ apply_crypto (CamelSession         *session,
         }
       }
 
-      success = camel_cipher_context_encrypt_sync (cipher, NULL, recipients_list,
-                                                   ipart, opart,
-                                                   cancellable, &error);
-      if (!success || error) {
-        if (error) {
-          g_warning ("PGP encryption failed: %s", error->message);
-          g_clear_error (&error);
-        }
-      } else {
-        g_object_unref (mime_message);
-        mime_message = CAMEL_MIME_MESSAGE (opart);
+      camel_cipher_context_encrypt_sync (cipher, NULL, recipients_list, ipart, opart, cancellable, &local_error);
+      if (local_error) {
+        g_set_error (error, G_IO_ERROR, 0, "PGP encryption failed: %s", local_error->message);
+        return FALSE;
       }
+
+      old = *mime_message;
+      if (CAMEL_IS_MIME_MESSAGE (opart))
+        *mime_message = CAMEL_MIME_MESSAGE (g_object_ref (opart));
+      else
+        *mime_message = wrap_part_in_message (opart, old);
     }
 
-    g_object_unref (cipher);
+    return TRUE;
   }
 
   if (smime_sign || smime_encrypt) {
+    g_autofree char *account_settings_path = g_strdup_printf ("/org/tabos/stamp/mail/accounts/%s/", account_uid);
+    g_autoptr (GSettings) account_settings = g_settings_new_with_path ("org.tabos.stamp.mail.accounts", account_settings_path);
+    g_autofree char *sign_cert = g_settings_get_string (account_settings, "smime-sign-cert");
+    g_autofree char *encrypt_cert = g_settings_get_string (account_settings, "smime-encrypt-cert");
     g_autoptr (CamelCipherContext) cipher = camel_smime_context_new (session);
     g_autoptr (CamelMimePart) opart = camel_mime_part_new ();
-    CamelMimePart *ipart;
-
-    ipart = CAMEL_MIME_PART (mime_message);
+    CamelMimePart *ipart = CAMEL_MIME_PART (*mime_message);
 
     if (smime_sign) {
-      gboolean success = camel_cipher_context_sign_sync (cipher, NULL, CAMEL_CIPHER_HASH_SHA256,
-                                                         ipart, opart,
-                                                         cancellable, &error);
-      if (!success || error) {
-        if (error) {
-          g_warning ("S/MIME signing failed: %s", error->message);
-          g_clear_error (&error);
-        }
-      } else {
-        g_object_unref (mime_message);
-        mime_message = CAMEL_MIME_MESSAGE (opart);
-        ipart = CAMEL_MIME_PART (mime_message);
-        opart = camel_mime_part_new ();
+      g_autoptr (CamelMimeMessage) old = NULL;
+
+      if (!sign_cert) {
+        g_set_error (error, G_IO_ERROR, 0, "S/MIME signing skipped: no signing certificate configured");
+        return FALSE;
       }
+
+      camel_cipher_context_sign_sync (cipher, sign_cert, CAMEL_CIPHER_HASH_SHA256, ipart, opart, cancellable, &local_error);
+      if (local_error) {
+        g_set_error (error, G_IO_ERROR, 0, "S/MIME signing failed: %s", local_error->message);
+        return FALSE;
+      }
+
+      old = *mime_message;
+      if (CAMEL_IS_MIME_MESSAGE (opart))
+        *mime_message = CAMEL_MIME_MESSAGE (g_object_ref (opart));
+      else
+        *mime_message = wrap_part_in_message (opart, old);
+
+      ipart = CAMEL_MIME_PART (*mime_message);
+      opart = camel_mime_part_new ();
     }
 
-    if (smime_encrypt && !error) {
-      g_autoptr (GPtrArray) recipients_list = g_ptr_array_new ();
-      gboolean success;
+    if (smime_encrypt) {
+      g_autoptr (GPtrArray) recipients_list = NULL;
+      g_autoptr (CamelMimeMessage) old = NULL;
 
+      if (!encrypt_cert) {
+        g_set_error (error, G_IO_ERROR, 0, "S/MIME encryption skipped: no encryption certificate configured");
+        return FALSE;
+      }
+
+      recipients_list = g_ptr_array_new ();
       for (gint i = 0; i < camel_address_length (CAMEL_ADDRESS (recipient)); i++) {
         const gchar *r_name, *r_mail;
+
         if (camel_internet_address_get (recipient, i, &r_name, &r_mail) && r_mail) {
           g_ptr_array_add (recipients_list, g_strdup (r_mail));
         }
       }
 
-      success = camel_cipher_context_encrypt_sync (cipher, NULL, recipients_list,
-                                                   ipart, opart,
-                                                   cancellable, &error);
-      if (!success || error) {
-        if (error) {
-          g_warning ("S/MIME encryption failed: %s", error->message);
-          g_clear_error (&error);
-        }
-      } else {
-        g_object_unref (mime_message);
+      camel_cipher_context_encrypt_sync (cipher, encrypt_cert, recipients_list, ipart, opart, cancellable, &local_error);
+      if (local_error) {
+        g_set_error (error, G_IO_ERROR, 0, "S/MIME encryption failed: %s", local_error->message);
+        return FALSE;
       }
+
+      old = *mime_message;
+      if (CAMEL_IS_MIME_MESSAGE (opart))
+        *mime_message = CAMEL_MIME_MESSAGE (g_object_ref (opart));
+      else
+        *mime_message = wrap_part_in_message (opart, old);
     }
   }
+
+  return TRUE;
 }
 
 static void on_get_body_html (GObject      *source_object,
@@ -628,56 +689,51 @@ on_get_body_html (GObject      *source_object,
 
   name = stamp_composer_from_get_name (self->composer_from);
   mail = stamp_composer_from_get_mail (self->composer_from);
+  account = stamp_composer_from_get_account (self->composer_from);
 
   sender = build_sender (mime_message, name, mail);
   recipient = build_recipients (self, mime_message);
 
-  if (self->security_menu && !self->pgp_sign) {
-    GtkWidget *popover = GTK_WIDGET (gtk_menu_button_get_popover (GTK_MENU_BUTTON (self->security_menu)));
-    if (popover) {
-      GtkWidget *box = gtk_widget_get_first_child (popover);
-      while (box && !GTK_IS_BOX (box))
-        box = gtk_widget_get_next_sibling (box);
+  do_pgp_sign = gtk_check_button_get_active (GTK_CHECK_BUTTON (self->pgp_sign));
+  do_pgp_encrypt = gtk_check_button_get_active (GTK_CHECK_BUTTON (self->pgp_encrypt));
+  do_smime_sign = gtk_check_button_get_active (GTK_CHECK_BUTTON (self->smime_sign));
+  do_smime_encrypt = gtk_check_button_get_active (GTK_CHECK_BUTTON (self->smime_encrypt));
 
-      if (box) {
-        GtkWidget *child = gtk_widget_get_first_child (box);
-        while (child && !self->pgp_sign) {
-          if (GTK_IS_BOX (child)) {
-            GtkWidget *toggle = gtk_widget_get_first_child (child);
-            while (toggle && !self->pgp_sign) {
-              const gchar *widget_name = gtk_widget_get_name (toggle);
-              if (GTK_IS_TOGGLE_BUTTON (toggle)) {
-                if (g_strcmp0 (widget_name, "pgp_sign") == 0)
-                  self->pgp_sign = toggle;
-                else if (g_strcmp0 (widget_name, "pgp_encrypt") == 0)
-                  self->pgp_encrypt = toggle;
-                else if (g_strcmp0 (widget_name, "smime_sign") == 0)
-                  self->smime_sign = toggle;
-                else if (g_strcmp0 (widget_name, "smime_encrypt") == 0)
-                  self->smime_encrypt = toggle;
-              }
-              toggle = gtk_widget_get_next_sibling (toggle);
-            }
-          }
-          child = gtk_widget_get_next_sibling (child);
-        }
-      }
+  if (do_pgp_sign || do_pgp_encrypt || do_smime_sign || do_smime_encrypt) {
+    CamelSession *session;
+    ESource *identity = NULL;
+
+    session = CAMEL_SESSION (stamp_session_get_default ());
+    if (account) {
+      StampMailService *mail_service = stamp_account_get_mail_service (account);
+
+      if (mail_service)
+        identity = stamp_mail_service_get_identity_source (mail_service);
+    }
+
+    apply_crypto (session,
+                  &mime_message,
+                  recipient,
+                  identity,
+                  stamp_account_get_uid (account),
+                  do_pgp_sign,
+                  do_pgp_encrypt,
+                  do_smime_sign,
+                  do_smime_encrypt,
+                  self->cancellable,
+                  &error);
+    if (error) {
+      AdwAlertDialog *dialog = ADW_ALERT_DIALOG (adw_alert_dialog_new (_("Cannot send mail"), error->message));
+
+      adw_alert_dialog_add_response (dialog, "close", _("_Close"));
+      adw_alert_dialog_set_default_response (dialog, "close");
+      adw_alert_dialog_set_close_response (dialog, "close");
+      adw_dialog_present (ADW_DIALOG (dialog), GTK_WIDGET (self));
+      return;
     }
   }
 
-  do_pgp_sign = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->pgp_sign));
-  do_pgp_encrypt = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->pgp_encrypt));
-  do_smime_sign = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->smime_sign));
-  do_smime_encrypt = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->smime_encrypt));
-
-  if (do_pgp_sign || do_pgp_encrypt || do_smime_sign || do_smime_encrypt) {
-    CamelSession *session = CAMEL_SESSION (stamp_session_get_default ());
-
-    apply_crypto (session, mime_message, recipient, do_pgp_sign, do_pgp_encrypt, do_smime_sign, do_smime_encrypt, self->cancellable);
-  }
-
   mail_view = stamp_window_get_mail_view (STAMP_WINDOW (stamp_get_main_window ()));
-  account = stamp_composer_from_get_account (self->composer_from);
 
   data = send_completed_data_new (mail_view, account, self->draft_uid);
 
@@ -1401,6 +1457,22 @@ build_signature_menu (StampComposer *self)
 }
 
 static void
+on_security_toggle_toggled (GtkWidget *toggle,
+                            gpointer   user_data)
+{
+  StampComposer *self = user_data;
+  gboolean active = FALSE;
+
+  if (gtk_check_button_get_active (GTK_CHECK_BUTTON (self->pgp_sign)) ||
+      gtk_check_button_get_active (GTK_CHECK_BUTTON (self->pgp_encrypt)) ||
+      gtk_check_button_get_active (GTK_CHECK_BUTTON (self->smime_sign)) ||
+      gtk_check_button_get_active (GTK_CHECK_BUTTON (self->smime_encrypt)))
+    active = TRUE;
+
+  gtk_widget_set_visible (self->security_is_active, active);
+}
+
+static void
 stamp_composer_init (StampComposer *self)
 {
   GBytes *template;
@@ -1651,6 +1723,8 @@ stamp_composer_class_init (StampComposerClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampComposer, smime_sign);
   gtk_widget_class_bind_template_child (widget_class, StampComposer, smime_encrypt);
   gtk_widget_class_bind_template_child (widget_class, StampComposer, security_menu);
+  gtk_widget_class_bind_template_child (widget_class, StampComposer, security_is_active);
+  gtk_widget_class_bind_template_child (widget_class, StampComposer, security_popover);
   gtk_widget_class_bind_template_child (widget_class, StampComposer, insert_link_button);
   gtk_widget_class_bind_template_child (widget_class, StampComposer, toggle);
   gtk_widget_class_bind_template_child (widget_class, StampComposer, toast_overlay);
@@ -1660,6 +1734,7 @@ stamp_composer_class_init (StampComposerClass *klass)
   gtk_widget_class_bind_template_callback (widget_class, on_close_button_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_close_request);
   gtk_widget_class_bind_template_callback (widget_class, on_subject_changed);
+  gtk_widget_class_bind_template_callback (widget_class, on_security_toggle_toggled);
 
   props[PROP_ACCOUNT] = g_param_spec_object ("account",
                                              NULL,
@@ -1673,9 +1748,12 @@ stamp_composer_class_init (StampComposerClass *klass)
 GtkWidget *
 stamp_composer_new (StampAccount *account)
 {
-  return g_object_new (STAMP_TYPE_COMPOSER,
-                       "account", account,
-                       NULL);
+  StampComposer *self = g_object_new (STAMP_TYPE_COMPOSER,
+                                      "account", account,
+                                      "application", GTK_APPLICATION (g_application_get_default ()),
+                                      NULL);
+
+  return GTK_WIDGET (self);
 }
 
 static gboolean
@@ -1865,7 +1943,7 @@ stamp_composer_new_with_quote (StampComposerType       type,
                                CamelMimeMessage       *mime_message,
                                gchar                  *content_to_quote)
 {
-  GtkWidget *composer = g_object_new (STAMP_TYPE_COMPOSER, "account", account, NULL);
+  GtkWidget *composer = g_object_new (STAMP_TYPE_COMPOSER, "account", account, "application", GTK_APPLICATION (g_application_get_default ()), NULL);
 
   stamp_composer_set_quote_content (STAMP_COMPOSER (composer),
                                     type,

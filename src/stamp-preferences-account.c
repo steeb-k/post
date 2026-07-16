@@ -21,6 +21,10 @@
 
 #include <camel/camel.h>
 #include <glib/gi18n.h>
+#include <gpgme.h>
+#include <nss.h>
+#include <pk11pub.h>
+#include <cert.h>
 
 #include "stamp-account.h"
 #include "stamp-helper.h"
@@ -37,6 +41,13 @@ struct _StampPreferencesAccount {
   AdwPreferencesGroup *alias_group;
   AdwComboRow *notification_mode;
   AdwPreferencesGroup *notification_folders_group;
+
+  AdwComboRow *pgp_key;
+  AdwComboRow *smime_sign_cert;
+  AdwComboRow *smime_encrypt_cert;
+
+  GPtrArray *pgp_key_ids;
+  GPtrArray *smime_cert_nicknames;
 
   StampAccount *account;
   GHashTable *aliases;
@@ -359,6 +370,234 @@ setup_notifications (StampPreferencesAccount *self)
 }
 
 static void
+on_cert_list_item_setup (GtkListItemFactory *factory,
+                         GtkListItem        *item)
+{
+  GtkWidget *title = gtk_label_new (NULL);
+
+  gtk_label_set_xalign (GTK_LABEL (title), 0.0);
+  gtk_label_set_ellipsize (GTK_LABEL (title), PANGO_ELLIPSIZE_END);
+  gtk_list_item_set_child (item, title);
+}
+
+static void
+on_cert_list_item_bind (GtkListItemFactory *factory,
+                        GtkListItem        *item)
+{
+  GtkWidget *title = gtk_list_item_get_child (item);
+  GtkStringObject *string_obj = GTK_STRING_OBJECT (gtk_list_item_get_item (item));
+  const char *text;
+
+  if (!string_obj)
+    return;
+
+  text = gtk_string_object_get_string (string_obj);
+  gtk_label_set_text (GTK_LABEL (title), text);
+}
+
+static GtkStringList *
+enumerate_smime_certs (GPtrArray *nicknames)
+{
+  GtkStringList *list = gtk_string_list_new (NULL);
+  CERTCertList *cert_list;
+  CERTCertListNode *node;
+
+  g_ptr_array_set_size (nicknames, 0);
+
+  gtk_string_list_append (list, _("None"));
+  g_ptr_array_add (nicknames, NULL);
+
+  cert_list = PK11_ListCerts (PK11CertListAll, NULL);
+  if (!cert_list)
+    return list;
+
+  for (node = CERT_LIST_HEAD (cert_list); !CERT_LIST_END (node, cert_list); node = CERT_LIST_NEXT (node)) {
+    CERTCertificate *cert = node->cert;
+
+    if (!cert->nickname || g_strcmp0 (cert->nickname, "") == 0)
+      continue;
+
+    /* if (!(cert->keyUsage & certificateUsageObjectSigner) && !(cert->keyUsage & certificateUsageEmailSigner)) */
+    /*   continue; */
+
+    gtk_string_list_append (list, cert->nickname);
+
+    g_ptr_array_add (nicknames, g_strdup (cert->nickname));
+  }
+
+  CERT_DestroyCertList (cert_list);
+
+  return list;
+}
+
+static GtkStringList *
+enumerate_pgp_keys (GPtrArray *key_ids)
+{
+  GtkStringList *list = gtk_string_list_new (NULL);
+  gpgme_ctx_t ctx;
+  gpgme_error_t err;
+  gpgme_key_t key;
+
+  if (key_ids)
+    g_ptr_array_set_size (key_ids, 0);
+
+  gtk_string_list_append (list, _("None"));
+  if (key_ids)
+    g_ptr_array_add (key_ids, NULL);
+
+  err = gpgme_new (&ctx);
+  if (err != GPG_ERR_NO_ERROR)
+    return list;
+
+  gpgme_set_protocol (ctx, GPGME_PROTOCOL_OpenPGP);
+  gpgme_set_keylist_mode (ctx, GPGME_KEYLIST_MODE_LOCAL);
+
+  err = gpgme_op_keylist_start (ctx, NULL, 0);
+  if (err != GPG_ERR_NO_ERROR) {
+    gpgme_release (ctx);
+    return list;
+  }
+
+  while ((err = gpgme_op_keylist_next (ctx, &key)) == GPG_ERR_NO_ERROR) {
+    const gchar *key_id = key->subkeys ? key->subkeys->keyid : NULL;
+    const gchar *uid = key->uids ? key->uids->uid : NULL;
+
+    if (key_id && (key->secret || key->has_sign || key->has_encrypt)) {
+      if (uid)
+        gtk_string_list_append (list, uid);
+      else
+        gtk_string_list_append (list, key_id);
+
+      if (key_ids)
+        g_ptr_array_add (key_ids, g_strdup (key_id));
+    }
+
+    gpgme_key_unref (key);
+  }
+
+  gpgme_op_keylist_end (ctx);
+  gpgme_release (ctx);
+
+  return list;
+}
+
+static void
+on_pgp_key_selected (GObject    *combo,
+                     GParamSpec *pspec,
+                     gpointer    user_data)
+{
+  StampPreferencesAccount *self = STAMP_PREFERENCES_ACCOUNT (user_data);
+  guint selected = adw_combo_row_get_selected (self->pgp_key);
+
+  if (selected > 0 && self->pgp_key_ids && selected < self->pgp_key_ids->len)
+    g_settings_set_string (self->account_settings, "pgp-key-id", g_ptr_array_index (self->pgp_key_ids, selected));
+  else
+    g_settings_set_string (self->account_settings, "pgp-key-id", "");
+}
+
+static void
+on_smime_sign_cert_selected (GObject    *combo,
+                             GParamSpec *pspec,
+                             gpointer    user_data)
+{
+  StampPreferencesAccount *self = STAMP_PREFERENCES_ACCOUNT (user_data);
+  guint selected = adw_combo_row_get_selected (self->smime_sign_cert);
+
+  if (selected > 0 && self->smime_cert_nicknames && selected < self->smime_cert_nicknames->len)
+    g_settings_set_string (self->account_settings, "smime-sign-cert", g_ptr_array_index (self->smime_cert_nicknames, selected));
+  else
+    g_settings_set_string (self->account_settings, "smime-sign-cert", "");
+}
+
+static void
+on_smime_encrypt_cert_selected (GObject    *combo,
+                                GParamSpec *pspec,
+                                gpointer    user_data)
+{
+  StampPreferencesAccount *self = STAMP_PREFERENCES_ACCOUNT (user_data);
+  guint selected = adw_combo_row_get_selected (self->smime_encrypt_cert);
+
+  if (selected > 0 && self->smime_cert_nicknames && selected < self->smime_cert_nicknames->len)
+    g_settings_set_string (self->account_settings, "smime-encrypt-cert", g_ptr_array_index (self->smime_cert_nicknames, selected));
+  else
+    g_settings_set_string (self->account_settings, "smime-encrypt-cert", "");
+}
+
+static void
+setup_crypto (StampPreferencesAccount *self)
+{
+  GtkListItemFactory *factory;
+  GtkStringList *pgp_keys;
+  GtkStringList *smime_certs;
+  g_autofree char *key_id = NULL;
+  g_autofree char *sign_val = NULL;
+  g_autofree char *enc_val = NULL;
+
+  g_signal_handlers_block_by_func (self->smime_encrypt_cert, on_smime_encrypt_cert_selected, self);
+  g_signal_handlers_block_by_func (self->smime_sign_cert, on_smime_sign_cert_selected, self);
+  g_signal_handlers_block_by_func (self->pgp_key, on_pgp_key_selected, self);
+
+  g_clear_pointer (&self->pgp_key_ids, g_ptr_array_unref);
+  self->pgp_key_ids = g_ptr_array_new_full (0, g_free);
+  pgp_keys = enumerate_pgp_keys (self->pgp_key_ids);
+  adw_combo_row_set_model (self->pgp_key, G_LIST_MODEL (pgp_keys));
+
+  g_clear_pointer (&self->smime_cert_nicknames, g_ptr_array_unref);
+  self->smime_cert_nicknames = g_ptr_array_new_full (0, g_free);
+  smime_certs = enumerate_smime_certs (self->smime_cert_nicknames);
+  adw_combo_row_set_model (self->smime_sign_cert, G_LIST_MODEL (smime_certs));
+  adw_combo_row_set_model (self->smime_encrypt_cert, G_LIST_MODEL (smime_certs));
+
+  factory = gtk_signal_list_item_factory_new ();
+  g_signal_connect (factory, "setup", G_CALLBACK (on_cert_list_item_setup), NULL);
+  g_signal_connect (factory, "bind", G_CALLBACK (on_cert_list_item_bind), NULL);
+
+  adw_combo_row_set_list_factory (self->pgp_key, factory);
+  adw_combo_row_set_list_factory (self->smime_sign_cert, factory);
+  adw_combo_row_set_list_factory (self->smime_encrypt_cert, factory);
+
+  key_id = g_settings_get_string (self->account_settings, "pgp-key-id");
+  if (key_id && strlen (key_id) > 0) {
+    for (guint i = 1; self->pgp_key_ids && i < self->pgp_key_ids->len; i++) {
+      const gchar *candidate = g_ptr_array_index (self->pgp_key_ids, i);
+
+      if (g_strcmp0 (candidate, key_id) == 0) {
+        adw_combo_row_set_selected (self->pgp_key, i);
+        break;
+      }
+    }
+  }
+
+  sign_val = g_settings_get_string (self->account_settings, "smime-sign-cert");
+  if (sign_val && strlen (sign_val) > 0) {
+    for (guint i = 1; self->smime_cert_nicknames && i < self->smime_cert_nicknames->len; i++) {
+      const gchar *candidate = g_ptr_array_index (self->smime_cert_nicknames, i);
+
+      if (g_strcmp0 (candidate, sign_val) == 0) {
+        adw_combo_row_set_selected (self->smime_sign_cert, i);
+        break;
+      }
+    }
+  }
+
+  enc_val = g_settings_get_string (self->account_settings, "smime-encrypt-cert");
+  if (enc_val && strlen (enc_val) > 0) {
+    for (guint i = 1; self->smime_cert_nicknames && i < self->smime_cert_nicknames->len; i++) {
+      const gchar *candidate = g_ptr_array_index (self->smime_cert_nicknames, i);
+
+      if (g_strcmp0 (candidate, enc_val) == 0) {
+        adw_combo_row_set_selected (self->smime_encrypt_cert, i);
+        break;
+      }
+    }
+  }
+
+  g_signal_handlers_unblock_by_func (self->pgp_key, on_pgp_key_selected, self);
+  g_signal_handlers_unblock_by_func (self->smime_sign_cert, on_smime_sign_cert_selected, self);
+  g_signal_handlers_unblock_by_func (self->smime_encrypt_cert, on_smime_encrypt_cert_selected, self);
+}
+
+static void
 set_account (StampPreferencesAccount *self,
              StampAccount            *account)
 {
@@ -376,6 +615,7 @@ set_account (StampPreferencesAccount *self,
   refresh_alias_list (self);
 
   setup_notifications (self);
+  setup_crypto (self);
 }
 
 static void
@@ -435,6 +675,12 @@ stamp_preferences_account_dispose (GObject *object)
   if (self->folder_rows)
     g_ptr_array_unref (self->folder_rows);
 
+  if (self->pgp_key_ids)
+    g_ptr_array_unref (self->pgp_key_ids);
+
+  if (self->smime_cert_nicknames)
+    g_ptr_array_unref (self->smime_cert_nicknames);
+
   G_OBJECT_CLASS (stamp_preferences_account_parent_class)->dispose (object);
 }
 
@@ -456,6 +702,9 @@ stamp_preferences_account_class_init (StampPreferencesAccountClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccount, alias_group);
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccount, notification_mode);
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccount, notification_folders_group);
+  gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccount, pgp_key);
+  gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccount, smime_sign_cert);
+  gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccount, smime_encrypt_cert);
 
   gtk_widget_class_bind_template_callback (widget_class, on_add_alias_clicked);
 
@@ -479,6 +728,11 @@ stamp_preferences_account_init (StampPreferencesAccount *self)
   g_signal_connect (self->default_signature, "notify::selected", G_CALLBACK (on_default_signature_selected), self);
   g_signal_connect_swapped (self, "shown", G_CALLBACK (refresh_default_signature), self);
   g_signal_connect_swapped (self, "shown", G_CALLBACK (refresh_alias_list), self);
+  g_signal_connect_swapped (self, "shown", G_CALLBACK (setup_crypto), self);
+
+  g_signal_connect (self->pgp_key, "notify::selected", G_CALLBACK (on_pgp_key_selected), self);
+  g_signal_connect (self->smime_sign_cert, "notify::selected", G_CALLBACK (on_smime_sign_cert_selected), self);
+  g_signal_connect (self->smime_encrypt_cert, "notify::selected", G_CALLBACK (on_smime_encrypt_cert_selected), self);
 }
 
 GtkWidget *

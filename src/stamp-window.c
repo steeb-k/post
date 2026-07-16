@@ -226,13 +226,18 @@ stamp_window_get_mail_view (StampWindow *self)
   return self->mail_view;
 }
 
-/* FIXME: Wrong window selection */
 StampWindow *
 stamp_get_main_window (void)
 {
-  GApplication *app = g_application_get_default ();
+  GtkApplication *app = GTK_APPLICATION (g_application_get_default ());
+  GList *windows = gtk_application_get_windows (app);
 
-  return STAMP_WINDOW (gtk_application_get_active_window (GTK_APPLICATION (app)));
+  for (GList *win = windows; win && win->data; win = g_list_next (win)) {
+    if (STAMP_IS_WINDOW (win->data))
+      return STAMP_WINDOW (win->data);
+  }
+
+  return NULL;
 }
 
 void
