@@ -17,6 +17,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "config.h"
+
 #include "stamp-composer.h"
 
 #include <camel/camel.h>
@@ -38,6 +40,8 @@
 #include "stamp-tag.h"
 #include "stamp-webview.h"
 #include "stamp-window.h"
+
+#define USER_AGENT ("Stamp " PACKAGE_VERSION)
 
 struct _StampComposer {
   AdwApplicationWindow parent_instance;
@@ -673,6 +677,9 @@ on_get_body_html (GObject      *source_object,
   gboolean do_pgp_encrypt;
   gboolean do_smime_sign;
   gboolean do_smime_encrypt;
+  g_autofree gchar *message_uid = NULL;
+  const gchar *from_domain;
+  const gchar *at;
 
   if (!body) {
     if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
@@ -736,6 +743,20 @@ on_get_body_html (GObject      *source_object,
   mail_view = stamp_window_get_mail_view (STAMP_WINDOW (stamp_get_main_window ()));
 
   data = send_completed_data_new (mail_view, account, self->draft_uid);
+
+  camel_medium_set_header (CAMEL_MEDIUM (mime_message), "User-Agent", USER_AGENT);
+
+  at = strchr (mail, '@');
+  if (at)
+    from_domain = at + 1;
+  else
+    from_domain = NULL;
+
+  if (!from_domain || !*from_domain)
+    from_domain = "localhost";
+
+  message_uid = camel_header_msgid_generate (from_domain);
+  camel_mime_message_set_message_id (mime_message, message_uid);
 
   stamp_account_send_mail (account, mime_message, sender, recipient,
                            do_pgp_sign || do_smime_sign, do_pgp_encrypt || do_smime_encrypt, NULL, on_send_mail, data);
