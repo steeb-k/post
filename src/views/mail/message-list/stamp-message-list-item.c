@@ -17,6 +17,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "config.h"
+
 #include "stamp-message-list-item.h"
 
 #include <camel/camel.h>
@@ -36,6 +38,8 @@
 #include "stamp-session.h"
 #include "stamp-settings.h"
 #include "stamp-webview.h"
+
+#define USER_AGENT ("Stamp " PACKAGE_VERSION)
 
 #define LIBICAL_GLIB_UNSTABLE_API 1
 struct _StampMessageListItem {
@@ -693,6 +697,58 @@ static void
 on_send_disposition (AdwBanner *banner,
                      gpointer   user_data)
 {
+  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
+  g_autoptr (CamelMimeMessage) message = NULL;
+  g_autoptr (CamelDataWrapper) body = NULL;
+  g_autoptr (CamelInternetAddress) recipient = NULL;
+  g_autoptr (GDateTime) received_dt = NULL;
+  g_autoptr (GDateTime) now_dt = NULL;
+  g_autofree char *date_str = NULL;
+  g_autofree char *time_str = NULL;
+  g_autofree char *body_text = NULL;
+  g_autofree char *read_subject = NULL;
+  g_autoptr (CamelStream) stream = NULL;
+  const gchar *subject;
+  gint64 date_received;
+
+  if (!self->disposition_notification_to || !*self->disposition_notification_to)
+    return;
+
+  subject = camel_message_info_get_subject (self->message_info);
+  date_received = camel_message_info_get_date_received (self->message_info);
+
+  received_dt = g_date_time_new_from_unix_utc (date_received);
+  now_dt = g_date_time_new_now_local ();
+
+  date_str = g_date_time_format (received_dt, "%d.%m.%Y");
+  time_str = g_date_time_format (now_dt, "%H:%M");
+
+  read_subject = g_strdup_printf ("Read: %s", subject ? subject : "");
+  body_text = g_strdup_printf ("Your message from %s has been opened on %s.", date_str, time_str);
+
+  message = camel_mime_message_new ();
+  camel_mime_message_set_subject (message, read_subject);
+  camel_mime_message_set_date (message, CAMEL_MESSAGE_DATE_CURRENT, 0);
+  camel_medium_set_header (CAMEL_MEDIUM (message), "User-Agent", USER_AGENT);
+
+  body = camel_data_wrapper_new ();
+  camel_data_wrapper_set_mime_type (body, "text/plain; charset=utf-8");
+
+  stream = camel_stream_mem_new_with_buffer (body_text, strlen (body_text));
+  camel_data_wrapper_construct_from_stream_sync (body, stream, self->cancellable, NULL);
+
+  camel_medium_set_content (CAMEL_MEDIUM (message), CAMEL_DATA_WRAPPER (body));
+
+  camel_mime_message_set_from (message, stamp_account_get_address (self->account));
+
+  recipient = camel_internet_address_new ();
+  camel_internet_address_add (recipient, NULL, self->disposition_notification_to);
+  camel_mime_message_set_recipients (message, CAMEL_RECIPIENT_TYPE_TO, recipient);
+
+  adw_banner_set_revealed (ADW_BANNER (self->disposition_banner), FALSE);
+  g_clear_pointer (&self->disposition_notification_to, g_free);
+
+  stamp_account_send_mail (self->account, message, stamp_account_get_address (self->account), recipient, FALSE, FALSE, NULL, NULL, NULL);
 }
 
 void
