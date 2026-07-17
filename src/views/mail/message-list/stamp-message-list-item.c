@@ -930,7 +930,15 @@ on_unsubscribe_response (GtkWidget *dialog,
 
     parser = stamp_mime_parser_new (CAMEL_SESSION (stamp_session_get_default ()));
     stamp_mime_parser_parse (parser, self->message, self->cancellable, NULL);
-    stamp_mime_parser_send_unsubscribe (parser, self->unsubscribe, self->cancellable);
+
+    if (self->unsubscribe->method == STAMP_MIME_UNSUBSCRIBE_HTTP) {
+      stamp_mime_parser_send_unsubscribe (parser, self->unsubscribe, self->cancellable);
+    } else {
+      GtkWidget *composer = stamp_composer_new (self->account);
+
+      stamp_composer_set_to (STAMP_COMPOSER (composer), self->unsubscribe->mailto);
+      gtk_window_present (GTK_WINDOW (composer));
+    }
   }
 }
 
