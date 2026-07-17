@@ -324,9 +324,7 @@ on_get_folder (GObject      *source,
     return;
   }
 
-  /* Add notification handler for non junk folders */
-  if (!(camel_folder_get_flags (self->folder) & CAMEL_FOLDER_IS_JUNK))
-    g_signal_connect_object (self->folder, "changed", G_CALLBACK (on_folder_item_folder_changed), self, 0);
+  g_signal_connect_object (self->folder, "changed", G_CALLBACK (on_folder_item_folder_changed), self, 0);
 
   summary = camel_folder_get_folder_summary (self->folder);
   self->unread = camel_folder_summary_get_unread_count (summary);
