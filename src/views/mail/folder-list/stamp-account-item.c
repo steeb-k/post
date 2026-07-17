@@ -410,7 +410,7 @@ on_refresh (GObject      *source,
 
     self->refresh_queue_running = TRUE;
 
-    g_debug ("%s: Refreshing %s\n", G_STRFUNC, camel_folder_get_display_name (next));
+    g_debug ("%s: Refreshing %s", G_STRFUNC, camel_folder_get_display_name (next));
     stamp_item_set_loading (STAMP_ITEM (folder_item), TRUE);
     camel_folder_refresh_info (next, G_PRIORITY_DEFAULT, self->cancellable, on_refresh, self);
   }
