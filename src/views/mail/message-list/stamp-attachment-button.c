@@ -334,6 +334,56 @@ on_save_as_activate (GAction  *action,
 }
 
 static void
+on_rename_dialog_response (AdwAlertDialog *dialog,
+                           gchar          *response,
+                           gpointer        user_data)
+{
+  StampAttachmentButton *self = STAMP_ATTACHMENT_BUTTON (user_data);
+
+  if (g_strcmp0 (response, "rename") == 0) {
+    GtkEntry *entry = g_object_get_data (G_OBJECT (dialog), "rename-entry");
+    const gchar *new_name = gtk_editable_get_text (GTK_EDITABLE (entry));
+
+    if (new_name && *new_name) {
+      g_set_str (&self->filename, new_name);
+
+      gtk_label_set_text (GTK_LABEL (self->filename_label), new_name);
+      gtk_widget_set_tooltip_text (GTK_WIDGET (self), new_name);
+    }
+  }
+}
+
+static void
+on_rename_activate (GAction  *action,
+                    GVariant *parameter,
+                    gpointer  user_data)
+{
+  StampAttachmentButton *self = STAMP_ATTACHMENT_BUTTON (user_data);
+  GtkRoot *root = gtk_widget_get_root (GTK_WIDGET (self));
+  AdwDialog *dialog = adw_alert_dialog_new (_("Rename Attachment"), _("Enter a new name for the attachment:"));
+  GtkWidget *entry = gtk_entry_new ();
+
+  gtk_editable_set_text (GTK_EDITABLE (entry), stamp_attachment_button_get_filename (self));
+  gtk_editable_set_position (GTK_EDITABLE (entry), -1);
+  gtk_entry_set_activates_default (GTK_ENTRY (entry), TRUE);
+  adw_alert_dialog_set_extra_child (ADW_ALERT_DIALOG (dialog), entry);
+
+  g_object_set_data (G_OBJECT (dialog), "rename-entry", entry);
+
+  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "cancel", _("Cancel"));
+  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "rename", _("Rename"));
+  adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "rename");
+  adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "cancel");
+
+  adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "rename", ADW_RESPONSE_SUGGESTED);
+
+  g_signal_connect_object (dialog, "response", G_CALLBACK (on_rename_dialog_response), self, 0);
+
+  adw_dialog_present (ADW_DIALOG (dialog), GTK_WIDGET (root));
+  gtk_widget_grab_focus (entry);
+}
+
+static void
 on_remove_activate (GAction  *action,
                     GVariant *parameter,
                     gpointer  user_data)
@@ -378,6 +428,7 @@ stamp_attachment_button_init (StampAttachmentButton *self)
   GSimpleAction *open_action = g_simple_action_new ("open", NULL);
   GSimpleAction *save_as_action = g_simple_action_new ("save-as", NULL);
   GSimpleAction *remove_action = g_simple_action_new ("remove", NULL);
+  GSimpleAction *rename_action = g_simple_action_new ("rename", NULL);
 
   g_action_map_add_action (G_ACTION_MAP (actions), G_ACTION (open_action));
   g_signal_connect_object (open_action, "activate", G_CALLBACK (on_open_activate), self, 0);
@@ -387,6 +438,9 @@ stamp_attachment_button_init (StampAttachmentButton *self)
 
   g_signal_connect_object (remove_action, "activate", G_CALLBACK (on_remove_activate), self, 0);
   g_action_map_add_action (G_ACTION_MAP (actions), G_ACTION (remove_action));
+
+  g_signal_connect_object (rename_action, "activate", G_CALLBACK (on_rename_activate), self, 0);
+  g_action_map_add_action (G_ACTION_MAP (actions), G_ACTION (rename_action));
 
   gtk_widget_insert_action_group (GTK_WIDGET (self), "attachmentbutton", G_ACTION_GROUP (actions));
 }
@@ -449,8 +503,10 @@ stamp_attachment_button_constructed (GObject *object)
 
   if (self->mime_part) {
     remove_menu_item (G_MENU (self->context_menu), "attachmentbutton.remove");
+    remove_menu_item (G_MENU (self->context_menu), "attachmentbutton.rename");
   } else if (self->data) {
     remove_menu_item (G_MENU (self->context_menu), "attachmentbutton.remove");
+    remove_menu_item (G_MENU (self->context_menu), "attachmentbutton.rename");
   } else if (self->file) {
     remove_menu_item (G_MENU (self->context_menu), "attachmentbutton.save-as");
   }
@@ -632,7 +688,7 @@ stamp_attachment_button_get_mime_part (StampAttachmentButton *self)
 
   part = camel_mime_part_new ();
   camel_mime_part_set_disposition (part, "attachment");
-  camel_mime_part_set_filename (part, g_file_info_get_display_name (info));
+  camel_mime_part_set_filename (part, self->filename ? self->filename : g_file_info_get_display_name (info));
   camel_medium_set_content (CAMEL_MEDIUM (part), wrapper);
 
   camel_mime_part_set_encoding (part, CAMEL_TRANSFER_ENCODING_BASE64);
