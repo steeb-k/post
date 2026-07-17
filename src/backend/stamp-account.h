@@ -161,6 +161,18 @@ stamp_account_search_contacts_finish (StampAccount  *self,
                                       GAsyncResult  *res,
                                       GError       **error);
 
+void
+stamp_account_search_conversations (StampAccount        *self,
+                                    const gchar          *search_text,
+                                    GCancellable        *cancellable,
+                                    GAsyncReadyCallback  callback,
+                                    gpointer             user_data);
+
+GSList *
+stamp_account_search_conversations_finish (StampAccount  *self,
+                                          GAsyncResult  *res,
+                                          GError       **error);
+
 /*
  * Mail
  */

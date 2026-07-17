@@ -341,6 +341,152 @@ stamp_account_search_contacts_finish (StampAccount  *self,
   return contacts;
 }
 
+static void
+free_contact_slist (gpointer data)
+{
+  g_slist_free_full ((GSList *)data, (GDestroyNotify)g_object_unref);
+}
+
+static void
+scan_folder_for_contacts (CamelFolder  *folder,
+                          const gchar  *lower_search,
+                          GHashTable   *unique,
+                          GCancellable *cancellable)
+{
+  g_autoptr (GPtrArray) uids = camel_folder_dup_uids (folder);
+  CamelFolderSummary *summary = camel_folder_get_folder_summary (folder);
+
+  if (!uids || !summary)
+    return;
+
+  for (guint i = 0; i < uids->len; i++) {
+    const gchar *uid;
+    const gchar *from;
+    CamelMessageInfo *info;
+
+    if (g_cancellable_is_cancelled (cancellable))
+      break;
+
+    uid = g_ptr_array_index (uids, i);
+    info = camel_folder_summary_get (summary, uid);
+    if (!info)
+      continue;
+
+    from = camel_message_info_get_from (info);
+    if (from) {
+      g_autoptr (CamelInternetAddress) addr = camel_internet_address_new ();
+
+      if (camel_address_decode (CAMEL_ADDRESS (addr), from) > 0) {
+        const gchar *name;
+        const gchar *email;
+
+        if (camel_internet_address_get (addr, 0, &name, &email) && email) {
+          g_autofree char *lower_email = g_ascii_strdown (email, -1);
+          gboolean matches = g_strstr_len (lower_email, -1, lower_search) != NULL;
+
+          if (!matches && name) {
+            g_autofree char *lower_name = g_ascii_strdown (name, -1);
+
+            matches = g_strstr_len (lower_name, -1, lower_search) != NULL;
+          }
+
+          if (matches && !g_hash_table_contains (unique, lower_email)) {
+            EContact *contact = e_contact_new ();
+            GSList email_list;
+
+            email_list.data = (gpointer)lower_email;
+            email_list.next = NULL;
+
+            e_contact_set (contact, E_CONTACT_FULL_NAME, name ? name : lower_email);
+            e_contact_set (contact, E_CONTACT_EMAIL, &email_list);
+
+            g_hash_table_insert (unique, g_strdup (lower_email), contact);
+          }
+        }
+      }
+    }
+  }
+}
+
+static void
+search_conversations_thread (GTask        *task,
+                             gpointer      source_object,
+                             gpointer      task_data,
+                             GCancellable *cancellable)
+{
+  StampAccount *self = STAMP_ACCOUNT (source_object);
+  const gchar *search_text = task_data;
+  GHashTable *unique;
+  GSList *results = NULL;
+  GHashTableIter iter;
+  gpointer value;
+
+  unique = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
+
+  if (self->mail) {
+    if (self->mail->sent_folder)
+      scan_folder_for_contacts (self->mail->sent_folder, search_text, unique, cancellable);
+
+    if (self->mail->service && !g_cancellable_is_cancelled (cancellable)) {
+      g_autoptr (GError) error = NULL;
+      CamelFolder *inbox;
+
+      inbox = camel_store_get_folder_sync (CAMEL_STORE (self->mail->service),
+                                           "INBOX", CAMEL_STORE_FOLDER_NONE,
+                                           cancellable, &error);
+      if (inbox) {
+        scan_folder_for_contacts (inbox, search_text, unique, NULL);
+        g_object_unref (inbox);
+      }
+    }
+  }
+
+  g_hash_table_iter_init (&iter, unique);
+  while (g_hash_table_iter_next (&iter, NULL, &value)) {
+    EContact *contact = value;
+
+    results = g_slist_prepend (results, g_object_ref (contact));
+  }
+
+  g_hash_table_remove_all (unique);
+
+  if (g_cancellable_is_cancelled (cancellable)) {
+    g_slist_free_full (results, (GDestroyNotify)g_object_unref);
+    g_task_return_new_error (task, G_IO_ERROR, G_IO_ERROR_CANCELLED, "Search cancelled");
+  } else {
+    g_task_return_pointer (task, results, free_contact_slist);
+  }
+}
+
+void
+stamp_account_search_conversations (StampAccount        *self,
+                                    const gchar         *search_text,
+                                    GCancellable        *cancellable,
+                                    GAsyncReadyCallback  callback,
+                                    gpointer             user_data)
+{
+  g_autoptr (GTask) task = NULL;
+  gchar *lower_search;
+
+  if (!self->mail)
+    return;
+
+  lower_search = g_ascii_strdown (search_text, -1);
+
+  task = g_task_new (self, cancellable, callback, user_data);
+  g_task_set_source_tag (task, stamp_account_search_conversations);
+  g_task_set_task_data (task, lower_search, g_free);
+  g_task_run_in_thread (task, search_conversations_thread);
+}
+
+GSList *
+stamp_account_search_conversations_finish (StampAccount  *self,
+                                           GAsyncResult  *res,
+                                           GError       **error)
+{
+  return g_task_propagate_pointer (G_TASK (res), error);
+}
+
 GPtrArray *
 stamp_account_get_books (StampAccount *self)
 {

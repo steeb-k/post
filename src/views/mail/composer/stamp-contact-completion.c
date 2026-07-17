@@ -316,6 +316,37 @@ on_search_contacts (GObject      *source,
   g_list_store_splice (self->store, 0, g_list_model_get_n_items (G_LIST_MODEL (self->store)), array->pdata, array->len);
 
   gtk_filter_changed (self->filter, GTK_FILTER_CHANGE_DIFFERENT);
+
+  g_slist_free_full (contacts, (GDestroyNotify)g_object_unref);
+}
+
+static void
+on_search_conversations (GObject      *source,
+                         GAsyncResult *res,
+                         gpointer      user_data)
+{
+  StampContactCompletion *self = STAMP_CONTACT_COMPLETION (user_data);
+  g_autoptr (GError) error = NULL;
+  g_autoptr (GPtrArray) array = NULL;
+  g_autoslist (EContact) contacts = NULL;
+
+  contacts = stamp_account_search_conversations_finish (self->account, res, &error);
+  if (error) {
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+      g_warning ("%s: Could not search conversations: %s", G_STRFUNC, error->message);
+    return;
+  }
+
+  array = g_ptr_array_new ();
+  for (GSList *iter = contacts; iter && iter->data; iter = g_slist_next (iter)) {
+    EContact *contact = E_CONTACT (iter->data);
+
+    g_ptr_array_add (array, contact);
+  }
+
+  g_list_store_splice (self->store, 0, g_list_model_get_n_items (G_LIST_MODEL (self->store)), array->pdata, array->len);
+
+  gtk_filter_changed (self->filter, GTK_FILTER_CHANGE_DIFFERENT);
 }
 
 static void
@@ -324,6 +355,7 @@ on_changed (GtkEditable *ed,
 {
   StampContactCompletion *self = STAMP_CONTACT_COMPLETION (user_data);
   g_autofree char *text = NULL;
+  GPtrArray *books;
 
   if (self->block)
     return;
@@ -362,7 +394,12 @@ on_changed (GtkEditable *ed,
     }
 
     self->cancellable = g_cancellable_new ();
-    stamp_account_search_contacts (self->account, NULL, new_string->str, self->cancellable, on_search_contacts, self);
+
+    books = stamp_account_get_books (self->account);
+    if (books && books->len > 0)
+      stamp_account_search_contacts (self->account, NULL, new_string->str, self->cancellable, on_search_contacts, self);
+    else
+      stamp_account_search_conversations (self->account, new_string->str, self->cancellable, on_search_conversations, self);
   }
 
   self->block = FALSE;
