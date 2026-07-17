@@ -344,7 +344,7 @@ setup_notifications (StampPreferencesAccount *self)
   const gchar *mode;
   guint selected;
 
-  settings_path = g_strconcat ("/org/tabos/stamp/mail/accounts/", stamp_account_get_name (self->account), "/", NULL);
+  settings_path = g_strconcat ("/org/tabos/stamp/mail/accounts/", stamp_account_get_uid (self->account), "/", NULL);
   self->account_settings = g_settings_new_with_path ("org.tabos.stamp.mail.accounts", settings_path);
 
   model = gtk_string_list_new ((const char *[]){_("Inbox"), _("All"), _("Custom"), NULL});
