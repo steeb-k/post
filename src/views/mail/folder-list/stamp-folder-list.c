@@ -37,6 +37,7 @@ struct _StampFolderList {
 
   gboolean already_selected;
   GListStore *list_store;
+  GPtrArray *expand_queue;
   guint expand_handler;
 
   StampConversationList *conversation_list;
@@ -233,10 +234,13 @@ on_row_expanded (GtkTreeListRow *row,
 static void
 expand_idle (gpointer user_data)
 {
-  g_autoptr (GtkTreeListRow) row = GTK_TREE_LIST_ROW (user_data);
+  StampFolderList *self = STAMP_FOLDER_LIST (user_data);
 
-  gtk_tree_list_row_set_expanded (row, TRUE);
-  /* self->expand_handler = 0; */
+  for (guint i = 0; i < self->expand_queue->len; i++)
+    gtk_tree_list_row_set_expanded (self->expand_queue->pdata[i], TRUE);
+
+  g_ptr_array_set_size (self->expand_queue, 0);
+  self->expand_handler = 0;
 }
 
 static void
@@ -290,8 +294,10 @@ on_bind_folder (GtkListItemFactory *factory,
     }
 
     if (g_strv_contains ((const char **)expanded_folders, full_name)) {
-      g_clear_handle_id (&self->expand_handler, g_source_remove);
-      self->expand_handler = g_idle_add_once (expand_idle, g_object_ref (row));
+      g_ptr_array_add (self->expand_queue, g_object_ref (row));
+
+      if (self->expand_handler == 0)
+        self->expand_handler = g_idle_add_once (expand_idle, self);
     }
 
     g_signal_connect_object (row, "notify::expanded", G_CALLBACK (on_row_expanded), self, 0);
@@ -619,6 +625,7 @@ stamp_folder_list_dispose (GObject *object)
     g_clear_object (&self->list_store);
 
   g_clear_handle_id (&self->expand_handler, g_source_remove);
+  g_clear_pointer (&self->expand_queue, g_ptr_array_unref);
 
   self->conversation_list = NULL;
 
@@ -667,6 +674,8 @@ stamp_folder_list_init (StampFolderList *self)
   session = stamp_session_get_default ();
   g_signal_connect_object (session, "account-added", G_CALLBACK (on_stamp_folder_list_account_added), self, 0);
   g_signal_connect_object (session, "account-removed", G_CALLBACK (on_stamp_folder_list_account_removed), self, 0);
+
+  self->expand_queue = g_ptr_array_new_with_free_func (g_object_unref);
 
   g_type_ensure (STAMP_TYPE_ITEM);
 }
