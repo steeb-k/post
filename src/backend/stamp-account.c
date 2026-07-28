@@ -1242,8 +1242,8 @@ stamp_account_save_draft (StampAccount         *self,
   g_autoptr (CamelMessageInfo) info = camel_message_info_new (NULL);
   gchar *uid = NULL;
 
-  if (error) {
-    g_warning ("%s: Could not load draft folder: %s", G_STRFUNC, error->message);
+  if (!self->mail->drafts_folder) {
+    g_warning ("%s: No drafts folder: %s", G_STRFUNC, error->message);
     return NULL;
   }
 
