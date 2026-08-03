@@ -125,6 +125,9 @@ open_message (StampMessageListItem *self,
   GList *attachments;
   StampMessageList *message_list = STAMP_MESSAGE_LIST (gtk_widget_get_ancestor (GTK_WIDGET (self), STAMP_TYPE_MESSAGE_LIST));
 
+  if (!message_list)
+    return;
+
   g_clear_object (&self->parser);
 
   if (!address)
