@@ -42,6 +42,7 @@
   "modules": [
     {
       "name": "liboauth",
+      "buildsystem": "autotools",
       "config-opts": [
         "--enable-nss"
       ],
@@ -50,9 +51,19 @@
       ],
       "sources": [
         {
-          "type": "archive",
-          "url": "https://downloads.sourceforge.net/project/liboauth/liboauth-1.0.3.tar.gz",
-          "sha256": "0df60157b052f0e774ade8a8bac59d6e8d4b464058cc55f9208d72e41156811f"
+          "type": "git",
+          "url": "https://github.com/x42/liboauth.git",
+          "tag": "v1.0.3",
+          "commit": "07fc30bf6d44f5b431a943452f6083fbaf22bc8f"
+        },
+        {
+          "type": "script",
+          "dest-filename": "autogen.sh",
+          "commands": [
+            "set -e",
+            "mkdir -p m4",
+            "autoreconf -ivf"
+          ]
         }
       ]
     },

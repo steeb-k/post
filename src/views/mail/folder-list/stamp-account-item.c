@@ -104,7 +104,7 @@ show_info (StampAccountItem *self,
   while (folder_info) {
     g_autoptr (StampFolderItem) folder_item = stamp_folder_item_new (stamp_item_get_account (STAMP_ITEM (self)), folder_info);
 
-    g_signal_connect_object (folder_item, "folder-item-added", G_CALLBACK (on_folder_item_changed), self, 0);
+    g_signal_connect_object (folder_item, "folder-item-added", G_CALLBACK (on_folder_item_changed), self, G_CONNECT_DEFAULT);
 
     g_ptr_array_add (array, g_steal_pointer (&folder_item));
     folder_info = folder_info->next;
@@ -590,14 +590,14 @@ stamp_account_item_constructed (GObject *object)
   self->offline_store = CAMEL_OFFLINE_STORE (stamp_mail_service_get_service (mail_service));
   g_object_ref (self->offline_store);
 
-  g_signal_connect_object (self->offline_store, "folder-created", G_CALLBACK (on_offline_store_folder_created), self, 0);
-  g_signal_connect_object (self->offline_store, "folder-deleted", G_CALLBACK (on_offline_store_folder_deleted), self, 0);
-  g_signal_connect_object (self->offline_store, "folder-info-stale", G_CALLBACK (on_offline_store_folder_info_stale), self, 0);
-  g_signal_connect_object (self->offline_store, "folder-renamed", G_CALLBACK (on_offline_store_folder_renamed), self, 0);
-  g_signal_connect_object (stamp_session_get_default (), "account-changed", G_CALLBACK (on_account_changed), self, 0);
+  g_signal_connect_object (self->offline_store, "folder-created", G_CALLBACK (on_offline_store_folder_created), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (self->offline_store, "folder-deleted", G_CALLBACK (on_offline_store_folder_deleted), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (self->offline_store, "folder-info-stale", G_CALLBACK (on_offline_store_folder_info_stale), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (self->offline_store, "folder-renamed", G_CALLBACK (on_offline_store_folder_renamed), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (stamp_session_get_default (), "account-changed", G_CALLBACK (on_account_changed), self, G_CONNECT_DEFAULT);
 
   /* NetworkMonitor */
-  g_signal_connect_object (network_monitor, "network-changed", G_CALLBACK (on_network_changed), self, 0);
+  g_signal_connect_object (network_monitor, "network-changed", G_CALLBACK (on_network_changed), self, G_CONNECT_DEFAULT);
 
   self->refresh_queue = g_queue_new ();
 

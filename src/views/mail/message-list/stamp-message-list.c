@@ -225,9 +225,9 @@ on_drag_update (GtkGestureDrag *gesture,
 
 static void
 stamp_message_list_size_allocate (GtkWidget *widget,
-                                  int        width,
-                                  int        height,
-                                  int        baseline)
+                                  gint       width,
+                                  gint       height,
+                                  gint       baseline)
 {
   StampMessageList *self = STAMP_MESSAGE_LIST (widget);
 

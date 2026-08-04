@@ -298,7 +298,7 @@ on_search_contacts (GObject      *source,
   StampContactCompletion *self = STAMP_CONTACT_COMPLETION (user_data);
   g_autoptr (GError) error = NULL;
   g_autoptr (GPtrArray) array = NULL;
-  GSList *contacts;
+  g_autoslist (EContact) contacts = NULL;
 
   contacts = stamp_account_search_contacts_finish (self->account, NULL, res, &error);
   if (error) {
@@ -316,8 +316,6 @@ on_search_contacts (GObject      *source,
   g_list_store_splice (self->store, 0, g_list_model_get_n_items (G_LIST_MODEL (self->store)), array->pdata, array->len);
 
   gtk_filter_changed (self->filter, GTK_FILTER_CHANGE_DIFFERENT);
-
-  g_slist_free_full (contacts, (GDestroyNotify)g_object_unref);
 }
 
 static void
@@ -593,8 +591,8 @@ stamp_contact_completion_init (StampContactCompletion *self)
   gtk_popover_set_autohide (GTK_POPOVER (self->popover), FALSE);
 
   factory = gtk_signal_list_item_factory_new ();
-  g_signal_connect_object (factory, "setup", G_CALLBACK (on_setup), self, 0);
-  g_signal_connect_object (factory, "bind", G_CALLBACK (on_bind), self, 0);
+  g_signal_connect_object (factory, "setup", G_CALLBACK (on_setup), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (factory, "bind", G_CALLBACK (on_bind), self, G_CONNECT_DEFAULT);
 
   scrolled_window = gtk_scrolled_window_new ();
   gtk_widget_set_hexpand (scrolled_window, TRUE);
@@ -603,7 +601,7 @@ stamp_contact_completion_init (StampContactCompletion *self)
   gtk_scrolled_window_set_propagate_natural_width (GTK_SCROLLED_WINDOW (scrolled_window), TRUE);
   gtk_scrolled_window_set_propagate_natural_height (GTK_SCROLLED_WINDOW (scrolled_window), TRUE);
   self->model = gtk_single_selection_new (G_LIST_MODEL (sorted));
-  g_signal_connect_object (self->model, "items-changed", G_CALLBACK (on_items_changed), self, 0);
+  g_signal_connect_object (self->model, "items-changed", G_CALLBACK (on_items_changed), self, G_CONNECT_DEFAULT);
   self->view = gtk_list_view_new (GTK_SELECTION_MODEL (self->model), factory);
   gtk_widget_set_size_request (self->view, 300, -1);
   gtk_scrolled_window_set_policy (
@@ -617,7 +615,7 @@ stamp_contact_completion_init (StampContactCompletion *self)
   gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (scrolled_window), self->view);
   gtk_popover_set_child (GTK_POPOVER (self->popover), scrolled_window);
 
-  g_signal_connect_object (self->view, "activate", G_CALLBACK (on_activate), self, 0);
+  g_signal_connect_object (self->view, "activate", G_CALLBACK (on_activate), self, G_CONNECT_DEFAULT);
 }
 
 GtkWidget *
@@ -636,7 +634,7 @@ void
 stamp_contact_completion_add_tag (StampContactCompletion *self,
                                   StampTag               *tag)
 {
-  g_signal_connect_object (tag, "destroy", G_CALLBACK (on_tag_destroy), self, 0);
+  g_signal_connect_object (tag, "destroy", G_CALLBACK (on_tag_destroy), self, G_CONNECT_DEFAULT);
 
   adw_wrap_box_append (ADW_WRAP_BOX (self->wrap_box), GTK_WIDGET (tag));
   self->receivers = g_list_append (self->receivers, tag);

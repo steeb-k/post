@@ -192,7 +192,7 @@ play_incoming_sound (void)
   gst_element_set_state (player, GST_STATE_PLAYING);
 }
 
-static gboolean
+static void
 send_pending_notification (gpointer user_data)
 {
   GNotification *notification;
@@ -201,7 +201,7 @@ send_pending_notification (gpointer user_data)
   pending_debounce_id = 0;
 
   if (pending_new_mail_count == 0)
-    return G_SOURCE_REMOVE;
+    return;
 
   if (pending_new_mail_count == 1) {
     title = g_strdup_printf ("%s", pending_first_sender ? pending_first_sender : _("New message"));
@@ -226,8 +226,6 @@ send_pending_notification (gpointer user_data)
   g_clear_pointer (&pending_first_uid, g_free);
   g_clear_pointer (&pending_first_subject, g_free);
   g_clear_pointer (&pending_first_sender, g_free);
-
-  return G_SOURCE_REMOVE;
 }
 
 static void
@@ -300,7 +298,7 @@ on_folder_item_folder_changed (CamelFolder           *folder,
 
   g_clear_handle_id (&pending_debounce_id, g_source_remove);
 
-  pending_debounce_id = g_timeout_add (500, send_pending_notification, NULL);
+  pending_debounce_id = g_timeout_add_once (500, send_pending_notification, NULL);
 
   if (g_settings_get_boolean (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_PLAY_INCOMING_SOUND))
     play_incoming_sound ();
@@ -324,7 +322,7 @@ on_get_folder (GObject      *source,
     return;
   }
 
-  g_signal_connect_object (self->folder, "changed", G_CALLBACK (on_folder_item_folder_changed), self, 0);
+  g_signal_connect_object (self->folder, "changed", G_CALLBACK (on_folder_item_folder_changed), self, G_CONNECT_DEFAULT);
 
   summary = camel_folder_get_folder_summary (self->folder);
   self->unread = camel_folder_summary_get_unread_count (summary);

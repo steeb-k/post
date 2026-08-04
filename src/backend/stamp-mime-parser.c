@@ -1266,7 +1266,7 @@ send_unsubscribe_callback (GObject      *source,
   if (error) {
     g_warning ("%s: Failed to unsubscribe: %s", G_STRFUNC, error->message);
   } else {
-    g_debug ("%s: Successfully unsubscribed", G_STRFUNC);
+    g_debug ("%s: Successfully unsubscribed, size %ld", G_STRFUNC, g_bytes_get_size (bytes));
   }
 }
 

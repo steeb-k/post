@@ -21,6 +21,7 @@
 
 #include "stamp-message-list-item.h"
 
+#include <adwaita.h>
 #include <camel/camel.h>
 #include <glib/gi18n.h>
 #include <glib/gstdio.h>
@@ -28,8 +29,6 @@
 #include <libical-glib/libical-glib.h>
 #include <nss.h>
 #include <webkit/webkit.h>
-
-#include <adwaita.h>
 
 #include "stamp-attachment-button.h"
 #include "stamp-message-header.h"
@@ -455,7 +454,7 @@ on_save_all_folder_selected (GObject      *source,
 
       adw_toast_set_button_label (toast, _("Open Folder"));
       g_object_set_data (G_OBJECT (toast), "open-folder-window", GTK_WINDOW (gtk_widget_get_root (GTK_WIDGET (self))));
-      g_signal_connect_data (toast, "button-clicked", G_CALLBACK (on_open_save_all_folder), first_file, (GClosureNotify)g_object_unref, 0);
+      g_signal_connect_data (toast, "button-clicked", G_CALLBACK (on_open_save_all_folder), first_file, (GClosureNotify)g_object_unref, G_CONNECT_DEFAULT);
       adw_toast_overlay_add_toast (overlay, toast);
     } else {
       g_object_unref (first_file);
@@ -551,7 +550,6 @@ stamp_message_list_item_send_rsvp (StampMessageListItem  *self,
 {
   ICalProperty *prop;
   ICalComponent *event;
-  GSList *components = NULL;
   GCancellable *cancellable = g_cancellable_new ();
   g_autoptr (EClient) client = NULL;
   g_autoptr (GError) local_error = NULL;
@@ -616,7 +614,6 @@ stamp_message_list_item_send_rsvp (StampMessageListItem  *self,
   }
 
   i_cal_component_set_method (self->calendar, I_CAL_METHOD_REPLY);
-  components = g_slist_append (components, event);
   e_cal_client_receive_objects_sync (E_CAL_CLIENT (client), self->calendar, E_CAL_OPERATION_FLAG_NONE, cancellable, &local_error);
   if (local_error) {
     g_warning ("%s: Could not receive event: %s", G_STRFUNC, local_error->message);
@@ -1182,7 +1179,7 @@ stamp_message_list_item_init (StampMessageListItem *self)
 
   self->cancellable = g_cancellable_new ();
 
-  g_signal_connect_object (self->web_view, "notify::size-request", G_CALLBACK (on_size_request), self, 0);
+  g_signal_connect_object (self->web_view, "notify::size-request", G_CALLBACK (on_size_request), self, G_CONNECT_DEFAULT);
 
   self->actions = g_simple_action_group_new ();
   g_action_map_add_action_entries (G_ACTION_MAP (self->actions), actions, G_N_ELEMENTS (actions), self);

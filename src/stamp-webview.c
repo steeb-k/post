@@ -292,7 +292,7 @@ stamp_prefs_init (gpointer user_data)
     );
   g_signal_connect_object (web_context, "initialize-web-process-extensions",
                            G_CALLBACK (initialize_web_process_extensions),
-                           self, 0);
+                           self, G_CONNECT_DEFAULT);
 
   webkit_web_context_register_uri_scheme (web_context, "cid", on_cid_request, g_object_ref (self), g_object_unref);
 
@@ -342,16 +342,16 @@ stamp_webview_constructed (GObject *object)
   self->queued_body_content = NULL;
 
   content_manager = webkit_web_view_get_user_content_manager (WEBKIT_WEB_VIEW (self));
-  g_signal_connect_object (content_manager, "script-message-received::stampResize", G_CALLBACK (on_resize_script_message), self, 0);
+  g_signal_connect_object (content_manager, "script-message-received::stampResize", G_CALLBACK (on_resize_script_message), self, G_CONNECT_DEFAULT);
   webkit_user_content_manager_register_script_message_handler (content_manager, "stampResize", NULL);
 
   webkit_web_view_set_settings (WEBKIT_WEB_VIEW (self), stamp_get_webkit_settings (self));
 
   controller = gtk_event_controller_key_new ();
-  g_signal_connect_object (G_OBJECT (controller), "key-released", G_CALLBACK (on_key_released), self, 0);
+  g_signal_connect_object (G_OBJECT (controller), "key-released", G_CALLBACK (on_key_released), self, G_CONNECT_DEFAULT);
   gtk_widget_add_controller (GTK_WIDGET (self), controller);
-  g_signal_connect_object (G_OBJECT (self), "load-changed", G_CALLBACK (on_load_changed), self, 0);
-  g_signal_connect_object (G_OBJECT (self), "decide-policy", G_CALLBACK (on_decide_policy), self, 0);
+  g_signal_connect_object (G_OBJECT (self), "load-changed", G_CALLBACK (on_load_changed), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (G_OBJECT (self), "decide-policy", G_CALLBACK (on_decide_policy), self, G_CONNECT_DEFAULT);
 }
 
 static void

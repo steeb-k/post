@@ -58,12 +58,6 @@ stamp_message_list_view_source (StampMessageList *self,
                                 GVariant         *parameter);
 
 void
-stamp_message_list_set_unsubscribe (StampMessageList *self,
-                                    const gchar       *sender,
-                                    const gchar       *url,
-                                    CamelMimeMessage *message);
-
-void
 stamp_message_list_set_external (StampMessageList *self,
                                  gboolean          is_external);
 

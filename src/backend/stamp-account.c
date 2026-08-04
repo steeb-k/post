@@ -417,7 +417,7 @@ search_conversations_thread (GTask        *task,
   StampAccount *self = STAMP_ACCOUNT (source_object);
   const gchar *search_text = task_data;
   GHashTable *unique;
-  GSList *results = NULL;
+  g_autoslist (EContact) results = NULL;
   GHashTableIter iter;
   gpointer value;
 
@@ -451,10 +451,9 @@ search_conversations_thread (GTask        *task,
   g_hash_table_remove_all (unique);
 
   if (g_cancellable_is_cancelled (cancellable)) {
-    g_slist_free_full (results, (GDestroyNotify)g_object_unref);
     g_task_return_new_error (task, G_IO_ERROR, G_IO_ERROR_CANCELLED, "Search cancelled");
   } else {
-    g_task_return_pointer (task, results, free_contact_slist);
+    g_task_return_pointer (task, g_steal_pointer (&results), free_contact_slist);
   }
 }
 
@@ -1243,7 +1242,7 @@ stamp_account_save_draft (StampAccount         *self,
   gchar *uid = NULL;
 
   if (!self->mail->drafts_folder) {
-    g_warning ("%s: No drafts folder: %s", G_STRFUNC, error->message);
+    g_warning ("%s: No drafts folder", G_STRFUNC);
     return NULL;
   }
 

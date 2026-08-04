@@ -240,8 +240,8 @@ on_stamp_book_list_account_added (GObject      *object,
   GPtrArray *books;
   gboolean enabled = FALSE;
 
-  g_signal_connect_object (account, "book-added", G_CALLBACK (on_book_added), self, 0);
-  g_signal_connect_object (account, "book-removed", G_CALLBACK (on_book_removed), self, 0);
+  g_signal_connect_object (account, "book-added", G_CALLBACK (on_book_added), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (account, "book-removed", G_CALLBACK (on_book_removed), self, G_CONNECT_DEFAULT);
 
   books = stamp_account_get_books (account);
 
@@ -309,7 +309,7 @@ stamp_book_list_init (StampBookList *self)
   gtk_sort_list_model_set_model (GTK_SORT_LIST_MODEL (self->sort_list_model), G_LIST_MODEL (tree));
   gtk_custom_sorter_set_sort_func (GTK_CUSTOM_SORTER (self->sorter), books_sorter, NULL, NULL);
 
-  g_signal_connect_object (session, "account-added", G_CALLBACK (on_stamp_book_list_account_added), self, 0);
+  g_signal_connect_object (session, "account-added", G_CALLBACK (on_stamp_book_list_account_added), self, G_CONNECT_DEFAULT);
   /* g_signal_connect_object (session, "account-removed", G_CALLBACK (on_stamp_book_list_account_removed), self, 0); */
 
   self->settings = g_settings_new ("org.tabos.stamp.contacts");

@@ -296,7 +296,7 @@ on_registry_ready_for_load (GObject      *src,
   }
 
   self->registry = g_object_ref (registry);
-  g_signal_connect_object (self->registry, "source-changed", G_CALLBACK (on_source_changed), self, 0);
+  g_signal_connect_object (self->registry, "source-changed", G_CALLBACK (on_source_changed), self, G_CONNECT_DEFAULT);
 
   stamp_session_load_signatures (self);
 
@@ -313,12 +313,12 @@ stamp_session_init (StampSession *self)
   self->cancellable = g_cancellable_new ();
 
   camel_init (nssdb, TRUE);
-  g_signal_connect_object (G_OBJECT (self), "user-alert", G_CALLBACK (on_user_alert), self, 0);
+  g_signal_connect_object (G_OBJECT (self), "user-alert", G_CALLBACK (on_user_alert), self, G_CONNECT_DEFAULT);
 
   PK11_SetPasswordFunc (stamp_session_pk11_password);
 
   camel_session_set_network_monitor (CAMEL_SESSION (self), network_monitor);
-  g_signal_connect_object (network_monitor, "network-changed", G_CALLBACK (on_network_changed), self, 0);
+  g_signal_connect_object (network_monitor, "network-changed", G_CALLBACK (on_network_changed), self, G_CONNECT_DEFAULT);
   camel_session_set_online (CAMEL_SESSION (self), TRUE);
 
   task = g_task_new (self, self->cancellable, on_accounts_loaded, self);

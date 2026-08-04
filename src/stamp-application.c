@@ -204,7 +204,7 @@ on_pk11_password (StampSession  *session,
   adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "cancel", _("Cancel"));
   adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "decrypt", _("Decrypt"));
   adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "decrypt");
-  g_signal_connect_object (dialog, "response", G_CALLBACK (on_password_dialog_response), self, 0);
+  g_signal_connect_object (dialog, "response", G_CALLBACK (on_password_dialog_response), self, G_CONNECT_DEFAULT);
 
   entry = gtk_entry_new ();
   gtk_entry_set_activates_default (GTK_ENTRY (entry), TRUE);
@@ -231,7 +231,7 @@ stamp_application_startup (GApplication *app)
   G_APPLICATION_CLASS (stamp_application_parent_class)->startup (app);
 
   self->session = stamp_session_get_default ();
-  g_signal_connect_object (self->session, "pk11-password", G_CALLBACK (on_pk11_password), self, 0);
+  g_signal_connect_object (self->session, "pk11-password", G_CALLBACK (on_pk11_password), self, G_CONNECT_DEFAULT);
 }
 
 static gint

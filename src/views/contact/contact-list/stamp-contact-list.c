@@ -67,7 +67,7 @@ enum {
 static gint signals[LAST_SIGNAL] = { 0 };
 
 
-static gboolean
+static void
 on_show_loading (gpointer user_data)
 {
   StampContactList *self = STAMP_CONTACT_LIST (user_data);
@@ -76,7 +76,6 @@ on_show_loading (gpointer user_data)
     gtk_stack_set_visible_child_name (GTK_STACK (self->stack), "loading");
 
   self->loading_timeout_id = 0;
-  return G_SOURCE_REMOVE;
 }
 
 static void
@@ -137,7 +136,7 @@ stamp_contact_list_load (StampContactList *self,
 
   gtk_stack_set_visible_child_name (GTK_STACK (self->stack), "empty");
   self->loading_done = FALSE;
-  self->loading_timeout_id = g_timeout_add (500, on_show_loading, self);
+  self->loading_timeout_id = g_timeout_add_once (500, on_show_loading, self);
   if (self->window_title) {
     ESource *source = e_client_get_source (E_CLIENT (client));
 
@@ -429,7 +428,7 @@ stamp_contact_list_init (StampContactList *self)
   g_menu_append (sort_menu, "Family Name", "contact.contacts-sort::family-name");
   gtk_menu_button_set_menu_model (GTK_MENU_BUTTON (self->sort_button), G_MENU_MODEL (menu));
 
-  g_signal_connect_object (sort_action, "activate", G_CALLBACK (on_sort_activate), self, 0);
+  g_signal_connect_object (sort_action, "activate", G_CALLBACK (on_sort_activate), self, G_CONNECT_DEFAULT);
   g_action_map_add_action (G_ACTION_MAP (actions), G_ACTION (sort_action));
   gtk_widget_insert_action_group (GTK_WIDGET (self), "contact", G_ACTION_GROUP (actions));
 }

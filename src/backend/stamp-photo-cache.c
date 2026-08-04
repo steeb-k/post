@@ -491,7 +491,6 @@ on_bimi (GObject      *source,
     g_hash_table_remove (pending->cache->pending, pending->email);
     stamp_notify_waiters (pending, texture);
     g_object_unref (texture);
-    stamp_pending_lookup_unref (pending);
     return;
   }
 

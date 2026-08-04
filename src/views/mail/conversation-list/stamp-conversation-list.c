@@ -26,9 +26,9 @@
 #include "stamp-composer.h"
 #include "stamp-conversation-item.h"
 #include "stamp-conversation-list-store.h"
-#include "stamp-mail-view.h"
 #include "stamp-conversation-row.h"
 #include "stamp-item.h"
+#include "stamp-mail-view.h"
 #include "stamp-message-list.h"
 #include "stamp-settings.h"
 
@@ -446,10 +446,9 @@ append_folder_items (GMenu           *menu,
       append_folder_items (submenu, fi->child, current_folder);
       g_menu_append_submenu (section, fi->display_name, G_MENU_MODEL (submenu));
     } else {
-      gchar *action = g_strdup_printf ("conversation-list.move-folder::%s", fi->full_name);
+      g_autofree gchar *action = g_strdup_printf ("conversation-list.move-folder::%s", fi->full_name);
 
       g_menu_append (section, fi->display_name, action);
-      g_free (action);
     }
 
     fi = fi->next;
@@ -534,7 +533,7 @@ on_get_folder (GObject      *source,
   }
 
   self->folder = g_object_ref (folder);
-  g_signal_connect_object (folder, "changed", G_CALLBACK (on_conversation_list_folder_changed), self, 0);
+  g_signal_connect_object (folder, "changed", G_CALLBACK (on_conversation_list_folder_changed), self, G_CONNECT_DEFAULT);
 
   mail_service = stamp_account_get_mail_service (self->account);
   g_hash_table_insert (self->folders, g_strdup (camel_service_get_uid (stamp_mail_service_get_service (mail_service))), g_object_ref (folder));
@@ -743,7 +742,6 @@ handle_popover (RowData *row_data,
 {
   GtkWidget *popover;
   g_autoptr (GMenu) menu = NULL;
-  g_autoptr (GMenu) option_menu = NULL;
   g_autoptr (GMenu) sub_menu = NULL;
   GdkRectangle rect;
   StampConversationRow *child = STAMP_CONVERSATION_ROW (gtk_list_item_get_child (row_data->list_item));
@@ -761,8 +759,6 @@ handle_popover (RowData *row_data,
   g_menu_append (menu, _("Reply"), "mail.reply-current");
   g_menu_append (menu, _("Reply All"), "mail.reply-all-current");
   g_menu_append (menu, _("Forward"), "mail.forward-current");
-
-  option_menu = g_menu_new ();
 
   conversation_item = stamp_conversation_row_get_item (child);
 
@@ -1183,9 +1179,9 @@ on_setup_list_item (GtkListItemFactory *factory,
   g_signal_connect (long_press, "pressed", G_CALLBACK (on_long_press_pressed), self);
   gtk_widget_add_controller (row, GTK_EVENT_CONTROLLER (long_press));
 
-  g_signal_connect_object (row, "mark-read", G_CALLBACK (on_row_mark_read), self, 0);
-  g_signal_connect_object (row, "mark-unread", G_CALLBACK (on_row_mark_unread), self, 0);
-  g_signal_connect_object (row, "trash", G_CALLBACK (on_row_trash), self, 0);
+  g_signal_connect_object (row, "mark-read", G_CALLBACK (on_row_mark_read), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (row, "mark-unread", G_CALLBACK (on_row_mark_unread), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (row, "trash", G_CALLBACK (on_row_trash), self, G_CONNECT_DEFAULT);
 
   drag_source = gtk_drag_source_new ();
   gtk_drag_source_set_actions (drag_source, GDK_ACTION_MOVE);
@@ -2011,9 +2007,9 @@ stamp_conversation_list_init (StampConversationList *self)
 
   self->thread_cache = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, thread_unref);
 
-  g_signal_connect_object (all_mails_action, "activate", G_CALLBACK (on_filter_activate), self, 0);
+  g_signal_connect_object (all_mails_action, "activate", G_CALLBACK (on_filter_activate), self, G_CONNECT_DEFAULT);
   g_action_map_add_action (G_ACTION_MAP (app), G_ACTION (all_mails_action));
-  g_signal_connect_object (sort_action, "activate", G_CALLBACK (on_sort_activate), self, 0);
+  g_signal_connect_object (sort_action, "activate", G_CALLBACK (on_sort_activate), self, G_CONNECT_DEFAULT);
   g_action_map_add_action (G_ACTION_MAP (actions), G_ACTION (sort_action));
   gtk_widget_insert_action_group (GTK_WIDGET (self), "conversation", G_ACTION_GROUP (actions));
 
@@ -2049,14 +2045,14 @@ stamp_conversation_list_init (StampConversationList *self)
   rebuild_category_actions (self);
 
   self->single_selection = gtk_single_selection_new (G_LIST_MODEL (sort_model));
-  g_signal_connect_object (self->single_selection, "selection-changed", G_CALLBACK (on_single_selection_changed), self, 0);
+  g_signal_connect_object (self->single_selection, "selection-changed", G_CALLBACK (on_single_selection_changed), self, G_CONNECT_DEFAULT);
   gtk_list_view_set_model (GTK_LIST_VIEW (self->listview), GTK_SELECTION_MODEL (self->single_selection));
 
   gtk_single_selection_set_autoselect (self->single_selection, FALSE);
   gtk_single_selection_set_can_unselect (self->single_selection, TRUE);
 
   self->multi_selection = gtk_no_selection_new (G_LIST_MODEL (sort_model));
-  g_signal_connect_object (self->multi_selection, "selection-changed", G_CALLBACK (on_multi_selection_changed), self, 0);
+  g_signal_connect_object (self->multi_selection, "selection-changed", G_CALLBACK (on_multi_selection_changed), self, G_CONNECT_DEFAULT);
 
   gtk_search_bar_connect_entry (GTK_SEARCH_BAR (self->search_bar), GTK_EDITABLE (self->search_entry));
 
@@ -2065,8 +2061,8 @@ stamp_conversation_list_init (StampConversationList *self)
   gtk_widget_add_controller (GTK_WIDGET (self), GTK_EVENT_CONTROLLER (drag));
   self->vadj = gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (self->scrolled_window));
 
-  g_signal_connect_object (drag, "pan", G_CALLBACK (on_drag_update), self, 0);
-  g_signal_connect_object (drag, "drag-end", G_CALLBACK (on_drag_end), self, 0);
+  g_signal_connect_object (drag, "pan", G_CALLBACK (on_drag_update), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (drag, "drag-end", G_CALLBACK (on_drag_end), self, G_CONNECT_DEFAULT);
 
   self->selected = gtk_bitset_new_empty ();
   self->anchor_position = 0;

@@ -20,11 +20,11 @@
 #include "stamp-preferences-account.h"
 
 #include <camel/camel.h>
+#include <cert.h>
 #include <glib/gi18n.h>
 #include <gpgme.h>
 #include <nss.h>
 #include <pk11pub.h>
-#include <cert.h>
 
 #include "stamp-account.h"
 #include "stamp-helper.h"
@@ -136,7 +136,7 @@ refresh_alias_list (StampPreferencesAccount *self)
 
     g_object_set_data_full (G_OBJECT (row), "email", g_strdup (mail), g_free);
     g_object_set_data_full (G_OBJECT (row), "name", g_strdup (name), g_free);
-    g_signal_connect_object (row, "activated", G_CALLBACK (on_alias_activated), self, 0);
+    g_signal_connect_object (row, "activated", G_CALLBACK (on_alias_activated), self, G_CONNECT_DEFAULT);
 
     edit_button = gtk_button_new ();
     gtk_button_set_icon_name (GTK_BUTTON (edit_button), "document-edit-symbolic");
@@ -363,7 +363,7 @@ setup_notifications (StampPreferencesAccount *self)
 
   gtk_widget_set_visible (GTK_WIDGET (self->notification_folders_group), selected == 2);
 
-  g_signal_connect_object (self->notification_mode, "notify::selected", G_CALLBACK (on_notification_mode_changed), self, 0);
+  g_signal_connect_object (self->notification_mode, "notify::selected", G_CALLBACK (on_notification_mode_changed), self, G_CONNECT_DEFAULT);
 
   if (selected == 2)
     load_folders (self);
@@ -386,7 +386,7 @@ on_cert_list_item_bind (GtkListItemFactory *factory,
 {
   GtkWidget *title = gtk_list_item_get_child (item);
   GtkStringObject *string_obj = GTK_STRING_OBJECT (gtk_list_item_get_item (item));
-  const char *text;
+  const gchar *text;
 
   if (!string_obj)
     return;
@@ -458,7 +458,7 @@ enumerate_pgp_keys (GPtrArray *key_ids)
     return list;
   }
 
-  while ((err = gpgme_op_keylist_next (ctx, &key)) == GPG_ERR_NO_ERROR) {
+  while (gpgme_op_keylist_next (ctx, &key) == GPG_ERR_NO_ERROR) {
     const gchar *key_id = key->subkeys ? key->subkeys->keyid : NULL;
     const gchar *uid = key->uids ? key->uids->uid : NULL;
 
@@ -809,7 +809,7 @@ on_entry_changed (GtkWidget *button,
                   gpointer   user_data)
 {
   StampPreferencesAccountEditor *self = STAMP_PREFERENCES_ACCOUNT_EDITOR (user_data);
-  const char *mail = gtk_editable_get_text (GTK_EDITABLE (self->mail_row));
+  const gchar *mail = gtk_editable_get_text (GTK_EDITABLE (self->mail_row));
 
   gtk_widget_set_sensitive (GTK_WIDGET (self->save), strlen (mail) != 0);
 }

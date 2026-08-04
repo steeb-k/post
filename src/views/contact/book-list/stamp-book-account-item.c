@@ -123,8 +123,8 @@ stamp_book_account_item_constructed (GObject *object)
     g_list_store_append (list_store, stamp_book_item_new (account, E_CLIENT (stamp_contacts_service_get_client (service))));
   }
 
-  g_signal_connect_object (account, "book-added", G_CALLBACK (on_book_added), self, 0);
-  g_signal_connect_object (account, "book-removed", G_CALLBACK (on_book_removed), self, 0);
+  g_signal_connect_object (account, "book-added", G_CALLBACK (on_book_added), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (account, "book-removed", G_CALLBACK (on_book_removed), self, G_CONNECT_DEFAULT);
 }
 
 static void

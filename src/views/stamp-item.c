@@ -61,8 +61,7 @@ stamp_item_dispose (GObject *object)
   g_clear_pointer (&priv->account_uid, g_free);
   g_clear_object (&priv->account);
 
-  if (priv->list_store)
-    g_clear_object (&priv->list_store);
+  g_clear_object (&priv->list_store);
 
   g_clear_error (&priv->error);
 

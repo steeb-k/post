@@ -50,10 +50,6 @@ stamp_account_add_mail (StampAccount *self,
                         ESource      *source);
 
 void
-stamp_account_add_calendar (StampAccount *self,
-                            ESource      *source);
-
-void
 stamp_account_add_address_book (StampAccount *self,
                                 ESource      *source);
 
@@ -269,19 +265,6 @@ stamp_contacts_service_get_client (StampContactsService *self);
 
 ESource *
 stamp_contacts_service_get_source (StampContactsService *self);
-
-/*
- * Calendar Service Getter
- */
-
-gboolean
-stamp_calendar_service_get_enabled (StampCalendarService *self);
-
-ECalClient *
-stamp_calendar_service_get_client (StampCalendarService *self);
-
-ESource *
-stamp_calendar_service_get_source (StampCalendarService *self);
 
 G_END_DECLS
 

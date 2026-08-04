@@ -35,8 +35,8 @@
 #include "stamp-mail-view.h"
 #include "stamp-session.h"
 #include "stamp-settings.h"
-#include "stamp-signature.h"
 #include "stamp-settings.h"
+#include "stamp-signature.h"
 #include "stamp-tag.h"
 #include "stamp-webview.h"
 #include "stamp-window.h"
@@ -874,7 +874,7 @@ static void
 insert_signature (StampComposer  *self,
                   StampSignature *sig)
 {
-  const char *content = stamp_signature_get_content (sig);
+  const gchar *content = stamp_signature_get_content (sig);
   g_autofree char *encoded = g_base64_encode ((const guchar *)content, strlen (content));
   g_autofree char *js = g_strdup_printf (
     "(function(){"
@@ -903,7 +903,7 @@ on_signature_activated (GSimpleAction *action,
                         gpointer       user_data)
 {
   StampComposer *self = STAMP_COMPOSER (user_data);
-  const char *target = g_variant_get_string (parameter, NULL);
+  const gchar *target = g_variant_get_string (parameter, NULL);
   StampSignature *new_sig = NULL;
 
   if (target && target[0]) {
@@ -940,7 +940,7 @@ attach_box_update_max_height (GtkScrolledWindow *sw,
                               AdwWrapBox        *wrap)
 {
   GtkWidget *child = gtk_widget_get_first_child (GTK_WIDGET (wrap));
-  int nat = 0;
+  gint nat = 0;
 
   if (child == NULL)
     return;
@@ -966,7 +966,7 @@ on_attachment_added (GObject      *obj,
     return;
   }
 
-  for (int idx = 0; idx < g_list_model_get_n_items (model); idx++) {
+  for (gint idx = 0; idx < g_list_model_get_n_items (model); idx++) {
     GtkWidget *button;
     g_autoptr (GFile) file = g_list_model_get_item (model, idx);
 
@@ -1192,15 +1192,13 @@ on_auto_save_get_body_html (GObject      *source_object,
   }
 }
 
-static gboolean
+static void
 autosave_timeout_cb (gpointer user_data)
 {
   StampComposer *self = STAMP_COMPOSER (user_data);
 
   self->autosave_source_id = 0;
   stamp_webview_get_body_html (self->webview, self->cancellable, on_auto_save_get_body_html, self);
-
-  return G_SOURCE_REMOVE;
 }
 
 static void
@@ -1211,7 +1209,7 @@ mark_dirty (StampComposer *self)
   if (self->autosave_source_id)
     g_source_remove (self->autosave_source_id);
 
-  self->autosave_source_id = g_timeout_add_seconds (10, autosave_timeout_cb, self);
+  self->autosave_source_id = g_timeout_add_seconds_once (10, autosave_timeout_cb, self);
 }
 
 static void
@@ -1528,18 +1526,18 @@ stamp_composer_init (StampComposer *self)
   gtk_drop_down_set_factory (GTK_DROP_DOWN (self->from), factory);
 
   selected_factory = gtk_signal_list_item_factory_new ();
-  g_signal_connect_object (selected_factory, "setup", G_CALLBACK (on_from_setup), self, 0);
-  g_signal_connect_object (selected_factory, "bind", G_CALLBACK (on_from_bind), self, 0);
+  g_signal_connect_object (selected_factory, "setup", G_CALLBACK (on_from_setup), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (selected_factory, "bind", G_CALLBACK (on_from_bind), self, G_CONNECT_DEFAULT);
   gtk_drop_down_set_list_factory (GTK_DROP_DOWN (self->from), selected_factory);
 
-  g_signal_connect_object (self->from, "notify::selected-item", G_CALLBACK (on_from_selected_item), self, 0);
+  g_signal_connect_object (self->from, "notify::selected-item", G_CALLBACK (on_from_selected_item), self, G_CONNECT_DEFAULT);
   load_from_combobox (self);
 
   gtk_widget_grab_focus (self->to);
 
   manager = webkit_web_view_get_user_content_manager (WEBKIT_WEB_VIEW (self->webview));
   webkit_user_content_manager_register_script_message_handler (manager, "dirty", NULL);
-  g_signal_connect_object (manager, "script-message-received::dirty", G_CALLBACK (on_dirty_message), self, 0);
+  g_signal_connect_object (manager, "script-message-received::dirty", G_CALLBACK (on_dirty_message), self, G_CONNECT_DEFAULT);
 
   g_signal_connect (self->webview, "load-changed", G_CALLBACK (on_load_changed), self);
 

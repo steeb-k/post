@@ -172,8 +172,8 @@ on_stamp_folder_list_account_added (GObject      *object,
   g_autoptr (StampAccountItem) account_item = NULL;
   StampMailService *mail_service;
 
-  g_signal_connect_object (account, "mail-added", G_CALLBACK (on_mail_added), self, 0);
-  g_signal_connect_object (account, "mail-removed", G_CALLBACK (on_mail_removed), self, 0);
+  g_signal_connect_object (account, "mail-added", G_CALLBACK (on_mail_added), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (account, "mail-removed", G_CALLBACK (on_mail_removed), self, G_CONNECT_DEFAULT);
 
   mail_service = stamp_account_get_mail_service (account);
   if (!mail_service || !stamp_mail_service_get_enabled (mail_service))
@@ -300,7 +300,7 @@ on_bind_folder (GtkListItemFactory *factory,
         self->expand_handler = g_idle_add_once (expand_idle, self);
     }
 
-    g_signal_connect_object (row, "notify::expanded", G_CALLBACK (on_row_expanded), self, 0);
+    g_signal_connect_object (row, "notify::expanded", G_CALLBACK (on_row_expanded), self, G_CONNECT_DEFAULT);
   } else {
     /* Set initial account expanded state */
     g_settings_bind (account_settings, "expanded", row, "expanded", G_SETTINGS_BIND_DEFAULT | G_SETTINGS_BIND_GET_NO_CHANGES);
@@ -621,8 +621,7 @@ stamp_folder_list_dispose (GObject *object)
 {
   StampFolderList *self = STAMP_FOLDER_LIST (object);
 
-  if (self->list_store)
-    g_clear_object (&self->list_store);
+  g_clear_object (&self->list_store);
 
   g_clear_handle_id (&self->expand_handler, g_source_remove);
   g_clear_pointer (&self->expand_queue, g_ptr_array_unref);
@@ -672,8 +671,8 @@ stamp_folder_list_init (StampFolderList *self)
   gtk_custom_sorter_set_sort_func (self->sorter, folders_sorter, NULL, NULL);
 
   session = stamp_session_get_default ();
-  g_signal_connect_object (session, "account-added", G_CALLBACK (on_stamp_folder_list_account_added), self, 0);
-  g_signal_connect_object (session, "account-removed", G_CALLBACK (on_stamp_folder_list_account_removed), self, 0);
+  g_signal_connect_object (session, "account-added", G_CALLBACK (on_stamp_folder_list_account_added), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (session, "account-removed", G_CALLBACK (on_stamp_folder_list_account_removed), self, G_CONNECT_DEFAULT);
 
   self->expand_queue = g_ptr_array_new_with_free_func (g_object_unref);
 

@@ -185,8 +185,8 @@ stamp_window_init (StampWindow *self)
                                    G_N_ELEMENTS (stamp_window_action_entries),
                                    self);
 
-  g_signal_connect_object (session, "account-added", G_CALLBACK (on_account_changed), self, 0);
-  g_signal_connect_object (session, "account-removed", G_CALLBACK (on_account_changed), self, 0);
+  g_signal_connect_object (session, "account-added", G_CALLBACK (on_account_changed), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (session, "account-removed", G_CALLBACK (on_account_changed), self, G_CONNECT_DEFAULT);
 
   if (stamp_is_running_inside_flatpak () && g_settings_get_boolean (STAMP_SETTINGS, STAMP_PREFS_BACKGROUND_NOTIFICATIONS))
     xdp_portal_set_background_status (portal, _("Waiting for new emails"), NULL, on_background_status, self);

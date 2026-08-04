@@ -229,7 +229,7 @@ init_accounts (StampPreferences *self)
     enabled = service && stamp_mail_service_get_enabled (service);
 
     g_object_set_data_full (G_OBJECT (row), "account", g_object_ref (account), g_object_unref);
-    g_signal_connect_object (row, "activated", G_CALLBACK (on_account_activated), self, 0);
+    g_signal_connect_object (row, "activated", G_CALLBACK (on_account_activated), self, G_CONNECT_DEFAULT);
     adw_preferences_row_set_title (ADW_PREFERENCES_ROW (row), stamp_account_get_name (account));
     adw_action_row_set_subtitle (ADW_ACTION_ROW (row), enabled ? _("Enabled") : _("Disabled"));
     adw_action_row_add_suffix (ADW_ACTION_ROW (row), image);
@@ -261,8 +261,8 @@ init_signatures (StampPreferences *self)
 
     g_object_set_data_full (G_OBJECT (row), "signature", signature, NULL);
     g_object_set_data (G_OBJECT (edit_button), "row", row);
-    g_signal_connect_object (row, "activated", G_CALLBACK (on_signature_activated), self, 0);
-    g_signal_connect_object (edit_button, "clicked", G_CALLBACK (on_signature_edit_clicked), self, 0);
+    g_signal_connect_object (row, "activated", G_CALLBACK (on_signature_activated), self, G_CONNECT_DEFAULT);
+    g_signal_connect_object (edit_button, "clicked", G_CALLBACK (on_signature_edit_clicked), self, G_CONNECT_DEFAULT);
     adw_preferences_row_set_title (ADW_PREFERENCES_ROW (row), stamp_signature_get_name (signature));
     adw_action_row_add_suffix (ADW_ACTION_ROW (row), edit_button);
 
@@ -287,14 +287,14 @@ stamp_preferences_init (StampPreferences *self)
   g_settings_bind (STAMP_SETTINGS, STAMP_PREFS_BACKGROUND_AUTOSTART, self->autostart, "active", G_SETTINGS_BIND_DEFAULT);
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_ALWAYS_SHOW_IMAGES, self->always_show_images, "active", G_SETTINGS_BIND_DEFAULT);
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_PLAY_INCOMING_SOUND, self->play_incoming_sound, "active", G_SETTINGS_BIND_DEFAULT);
-  g_signal_connect_object (self->autostart, "notify::active", G_CALLBACK (on_autostart), self, 0);
-  g_signal_connect_object (self->background_notifications, "notify::active", G_CALLBACK (on_background_notifications), self, 0);
+  g_signal_connect_object (self->autostart, "notify::active", G_CALLBACK (on_autostart), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (self->background_notifications, "notify::active", G_CALLBACK (on_background_notifications), self, G_CONNECT_DEFAULT);
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_LOAD_BIMI_IMAGES, self->bimi_images, "active", G_SETTINGS_BIND_DEFAULT);
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_IMPORTANT_FIRST, self->important_first, "active", G_SETTINGS_BIND_DEFAULT);
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_MARK_READ_TIMEOUT, self->mark_read, "value", G_SETTINGS_BIND_DEFAULT);
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_REFRESH_INTERVAL, self->refresh_interval, "value", G_SETTINGS_BIND_DEFAULT);
 
-  g_signal_connect_object (self->bimi_images, "notify::active", G_CALLBACK (on_bimi_images), self, 0);
+  g_signal_connect_object (self->bimi_images, "notify::active", G_CALLBACK (on_bimi_images), self, G_CONNECT_DEFAULT);
   g_signal_connect_swapped (self->signatures_group, "map", G_CALLBACK (init_signatures), self);
   init_accounts (self);
 }

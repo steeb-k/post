@@ -1,108 +1,92 @@
 include:
+  - project: "GNOME/citemplates"
+    file: "templates/default-rules.yml"
   - project: 'GNOME/citemplates'
     file: 'flatpak/flatpak_ci_initiative.yml'
   - component: gitlab.gnome.org/GNOME/citemplates/release-service@master
     inputs:
-      dist-job-name: "flatpak"
-  - project: 'Infrastructure/freedesktop-ci-templates'
-    file: 'templates/fedora.yml'
-    ref: 'b61a03cabbf308e81289f7aaaf0b5a80a34ffb99'
-  - component: "gitlab.gnome.org/GNOME/citemplates/goblint@master"
+      dist-job-name: "build-flatpak"
+  - component: "gitlab.gnome.org/gnome/citemplates/gnomeos-basic-ci@master"
     inputs:
-      job-stage: "analysis"
-      job-name: "gobject-linter-latest"
-      allow-failure: false
-      image-ref: "ghcr.io/bilelmoussaoui/gobject-linter:latest"
+      grcov-c-options: '--ignore "tests/*"'
+      gobject-linter: enabled
 
 variables:
-  BUNDLE: 'stamp-git.flatpak'
+  APP_ID: 'org.tabos.stamp'
+  BUNDLE: 'org.tabos.stamp.flatpak'
+  FLATPAK_MODULE: 'stamp'
   MANIFEST_PATH: 'org.tabos.stamp.json'
   RUNTIME_REPO: 'https://nightly.gnome.org/gnome-nightly.flatpakrepo'
-  FLATPAK_MODULE: 'stamp'
-  APP_ID: 'org.tabos.stamp'
-  FDO_UPSTREAM_REPO: jbrummer/stamp
 
 stages:
-  - prepare
+  - check
   - build
   - analysis
-  - test
   - deploy
 
-# Use freedesktop-ci-templates for code style check.
-# Everything else uses flatpak-ci-initiative
+check-code-style:
+  image: fedora:latest
+  stage: 'check'
+  before_script:
+    - dnf install -y colordiff diffutils python3 uncrustify blueprint-compiler
+  script:
+    - bash data/check-code-style
 
-.fedora.container.common:
-  variables:
-    FDO_DISTRIBUTION_TAG: '2025-05-19.1'
-    FDO_DISTRIBUTION_VERSION: '42'
+codespell:
+  image: fedora:latest
+  stage: 'check'
+  before_script:
+    - dnf install -y codespell
+  script:
+    - codespell src -L crate -S "*.png,*.po,.git,*.jpg,eff_large_wordlist.txt,.mypy_cache,_build" -f
 
-build.container.fedora@x86_64:
-  extends:
-  - '.fdo.container-build@fedora'
-  - '.fedora.container.common'
-  stage: 'prepare'
-  variables:
-    GIT_STRATEGY: none
-    FDO_EXPIRES_AFTER: 8w
-    FDO_DISTRIBUTION_PACKAGES: >-
-      colordiff
-      diffutils
-      python3
-      uncrustify
+build-flatpak:
+  extends: '.flatpak@x86_64'
+  stage: build
+  before_script: []
 
-flatpak:
-  extends:
-    - '.flatpak'
-  needs: []
+build-flatpak-aarch64:
+  extends: '.flatpak@aarch64'
+  stage: build
+  before_script: []
+  when: manual
 
-flatpak aarch64:
-  extends:
-    - '.flatpak@aarch64'
-  needs: []
+scan-build-gate:
+  stage: analysis
+  image:
+    name: fedora:latest
+  needs:
+    - job: "build-gnomeos-scan-build"
+      artifacts: true
+  script:
+    - |
+      if find _builddir/meson-logs/scanbuild -mindepth 1 -name 'index.html' -print -quit | grep -q .; then
+        echo "scan-build has finidings - watch Scanbuild Report'"
+        exit 1
+      fi
+      echo "scan-build: Good"
 
 nightly:
   extends: '.publish_nightly'
-  stage: deploy
-  needs: ['flatpak']
+  needs: ['build-flatpak']
 
-nightly aarch64:
+nightly-aarch64:
   extends: '.publish_nightly'
+  needs: ['build-flatpak-aarch64']
+  when: manual
+
+pages:
   stage: deploy
-  needs: ['flatpak aarch64']
-
-check-code-style:
-  extends:
-    - '.fdo.distribution-image@fedora'
-    - '.fedora.container.common'
-  stage: 'test'
-  needs: [ 'build.container.fedora@x86_64' ]
-  interruptible: true
+  needs: [ "build-gnomeos-grcov-c", "build-gnomeos-scan-build" ]
   script:
-    - bash data/check-code-style
+    - mkdir -p public
+    - cp .gitlab-ci/landing-page.html public/index.html
+    - mv public_scanbuild/ public/scanbuild
+    - mv public_grcov/cobertura.xml public/
+    - mv public_grcov/html public/coverage
   artifacts:
-    when: on_failure
-  rules:
-    - if: $CI_COMMIT_BRANCH !~ /gnome-\d\d+/
-
-scanbuild:
-  extends: '.flatpak'
-  needs: []
-  script:
-    - flatpak-builder --user --disable-rofiles-fuse --stop-at=${FLATPAK_MODULE} flatpak_app ${MANIFEST_PATH}
-    - flatpak build flatpak_app bash -c "source /usr/lib/sdk/llvm20/enable.sh; meson setup --prefix=/app ${CONFIG_OPTS} _build; SCANBUILD=$(pwd)/.run-scan-build ninja -C _build scan-build"
-  artifacts:
-    when: on_failure
     paths:
-      - _build/meson-logs/scanbuild
+      - public
+    expire_in: 1 day
   rules:
-    - if: $CI_COMMIT_BRANCH !~ /gnome-\d\d+/
-
-codespell:
-  extends:
-    - '.fdo.distribution-image@fedora'
-    - '.fedora.container.common'
-  stage: 'test'
-  script:
-    - dnf install -y codespell
-    - codespell src -L crate -S "*.png,*.po,.git,*.jpg,eff_large_wordlist.txt,.mypy_cache,_build" -f
+    - if: ($CI_DEFAULT_BRANCH == $CI_COMMIT_BRANCH)

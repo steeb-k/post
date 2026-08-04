@@ -217,7 +217,7 @@ on_open_activate (GAction  *action,
     adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "open");
     adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "cancel");
 
-    g_signal_connect_object (dialog, "response::open", G_CALLBACK (response_open_cb), self, 0);
+    g_signal_connect_object (dialog, "response::open", G_CALLBACK (response_open_cb), self, G_CONNECT_DEFAULT);
 
     adw_dialog_present (dialog, GTK_WIDGET (root));
   } else if (self->data) {
@@ -230,7 +230,7 @@ on_open_activate (GAction  *action,
     adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "open");
     adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "cancel");
 
-    g_signal_connect_object (dialog, "response::open", G_CALLBACK (response_open_data_cb), self, 0);
+    g_signal_connect_object (dialog, "response::open", G_CALLBACK (response_open_data_cb), self, G_CONNECT_DEFAULT);
 
     adw_dialog_present (dialog, GTK_WIDGET (root));
   } else if (self->file) {
@@ -311,7 +311,7 @@ on_save_as (GObject      *source_object,
 
     adw_toast_set_button_label (toast, _("Open Folder"));
     g_object_set_data (G_OBJECT (toast), "open-folder-window", GTK_WINDOW (gtk_widget_get_root (GTK_WIDGET (self))));
-    g_signal_connect_data (toast, "button-clicked", G_CALLBACK (on_open_folder), g_object_ref (file), (GClosureNotify)g_object_unref, 0);
+    g_signal_connect_data (toast, "button-clicked", G_CALLBACK (on_open_folder), g_object_ref (file), (GClosureNotify)g_object_unref, G_CONNECT_DEFAULT);
     adw_toast_overlay_add_toast (overlay, toast);
   }
 }
@@ -377,7 +377,7 @@ on_rename_activate (GAction  *action,
 
   adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "rename", ADW_RESPONSE_SUGGESTED);
 
-  g_signal_connect_object (dialog, "response", G_CALLBACK (on_rename_dialog_response), self, 0);
+  g_signal_connect_object (dialog, "response", G_CALLBACK (on_rename_dialog_response), self, G_CONNECT_DEFAULT);
 
   adw_dialog_present (ADW_DIALOG (dialog), GTK_WIDGET (root));
   gtk_widget_grab_focus (entry);
@@ -431,15 +431,15 @@ stamp_attachment_button_init (StampAttachmentButton *self)
   GSimpleAction *rename_action = g_simple_action_new ("rename", NULL);
 
   g_action_map_add_action (G_ACTION_MAP (actions), G_ACTION (open_action));
-  g_signal_connect_object (open_action, "activate", G_CALLBACK (on_open_activate), self, 0);
+  g_signal_connect_object (open_action, "activate", G_CALLBACK (on_open_activate), self, G_CONNECT_DEFAULT);
 
-  g_signal_connect_object (save_as_action, "activate", G_CALLBACK (on_save_as_activate), self, 0);
+  g_signal_connect_object (save_as_action, "activate", G_CALLBACK (on_save_as_activate), self, G_CONNECT_DEFAULT);
   g_action_map_add_action (G_ACTION_MAP (actions), G_ACTION (save_as_action));
 
-  g_signal_connect_object (remove_action, "activate", G_CALLBACK (on_remove_activate), self, 0);
+  g_signal_connect_object (remove_action, "activate", G_CALLBACK (on_remove_activate), self, G_CONNECT_DEFAULT);
   g_action_map_add_action (G_ACTION_MAP (actions), G_ACTION (remove_action));
 
-  g_signal_connect_object (rename_action, "activate", G_CALLBACK (on_rename_activate), self, 0);
+  g_signal_connect_object (rename_action, "activate", G_CALLBACK (on_rename_activate), self, G_CONNECT_DEFAULT);
   g_action_map_add_action (G_ACTION_MAP (actions), G_ACTION (rename_action));
 
   gtk_widget_insert_action_group (GTK_WIDGET (self), "attachmentbutton", G_ACTION_GROUP (actions));
