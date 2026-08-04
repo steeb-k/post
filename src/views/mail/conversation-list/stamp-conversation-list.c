@@ -1314,6 +1314,38 @@ on_unselect_all (GtkWidget *button,
   refresh_checkboxes (self);
 }
 
+static gboolean
+on_key_pressed (GtkEventControllerKey *controller,
+                guint                  keyval,
+                guint                  keycode,
+                GdkModifierType        state,
+                gpointer               user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+  GtkWidget *focus;
+  gboolean shift;
+
+  if (!self->selection_mode)
+    return GDK_EVENT_PROPAGATE;
+
+  if ((keyval != GDK_KEY_a && keyval != GDK_KEY_A) || (state & GDK_CONTROL_MASK) == 0 || (state & (GDK_ALT_MASK | GDK_META_MASK)) != 0)
+    return GDK_EVENT_PROPAGATE;
+
+  shift = (state & GDK_SHIFT_MASK) != 0;
+
+  focus = gtk_root_get_focus (gtk_widget_get_root (GTK_WIDGET (self)));
+  if (focus && gtk_widget_is_ancestor (focus, self->search_entry))
+    return GDK_EVENT_PROPAGATE;
+
+  if (shift) {
+    on_unselect_all (NULL, self);
+  } else {
+    on_select_all (NULL, self);
+  }
+
+  return GDK_EVENT_STOP;
+}
+
 static void
 on_selection_button_clicked (GtkWidget *button,
                              gpointer   user_data)
@@ -1474,6 +1506,7 @@ stamp_conversation_list_class_init (StampConversationListClass *klass)
   gtk_widget_class_bind_template_callback (widget_class, on_scroll);
   gtk_widget_class_bind_template_callback (widget_class, on_select_all);
   gtk_widget_class_bind_template_callback (widget_class, on_unselect_all);
+  gtk_widget_class_bind_template_callback (widget_class, on_key_pressed);
 
   signals[CONVERSATION_SELECTED] = g_signal_new ("conversation-selected", G_OBJECT_CLASS_TYPE (klass),
                                                  G_SIGNAL_RUN_FIRST | G_SIGNAL_RUN_LAST,

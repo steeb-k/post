@@ -12,6 +12,11 @@ template $StampConversationList: Adw.Bin {
       "secondary-sidebar-pane",
     ]
 
+    EventControllerKey {
+      propagation-phase: capture;
+      key-pressed => $on_key_pressed();
+    }
+
     [top]
     Stack header_stack {
       Adw.HeaderBar normal_headerbar {
