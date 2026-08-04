@@ -256,15 +256,10 @@ on_bind_folder (GtkListItemFactory *factory,
   GtkWidget *expander;
   g_autoptr (GSettings) account_settings = NULL;
   g_autofree char *settings_path = NULL;
-  GtkWidget *row_widget;
-  gint indent_size = 20;
-  guint depth;
-  gint margin;
 
   expander = gtk_list_item_get_child (list_item);
   row = GTK_TREE_LIST_ROW (gtk_list_item_get_item (list_item));
   item = STAMP_ITEM (gtk_tree_list_row_get_item (row));
-  row_widget = gtk_widget_get_parent (GTK_WIDGET (expander));
 
   gtk_tree_expander_set_list_row (GTK_TREE_EXPANDER (expander), row);
 
@@ -304,22 +299,6 @@ on_bind_folder (GtkListItemFactory *factory,
   } else {
     /* Set initial account expanded state */
     g_settings_bind (account_settings, "expanded", row, "expanded", G_SETTINGS_BIND_DEFAULT | G_SETTINGS_BIND_GET_NO_CHANGES);
-  }
-
-  depth = gtk_tree_list_row_get_depth (row);
-  gtk_tree_expander_set_indent_for_depth (GTK_TREE_EXPANDER (expander), FALSE);
-  gtk_tree_expander_set_indent_for_icon (GTK_TREE_EXPANDER (expander), FALSE);
-
-  margin = (depth > 0) ? (depth - 1) * indent_size : 0;
-  gtk_widget_set_margin_start (GTK_WIDGET (expander), margin);
-
-  gtk_widget_remove_css_class (row_widget, "tree-header");
-  gtk_widget_remove_css_class (row_widget, "tree-child");
-
-  if (depth == 0) {
-    gtk_widget_add_css_class (row_widget, "tree-header");
-  } else {
-    gtk_widget_add_css_class (row_widget, "tree-child");
   }
 }
 
