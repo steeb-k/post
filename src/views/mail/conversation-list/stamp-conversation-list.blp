@@ -156,6 +156,8 @@ template $StampConversationList: Adw.Bin {
     }
 
     content: Stack mail_list_stack {
+      visible-child-name: "loading";
+
       StackPage {
         name: "list";
 
@@ -256,6 +258,20 @@ template $StampConversationList: Adw.Bin {
         child: Adw.StatusPage {
           icon-name: "system-search-symbolic";
           title: _("No Mails Found");
+        };
+      }
+
+      StackPage {
+        name: "loading";
+
+        child: Adw.StatusPage {
+          title: _("Fetching Mail…");
+
+          child: Adw.Spinner {
+            halign: center;
+            width-request: 32;
+            height-request: 32;
+          };
         };
       }
     };

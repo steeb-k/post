@@ -103,6 +103,7 @@ struct _StampConversationList {
   GPtrArray *trash_uids;
   CamelFolder *trash_source_folder;
   guint pending_load_count;
+  gboolean fetching;
 
   GSimpleActionGroup *actions;
   GMenu *move_menu;
@@ -400,6 +401,41 @@ rebuild_category_actions (StampConversationList *self)
   g_object_set_data_full (G_OBJECT (self->actions), "cat-action-names", g_ptr_array_free (names, FALSE), (GDestroyNotify)g_strfreev);
 }
 
+/* An empty list means one of two things. Either the folder really has
+ * no mail, or its contents have not been fetched yet, which happens on
+ * a fresh account and can take a while. Saying "No Mails Found" during
+ * the fetch is wrong, so show that we are working instead. */
+static void
+stamp_conversation_list_update_state (StampConversationList *self)
+{
+  const gchar *page;
+
+  if (g_list_model_get_n_items (G_LIST_MODEL (self->list_store)) > 0)
+    page = "list";
+  else if (self->fetching)
+    page = "loading";
+  else
+    page = "empty";
+
+  gtk_stack_set_visible_child_name (GTK_STACK (self->mail_list_stack), page);
+}
+
+static void
+on_initial_fetch_done (GObject      *source,
+                       GAsyncResult *res,
+                       gpointer      user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+  g_autoptr (GError) error = NULL;
+
+  if (!camel_folder_refresh_info_finish (CAMEL_FOLDER (source), res, &error) &&
+      !g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+    g_warning ("%s: Could not fetch mail: %s", G_STRFUNC, error ? error->message : "");
+
+  self->fetching = FALSE;
+  stamp_conversation_list_update_state (self);
+}
+
 static void
 on_items_changed (GListModel *model,
                   guint       position,
@@ -408,13 +444,8 @@ on_items_changed (GListModel *model,
                   gpointer    user_data)
 {
   StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
-  guint n_items = g_list_model_get_n_items (model);
 
-  if (n_items == 0) {
-    gtk_stack_set_visible_child_name (GTK_STACK (self->mail_list_stack), "empty");
-  } else {
-    gtk_stack_set_visible_child_name (GTK_STACK (self->mail_list_stack), "list");
-  }
+  stamp_conversation_list_update_state (self);
 
   rebuild_category_actions (self);
 }
@@ -580,8 +611,16 @@ on_get_folder (GObject      *source,
   gtk_widget_set_visible (self->spinner, FALSE);
   gtk_widget_set_margin_top (self->spinner, 12);
 
-  if (g_list_model_get_n_items (G_LIST_MODEL (self->list_store)) > 0)
+  if (g_list_model_get_n_items (G_LIST_MODEL (self->list_store)) > 0) {
     gtk_list_view_scroll_to (GTK_LIST_VIEW (self->listview), 0, GTK_LIST_SCROLL_FOCUS, NULL);
+  } else {
+    /* Nothing stored locally for this folder yet, so fetch it now
+     * instead of waiting for the folder list to get around to it. */
+    self->fetching = TRUE;
+    camel_folder_refresh_info (folder, G_PRIORITY_DEFAULT, self->cancellable, on_initial_fetch_done, self);
+  }
+
+  stamp_conversation_list_update_state (self);
 
   if (self->pending_load_count > 0) {
     g_clear_handle_id (&self->load_more_items_handler, g_source_remove);
@@ -661,6 +700,7 @@ stamp_conversation_list_load_folder (StampConversationList *self,
     return;
 
   self->cancellable = g_cancellable_new ();
+  self->fetching = FALSE;
 
   mail_service = stamp_account_get_mail_service (account);
   self->account = account;
