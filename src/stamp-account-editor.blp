@@ -76,6 +76,71 @@ template $StampAccountEditor: Adw.Dialog {
                   icon-name: "go-next-symbolic";
                 }
               }
+
+              Adw.ActionRow exchange_row {
+                title: _("Exchange");
+                subtitle: _("Exchange Web Services");
+                activatable: true;
+                visible: false;
+                activated => $on_type_exchange_activated();
+
+                [suffix]
+                Gtk.Image {
+                  icon-name: "go-next-symbolic";
+                }
+              }
+            }
+          };
+        };
+      };
+    }
+
+    Adw.NavigationPage exchange_page {
+      title: _("Exchange");
+      tag: "exchange";
+
+      child: Adw.ToolbarView {
+        [top]
+        Adw.HeaderBar {}
+
+        content: Adw.Clamp {
+          maximum-size: 600;
+
+          child: Box {
+            orientation: vertical;
+            spacing: 12;
+            margin-top: 12;
+            margin-bottom: 12;
+            margin-start: 12;
+            margin-end: 12;
+
+            Adw.PreferencesGroup {
+              title: _("Server");
+
+              Adw.EntryRow ews_email_row {
+                title: _("Email Address");
+              }
+
+              Adw.EntryRow ews_url_row {
+                title: _("Host URL");
+                text: "https://server/EWS/Exchange.asmx";
+              }
+
+              Adw.EntryRow ews_user_row {
+                title: _("Username");
+              }
+            }
+
+            Adw.PreferencesGroup {
+              Adw.ButtonRow ews_save_row {
+                title: _("Add Account");
+
+                styles [
+                  "suggested-action",
+                ]
+
+                activated => $on_ews_save_clicked();
+              }
             }
           };
         };
