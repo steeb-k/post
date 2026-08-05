@@ -255,8 +255,38 @@ static void
 initialize_web_process_extensions (WebKitWebContext *web_context,
                                    StampWebView     *self)
 {
+  g_debug ("%s: Using web process extensions from %s", G_STRFUNC, STAMP_WEB_PROCESS_EXTENSIONS_DIR);
+
   webkit_web_context_set_web_process_extensions_directory (web_context, STAMP_WEB_PROCESS_EXTENSIONS_DIR);
   webkit_web_context_set_web_process_extensions_initialization_user_data (web_context, g_variant_new_int32 (0));
+}
+
+static gpointer
+stamp_webview_init_web_context (gpointer user_data)
+{
+  WebKitWebContext *web_context = webkit_web_context_get_default ();
+
+  g_signal_connect (web_context, "initialize-web-process-extensions",
+                    G_CALLBACK (initialize_web_process_extensions), NULL);
+
+  /* The signal is only emitted once, before the first web process is
+   * launched, so set the directory here as well in case the process is
+   * already on its way up. */
+  initialize_web_process_extensions (web_context, NULL);
+
+  return NULL;
+}
+
+/* Has to run before the first web view is constructed. Constructing one
+ * starts the web process, and a web process that started without the
+ * extension never answers messages sent to its page, which leaves
+ * callers of stamp_webview_get_body_html() waiting forever. */
+static void
+stamp_webview_ensure_web_context (void)
+{
+  static GOnce once_init = G_ONCE_INIT;
+
+  g_once (&once_init, stamp_webview_init_web_context, NULL);
 }
 
 static WebKitSettings *settings;
@@ -290,10 +320,6 @@ stamp_prefs_init (gpointer user_data)
     web_context,
     (const char * const *)languages
     );
-  g_signal_connect_object (web_context, "initialize-web-process-extensions",
-                           G_CALLBACK (initialize_web_process_extensions),
-                           self, G_CONNECT_DEFAULT);
-
   webkit_web_context_register_uri_scheme (web_context, "cid", on_cid_request, g_object_ref (self), g_object_unref);
 
   return settings;
@@ -335,6 +361,8 @@ stamp_webview_constructed (GObject *object)
   StampWebView *self = STAMP_WEB_VIEW (object);
   GtkEventController *controller;
   WebKitUserContentManager *content_manager;
+
+  stamp_webview_ensure_web_context ();
 
   G_OBJECT_CLASS (stamp_webview_parent_class)->constructed (object);
 
