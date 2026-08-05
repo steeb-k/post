@@ -27,6 +27,7 @@
 #include <pk11pub.h>
 
 #include "stamp-account.h"
+#include "stamp-account-editor.h"
 #include "stamp-helper.h"
 #include "stamp-session.h"
 #include "stamp-settings.h"
@@ -65,6 +66,61 @@ typedef enum {
 } StampPreferencesAccountProps;
 
 static GParamSpec *props[PROP_ACCOUNT + 1] = { NULL, };
+
+static void
+on_edit_server_clicked (AdwActionRow *row,
+                        gpointer      user_data)
+{
+  StampPreferencesAccount *self = STAMP_PREFERENCES_ACCOUNT (user_data);
+
+  adw_dialog_present (ADW_DIALOG (stamp_account_editor_new_for_account (self->account)), GTK_WIDGET (self));
+}
+
+static void
+on_remove_account_response (AdwAlertDialog *dialog,
+                            gchar          *response,
+                            gpointer        user_data)
+{
+  StampPreferencesAccount *self = STAMP_PREFERENCES_ACCOUNT (user_data);
+  g_autoptr (GError) error = NULL;
+  GtkWidget *preferences;
+
+  if (g_strcmp0 (response, "remove") != 0)
+    return;
+
+  if (!stamp_session_remove_account (stamp_session_get_default (), self->account, &error)) {
+    AdwDialog *alert = adw_alert_dialog_new (_("Could Not Remove Account"), error ? error->message : "");
+
+    adw_alert_dialog_add_response (ADW_ALERT_DIALOG (alert), "close", _("_Close"));
+    adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (alert), "close");
+    adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (alert), "close");
+    adw_dialog_present (alert, GTK_WIDGET (self));
+    return;
+  }
+
+  preferences = gtk_widget_get_ancestor (GTK_WIDGET (self), ADW_TYPE_PREFERENCES_DIALOG);
+  if (preferences)
+    adw_preferences_dialog_pop_subpage (ADW_PREFERENCES_DIALOG (preferences));
+}
+
+static void
+on_remove_account_clicked (GtkWidget *row,
+                           gpointer   user_data)
+{
+  StampPreferencesAccount *self = STAMP_PREFERENCES_ACCOUNT (user_data);
+  AdwDialog *dialog = adw_alert_dialog_new (_("Remove Account?"), NULL);
+
+  adw_alert_dialog_format_body (ADW_ALERT_DIALOG (dialog),
+                                _("Remove “%s”? Server settings and the local mail cache will be deleted. Mail on the server is not affected."),
+                                stamp_account_get_name (self->account));
+  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "cancel", _("_Cancel"));
+  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "remove", _("_Remove"));
+  adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "remove", ADW_RESPONSE_DESTRUCTIVE);
+  adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "cancel");
+  adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "cancel");
+  g_signal_connect (dialog, "response", G_CALLBACK (on_remove_account_response), self);
+  adw_dialog_present (dialog, GTK_WIDGET (self));
+}
 
 static void
 on_alias_edit_clicked (GtkWidget *button,
@@ -707,6 +763,8 @@ stamp_preferences_account_class_init (StampPreferencesAccountClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccount, smime_encrypt_cert);
 
   gtk_widget_class_bind_template_callback (widget_class, on_add_alias_clicked);
+  gtk_widget_class_bind_template_callback (widget_class, on_edit_server_clicked);
+  gtk_widget_class_bind_template_callback (widget_class, on_remove_account_clicked);
 
   props[PROP_ACCOUNT] = g_param_spec_object ("account",
                                              NULL,

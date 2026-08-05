@@ -23,6 +23,7 @@
 #include <libportal-gtk4/portal-gtk4.h>
 
 #include "stamp-account.h"
+#include "stamp-account-editor.h"
 #include "stamp-preferences-account.h"
 #include "stamp-preferences-signatures.h"
 #include "stamp-session.h"
@@ -43,12 +44,14 @@ struct _StampPreferences {
   AdwPreferencesGroup *accounts_group;
   AdwPreferencesGroup *signatures_group;
   AdwActionRow *add_signature;
+  AdwButtonRow *add_account;
 
   gboolean autostart_failed;
 
   GCancellable *cancellable;
 
   GPtrArray *signature_rows;
+  GPtrArray *account_rows;
 };
 
 G_DEFINE_FINAL_TYPE (StampPreferences, stamp_preferences, ADW_TYPE_PREFERENCES_DIALOG);
@@ -73,6 +76,15 @@ on_add_signature_clicked (GtkWidget *button,
 }
 
 static void
+on_add_account_clicked (GtkWidget *button,
+                        gpointer   user_data)
+{
+  StampPreferences *self = STAMP_PREFERENCES (user_data);
+
+  adw_dialog_present (ADW_DIALOG (stamp_account_editor_new ()), GTK_WIDGET (self));
+}
+
+static void
 on_signature_edit_clicked (GtkWidget *button,
                            gpointer   user_data)
 {
@@ -93,6 +105,7 @@ stamp_preferences_dispose (GObject *object)
 
   g_clear_object (&self->cancellable);
   g_clear_pointer (&self->signature_rows, g_ptr_array_unref);
+  g_clear_pointer (&self->account_rows, g_ptr_array_unref);
 
   G_OBJECT_CLASS (stamp_preferences_parent_class)->dispose (object);
 }
@@ -116,10 +129,12 @@ stamp_preferences_class_init (StampPreferencesClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, refresh_interval);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, important_first);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, accounts_group);
+  gtk_widget_class_bind_template_child (widget_class, StampPreferences, add_account);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, signatures_group);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, add_signature);
 
   gtk_widget_class_bind_template_callback (widget_class, on_add_signature_clicked);
+  gtk_widget_class_bind_template_callback (widget_class, on_add_account_clicked);
 }
 
 static void
@@ -216,8 +231,16 @@ on_account_activated (GtkWidget *row,
 static void
 init_accounts (StampPreferences *self)
 {
-  GList *accounts = stamp_session_get_accounts (stamp_session_get_default ());
+  GList *accounts;
 
+  for (guint i = 0; i < self->account_rows->len; i++)
+    adw_preferences_group_remove (self->accounts_group, g_ptr_array_index (self->account_rows, i));
+
+  g_ptr_array_set_size (self->account_rows, 0);
+
+  adw_preferences_group_remove (self->accounts_group, GTK_WIDGET (self->add_account));
+
+  accounts = stamp_session_get_accounts (stamp_session_get_default ());
   for (GList *iter = accounts; iter && iter->data; iter = g_list_next (iter)) {
     StampAccount *account = STAMP_ACCOUNT (iter->data);
     GtkWidget *row = adw_action_row_new ();
@@ -234,7 +257,10 @@ init_accounts (StampPreferences *self)
     adw_action_row_set_subtitle (ADW_ACTION_ROW (row), enabled ? _("Enabled") : _("Disabled"));
     adw_action_row_add_suffix (ADW_ACTION_ROW (row), image);
     adw_preferences_group_add (self->accounts_group, row);
+    g_ptr_array_add (self->account_rows, row);
   }
+
+  adw_preferences_group_add (self->accounts_group, GTK_WIDGET (self->add_account));
 }
 
 static void
@@ -282,6 +308,7 @@ stamp_preferences_init (StampPreferences *self)
 
   self->cancellable = g_cancellable_new ();
   self->signature_rows = g_ptr_array_new ();
+  self->account_rows = g_ptr_array_new ();
 
   g_settings_bind (STAMP_SETTINGS, STAMP_PREFS_BACKGROUND_NOTIFICATIONS, self->background_notifications, "active", G_SETTINGS_BIND_DEFAULT);
   g_settings_bind (STAMP_SETTINGS, STAMP_PREFS_BACKGROUND_AUTOSTART, self->autostart, "active", G_SETTINGS_BIND_DEFAULT);
@@ -296,6 +323,8 @@ stamp_preferences_init (StampPreferences *self)
 
   g_signal_connect_object (self->bimi_images, "notify::active", G_CALLBACK (on_bimi_images), self, G_CONNECT_DEFAULT);
   g_signal_connect_swapped (self->signatures_group, "map", G_CALLBACK (init_signatures), self);
+  g_signal_connect_object (stamp_session_get_default (), "account-added", G_CALLBACK (init_accounts), self, G_CONNECT_SWAPPED);
+  g_signal_connect_object (stamp_session_get_default (), "account-removed", G_CALLBACK (init_accounts), self, G_CONNECT_SWAPPED);
   init_accounts (self);
 }
 

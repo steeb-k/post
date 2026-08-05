@@ -14,6 +14,22 @@ template $StampPreferencesAccount: Adw.NavigationPage {
 
     content: Adw.PreferencesPage page {
       Adw.PreferencesGroup {
+        title: _("Server");
+
+        Adw.ActionRow edit_server {
+          title: _("Server Settings");
+          subtitle: _("Edit mail server connection settings");
+          activatable: true;
+          activated => $on_edit_server_clicked();
+
+          [suffix]
+          Gtk.Image {
+            icon-name: "go-next-symbolic";
+          }
+        }
+      }
+
+      Adw.PreferencesGroup {
         title: _("Composing");
 
         Adw.ComboRow default_signature {
@@ -73,6 +89,18 @@ template $StampPreferencesAccount: Adw.NavigationPage {
         title: _("Custom Folders");
         description: _("Enable notifications for selected folders");
         visible: false;
+      }
+
+      Adw.PreferencesGroup {
+        Adw.ButtonRow remove_account {
+          title: _("Remove Account");
+
+          styles [
+            "destructive-action",
+          ]
+
+          activated => $on_remove_account_clicked();
+        }
       }
     };
   };
