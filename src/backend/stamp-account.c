@@ -592,6 +592,34 @@ is_drafts_folder (CamelFolderInfo *fi)
   return (fi->flags & CAMEL_FOLDER_TYPE_MASK) == CAMEL_FOLDER_TYPE_DRAFTS;
 }
 
+/* Not every server tells us what its special folders are. Proton Bridge
+ * for example sends the folder flags but does not announce SPECIAL-USE,
+ * so Camel never sets the folder type and we have to go by name. */
+static const gchar *
+find_folder_by_name (CamelFolderInfo     *root,
+                     const gchar * const *names)
+{
+  CamelFolderInfo *fi = root;
+
+  while (fi) {
+    for (guint i = 0; names[i]; i++) {
+      if (g_ascii_strcasecmp (fi->full_name, names[i]) == 0)
+        return fi->full_name;
+    }
+
+    if (fi->child) {
+      fi = fi->child;
+      continue;
+    }
+    while (fi && !fi->next)
+      fi = fi->parent;
+    if (fi)
+      fi = fi->next;
+  }
+
+  return NULL;
+}
+
 typedef struct {
   StampAccount *account;
   InitContext *ctx;
@@ -721,6 +749,29 @@ on_folder_info_for_sent_drafts (GObject      *src,
     if (fi)
       fi = fi->next;
   }
+
+  if (!sent_path) {
+    static const gchar * const names[] = { "Sent", "Sent Mail", "Sent Items", "Sent Messages", NULL };
+
+    sent_path = find_folder_by_name (root, names);
+  }
+
+  if (!drafts_path) {
+    static const gchar * const names[] = { "Drafts", "Draft", NULL };
+
+    drafts_path = find_folder_by_name (root, names);
+  }
+
+  if (!trash_path) {
+    static const gchar * const names[] = { "Trash", "Deleted Items", "Deleted Messages", NULL };
+
+    trash_path = find_folder_by_name (root, names);
+  }
+
+  g_debug ("%s: sent '%s', drafts '%s', trash '%s'", G_STRFUNC,
+           sent_path ? sent_path : "(none)",
+           drafts_path ? drafts_path : "(none)",
+           trash_path ? trash_path : "(none)");
 
   new_pending = (sent_path ? 1 : 0) + (drafts_path ? 1 : 0) + (trash_path ? 1 : 0);
   data->pending += new_pending;
