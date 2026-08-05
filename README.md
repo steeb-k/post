@@ -11,6 +11,35 @@ A modern mail suite written in C using GTK4 and Adwaita, built on the Evolution 
 - **BIMI** - Brand Indicators for Message Identification support
 - **One-Click Unsubscribe** - Offer simple one click unsubscribe from mailing lists 
 
+## Accounts
+
+Stamp does not manage accounts itself. Mail, contact and calendar
+accounts come from GNOME Online Accounts through the Evolution Data
+Server registry, and Stamp shows whatever it finds there.
+
+Adding and removing accounts is done in **gnome-online-accounts-gtk**,
+which is a required runtime dependency. It is a plain GTK application
+and works on any desktop, unlike the Online Accounts panel in GNOME
+Settings, which refuses to start outside GNOME. The welcome page and the
+accounts entry in the menu open it.
+
+```sh
+# Arch
+pacman -S gnome-online-accounts-gtk
+```
+
+Using GNOME Online Accounts for this is deliberate. Providers such as
+Gmail need an OAuth client that Google has verified, and restricted
+scopes like full mail access require a paid security assessment that is
+renewed every year. GNOME Online Accounts already ships a verified
+client, so accounts work without every user or packager having to
+register one.
+
+Packagers: this must be a hard dependency, not a suggestion. In a
+Flatpak build the editor lives on the host and is started through
+`flatpak-spawn --host`, so the sandbox needs `--talk-name=org.freedesktop.Flatpak`
+and the host has to have the package installed.
+
 ## Building
 
 Stamp uses the [Meson](https://mesonbuild.com) build system.

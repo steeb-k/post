@@ -2,6 +2,30 @@
 
 Issues found while testing this fork. Not yet fixed.
 
+## Flatpak packaging notes
+
+Accounts come from GNOME Online Accounts and are edited in
+gnome-online-accounts-gtk, which runs on the host. `stamp_launch_goa()`
+starts it with `flatpak-spawn --host`, so the manifest needs
+`--talk-name=org.freedesktop.Flatpak` in its finish args, and the host
+has to have the package installed. Nothing checks that at build time.
+
+The evolution-data-server module cleans up
+`/lib/evolution-data-server/*-backends`, which throws away
+`libebookbackendcarddav.so`. A CardDAV address book added in GNOME
+Online Accounts then shows up in the account but never opens. Narrow
+that cleanup so the address book backends survive.
+
+The manifest still builds gnome-online-accounts as a module and EDS with
+`-DENABLE_GOA=ON`. Both are needed now, so leave them alone. What is
+missing is the editor itself, since the bundled GOA has no user
+interface.
+
+Untested: whether the bundled registry or the one on the host wins. The
+manifest already shares `~/.config/evolution` and allows
+`org.gnome.evolution.dataserver.Sources5`, so accounts created on the
+host should be visible, but if the two disagree then nothing shows up.
+
 ## Folders show up empty until the app is restarted
 
 After adding an account the folder list appears, including custom folders,
