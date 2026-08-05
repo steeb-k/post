@@ -20,6 +20,7 @@
 #include "stamp-account-editor.h"
 
 #include <glib/gi18n.h>
+#include <libedataserverui4/libedataserverui4.h>
 
 #include "backend/stamp-session.h"
 
@@ -42,6 +43,14 @@ struct _StampAccountEditor {
   AdwEntryRow *smtp_user_row;
   AdwButtonRow *save_row;
   AdwEntryRow *oauth_email_row;
+  AdwEntryRow *carddav_url_row;
+  AdwEntryRow *carddav_user_row;
+  GtkBox *carddav_content_box;
+  AdwComboRow *carddav_account_row;
+  AdwButtonRow *carddav_add_row;
+
+  GtkWidget *carddav_content;
+  ECredentialsPrompter *carddav_prompter;
 
   StampAccount *account;
 
@@ -121,6 +130,136 @@ on_type_microsoft_activated (AdwActionRow       *row,
   self->oauth_backend = "outlook";
   self->oauth_method = "Outlook";
   adw_navigation_view_push_by_tag (self->navigation_view, "oauth");
+}
+
+static void
+on_type_carddav_activated (AdwActionRow       *row,
+                           StampAccountEditor *self)
+{
+  g_autoptr (GtkStringList) model = gtk_string_list_new (NULL);
+  GList *accounts = stamp_session_get_accounts (stamp_session_get_default ());
+
+  for (GList *iter = accounts; iter && iter->data; iter = g_list_next (iter))
+    gtk_string_list_append (model, stamp_account_get_name (STAMP_ACCOUNT (iter->data)));
+
+  adw_combo_row_set_model (self->carddav_account_row, G_LIST_MODEL (model));
+
+  adw_navigation_view_push_by_tag (self->navigation_view, "carddav");
+}
+
+static void
+on_carddav_refresh_done (GObject      *source_object,
+                         GAsyncResult *result,
+                         gpointer      user_data)
+{
+  g_autoptr (StampAccountEditor) self = STAMP_ACCOUNT_EDITOR (user_data);
+  g_autoptr (GError) error = NULL;
+
+  if (!e_webdav_discover_content_refresh_finish (self->carddav_content, result, &error)) {
+    e_webdav_discover_content_show_error (self->carddav_content, error);
+    return;
+  }
+
+  gtk_widget_set_sensitive (GTK_WIDGET (self->carddav_add_row), TRUE);
+}
+
+static void
+on_carddav_search_clicked (AdwButtonRow       *row,
+                           StampAccountEditor *self)
+{
+  StampSession *session = stamp_session_get_default ();
+  g_autoptr (ESource) scratch = NULL;
+  g_autoptr (GError) error = NULL;
+  ESourceAuthentication *auth_ext;
+  const gchar *url = entry_text (self->carddav_url_row);
+
+  if (!*url) {
+    show_error (self, _("Missing Information"), _("A server URL is required."));
+    return;
+  }
+
+  scratch = e_source_new (NULL, NULL, &error);
+  if (!scratch) {
+    show_error (self, _("Could Not Search"), error ? error->message : "");
+    return;
+  }
+
+  auth_ext = e_source_get_extension (scratch, E_SOURCE_EXTENSION_AUTHENTICATION);
+  e_source_authentication_set_user (auth_ext, entry_text (self->carddav_user_row));
+
+  if (self->carddav_content)
+    gtk_box_remove (self->carddav_content_box, self->carddav_content);
+  g_clear_object (&self->carddav_prompter);
+
+  self->carddav_prompter = e_credentials_prompter_new (stamp_session_get_registry (session));
+  self->carddav_content = e_webdav_discover_content_new (self->carddav_prompter, scratch, url,
+                                                         E_WEBDAV_DISCOVER_SUPPORTS_CONTACTS);
+  gtk_box_append (self->carddav_content_box, self->carddav_content);
+
+  gtk_widget_set_sensitive (GTK_WIDGET (self->carddav_add_row), FALSE);
+  e_webdav_discover_content_refresh (self->carddav_content, _("Address Book"), NULL,
+                                     on_carddav_refresh_done, g_object_ref (self));
+}
+
+static void
+on_carddav_add_clicked (AdwButtonRow       *row,
+                        StampAccountEditor *self)
+{
+  StampSession *session = stamp_session_get_default ();
+  StampAccount *account;
+  ESource *collection;
+  g_autoptr (ESource) book = NULL;
+  g_autoptr (GUri) uri = NULL;
+  g_autoptr (GError) error = NULL;
+  g_autofree gchar *href = NULL;
+  g_autofree gchar *display_name = NULL;
+  g_autofree gchar *color = NULL;
+  guint supports = 0;
+  guint order = 0;
+  ESourceWebdav *webdav_ext;
+  ESourceAuthentication *auth_ext;
+
+  if (!self->carddav_content ||
+      !e_webdav_discover_content_get_selected (self->carddav_content, 0, &href, &supports, &display_name, &color, &order)) {
+    show_error (self, _("Missing Information"), _("Select an address book to add."));
+    return;
+  }
+
+  account = g_list_nth_data (stamp_session_get_accounts (session),
+                             adw_combo_row_get_selected (self->carddav_account_row));
+  collection = account ? stamp_account_get_collection (account) : NULL;
+  if (!collection) {
+    show_error (self, _("Missing Information"), _("Select the account to add the address book to."));
+    return;
+  }
+
+  uri = g_uri_parse (href, G_URI_FLAGS_NONE, &error);
+  if (!uri) {
+    show_error (self, _("Could Not Add Address Book"), error ? error->message : "");
+    return;
+  }
+
+  book = e_source_new (NULL, NULL, &error);
+  if (!book) {
+    show_error (self, _("Could Not Add Address Book"), error ? error->message : "");
+    return;
+  }
+
+  e_source_set_parent (book, e_source_get_uid (collection));
+  e_source_set_display_name (book, display_name && *display_name ? display_name : _("Address Book"));
+  e_source_backend_set_backend_name (E_SOURCE_BACKEND (e_source_get_extension (book, E_SOURCE_EXTENSION_ADDRESS_BOOK)), "carddav");
+  webdav_ext = e_source_get_extension (book, E_SOURCE_EXTENSION_WEBDAV_BACKEND);
+  e_source_webdav_set_uri (webdav_ext, uri);
+  auth_ext = e_source_get_extension (book, E_SOURCE_EXTENSION_AUTHENTICATION);
+  e_source_authentication_set_user (auth_ext, entry_text (self->carddav_user_row));
+
+  if (!e_source_registry_commit_source_sync (stamp_session_get_registry (session), book, NULL, &error)) {
+    g_warning ("%s: Could not add address book: %s", G_STRFUNC, error ? error->message : "");
+    show_error (self, _("Could Not Add Address Book"), error ? error->message : "");
+    return;
+  }
+
+  adw_dialog_close (ADW_DIALOG (self));
 }
 
 static void
@@ -349,6 +488,7 @@ stamp_account_editor_dispose (GObject *object)
   StampAccountEditor *self = STAMP_ACCOUNT_EDITOR (object);
 
   g_clear_object (&self->account);
+  g_clear_object (&self->carddav_prompter);
 
   gtk_widget_dispose_template (GTK_WIDGET (object), STAMP_TYPE_ACCOUNT_EDITOR);
 
@@ -381,11 +521,19 @@ stamp_account_editor_class_init (StampAccountEditorClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampAccountEditor, smtp_user_row);
   gtk_widget_class_bind_template_child (widget_class, StampAccountEditor, save_row);
   gtk_widget_class_bind_template_child (widget_class, StampAccountEditor, oauth_email_row);
+  gtk_widget_class_bind_template_child (widget_class, StampAccountEditor, carddav_url_row);
+  gtk_widget_class_bind_template_child (widget_class, StampAccountEditor, carddav_user_row);
+  gtk_widget_class_bind_template_child (widget_class, StampAccountEditor, carddav_content_box);
+  gtk_widget_class_bind_template_child (widget_class, StampAccountEditor, carddav_account_row);
+  gtk_widget_class_bind_template_child (widget_class, StampAccountEditor, carddav_add_row);
 
   gtk_widget_class_bind_template_callback (widget_class, on_type_imap_activated);
   gtk_widget_class_bind_template_callback (widget_class, on_type_google_activated);
   gtk_widget_class_bind_template_callback (widget_class, on_type_microsoft_activated);
+  gtk_widget_class_bind_template_callback (widget_class, on_type_carddav_activated);
   gtk_widget_class_bind_template_callback (widget_class, on_oauth_save_clicked);
+  gtk_widget_class_bind_template_callback (widget_class, on_carddav_search_clicked);
+  gtk_widget_class_bind_template_callback (widget_class, on_carddav_add_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_save_clicked);
 }
 

@@ -64,7 +64,91 @@ template $StampAccountEditor: Adw.Dialog {
                   icon-name: "go-next-symbolic";
                 }
               }
+
+              Adw.ActionRow {
+                title: _("CardDAV");
+                subtitle: _("Address books on a WebDAV server");
+                activatable: true;
+                activated => $on_type_carddav_activated();
+
+                [suffix]
+                Gtk.Image {
+                  icon-name: "go-next-symbolic";
+                }
+              }
             }
+          };
+        };
+      };
+    }
+
+    Adw.NavigationPage carddav_page {
+      title: _("CardDAV");
+      tag: "carddav";
+
+      child: Adw.ToolbarView {
+        [top]
+        Adw.HeaderBar {}
+
+        content: Gtk.ScrolledWindow {
+          hscrollbar-policy: never;
+
+          child: Adw.Clamp {
+            maximum-size: 600;
+
+            child: Box {
+              orientation: vertical;
+              spacing: 12;
+              margin-top: 12;
+              margin-bottom: 12;
+              margin-start: 12;
+              margin-end: 12;
+
+              Adw.PreferencesGroup {
+                title: _("Server");
+
+                Adw.EntryRow carddav_url_row {
+                  title: _("URL");
+                }
+
+                Adw.EntryRow carddav_user_row {
+                  title: _("Username");
+                }
+              }
+
+              Adw.PreferencesGroup {
+                Adw.ButtonRow carddav_search_row {
+                  title: _("Find Address Books");
+                  activated => $on_carddav_search_clicked();
+                }
+              }
+
+              Gtk.Box carddav_content_box {
+                orientation: vertical;
+              }
+
+              Adw.PreferencesGroup {
+                title: _("Account");
+
+                Adw.ComboRow carddav_account_row {
+                  title: _("Add To");
+                  subtitle: _("The address book is added to this account");
+                }
+              }
+
+              Adw.PreferencesGroup {
+                Adw.ButtonRow carddav_add_row {
+                  title: _("Add Address Book");
+                  sensitive: false;
+
+                  styles [
+                    "suggested-action",
+                  ]
+
+                  activated => $on_carddav_add_clicked();
+                }
+              }
+            };
           };
         };
       };
