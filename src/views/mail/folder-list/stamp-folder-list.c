@@ -39,6 +39,7 @@ struct _StampFolderList {
   GListStore *list_store;
   GPtrArray *expand_queue;
   guint expand_handler;
+  guint select_inbox_handler;
 
   StampConversationList *conversation_list;
 };
@@ -243,6 +244,49 @@ expand_idle (gpointer user_data)
   self->expand_handler = 0;
 }
 
+static gboolean
+item_is_inbox (StampItem *item)
+{
+  const gchar *full_name;
+
+  if (!STAMP_IS_FOLDER_ITEM (item))
+    return FALSE;
+
+  full_name = stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item));
+
+  return g_strcmp0 (full_name, "INBOX") == 0 ||
+         g_strcmp0 (full_name, "Inbox") == 0 ||
+         g_strcmp0 (full_name, "Posteingang") == 0;
+}
+
+/* After setting up an account there is no folder to restore, and
+ * starting on an empty mail list is a poor first impression. Pick the
+ * first inbox we can find instead. */
+static void
+select_inbox_idle (gpointer user_data)
+{
+  StampFolderList *self = STAMP_FOLDER_LIST (user_data);
+  GListModel *model = G_LIST_MODEL (self->selection);
+  guint n_items;
+
+  self->select_inbox_handler = 0;
+
+  if (self->already_selected)
+    return;
+
+  n_items = g_list_model_get_n_items (model);
+  for (guint i = 0; i < n_items; i++) {
+    g_autoptr (GtkTreeListRow) row = g_list_model_get_item (model, i);
+    g_autoptr (StampItem) item = row ? STAMP_ITEM (gtk_tree_list_row_get_item (row)) : NULL;
+
+    if (item && item_is_inbox (item)) {
+      gtk_single_selection_set_selected (self->selection, i);
+      self->already_selected = TRUE;
+      return;
+    }
+  }
+}
+
 static void
 on_bind_folder (GtkListItemFactory *factory,
                 GtkListItem        *list_item,
@@ -285,6 +329,9 @@ on_bind_folder (GtkListItemFactory *factory,
       if (g_strcmp0 (stamp_account_get_name (account), account_name) == 0 && g_strcmp0 (full_name, folder_name) == 0) {
         gtk_single_selection_set_selected (self->selection, gtk_list_item_get_position (list_item));
         self->already_selected = TRUE;
+      } else if (self->select_inbox_handler == 0) {
+        /* Also covers a saved folder whose account is gone. */
+        self->select_inbox_handler = g_idle_add_once (select_inbox_idle, self);
       }
     }
 
@@ -603,6 +650,7 @@ stamp_folder_list_dispose (GObject *object)
   g_clear_object (&self->list_store);
 
   g_clear_handle_id (&self->expand_handler, g_source_remove);
+  g_clear_handle_id (&self->select_inbox_handler, g_source_remove);
   g_clear_pointer (&self->expand_queue, g_ptr_array_unref);
 
   self->conversation_list = NULL;
