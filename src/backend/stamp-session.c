@@ -616,6 +616,150 @@ get_oauth2_access_token_sync (CamelSession  *session,
   return success;
 }
 
+typedef struct _TrustPromptData {
+  GMutex mutex;
+  GCond cond;
+  gboolean finished;
+  ETrustPromptResponse response;
+  ESource *source;
+  const gchar *certificate_pem;
+  GTlsCertificateFlags errors;
+} TrustPromptData;
+
+static CamelCertTrust
+trust_prompt_response_to_trust (ETrustPromptResponse response)
+{
+  switch (response) {
+  case E_TRUST_PROMPT_RESPONSE_ACCEPT:
+    return CAMEL_CERT_TRUST_FULLY;
+  case E_TRUST_PROMPT_RESPONSE_ACCEPT_TEMPORARILY:
+    return CAMEL_CERT_TRUST_TEMPORARY;
+  case E_TRUST_PROMPT_RESPONSE_REJECT:
+    return CAMEL_CERT_TRUST_NEVER;
+  case E_TRUST_PROMPT_RESPONSE_UNKNOWN:
+  case E_TRUST_PROMPT_RESPONSE_REJECT_TEMPORARILY:
+  default:
+    return CAMEL_CERT_TRUST_UNKNOWN;
+  }
+}
+
+static GtkWindow *
+trust_prompt_get_parent (void)
+{
+  GApplication *application = g_application_get_default ();
+
+  if (!application)
+    return NULL;
+
+  return gtk_application_get_active_window (GTK_APPLICATION (application));
+}
+
+static void
+on_trust_prompt_done (GObject      *source_object,
+                      GAsyncResult *result,
+                      gpointer      user_data)
+{
+  TrustPromptData *data = user_data;
+  g_autoptr (GError) error = NULL;
+
+  if (!e_trust_prompt_run_for_source_finish (E_SOURCE (source_object), result, &data->response, &error)) {
+    g_warning ("%s: Trust prompt failed: %s", __FUNCTION__, error ? error->message : "Unknown error");
+    data->response = E_TRUST_PROMPT_RESPONSE_UNKNOWN;
+  }
+
+  g_mutex_lock (&data->mutex);
+  data->finished = TRUE;
+  g_cond_signal (&data->cond);
+  g_mutex_unlock (&data->mutex);
+}
+
+static gboolean
+trust_prompt_in_main (gpointer user_data)
+{
+  TrustPromptData *data = user_data;
+
+  e_trust_prompt_run_for_source (trust_prompt_get_parent (),
+                                 data->source,
+                                 data->certificate_pem,
+                                 data->errors,
+                                 NULL,
+                                 TRUE,
+                                 NULL,
+                                 on_trust_prompt_done,
+                                 data);
+
+  return G_SOURCE_REMOVE;
+}
+
+static CamelCertTrust
+trust_prompt (CamelSession         *session,
+              CamelService         *service,
+              GTlsCertificate      *certificate,
+              GTlsCertificateFlags  errors)
+{
+  StampSession *self = STAMP_SESSION (session);
+  g_autoptr (ESource) source = NULL;
+  g_autoptr (GString) pem = NULL;
+  GTlsCertificate *cert;
+  TrustPromptData data = { 0, };
+
+  source = e_source_registry_ref_source (self->registry, camel_service_get_uid (service));
+  if (!source) {
+    g_warning ("%s: No data source found for service UID '%s'", __FUNCTION__, camel_service_get_uid (service));
+    return CAMEL_CERT_TRUST_UNKNOWN;
+  }
+
+  /* Include the issuer chain so the dialog can show the full certificate. */
+  pem = g_string_new (NULL);
+  for (cert = certificate; cert; cert = g_tls_certificate_get_issuer (cert)) {
+    g_autofree gchar *cert_pem = NULL;
+
+    g_object_get (cert, "certificate-pem", &cert_pem, NULL);
+    if (cert_pem)
+      g_string_append (pem, cert_pem);
+  }
+
+  if (g_main_context_is_owner (NULL)) {
+    /* Camel calls this from worker threads, but do not deadlock if we
+     * ever end up here on the main thread. */
+    g_autoptr (CamelSettings) settings = camel_service_ref_settings (service);
+    const gchar *host = NULL;
+    ETrustPromptResponse response;
+
+    if (CAMEL_IS_NETWORK_SETTINGS (settings))
+      host = camel_network_settings_get_host (CAMEL_NETWORK_SETTINGS (settings));
+
+    response = e_trust_prompt_run_modal (trust_prompt_get_parent (),
+                                         E_SOURCE_EXTENSION_MAIL_ACCOUNT,
+                                         e_source_get_display_name (source),
+                                         host,
+                                         pem->str,
+                                         errors,
+                                         NULL);
+
+    return trust_prompt_response_to_trust (response);
+  }
+
+  data.source = source;
+  data.certificate_pem = pem->str;
+  data.errors = errors;
+  data.response = E_TRUST_PROMPT_RESPONSE_UNKNOWN;
+  g_mutex_init (&data.mutex);
+  g_cond_init (&data.cond);
+
+  g_main_context_invoke (NULL, trust_prompt_in_main, &data);
+
+  g_mutex_lock (&data.mutex);
+  while (!data.finished)
+    g_cond_wait (&data.cond, &data.mutex);
+  g_mutex_unlock (&data.mutex);
+
+  g_mutex_clear (&data.mutex);
+  g_cond_clear (&data.cond);
+
+  return trust_prompt_response_to_trust (data.response);
+}
+
 static void
 stamp_session_dispose (GObject *object)
 {
@@ -645,6 +789,7 @@ stamp_session_class_init (StampSessionClass *klass)
   session_class->remove_service = remove_service;
   session_class->get_filter_driver = get_filter_driver;
   session_class->get_oauth2_access_token_sync = get_oauth2_access_token_sync;
+  session_class->trust_prompt = trust_prompt;
 
   object_class->dispose = stamp_session_dispose;
 
