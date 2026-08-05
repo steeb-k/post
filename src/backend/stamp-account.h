@@ -88,6 +88,9 @@ stamp_account_set_name (StampAccount *self,
 const gchar *
 stamp_account_get_uid (StampAccount *self);
 
+ESource *
+stamp_account_get_collection (StampAccount *self);
+
 CamelInternetAddress *
 stamp_account_get_address (StampAccount *self);
 

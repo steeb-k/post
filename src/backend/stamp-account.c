@@ -230,6 +230,12 @@ stamp_account_get_uid (StampAccount *self)
   return self->uid;
 }
 
+ESource *
+stamp_account_get_collection (StampAccount *self)
+{
+  return self->collection;
+}
+
 static EBookClient *
 stamp_account_get_book_client (StampAccount *self)
 {
