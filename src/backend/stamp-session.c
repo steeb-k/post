@@ -41,6 +41,8 @@ struct _StampSession {
   GList *accounts;
   GList *signatures;
   GCancellable *cancellable;
+
+  gboolean accounts_loaded;
 };
 
 typedef struct _TryCredentialsData {
@@ -54,6 +56,7 @@ enum {
   ACCOUNT_ADDED,
   ACCOUNT_REMOVED,
   ACCOUNT_CHANGED,
+  ACCOUNTS_LOADED,
   PK11_PASSWORD,
   LAST_SIGNAL,
 };
@@ -143,9 +146,6 @@ on_accounts_loaded (GObject      *src,
 
   g_debug ("%s: %u account(s) found", G_STRFUNC, accounts->len);
 
-  if (accounts->len == 0)
-    return;
-
   for (guint idx = 0; idx < accounts->len; idx++) {
     StampAccount *account = g_ptr_array_index (accounts, idx);
 
@@ -155,6 +155,17 @@ on_accounts_loaded (GObject      *src,
 
     stamp_account_init_async (g_object_ref (account), self->cancellable, on_account_ready, self);
   }
+
+  /* Tell listeners the initial load is done, even with no accounts,
+   * so the window can leave its loading state. */
+  self->accounts_loaded = TRUE;
+  g_signal_emit (self, signals[ACCOUNTS_LOADED], 0, NULL);
+}
+
+gboolean
+stamp_session_get_accounts_loaded (StampSession *self)
+{
+  return self->accounts_loaded;
 }
 
 static void
@@ -918,6 +929,12 @@ stamp_session_class_init (StampSessionClass *klass)
                                            0, NULL, NULL, NULL,
                                            G_TYPE_NONE,
                                            1, STAMP_TYPE_ACCOUNT);
+
+  signals[ACCOUNTS_LOADED] = g_signal_new ("accounts-loaded", G_OBJECT_CLASS_TYPE (klass),
+                                           G_SIGNAL_RUN_FIRST | G_SIGNAL_RUN_LAST,
+                                           0, NULL, NULL, NULL,
+                                           G_TYPE_NONE,
+                                           0);
 
   signals[PK11_PASSWORD] = g_signal_new ("pk11-password", G_OBJECT_CLASS_TYPE (klass),
                                          G_SIGNAL_RUN_FIRST | G_SIGNAL_RUN_LAST,

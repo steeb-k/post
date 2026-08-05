@@ -35,6 +35,9 @@ stamp_session_get_default (void);
 GList *
 stamp_session_get_accounts (StampSession *self);
 
+gboolean
+stamp_session_get_accounts_loaded (StampSession *self);
+
 GList *
 stamp_session_get_signatures (StampSession *self);
 
