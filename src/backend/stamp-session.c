@@ -157,6 +157,27 @@ on_accounts_loaded (GObject      *src,
   }
 }
 
+static void
+stamp_session_attach_child (StampAccount *account,
+                            ESource      *src)
+{
+  g_debug ("%s: |- %s ", G_STRFUNC, e_source_get_display_name (src));
+
+  if (e_source_has_extension (src, E_SOURCE_EXTENSION_MAIL_ACCOUNT)) {
+    stamp_account_add_mail (account, src);
+  } else if (e_source_has_extension (src, E_SOURCE_EXTENSION_CALENDAR)) {
+    /* stamp_account_add_calendar (account, src); */
+  } else if (e_source_has_extension (src, E_SOURCE_EXTENSION_ADDRESS_BOOK)) {
+    stamp_account_add_address_book (account, src);
+  } else if (e_source_has_extension (src, E_SOURCE_EXTENSION_MAIL_IDENTITY)) {
+    stamp_account_add_mail_identity (account, src);
+  } else if (e_source_has_extension (src, E_SOURCE_EXTENSION_MAIL_TRANSPORT)) {
+    stamp_account_add_mail_transport (account, src);
+  } else if (e_source_has_extension (src, E_SOURCE_EXTENSION_TASK_LIST)) {
+    g_debug ("  (Task List)");
+  }
+}
+
 static GPtrArray *
 stamp_session_load_accounts_from_registry (ESourceRegistry *registry)
 {
@@ -178,21 +199,7 @@ stamp_session_load_accounts_from_registry (ESourceRegistry *registry)
       if (g_strcmp0 (parent, stamp_account_get_uid (account)) != 0)
         continue;
 
-      g_debug ("%s: |- %s ", G_STRFUNC, e_source_get_display_name (src));
-
-      if (e_source_has_extension (src, E_SOURCE_EXTENSION_MAIL_ACCOUNT)) {
-        stamp_account_add_mail (account, src);
-      } else if (e_source_has_extension (src, E_SOURCE_EXTENSION_CALENDAR)) {
-        /* stamp_account_add_calendar (account, src); */
-      } else if (e_source_has_extension (src, E_SOURCE_EXTENSION_ADDRESS_BOOK)) {
-        stamp_account_add_address_book (account, src);
-      } else if (e_source_has_extension (src, E_SOURCE_EXTENSION_MAIL_IDENTITY)) {
-        stamp_account_add_mail_identity (account, src);
-      } else if (e_source_has_extension (src, E_SOURCE_EXTENSION_MAIL_TRANSPORT)) {
-        stamp_account_add_mail_transport (account, src);
-      } else if (e_source_has_extension (src, E_SOURCE_EXTENSION_TASK_LIST)) {
-        g_debug ("  (Task List)");
-      }
+      stamp_session_attach_child (account, src);
     }
 
     g_ptr_array_add (accounts, account);
@@ -213,6 +220,104 @@ stamp_session_find_account_by_uid (GList       *list,
   }
 
   return NULL;
+}
+
+static void
+stamp_session_add_account_for_collection (StampSession *self,
+                                          ESource      *collection)
+{
+  StampAccount *account = stamp_account_new (collection, self->registry);
+  g_autolist (ESource) children = e_source_registry_list_sources (self->registry, NULL);
+
+  g_debug ("%s: %s", G_STRFUNC, e_source_get_display_name (collection));
+
+  for (GList *child = children; child; child = g_list_next (child)) {
+    ESource *src = E_SOURCE (child->data);
+
+    if (g_strcmp0 (e_source_get_parent (src), stamp_account_get_uid (account)) == 0)
+      stamp_session_attach_child (account, src);
+  }
+
+  self->accounts = g_list_append (self->accounts, account);
+  g_signal_emit (self, signals[ACCOUNT_ADDED], 0, account, NULL);
+
+  stamp_account_init_async (g_object_ref (account), self->cancellable, on_account_ready, self);
+}
+
+static void
+stamp_session_maybe_enable_mail (StampSession *self,
+                                 StampAccount *account)
+{
+  StampMailService *mail = stamp_account_get_mail_service (account);
+
+  /* Wait until both store and transport sources have arrived, they may
+   * be added one by one. */
+  if (!mail || !stamp_mail_service_get_source (mail) || !stamp_mail_service_get_transport_source (mail))
+    return;
+
+  if (stamp_mail_service_get_service (mail))
+    return;
+
+  stamp_account_init_async (g_object_ref (account), self->cancellable, on_account_ready, self);
+}
+
+static void
+on_source_added (ESourceRegistry *registry,
+                 ESource         *source,
+                 gpointer         user_data)
+{
+  StampSession *self = STAMP_SESSION (user_data);
+  StampAccount *account;
+
+  if (e_source_has_extension (source, E_SOURCE_EXTENSION_COLLECTION)) {
+    if (!stamp_session_find_account_by_uid (self->accounts, e_source_get_uid (source)))
+      stamp_session_add_account_for_collection (self, source);
+    return;
+  }
+
+  account = stamp_session_find_account_by_uid (self->accounts, e_source_get_parent (source));
+  if (!account)
+    return;
+
+  stamp_session_attach_child (account, source);
+
+  if (e_source_has_extension (source, E_SOURCE_EXTENSION_ADDRESS_BOOK))
+    stamp_account_contacts_changed (account, source);
+  else
+    stamp_session_maybe_enable_mail (self, account);
+}
+
+static void
+on_source_removed (ESourceRegistry *registry,
+                   ESource         *source,
+                   gpointer         user_data)
+{
+  StampSession *self = STAMP_SESSION (user_data);
+  StampAccount *account = stamp_session_find_account_by_uid (self->accounts, e_source_get_uid (source));
+  StampMailService *mail;
+
+  if (!account)
+    return;
+
+  g_debug ("%s: %s", G_STRFUNC, stamp_account_get_name (account));
+
+  /* Drop the account from the list first so remove_service does not
+   * emit account-removed a second time. */
+  self->accounts = g_list_remove (self->accounts, account);
+
+  mail = stamp_account_get_mail_service (account);
+  if (mail) {
+    CamelService *service = stamp_mail_service_get_service (mail);
+    CamelTransport *transport = stamp_mail_service_get_transport (mail);
+
+    if (service)
+      camel_session_remove_service (CAMEL_SESSION (self), service);
+    if (transport)
+      camel_session_remove_service (CAMEL_SESSION (self), CAMEL_SERVICE (transport));
+  }
+
+  g_signal_emit (self, signals[ACCOUNT_REMOVED], 0, account, NULL);
+  g_object_unref (account);
 }
 
 static void
@@ -297,6 +402,8 @@ on_registry_ready_for_load (GObject      *src,
 
   self->registry = g_object_ref (registry);
   g_signal_connect_object (self->registry, "source-changed", G_CALLBACK (on_source_changed), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (self->registry, "source-added", G_CALLBACK (on_source_added), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (self->registry, "source-removed", G_CALLBACK (on_source_removed), self, G_CONNECT_DEFAULT);
 
   stamp_session_load_signatures (self);
 
@@ -547,8 +654,9 @@ remove_service (CamelSession *session,
     StampMailService *mail_service = stamp_account_get_mail_service (account);
 
     if (stamp_mail_service_get_service (mail_service) == service) {
-      g_signal_emit (self, signals[ACCOUNT_REMOVED], 0, account, NULL);
       self->accounts = g_list_remove (self->accounts, account);
+      g_signal_emit (self, signals[ACCOUNT_REMOVED], 0, account, NULL);
+      g_object_unref (account);
       return;
     }
   }
