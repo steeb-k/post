@@ -8,6 +8,12 @@
 - Add mime parser (Jan-Michael Brummer)
 
 ### Bug Fixes
+- StampSession: Implement trust_prompt for untrusted TLS certificates (steeb-k)
+- StampWebView: Set up the web context before the first web view (steeb-k)
+- StampAccount: Find special folders by name as a fallback (steeb-k)
+- StampSession: Signal when the initial account load finishes (steeb-k)
+- StampConversationList: Show when mail is being fetched (steeb-k)
+- StampFolderList: Select an inbox when there is nothing to restore (steeb-k)
 - Fix translations (Jan-Michael Brummer)
 - Fix goblint findings (Jan-Michael Brummer)
 - Fix code spelling errors (Jan-Michael Brummer)
@@ -16,6 +22,13 @@
 - Fix compiler warnings (Jan-Michael Brummer)
 
 ### Other Changes
+- StampWindow: Use the standalone GNOME Online Accounts editor (steeb-k)
+- StampSession: Handle registry source-added and source-removed (steeb-k)
+- StampMailView: Show all three columns on wide windows (steeb-k)
+- StampWindow: Shorten the welcome page text (steeb-k)
+- Document GNOME Online Accounts as a requirement (steeb-k)
+- Add KNOWN-ISSUES.md (steeb-k)
+- KNOWN-ISSUES: Add root causes for the portal and conversation list crashes (steeb-k)
 - Remove pkcs11 non working support from flatpak (Jan-Michael Brummer)
 - Remove service (Jan-Michael Brummer)
 - StampFolderRow: Set account row in bold (Jan-Michael Brummer)
