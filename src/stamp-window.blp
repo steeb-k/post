@@ -58,19 +58,19 @@ template $StampWindow: Adw.ApplicationWindow {
           show-end-title-buttons: true;
         }
 
-        Adw.StatusPage {
+        Adw.StatusPage welcome_page {
           title: _("Stamp");
           icon-name: "org.tabos.stamp";
-          description: _("Stamp uses email accounts configured in System Settings.");
+          description: _("Stamp uses the email accounts from GNOME Online Accounts.");
 
           styles [
             "icon-dropshadow",
           ]
 
-          child: Button {
+          child: Button welcome_button {
             halign: center;
             use-underline: true;
-            label: _("_Online Accounts…");
+            label: _("_Add Account…");
             clicked => $on_open_settings_clicked();
 
             styles [

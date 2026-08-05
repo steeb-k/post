@@ -32,7 +32,10 @@ stamp_get_data_dir (void);
 gchar *
 stamp_strip_department (const gchar *str);
 
-void
+gboolean
+stamp_goa_is_available (void);
+
+gboolean
 stamp_launch_goa (void);
 
 gchar **

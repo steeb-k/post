@@ -23,6 +23,7 @@
 #include <libportal-gtk4/portal-gtk4.h>
 
 #include "stamp-account.h"
+#include "stamp-helper.h"
 #include "stamp-preferences-account.h"
 #include "stamp-preferences-signatures.h"
 #include "stamp-session.h"
@@ -43,6 +44,7 @@ struct _StampPreferences {
   AdwPreferencesGroup *accounts_group;
   AdwPreferencesGroup *signatures_group;
   AdwActionRow *add_signature;
+  AdwButtonRow *add_account;
 
   gboolean autostart_failed;
 
@@ -70,6 +72,13 @@ on_add_signature_clicked (GtkWidget *button,
   StampPreferences *self = STAMP_PREFERENCES (user_data);
 
   adw_preferences_dialog_push_subpage (ADW_PREFERENCES_DIALOG (self), ADW_NAVIGATION_PAGE (stamp_preferences_signature_editor_new (NULL)));
+}
+
+static void
+on_add_account_clicked (GtkWidget *button,
+                        gpointer   user_data)
+{
+  stamp_launch_goa ();
 }
 
 static void
@@ -118,8 +127,10 @@ stamp_preferences_class_init (StampPreferencesClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, accounts_group);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, signatures_group);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, add_signature);
+  gtk_widget_class_bind_template_child (widget_class, StampPreferences, add_account);
 
   gtk_widget_class_bind_template_callback (widget_class, on_add_signature_clicked);
+  gtk_widget_class_bind_template_callback (widget_class, on_add_account_clicked);
 }
 
 static void

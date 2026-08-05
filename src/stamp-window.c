@@ -41,6 +41,8 @@ struct _StampWindow {
   AdwViewStack *main_view_stack;
   StampMailView *mail_view;
   StampContactView *contact_view;
+  AdwStatusPage *welcome_page;
+  GtkWidget *welcome_button;
 
   gint current_width;
   gint current_height;
@@ -56,6 +58,21 @@ on_open_settings_clicked (GtkWidget     *listbox,
                           StampWindow   *self)
 {
   stamp_launch_goa ();
+}
+
+/* Accounts are set up in GNOME Online Accounts. Say so plainly when its
+ * editor is not installed, instead of offering a button that cannot do
+ * anything. */
+static void
+stamp_window_update_welcome_page (StampWindow *self)
+{
+  if (stamp_goa_is_available ())
+    return;
+
+  adw_status_page_set_description (self->welcome_page,
+                                   _("Stamp uses the email accounts from GNOME Online Accounts. "
+                                     "Install the gnome-online-accounts-gtk package to add one."));
+  gtk_widget_set_sensitive (self->welcome_button, FALSE);
 }
 
 static void
@@ -149,6 +166,8 @@ stamp_window_class_init (StampWindowClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampWindow, main_view_stack);
   gtk_widget_class_bind_template_child (widget_class, StampWindow, mail_view);
   gtk_widget_class_bind_template_child (widget_class, StampWindow, contact_view);
+  gtk_widget_class_bind_template_child (widget_class, StampWindow, welcome_page);
+  gtk_widget_class_bind_template_child (widget_class, StampWindow, welcome_button);
 
   gtk_widget_class_bind_template_callback (widget_class, on_open_settings_clicked);
 }
@@ -192,6 +211,8 @@ stamp_window_init (StampWindow *self)
   g_signal_connect_object (session, "account-added", G_CALLBACK (on_account_changed), self, G_CONNECT_DEFAULT);
   g_signal_connect_object (session, "account-removed", G_CALLBACK (on_account_changed), self, G_CONNECT_DEFAULT);
   g_signal_connect_object (session, "accounts-loaded", G_CALLBACK (stamp_window_update_view), self, G_CONNECT_SWAPPED);
+
+  stamp_window_update_welcome_page (self);
 
   /* The session may have finished loading before this window existed. */
   if (stamp_session_get_accounts_loaded (session))

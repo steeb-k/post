@@ -74,23 +74,67 @@ stamp_strip_department (const gchar *str)
   return ret;
 }
 
-void
+#define STAMP_GOA_DESKTOP_ID "gnome-online-accounts-gtk.desktop"
+#define STAMP_GOA_COMMAND "gnome-online-accounts-gtk"
+
+gboolean
+stamp_goa_is_available (void)
+{
+  g_autoptr (GDesktopAppInfo) app_info = NULL;
+  g_autofree gchar *path = NULL;
+
+  /* Inside a Flatpak the account editor lives on the host, where we
+   * cannot look for its desktop file. Assume it is there and report the
+   * failure when the launch does not work out. */
+  if (getenv ("FLATPAK_ID"))
+    return TRUE;
+
+  app_info = g_desktop_app_info_new (STAMP_GOA_DESKTOP_ID);
+  if (app_info)
+    return TRUE;
+
+  path = g_find_program_in_path (STAMP_GOA_COMMAND);
+
+  return path != NULL;
+}
+
+gboolean
 stamp_launch_goa (void)
 {
-  const gchar *flatpak_id = getenv ("FLATPAK_ID");
+  g_autoptr (GDesktopAppInfo) app_info = NULL;
+  g_autoptr (GdkAppLaunchContext) context = NULL;
+  g_autoptr (GError) error = NULL;
+  GtkWindow *window;
 
-  if (flatpak_id) {
-    g_spawn_command_line_async ("flatpak-spawn --host gnome-control-center online-accounts", NULL);
-  } else {
-    StampApplication *self = STAMP_APPLICATION (g_application_get_default ());
-    GtkWindow *window = gtk_application_get_active_window (GTK_APPLICATION (self));
-    g_autoptr (GError) error = NULL;
-    g_autoptr (GDesktopAppInfo) app_info = g_desktop_app_info_new ("gnome-online-accounts-panel.desktop");
-    g_autoptr (GdkAppLaunchContext) context = NULL;
+  if (getenv ("FLATPAK_ID")) {
+    if (!g_spawn_command_line_async ("flatpak-spawn --host " STAMP_GOA_COMMAND, &error)) {
+      g_warning ("%s: Could not launch the account editor: %s", G_STRFUNC, error->message);
+      return FALSE;
+    }
 
-    context = gdk_display_get_app_launch_context (gtk_widget_get_display (GTK_WIDGET (window)));
-    g_app_info_launch (G_APP_INFO (app_info), NULL, G_APP_LAUNCH_CONTEXT (context), &error);
+    return TRUE;
   }
+
+  app_info = g_desktop_app_info_new (STAMP_GOA_DESKTOP_ID);
+  if (!app_info) {
+    if (!g_spawn_command_line_async (STAMP_GOA_COMMAND, &error)) {
+      g_warning ("%s: Could not launch the account editor: %s", G_STRFUNC, error->message);
+      return FALSE;
+    }
+
+    return TRUE;
+  }
+
+  window = gtk_application_get_active_window (GTK_APPLICATION (g_application_get_default ()));
+  if (window)
+    context = gdk_display_get_app_launch_context (gtk_widget_get_display (GTK_WIDGET (window)));
+
+  if (!g_app_info_launch (G_APP_INFO (app_info), NULL, G_APP_LAUNCH_CONTEXT (context), &error)) {
+    g_warning ("%s: Could not launch the account editor: %s", G_STRFUNC, error->message);
+    return FALSE;
+  }
+
+  return TRUE;
 }
 
 

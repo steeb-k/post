@@ -115,6 +115,13 @@ template $StampPreferences: Adw.PreferencesDialog {
 
     Adw.PreferencesGroup accounts_group {
       title: _("Accounts");
+      description: _("Accounts are added and removed in GNOME Online Accounts");
+
+      Adw.ButtonRow add_account {
+        title: _("Open GNOME Online Accounts");
+        start-icon-name: "system-users-symbolic";
+        activated => $on_add_account_clicked();
+      }
     }
   }
 }
