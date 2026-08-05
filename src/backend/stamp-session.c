@@ -502,6 +502,75 @@ try_credentials_sync (ECredentialsPrompter    *prompter,
   return result == CAMEL_AUTHENTICATION_REJECTED;
 }
 
+static ESource *
+stamp_session_ref_mail_account_sibling (StampSession *self,
+                                        ESource      *source)
+{
+  const gchar *parent_uid = e_source_get_parent (source);
+  g_autolist (ESource) sources = NULL;
+
+  if (!parent_uid)
+    return NULL;
+
+  sources = e_source_registry_list_sources (self->registry, E_SOURCE_EXTENSION_MAIL_ACCOUNT);
+  for (GList *iter = sources; iter; iter = g_list_next (iter)) {
+    ESource *candidate = E_SOURCE (iter->data);
+
+    if (g_strcmp0 (e_source_get_parent (candidate), parent_uid) == 0)
+      return g_object_ref (candidate);
+  }
+
+  return NULL;
+}
+
+/* A mail transport usually lives on the same server as the mail account
+ * it belongs to. Try the password of the mail account before asking the
+ * user for the very same password again. */
+static gboolean
+stamp_session_try_sibling_credentials (StampSession  *self,
+                                       CamelService  *service,
+                                       ESource       *source,
+                                       const gchar   *mechanism,
+                                       GCancellable  *cancellable)
+{
+  g_autoptr (ESource) sibling = NULL;
+  g_autoptr (ESourceCredentialsProvider) provider = NULL;
+  g_autoptr (ENamedParameters) credentials = NULL;
+  g_autoptr (GError) local_error = NULL;
+  CamelAuthenticationResult result;
+
+  if (!e_source_has_extension (source, E_SOURCE_EXTENSION_MAIL_TRANSPORT))
+    return FALSE;
+
+  sibling = stamp_session_ref_mail_account_sibling (self, source);
+  if (!sibling)
+    return FALSE;
+
+  provider = e_source_credentials_provider_new (self->registry);
+  if (!e_source_credentials_provider_lookup_sync (provider, sibling, cancellable, &credentials, &local_error) || !credentials) {
+    g_debug ("%s: No stored credentials for '%s'", G_STRFUNC, e_source_get_display_name (sibling));
+    return FALSE;
+  }
+
+  camel_service_set_password (service, e_named_parameters_get (credentials, E_SOURCE_CREDENTIAL_PASSWORD));
+
+  result = camel_service_authenticate_sync (service, mechanism, cancellable, &local_error);
+  if (result != CAMEL_AUTHENTICATION_ACCEPTED) {
+    g_debug ("%s: Mail account credentials rejected by the transport: %s", G_STRFUNC,
+             local_error ? local_error->message : "");
+    return FALSE;
+  }
+
+  g_debug ("%s: Reused mail account credentials for the transport", G_STRFUNC);
+
+  /* Remember them, so the next send does not have to look them up again. */
+  e_source_credentials_provider_store_sync (provider, source, credentials, TRUE, cancellable, &local_error);
+  if (local_error)
+    g_debug ("%s: Could not store transport credentials: %s", G_STRFUNC, local_error->message);
+
+  return TRUE;
+}
+
 static gboolean
 authenticate_sync (CamelSession  *session,
                    CamelService  *service,
@@ -592,6 +661,10 @@ authenticate_sync (CamelSession  *session,
       return FALSE;
     }
   }
+
+  if (result == CAMEL_AUTHENTICATION_REJECTED &&
+      stamp_session_try_sibling_credentials (self, service, source, mechanism, cancellable))
+    return TRUE;
 
   if (result == CAMEL_AUTHENTICATION_REJECTED) {
     ECredentialsPrompter *prompter;
