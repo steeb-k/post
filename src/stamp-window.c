@@ -59,19 +59,23 @@ on_add_account_clicked (GtkButton   *button,
 }
 
 static void
-on_account_changed (GObject      *object,
-                    StampAccount *account,
-                    gpointer      user_data)
+stamp_window_update_view (StampWindow *self)
 {
-  StampWindow *self = STAMP_WINDOW (user_data);
-  StampSession *session = STAMP_SESSION (object);
-  GList *accounts = stamp_session_get_accounts (session);
+  GList *accounts = stamp_session_get_accounts (stamp_session_get_default ());
 
   if (!accounts) {
     adw_view_stack_set_visible_child_name (self->app_view_stack, "welcome");
   } else {
     adw_view_stack_set_visible_child_name (self->app_view_stack, "main");
   }
+}
+
+static void
+on_account_changed (GObject      *object,
+                    StampAccount *account,
+                    gpointer      user_data)
+{
+  stamp_window_update_view (STAMP_WINDOW (user_data));
 }
 
 static void
@@ -187,6 +191,11 @@ stamp_window_init (StampWindow *self)
 
   g_signal_connect_object (session, "account-added", G_CALLBACK (on_account_changed), self, G_CONNECT_DEFAULT);
   g_signal_connect_object (session, "account-removed", G_CALLBACK (on_account_changed), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (session, "accounts-loaded", G_CALLBACK (stamp_window_update_view), self, G_CONNECT_SWAPPED);
+
+  /* The session may have finished loading before this window existed. */
+  if (stamp_session_get_accounts_loaded (session))
+    stamp_window_update_view (self);
 
   if (stamp_is_running_inside_flatpak () && g_settings_get_boolean (STAMP_SETTINGS, STAMP_PREFS_BACKGROUND_NOTIFICATIONS))
     xdp_portal_set_background_status (portal, _("Waiting for new emails"), NULL, on_background_status, self);
