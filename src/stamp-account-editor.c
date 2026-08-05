@@ -41,8 +41,12 @@ struct _StampAccountEditor {
   AdwComboRow *smtp_security_row;
   AdwEntryRow *smtp_user_row;
   AdwButtonRow *save_row;
+  AdwEntryRow *oauth_email_row;
 
   StampAccount *account;
+
+  const gchar *oauth_backend;
+  const gchar *oauth_method;
 };
 
 G_DEFINE_FINAL_TYPE (StampAccountEditor, stamp_account_editor, ADW_TYPE_DIALOG);
@@ -99,6 +103,69 @@ on_type_imap_activated (AdwActionRow       *row,
                         StampAccountEditor *self)
 {
   adw_navigation_view_push_by_tag (self->navigation_view, "form");
+}
+
+static void
+on_type_google_activated (AdwActionRow       *row,
+                          StampAccountEditor *self)
+{
+  self->oauth_backend = "google";
+  self->oauth_method = "Google";
+  adw_navigation_view_push_by_tag (self->navigation_view, "oauth");
+}
+
+static void
+on_type_microsoft_activated (AdwActionRow       *row,
+                             StampAccountEditor *self)
+{
+  self->oauth_backend = "outlook";
+  self->oauth_method = "Outlook";
+  adw_navigation_view_push_by_tag (self->navigation_view, "oauth");
+}
+
+static void
+on_oauth_save_clicked (AdwButtonRow       *row,
+                       StampAccountEditor *self)
+{
+  StampSession *session = stamp_session_get_default ();
+  ESourceRegistry *registry = stamp_session_get_registry (session);
+  g_autoptr (ESource) collection = NULL;
+  g_autoptr (GError) error = NULL;
+  ESourceCollection *collection_ext;
+  ESourceAuthentication *auth_ext;
+  const gchar *address = entry_text (self->oauth_email_row);
+
+  if (!*address) {
+    show_error (self, _("Missing Information"), _("An email address is required."));
+    return;
+  }
+
+  collection = e_source_new (NULL, NULL, &error);
+  if (!collection) {
+    show_error (self, _("Could Not Add Account"), error ? error->message : "");
+    return;
+  }
+
+  /* The matching collection backend in the registry creates the mail,
+   * calendar and contacts children on its own. */
+  e_source_set_display_name (collection, address);
+  collection_ext = e_source_get_extension (collection, E_SOURCE_EXTENSION_COLLECTION);
+  e_source_backend_set_backend_name (E_SOURCE_BACKEND (collection_ext), self->oauth_backend);
+  e_source_collection_set_identity (collection_ext, address);
+  e_source_collection_set_mail_enabled (collection_ext, TRUE);
+  e_source_collection_set_calendar_enabled (collection_ext, TRUE);
+  e_source_collection_set_contacts_enabled (collection_ext, TRUE);
+  auth_ext = e_source_get_extension (collection, E_SOURCE_EXTENSION_AUTHENTICATION);
+  e_source_authentication_set_user (auth_ext, address);
+  e_source_authentication_set_method (auth_ext, self->oauth_method);
+
+  if (!e_source_registry_commit_source_sync (registry, collection, NULL, &error)) {
+    g_warning ("%s: Could not create account: %s", G_STRFUNC, error ? error->message : "");
+    show_error (self, _("Could Not Add Account"), error ? error->message : "");
+    return;
+  }
+
+  adw_dialog_close (ADW_DIALOG (self));
 }
 
 static gboolean
@@ -313,8 +380,12 @@ stamp_account_editor_class_init (StampAccountEditorClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampAccountEditor, smtp_security_row);
   gtk_widget_class_bind_template_child (widget_class, StampAccountEditor, smtp_user_row);
   gtk_widget_class_bind_template_child (widget_class, StampAccountEditor, save_row);
+  gtk_widget_class_bind_template_child (widget_class, StampAccountEditor, oauth_email_row);
 
   gtk_widget_class_bind_template_callback (widget_class, on_type_imap_activated);
+  gtk_widget_class_bind_template_callback (widget_class, on_type_google_activated);
+  gtk_widget_class_bind_template_callback (widget_class, on_type_microsoft_activated);
+  gtk_widget_class_bind_template_callback (widget_class, on_oauth_save_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_save_clicked);
 }
 

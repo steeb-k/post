@@ -30,6 +30,30 @@ template $StampAccountEditor: Adw.Dialog {
               title: _("Account Type");
 
               Adw.ActionRow {
+                title: _("Google");
+                subtitle: _("Gmail, Contacts and Calendar");
+                activatable: true;
+                activated => $on_type_google_activated();
+
+                [suffix]
+                Gtk.Image {
+                  icon-name: "go-next-symbolic";
+                }
+              }
+
+              Adw.ActionRow {
+                title: _("Microsoft");
+                subtitle: _("Outlook.com and Hotmail");
+                activatable: true;
+                activated => $on_type_microsoft_activated();
+
+                [suffix]
+                Gtk.Image {
+                  icon-name: "go-next-symbolic";
+                }
+              }
+
+              Adw.ActionRow {
                 title: _("IMAP and SMTP");
                 subtitle: _("Connect to a standard mail server");
                 activatable: true;
@@ -39,6 +63,50 @@ template $StampAccountEditor: Adw.Dialog {
                 Gtk.Image {
                   icon-name: "go-next-symbolic";
                 }
+              }
+            }
+          };
+        };
+      };
+    }
+
+    Adw.NavigationPage oauth_page {
+      title: _("Online Account");
+      tag: "oauth";
+
+      child: Adw.ToolbarView {
+        [top]
+        Adw.HeaderBar {}
+
+        content: Adw.Clamp {
+          maximum-size: 600;
+
+          child: Box {
+            orientation: vertical;
+            spacing: 12;
+            margin-top: 12;
+            margin-bottom: 12;
+            margin-start: 12;
+            margin-end: 12;
+
+            Adw.PreferencesGroup {
+              title: _("Sign In");
+              description: _("You will be asked to sign in when the account connects.");
+
+              Adw.EntryRow oauth_email_row {
+                title: _("Email Address");
+              }
+            }
+
+            Adw.PreferencesGroup {
+              Adw.ButtonRow oauth_save_row {
+                title: _("Add Account");
+
+                styles [
+                  "suggested-action",
+                ]
+
+                activated => $on_oauth_save_clicked();
               }
             }
           };
