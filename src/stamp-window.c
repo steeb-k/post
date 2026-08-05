@@ -70,8 +70,7 @@ stamp_window_update_welcome_page (StampWindow *self)
     return;
 
   adw_status_page_set_description (self->welcome_page,
-                                   _("Stamp uses the email accounts from GNOME Online Accounts. "
-                                     "Install the gnome-online-accounts-gtk package to add one."));
+                                   _("Install the gnome-online-accounts-gtk package to add an account."));
   gtk_widget_set_sensitive (self->welcome_button, FALSE);
 }
 
