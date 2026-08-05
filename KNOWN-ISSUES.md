@@ -2,6 +2,36 @@
 
 Issues found while testing this fork. Not yet fixed.
 
+## Flatpak packaging needs work for this fork
+
+`org.tabos.stamp.json` still describes the upstream setup. Nothing here
+breaks the current local build, it only matters when the fork gets
+packaged again.
+
+The web process extension fix is not affected. It uses
+`STAMP_WEB_PROCESS_EXTENSIONS_DIR`, which becomes `/app/lib/stamp` in a
+Flatpak build and always lives inside the sandbox.
+
+- The evolution-data-server module cleans up
+  `/lib/evolution-data-server/*-backends`, which throws away
+  `libebookbackendcarddav.so`. Adding a CardDAV address book would then
+  succeed but never open. Narrow that cleanup so the address book
+  backends survive.
+- `gnome-online-accounts` is still built as a module and EDS is still
+  built with `-DENABLE_GOA=ON`, even though the fork no longer has any
+  GNOME Online Accounts entry point. Keeping the EDS side means accounts
+  created earlier through GOA stay visible, so decide before dropping it.
+- OAuth2 and Exchange should work as is. `-DENABLE_OAUTH2=ON` is set, the
+  cleanup only removes `*-backends` and not `registry-modules`, so the
+  google and outlook collection backends survive, and evolution-ews is
+  bundled. Note the Exchange row appears in a Flatpak build even though
+  it stays hidden on a system without evolution-ews installed.
+- Untested: whether account creation talks to the bundled registry or the
+  one on the host. The manifest already shares `~/.config/evolution` and
+  allows `org.gnome.evolution.dataserver.Sources5`, so it should work,
+  but if the two disagree then accounts added in the app end up somewhere
+  the host does not read.
+
 ## Folders show up empty until the app is restarted
 
 After adding an account the folder list appears, including custom folders,
