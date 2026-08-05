@@ -51,5 +51,32 @@ stamp_session_create_signature (StampSession *self,
                                 const gchar  *content,
                                 const gchar  *mime_type);
 
+typedef struct _StampAccount StampAccount;
+
+typedef struct _StampMailAccountParams {
+  const gchar *display_name;
+  const gchar *identity_name;
+  const gchar *address;
+  const gchar *reply_to;
+  const gchar *imap_host;
+  guint16 imap_port;
+  const gchar *imap_security;
+  const gchar *imap_user;
+  const gchar *smtp_host;
+  guint16 smtp_port;
+  const gchar *smtp_security;
+  const gchar *smtp_user;
+} StampMailAccountParams;
+
+gboolean
+stamp_session_create_mail_account (StampSession                  *self,
+                                   const StampMailAccountParams  *params,
+                                   GError                       **error);
+
+gboolean
+stamp_session_remove_account (StampSession  *self,
+                              StampAccount  *account,
+                              GError       **error);
+
 G_END_DECLS
 

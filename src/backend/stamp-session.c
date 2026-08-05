@@ -1012,6 +1012,114 @@ stamp_session_create_signature (StampSession *self,
   return signature;
 }
 
+gboolean
+stamp_session_create_mail_account (StampSession                  *self,
+                                   const StampMailAccountParams  *params,
+                                   GError                       **error)
+{
+  g_autoptr (ESource) collection = NULL;
+  g_autoptr (ESource) mail_account = NULL;
+  g_autoptr (ESource) identity = NULL;
+  g_autoptr (ESource) transport = NULL;
+  g_autoptr (GList) sources = NULL;
+  ESourceCollection *collection_ext;
+  ESourceMailAccount *mail_ext;
+  ESourceMailIdentity *identity_ext;
+  ESourceMailSubmission *submission_ext;
+  ESourceAuthentication *auth_ext;
+  ESourceSecurity *security_ext;
+
+  collection = e_source_new (NULL, NULL, error);
+  if (!collection)
+    return FALSE;
+  mail_account = e_source_new (NULL, NULL, error);
+  if (!mail_account)
+    return FALSE;
+  identity = e_source_new (NULL, NULL, error);
+  if (!identity)
+    return FALSE;
+  transport = e_source_new (NULL, NULL, error);
+  if (!transport)
+    return FALSE;
+
+  /* Same layout as a collection account created by GNOME Online
+   * Accounts: a backendless collection with mail account, identity
+   * and transport children. */
+  e_source_set_display_name (collection, params->display_name);
+  collection_ext = e_source_get_extension (collection, E_SOURCE_EXTENSION_COLLECTION);
+  e_source_backend_set_backend_name (E_SOURCE_BACKEND (collection_ext), "none");
+  e_source_collection_set_identity (collection_ext, params->address);
+  e_source_collection_set_mail_enabled (collection_ext, TRUE);
+  e_source_collection_set_calendar_enabled (collection_ext, FALSE);
+  e_source_collection_set_contacts_enabled (collection_ext, FALSE);
+  auth_ext = e_source_get_extension (collection, E_SOURCE_EXTENSION_AUTHENTICATION);
+  e_source_authentication_set_method (auth_ext, "none");
+  e_source_authentication_set_is_external (auth_ext, TRUE);
+
+  e_source_set_parent (mail_account, e_source_get_uid (collection));
+  e_source_set_display_name (mail_account, params->display_name);
+  mail_ext = e_source_get_extension (mail_account, E_SOURCE_EXTENSION_MAIL_ACCOUNT);
+  e_source_backend_set_backend_name (E_SOURCE_BACKEND (mail_ext), "imapx");
+  e_source_mail_account_set_identity_uid (mail_ext, e_source_get_uid (identity));
+  auth_ext = e_source_get_extension (mail_account, E_SOURCE_EXTENSION_AUTHENTICATION);
+  e_source_authentication_set_host (auth_ext, params->imap_host);
+  e_source_authentication_set_port (auth_ext, params->imap_port);
+  e_source_authentication_set_user (auth_ext, params->imap_user);
+  e_source_authentication_set_method (auth_ext, "none");
+  security_ext = e_source_get_extension (mail_account, E_SOURCE_EXTENSION_SECURITY);
+  e_source_security_set_method (security_ext, params->imap_security);
+
+  e_source_set_parent (identity, e_source_get_uid (collection));
+  e_source_set_display_name (identity, params->display_name);
+  identity_ext = e_source_get_extension (identity, E_SOURCE_EXTENSION_MAIL_IDENTITY);
+  e_source_mail_identity_set_name (identity_ext, params->identity_name);
+  e_source_mail_identity_set_address (identity_ext, params->address);
+  if (params->reply_to && *params->reply_to)
+    e_source_mail_identity_set_reply_to (identity_ext, params->reply_to);
+  submission_ext = e_source_get_extension (identity, E_SOURCE_EXTENSION_MAIL_SUBMISSION);
+  e_source_mail_submission_set_transport_uid (submission_ext, e_source_get_uid (transport));
+
+  e_source_set_parent (transport, e_source_get_uid (collection));
+  e_source_set_display_name (transport, params->display_name);
+  e_source_backend_set_backend_name (E_SOURCE_BACKEND (e_source_get_extension (transport, E_SOURCE_EXTENSION_MAIL_TRANSPORT)), "smtp");
+  auth_ext = e_source_get_extension (transport, E_SOURCE_EXTENSION_AUTHENTICATION);
+  e_source_authentication_set_host (auth_ext, params->smtp_host);
+  e_source_authentication_set_port (auth_ext, params->smtp_port);
+  e_source_authentication_set_user (auth_ext, params->smtp_user);
+  e_source_authentication_set_method (auth_ext, "PLAIN");
+  security_ext = e_source_get_extension (transport, E_SOURCE_EXTENSION_SECURITY);
+  e_source_security_set_method (security_ext, params->smtp_security);
+
+  sources = g_list_append (sources, collection);
+  sources = g_list_append (sources, mail_account);
+  sources = g_list_append (sources, identity);
+  sources = g_list_append (sources, transport);
+
+  return e_source_registry_create_sources_sync (self->registry, sources, NULL, error);
+}
+
+gboolean
+stamp_session_remove_account (StampSession  *self,
+                              StampAccount  *account,
+                              GError       **error)
+{
+  ESource *collection = stamp_account_get_collection (account);
+
+  if (!collection) {
+    g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED, ("Account has no collection source"));
+    return FALSE;
+  }
+
+  if (e_source_has_extension (collection, E_SOURCE_EXTENSION_GOA) ||
+      e_source_has_extension (collection, E_SOURCE_EXTENSION_UOA)) {
+    g_set_error (error, G_IO_ERROR, G_IO_ERROR_PERMISSION_DENIED,
+                 ("This account is managed by GNOME Online Accounts"));
+    return FALSE;
+  }
+
+  return e_source_remove_sync (collection, self->cancellable, error);
+}
+
 GList *
 stamp_session_get_signatures (StampSession *self)
 {
