@@ -1,0 +1,180 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampAccountEditor: Adw.Dialog {
+  title: _("Account");
+  content-width: 520;
+  content-height: 680;
+
+  child: Adw.NavigationView navigation_view {
+    Adw.NavigationPage {
+      title: _("Add Account");
+      tag: "type";
+
+      child: Adw.ToolbarView {
+        [top]
+        Adw.HeaderBar {}
+
+        content: Adw.Clamp {
+          maximum-size: 600;
+
+          child: Box {
+            orientation: vertical;
+            spacing: 12;
+            margin-top: 12;
+            margin-bottom: 12;
+            margin-start: 12;
+            margin-end: 12;
+
+            Adw.PreferencesGroup {
+              title: _("Account Type");
+
+              Adw.ActionRow {
+                title: _("IMAP and SMTP");
+                subtitle: _("Connect to a standard mail server");
+                activatable: true;
+                activated => $on_type_imap_activated();
+
+                [suffix]
+                Gtk.Image {
+                  icon-name: "go-next-symbolic";
+                }
+              }
+            }
+          };
+        };
+      };
+    }
+
+    Adw.NavigationPage form_page {
+      title: _("Mail Account");
+      tag: "form";
+
+      child: Adw.ToolbarView {
+        [top]
+        Adw.HeaderBar {}
+
+        content: Gtk.ScrolledWindow {
+          hscrollbar-policy: never;
+
+          child: Adw.Clamp {
+            maximum-size: 600;
+
+            child: Box {
+              orientation: vertical;
+              spacing: 12;
+              margin-top: 12;
+              margin-bottom: 12;
+              margin-start: 12;
+              margin-end: 12;
+
+              Adw.PreferencesGroup {
+                title: _("Identity");
+
+                Adw.EntryRow account_name_row {
+                  title: _("Account Name");
+                }
+
+                Adw.EntryRow name_row {
+                  title: _("Name");
+                }
+
+                Adw.EntryRow email_row {
+                  title: _("Email Address");
+                }
+
+                Adw.EntryRow reply_to_row {
+                  title: _("Reply-To (optional)");
+                }
+              }
+
+              Adw.PreferencesGroup {
+                title: _("Incoming Mail Server (IMAP)");
+
+                Adw.EntryRow imap_host_row {
+                  title: _("Server");
+                }
+
+                Adw.SpinRow imap_port_row {
+                  title: _("Port");
+
+                  adjustment: Gtk.Adjustment {
+                    lower: 1;
+                    upper: 65535;
+                    step-increment: 1;
+                    value: 143;
+                  };
+                }
+
+                Adw.ComboRow imap_security_row {
+                  title: _("Encryption");
+                  selected: 1;
+
+                  model: Gtk.StringList {
+                    strings [
+                      _("None"),
+                      _("STARTTLS"),
+                      _("TLS"),
+                    ]
+                  };
+                }
+
+                Adw.EntryRow imap_user_row {
+                  title: _("Username");
+                }
+              }
+
+              Adw.PreferencesGroup {
+                title: _("Outgoing Mail Server (SMTP)");
+
+                Adw.EntryRow smtp_host_row {
+                  title: _("Server");
+                }
+
+                Adw.SpinRow smtp_port_row {
+                  title: _("Port");
+
+                  adjustment: Gtk.Adjustment {
+                    lower: 1;
+                    upper: 65535;
+                    step-increment: 1;
+                    value: 587;
+                  };
+                }
+
+                Adw.ComboRow smtp_security_row {
+                  title: _("Encryption");
+                  selected: 1;
+
+                  model: Gtk.StringList {
+                    strings [
+                      _("None"),
+                      _("STARTTLS"),
+                      _("TLS"),
+                    ]
+                  };
+                }
+
+                Adw.EntryRow smtp_user_row {
+                  title: _("Username");
+                }
+              }
+
+              Adw.PreferencesGroup {
+                Adw.ButtonRow save_row {
+                  title: _("Add Account");
+
+                  styles [
+                    "suggested-action",
+                  ]
+
+                  activated => $on_save_clicked();
+                }
+              }
+            };
+          };
+        };
+      };
+    }
+  };
+}

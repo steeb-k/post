@@ -8,6 +8,7 @@ enums = gnome.mkenums_simple('stamp-type-builtins',
 
 stamp_sources = [
   'main.c',
+  'stamp-account-editor.c',
   'stamp-application.c',
   'stamp-preferences.c',
   'stamp-preferences-account.c',
@@ -59,6 +60,7 @@ stamp_sources = [
 blueprints = custom_target('blueprints',
   input: files(
     'shortcuts-dialog.blp',
+    'stamp-account-editor.blp',
     'stamp-preferences.blp',
     'stamp-preferences-account.blp',
     'stamp-preferences-account-editor.blp',

@@ -2,6 +2,7 @@
 <gresources>
   <gresource prefix="/org/tabos/stamp">
     <file preprocess="xml-stripblanks">shortcuts-dialog.ui</file>
+    <file preprocess="xml-stripblanks">stamp-account-editor.ui</file>
     <file preprocess="xml-stripblanks">stamp-preferences.ui</file>
     <file preprocess="xml-stripblanks">stamp-preferences-account.ui</file>
     <file preprocess="xml-stripblanks">stamp-preferences-account-editor.ui</file>
