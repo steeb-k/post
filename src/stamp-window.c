@@ -27,6 +27,7 @@
 #include <libportal-gtk4/portal-gtk4.h>
 
 #include "stamp-account.h"
+#include "stamp-account-editor.h"
 #include "stamp-calendar-view.h"
 #include "stamp-contact-view.h"
 #include "stamp-helper.h"
@@ -51,11 +52,10 @@ struct _StampWindow {
 G_DEFINE_FINAL_TYPE (StampWindow, stamp_window, ADW_TYPE_APPLICATION_WINDOW);
 
 static void
-on_open_settings_clicked (GtkWidget     *listbox,
-                          GtkListBoxRow *row,
-                          StampWindow   *self)
+on_add_account_clicked (GtkButton   *button,
+                        StampWindow *self)
 {
-  stamp_launch_goa ();
+  adw_dialog_present (ADW_DIALOG (stamp_account_editor_new ()), GTK_WIDGET (self));
 }
 
 static void
@@ -146,7 +146,7 @@ stamp_window_class_init (StampWindowClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampWindow, mail_view);
   gtk_widget_class_bind_template_child (widget_class, StampWindow, contact_view);
 
-  gtk_widget_class_bind_template_callback (widget_class, on_open_settings_clicked);
+  gtk_widget_class_bind_template_callback (widget_class, on_add_account_clicked);
 }
 
 static void

@@ -61,7 +61,7 @@ template $StampWindow: Adw.ApplicationWindow {
         Adw.StatusPage {
           title: _("Stamp");
           icon-name: "org.tabos.stamp";
-          description: _("Stamp uses email accounts configured in System Settings.");
+          description: _("Add an email account to get started.");
 
           styles [
             "icon-dropshadow",
@@ -70,8 +70,8 @@ template $StampWindow: Adw.ApplicationWindow {
           child: Button {
             halign: center;
             use-underline: true;
-            label: _("_Online Accounts…");
-            clicked => $on_open_settings_clicked();
+            label: _("_Add Account…");
+            clicked => $on_add_account_clicked();
 
             styles [
               "suggested-action",
