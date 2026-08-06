@@ -76,6 +76,7 @@ struct _GcalMonthView
 
   AdwAnimation       *kinetic_scroll_animation;
   gdouble             last_velocity;
+  gboolean            did_scroll;
 
   GDateTime          *date;
 
@@ -1051,6 +1052,8 @@ on_scroll_controller_scroll_begin_cb (GtkEventControllerScroll *scroll_controlle
 
   GCAL_ENTRY;
 
+  self->did_scroll = FALSE;
+
   event = gtk_event_controller_get_current_event (GTK_EVENT_CONTROLLER (scroll_controller));
   if (gdk_event_get_event_type (event) != GDK_TOUCHPAD_HOLD ||
       gdk_touchpad_event_get_n_fingers (event) > 1)
@@ -1078,6 +1081,7 @@ on_scroll_controller_scroll_cb (GtkEventControllerScroll *scroll_controller,
   switch (gdk_scroll_event_get_direction (current_event))
     {
     case GDK_SCROLL_SMOOTH:
+      self->did_scroll = TRUE;
       cancel_row_offset_animation (self);
       cancel_deceleration (self);
       offset_and_shuffle_rows_by_pixels (self, dy);
@@ -1126,6 +1130,14 @@ on_scroll_controller_scroll_end_cb (GtkEventControllerScroll *scroll_controller,
 {
   GCAL_ENTRY;
 
+  /*
+   * Post: touchpad hold gestures emit scroll-end (and decelerate) without
+   * any scroll deltas; snapping then would move the active date to the top
+   * row even though nothing scrolled.
+   */
+  if (!self->did_scroll)
+    GCAL_RETURN ();
+
   snap_to_top_row (self);
 
   GCAL_EXIT;
@@ -1170,6 +1182,10 @@ on_scroll_controller_decelerate_cb (GtkEventControllerScroll *scroll_controller,
   gint grid_height;
 
   GCAL_ENTRY;
+
+  /* Post: see on_scroll_controller_scroll_end_cb() */
+  if (!self->did_scroll)
+    GCAL_RETURN ();
 
   /* XXX: I don't understand, but this just feels better */
   velocity_y /= 2.0;
