@@ -28,6 +28,11 @@
 #include "stamp-session.h"
 #include "stamp-settings.h"
 
+/* Width of one nesting level, matching the expander icon plus its spacing.
+ * Folders are children of their account, so the depth is offset by one to
+ * keep top level folders flush with the account they belong to. */
+#define FOLDER_ROW_INDENT 20
+
 struct _StampFolderList {
   AdwBin parent_instance;
 
@@ -298,6 +303,7 @@ on_bind_folder (GtkListItemFactory *factory,
   StampAccount *account;
   GtkTreeListRow *row;
   GtkWidget *expander;
+  guint depth;
   g_autoptr (GSettings) account_settings = NULL;
   g_autofree char *settings_path = NULL;
 
@@ -306,6 +312,9 @@ on_bind_folder (GtkListItemFactory *factory,
   item = STAMP_ITEM (gtk_tree_list_row_get_item (row));
 
   gtk_tree_expander_set_list_row (GTK_TREE_EXPANDER (expander), row);
+
+  depth = gtk_tree_list_row_get_depth (row);
+  gtk_widget_set_margin_start (expander, depth > 0 ? (depth - 1) * FOLDER_ROW_INDENT : 0);
 
   folder_row = STAMP_FOLDER_ROW (gtk_tree_expander_get_child (GTK_TREE_EXPANDER (expander)));
 
@@ -609,6 +618,7 @@ on_setup_folder (GtkListItemFactory *factory,
   gtk_list_item_set_activatable (list_item, TRUE);
 
   expander = gtk_tree_expander_new ();
+  gtk_tree_expander_set_indent_for_depth (GTK_TREE_EXPANDER (expander), FALSE);
   row = stamp_folder_row_new ();
   gtk_tree_expander_set_child (GTK_TREE_EXPANDER (expander), row);
 
