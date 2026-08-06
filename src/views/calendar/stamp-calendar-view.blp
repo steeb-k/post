@@ -21,7 +21,7 @@ template $StampCalendarView: Adw.BreakpointBin {
       month_page.visible: false;
       week_page.visible: false;
       agenda_page.visible: true;
-      view_switcher.visible: false;
+      view_menu_button.visible: false;
       previous_date_button.visible: false;
       next_date_button.visible: false;
     }
@@ -69,6 +69,46 @@ template $StampCalendarView: Adw.BreakpointBin {
             styles [
               "flat",
             ]
+          }
+
+          [start]
+          Button previous_date_button {
+            icon-name: bind $get_previous_date_icon(views_stack.visible-child) as <string>;
+            tooltip-text: bind $get_previous_date_tooltip(views_stack.visible-child-name) as <string>;
+            action-name: "calendar.previous-date";
+          }
+
+          [start]
+          Button next_date_button {
+            icon-name: bind $get_next_date_icon(views_stack.visible-child) as <string>;
+            tooltip-text: bind $get_next_date_tooltip(views_stack.visible-child-name) as <string>;
+            action-name: "calendar.next-date";
+          }
+
+          [start]
+          MenuButton view_menu_button {
+            menu-model: view_menu;
+            always-show-arrow: true;
+            tooltip-text: _("Change View");
+
+            child: Adw.ButtonContent {
+              icon-name: bind $get_view_menu_icon(views_stack.visible-child-name) as <string>;
+              label: bind $get_view_menu_label(views_stack.visible-child-name) as <string>;
+              can-shrink: true;
+            };
+          }
+
+          [start]
+          Button {
+            action-name: "calendar.today";
+
+            child: Adw.ButtonContent {
+              label: _("_Today");
+              use-underline: true;
+              icon-name: "calendar-today-symbolic";
+              can-shrink: true;
+              tooltip-text: _("Go to Today");
+            };
           }
 
           [start]
@@ -145,41 +185,6 @@ template $StampCalendarView: Adw.BreakpointBin {
           }
         };
 
-        [bottom]
-        ActionBar {
-          [start]
-          Button previous_date_button {
-            icon-name: bind $get_previous_date_icon(views_stack.visible-child) as <string>;
-            tooltip-text: bind $get_previous_date_tooltip(views_stack.visible-child-name) as <string>;
-            action-name: "calendar.previous-date";
-          }
-
-          [start]
-          Button next_date_button {
-            icon-name: bind $get_next_date_icon(views_stack.visible-child) as <string>;
-            tooltip-text: bind $get_next_date_tooltip(views_stack.visible-child-name) as <string>;
-            action-name: "calendar.next-date";
-          }
-
-          [start]
-          Button {
-            action-name: "calendar.today";
-
-            child: Adw.ButtonContent {
-              label: _("_Today");
-              use-underline: true;
-              icon-name: "calendar-today-symbolic";
-              can-shrink: true;
-              tooltip-text: _("Go to Today");
-            };
-          }
-
-          [center]
-          Adw.ViewSwitcher view_switcher {
-            stack: views_stack;
-            policy: wide;
-          }
-        }
       }
 
       Adw.Layout {
@@ -243,6 +248,20 @@ template $StampCalendarView: Adw.BreakpointBin {
       }
     };
   };
+}
+
+menu view_menu {
+  item {
+    label: _("_Month");
+    action: "calendar.view";
+    target: "month";
+  }
+
+  item {
+    label: _("_Week");
+    action: "calendar.view";
+    target: "week";
+  }
 }
 
 $GcalQuickAddPopover quick_add_popover {

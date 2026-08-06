@@ -382,6 +382,30 @@ get_next_date_tooltip (StampCalendarView *self G_GNUC_UNUSED,
     return g_strdup (_("Tomorrow"));
 }
 
+static gchar *
+get_view_menu_icon (StampCalendarView *self G_GNUC_UNUSED,
+                    const gchar             *view_name)
+{
+  if (g_strcmp0 (view_name, "week") == 0)
+    return g_strdup ("calendar-week-symbolic");
+  else if (g_strcmp0 (view_name, "agenda") == 0)
+    return g_strdup ("calendar-agenda-symbolic");
+  else
+    return g_strdup ("calendar-month-symbolic");
+}
+
+static gchar *
+get_view_menu_label (StampCalendarView *self G_GNUC_UNUSED,
+                     const gchar             *view_name)
+{
+  if (g_strcmp0 (view_name, "week") == 0)
+    return g_strdup (_("Week"));
+  else if (g_strcmp0 (view_name, "agenda") == 0)
+    return g_strdup (_("Agenda"));
+  else
+    return g_strdup (_("Month"));
+}
+
 static void
 on_day_selected (StampCalendarView *self)
 {
@@ -415,6 +439,10 @@ on_view_changed (GObject *object       G_GNUC_UNUSED,
   self->active_view = eval->value;
 
   g_type_class_unref (eklass);
+
+  /* Keep the view dropdown's radio state in sync */
+  g_simple_action_set_state (G_SIMPLE_ACTION (g_action_map_lookup_action (G_ACTION_MAP (self->actions), "view")),
+                             g_variant_new_string (adw_view_stack_get_visible_child_name (self->views_stack)));
 
   update_today_action_enabled (self);
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_ACTIVE_VIEW]);
@@ -713,6 +741,16 @@ on_show_calendars_activated (GSimpleAction *action G_GNUC_UNUSED,
 }
 
 static void
+on_view_activated (GSimpleAction *action G_GNUC_UNUSED,
+                   GVariant              *param,
+                   gpointer               user_data)
+{
+  StampCalendarView *self = STAMP_CALENDAR_VIEW (user_data);
+
+  adw_view_stack_set_visible_child_name (self->views_stack, g_variant_get_string (param, NULL));
+}
+
+static void
 on_undo_delete_event_activated (GSimpleAction *action G_GNUC_UNUSED,
                                 GVariant *param       G_GNUC_UNUSED,
                                 gpointer               user_data)
@@ -942,6 +980,8 @@ stamp_calendar_view_class_init (StampCalendarViewClass *klass)
   gtk_widget_class_bind_template_callback (widget_class, get_previous_date_tooltip);
   gtk_widget_class_bind_template_callback (widget_class, get_next_date_icon);
   gtk_widget_class_bind_template_callback (widget_class, get_next_date_tooltip);
+  gtk_widget_class_bind_template_callback (widget_class, get_view_menu_icon);
+  gtk_widget_class_bind_template_callback (widget_class, get_view_menu_label);
   gtk_widget_class_bind_template_callback (widget_class, show_new_event_widget);
   gtk_widget_class_bind_template_callback (widget_class, create_event_detailed_cb);
   gtk_widget_class_bind_template_callback (widget_class, event_activated);
@@ -961,6 +1001,7 @@ stamp_calendar_view_init (StampCalendarView *self)
     { .name = "show-calendars", .activate = on_show_calendars_activated },
     { .name = "today", .activate = on_today_activated },
     { .name = "undo-delete-event", .activate = on_undo_delete_event_activated },
+    { .name = "view", .activate = on_view_activated, .parameter_type = "s", .state = "'month'" },
   };
   GcalContext *context;
 
