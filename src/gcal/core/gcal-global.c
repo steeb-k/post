@@ -45,3 +45,17 @@ gcal_get_main_thread (void)
   return main_thread;
 }
 
+static GcalContext *default_context;
+
+GcalContext *
+gcal_get_default_context (void)
+{
+  return default_context;
+}
+
+void
+gcal_set_default_context (GcalContext *context)
+{
+  default_context = context;
+}
+

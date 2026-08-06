@@ -23,8 +23,19 @@
 
 #include <glib.h>
 
+#include "gcal-types.h"
+
 G_BEGIN_DECLS
 
 GThread *            gcal_get_main_thread                        (void);
+
+/*
+ * Post: GNOME Calendar reaches its GcalContext through the GcalApplication
+ * singleton. Post has its own application class, so the context is published
+ * here instead and gcal-application.h routes callers to it.
+ */
+GcalContext *        gcal_get_default_context                    (void);
+
+void                 gcal_set_default_context                    (GcalContext *context);
 
 G_END_DECLS
