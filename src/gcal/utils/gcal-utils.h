@@ -51,7 +51,10 @@ typedef void (*GcalAskRecurrenceCallback) (GcalEvent             *event,
                                            GcalRecurrenceModType  modtype,
                                            gpointer               user_data);
 
+/* Post: libical-glib 4 ships its own autoptr cleanup for ICalTime */
+#if !ICAL_CHECK_VERSION (4, 0, 0)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (ICalTime, g_object_unref)
+#endif
 
 gchar*               gcal_get_weekday                            (gint                i);
 
@@ -130,7 +133,7 @@ void                 gcal_utils_ask_recurrence_modification_type (GtkWidget     
 
 const gchar *        gcal_util_translate_time_string             (const gchar          *str);
 
-GTimeZone *          gcal_util_get_app_timezone_or_local         ();
+GTimeZone *          gcal_util_get_app_timezone_or_local         (void);
 
 gboolean             gcal_is_valid_event_name                    (const gchar          *event_name);
 

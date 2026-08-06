@@ -1360,7 +1360,7 @@ gcal_util_translate_time_string (const gchar *str)
  * Returns: (transfer full): a #GTimeZone
  */
 GTimeZone *
-gcal_util_get_app_timezone_or_local ()
+gcal_util_get_app_timezone_or_local (void)
 {
   GcalApplication *application = NULL;
   GcalContext *context = NULL;

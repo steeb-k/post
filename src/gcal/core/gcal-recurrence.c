@@ -22,6 +22,37 @@
 
 #include <glib.h>
 
+#if ICAL_CHECK_VERSION (4, 0, 0)
+/*
+ * Post: libical 4 replaced the fixed-size by_day accessors with the
+ * dynamically sized i_cal_recurrence_(get|set)_by() API. These shims keep
+ * the upstream call sites below unmodified.
+ */
+static gshort
+i_cal_recurrence_get_by_day_compat (ICalRecurrence *recur,
+                                    guint           index)
+{
+  if (index >= i_cal_recurrence_get_by_array_size (recur, I_CAL_BY_DAY))
+    return G_MAXSHORT;
+
+  return i_cal_recurrence_get_by (recur, I_CAL_BY_DAY, index);
+}
+
+static void
+i_cal_recurrence_set_by_day_compat (ICalRecurrence *recur,
+                                    guint           index,
+                                    gshort          value)
+{
+  if (i_cal_recurrence_get_by_array_size (recur, I_CAL_BY_DAY) <= index)
+    i_cal_recurrence_resize_by_array (recur, I_CAL_BY_DAY, index + 1);
+
+  i_cal_recurrence_set_by (recur, I_CAL_BY_DAY, index, value);
+}
+
+#define i_cal_recurrence_get_by_day i_cal_recurrence_get_by_day_compat
+#define i_cal_recurrence_set_by_day i_cal_recurrence_set_by_day_compat
+#endif
+
 G_DEFINE_BOXED_TYPE (GcalRecurrence, gcal_recurrence, gcal_recurrence_ref, gcal_recurrence_unref)
 
 static void
