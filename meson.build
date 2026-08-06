@@ -24,10 +24,10 @@ conf.set('DEVEL', get_option('devel'))
 config_h = declare_dependency(
   sources: vcs_tag(
     input: configure_file(
-      output: 'config.h.in',
+      output: 'stamp-config.h.in',
       configuration: conf
     ),
-    output: 'config.h'
+    output: 'stamp-config.h'
   )
 )
 

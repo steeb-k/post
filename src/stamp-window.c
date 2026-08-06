@@ -17,7 +17,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "config.h"
+#include "stamp-config.h"
 
 #include "stamp-window.h"
 
