@@ -17,5 +17,8 @@ stamp_calendar_view_new (void);
 GtkWidget *
 stamp_calendar_view_get_sidebar (StampCalendarView *self);
 
+gboolean
+stamp_calendar_view_get_sidebar_overlaid (StampCalendarView *self);
+
 G_END_DECLS
 

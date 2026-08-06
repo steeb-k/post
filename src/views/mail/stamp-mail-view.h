@@ -35,6 +35,9 @@ stamp_mail_view_new (void);
 GtkWidget *
 stamp_mail_view_get_sidebar (StampMailView *self);
 
+gboolean
+stamp_mail_view_get_sidebar_overlaid (StampMailView *self);
+
 void
 stamp_mail_view_search_contact (StampMailView *self,
                                 const gchar    *mail);

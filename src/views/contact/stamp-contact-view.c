@@ -10,6 +10,7 @@ struct _StampContactView {
   AdwBreakpointBin parent_instance;
 
   GtkWidget *sidebar_pane;
+  gboolean sidebar_overlaid;
 
   AdwMultiLayoutView *contacts_layout;
   AdwNavigationView *mobile_nav;
@@ -27,6 +28,18 @@ struct _StampContactView {
 
 G_DEFINE_FINAL_TYPE (StampContactView, stamp_contact_view, ADW_TYPE_BREAKPOINT_BIN);
 
+static void
+stamp_contact_view_get_property (GObject    *object,
+                                 guint       id,
+                                 GValue     *value,
+                                 GParamSpec *ps)
+{
+  if (id == 1)
+    g_value_set_boolean (value, STAMP_CONTACT_VIEW (object)->sidebar_overlaid);
+  else
+    G_OBJECT_WARN_INVALID_PROPERTY_ID (object, id, ps);
+}
+
 static AdwOverlaySplitView *
 get_current_osv (StampContactView *self)
 {
@@ -37,6 +50,26 @@ get_current_osv (StampContactView *self)
   if (g_strcmp0 (layout, "mobile") == 0)
     return self->mobile_osv;
   return NULL;
+}
+
+static void
+update_sidebar_overlaid (StampContactView *self)
+{
+  const gchar *layout = adw_multi_layout_view_get_layout_name (self->contacts_layout);
+  AdwOverlaySplitView *osv;
+  gboolean overlaid;
+
+  if (g_strcmp0 (layout, "desktop") == 0)
+    osv = NULL;
+  else
+    osv = get_current_osv (self);
+
+  overlaid = osv && adw_overlay_split_view_get_show_sidebar (osv);
+  if (overlaid == self->sidebar_overlaid)
+    return;
+
+  self->sidebar_overlaid = overlaid;
+  g_object_notify (G_OBJECT (self), "sidebar-overlaid");
 }
 
 static void
@@ -58,6 +91,8 @@ on_details_hidden (AdwNavigationPage *page,
 static void
 on_sidebar_visibility_changed (StampContactView *self)
 {
+  update_sidebar_overlaid (self);
+
   AdwOverlaySplitView *osv = get_current_osv (self);
   GtkWidget *btn;
   gboolean shown;
@@ -146,6 +181,11 @@ stamp_contact_view_class_init (StampContactViewClass *klass)
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
 
   object_class->dispose = stamp_contact_view_dispose;
+  object_class->get_property = stamp_contact_view_get_property;
+
+  g_object_class_install_property (object_class, 1, g_param_spec_boolean ("sidebar-overlaid", NULL, NULL,
+                                                                          FALSE,
+                                                                          G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
 
   gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/views/contact/stamp-contact-view.ui");
 
@@ -197,6 +237,8 @@ on_layout_changed (AdwMultiLayoutView *view,
     gtk_paned_set_position (self->desktop_paned, self->saved_paned_pos);
     gtk_paned_set_position (self->tablet_paned, self->saved_paned_pos);
   }
+
+  update_sidebar_overlaid (self);
 }
 
 static void
@@ -259,4 +301,10 @@ GtkWidget *
 stamp_contact_view_get_sidebar (StampContactView *self)
 {
   return self->sidebar_pane;
+}
+
+gboolean
+stamp_contact_view_get_sidebar_overlaid (StampContactView *self)
+{
+  return self->sidebar_overlaid;
 }

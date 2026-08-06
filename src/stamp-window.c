@@ -39,6 +39,7 @@ struct _StampWindow {
 
   AdwViewStack *app_view_stack;
   AdwViewStack *main_view_stack;
+  AdwToolbarView *main_toolbar;
   StampMailView *mail_view;
   StampContactView *contact_view;
   StampCalendarView *calendar_view;
@@ -134,6 +135,22 @@ static const GActionEntry stamp_window_action_entries[] = {
 };
 
 static void
+stamp_window_update_bottom_bar (StampWindow *self)
+{
+  GtkWidget *visible = adw_view_stack_get_visible_child (self->main_view_stack);
+  gboolean overlaid = FALSE;
+
+  if (visible == GTK_WIDGET (self->mail_view))
+    overlaid = stamp_mail_view_get_sidebar_overlaid (self->mail_view);
+  else if (visible == GTK_WIDGET (self->contact_view))
+    overlaid = stamp_contact_view_get_sidebar_overlaid (self->contact_view);
+  else if (visible == GTK_WIDGET (self->calendar_view))
+    overlaid = stamp_calendar_view_get_sidebar_overlaid (self->calendar_view);
+
+  adw_toolbar_view_set_reveal_bottom_bars (self->main_toolbar, !overlaid);
+}
+
+static void
 stamp_window_dispose (GObject *object)
 {
   StampWindow *self = STAMP_WINDOW (object);
@@ -168,6 +185,7 @@ stamp_window_class_init (StampWindowClass *klass)
 
   gtk_widget_class_bind_template_child (widget_class, StampWindow, app_view_stack);
   gtk_widget_class_bind_template_child (widget_class, StampWindow, main_view_stack);
+  gtk_widget_class_bind_template_child (widget_class, StampWindow, main_toolbar);
   gtk_widget_class_bind_template_child (widget_class, StampWindow, mail_view);
   gtk_widget_class_bind_template_child (widget_class, StampWindow, contact_view);
   gtk_widget_class_bind_template_child (widget_class, StampWindow, calendar_view);
@@ -207,6 +225,13 @@ stamp_window_init (StampWindow *self)
   g_autoptr (XdpParent) parent_window = xdp_parent_new_gtk (GTK_WINDOW (self));
 
   gtk_widget_init_template (GTK_WIDGET (self));
+
+  /* Hide the bottom view switcher while an overlay sidebar is open, so
+   * the sidebar covers the full height of the window. */
+  g_signal_connect_swapped (self->mail_view, "notify::sidebar-overlaid", G_CALLBACK (stamp_window_update_bottom_bar), self);
+  g_signal_connect_swapped (self->contact_view, "notify::sidebar-overlaid", G_CALLBACK (stamp_window_update_bottom_bar), self);
+  g_signal_connect_swapped (self->calendar_view, "notify::sidebar-overlaid", G_CALLBACK (stamp_window_update_bottom_bar), self);
+  g_signal_connect_swapped (self->main_view_stack, "notify::visible-child", G_CALLBACK (stamp_window_update_bottom_bar), self);
 
   /* Keep the sidebars the same width in all three views, so the bottom
    * view switcher does not move around when switching between them. The
