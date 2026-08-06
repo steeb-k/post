@@ -42,7 +42,6 @@ struct _StampMailView {
   GtkPaned *tablet_paned;
   AdwToastOverlay *toast_overlay;
 
-  GtkWidget *stack;
 
   GSimpleActionGroup *actions;
   StampAccount *account;
@@ -52,12 +51,6 @@ struct _StampMailView {
 };
 
 G_DEFINE_FINAL_TYPE (StampMailView, stamp_mail_view, ADW_TYPE_BREAKPOINT_BIN);
-
-typedef enum {
-  PROP_STACK = 1,
-} StampMailViewProps;
-
-static GParamSpec *obj_properties[PROP_STACK + 1];
 
 static AdwOverlaySplitView *
 get_current_osv (StampMailView *self)
@@ -243,36 +236,6 @@ stamp_mail_view_dispose (GObject *object)
   G_OBJECT_CLASS (stamp_mail_view_parent_class)->dispose (object);
 }
 
-static void
-stamp_mail_view_get_property (GObject    *object,
-                              guint       property_id,
-                              GValue     *value,
-                              GParamSpec *pspec)
-{
-  StampMailView *self = STAMP_MAIL_VIEW (object);
-
-  switch ((StampMailViewProps)property_id) {
-    case PROP_STACK:
-      g_value_set_object (value, self->stack);
-      break;
-  }
-}
-
-static void
-stamp_mail_view_set_property (GObject      *object,
-                              guint         property_id,
-                              const GValue *value,
-                              GParamSpec   *pspec)
-{
-  StampMailView *self = STAMP_MAIL_VIEW (object);
-
-  switch ((StampMailViewProps)property_id) {
-    case PROP_STACK:
-      g_set_object (&self->stack, g_value_get_object (value));
-      break;
-  }
-}
-
 static gboolean
 is_mobile_view (StampMailView *self)
 {
@@ -299,14 +262,6 @@ stamp_mail_view_class_init (StampMailViewClass *klass)
   gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/views/mail/stamp-mail-view.ui");
 
   object_class->dispose = stamp_mail_view_dispose;
-  object_class->set_property = stamp_mail_view_set_property;
-  object_class->get_property = stamp_mail_view_get_property;
-
-  obj_properties[PROP_STACK] = g_param_spec_object ("stack", NULL, NULL,
-                                                    ADW_TYPE_VIEW_STACK,
-                                                    G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-
-  g_object_class_install_properties (object_class, G_N_ELEMENTS (obj_properties), obj_properties);
 
   gtk_widget_class_bind_template_child (widget_class, StampMailView, mail_layout);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, folder_list);

@@ -191,15 +191,8 @@ template $StampCalendarView: Adw.BreakpointBin {
           max-sidebar-width: 300;
           show-sidebar: true;
 
-          sidebar: Adw.ToolbarView {
-            content: Adw.LayoutSlot {
-              id: "sidebar";
-            };
-
-            [bottom]
-            Adw.LayoutSlot {
-              id: "switcher";
-            }
+          sidebar: Adw.LayoutSlot {
+            id: "sidebar";
           };
 
           content: Adw.LayoutSlot {
@@ -217,17 +210,8 @@ template $StampCalendarView: Adw.BreakpointBin {
           max-sidebar-width: 340;
           collapsed: true;
 
-          sidebar: Adw.ToolbarView {
-            bottom-bar-style: raised;
-
-            content: Adw.LayoutSlot {
-              id: "sidebar";
-            };
-
-            [bottom]
-            Adw.LayoutSlot {
-              id: "switcher";
-            }
+          sidebar: Adw.LayoutSlot {
+            id: "sidebar";
           };
 
           content: Adw.LayoutSlot {
@@ -254,29 +238,7 @@ template $StampCalendarView: Adw.BreakpointBin {
             content: Adw.LayoutSlot {
               id: "content";
             };
-
-            [bottom]
-            Adw.LayoutSlot {
-              id: "switcher";
-            }
           };
-        };
-      }
-
-      [switcher]
-      Adw.Clamp {
-        /* Three buttons worth of width, so they stay close to their content. */
-        maximum-size: 210;
-        margin-top: 6;
-        margin-bottom: 6;
-
-        child: Adw.ViewSwitcher calendar_switcher {
-          stack: bind template.stack;
-          policy: narrow;
-
-          styles [
-            "compact-switcher",
-          ]
         };
       }
     };

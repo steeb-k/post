@@ -62,8 +62,6 @@ struct _StampCalendarView {
   GcalCalendarManagementDialog *calendar_management;
   GtkWidget *quick_add_popover;
 
-  AdwViewStack *stack;
-
   GSimpleActionGroup *actions;
 
   GtkWidget *views[GCAL_WINDOW_VIEW_N_VIEWS];
@@ -82,7 +80,6 @@ struct _StampCalendarView {
 
 enum {
   PROP_0,
-  PROP_STACK,
   PROP_ACTIVE_DATE,
   PROP_ACTIVE_VIEW,
   N_PROPS
@@ -849,10 +846,6 @@ stamp_calendar_view_get_property (GObject    *object,
   StampCalendarView *self = STAMP_CALENDAR_VIEW (object);
 
   switch (id) {
-    case PROP_STACK:
-      g_value_set_object (value, self->stack);
-      break;
-
     case PROP_ACTIVE_DATE:
       g_value_set_boxed (value, self->active_date);
       break;
@@ -875,10 +868,6 @@ stamp_calendar_view_set_property (GObject      *object,
   StampCalendarView *self = STAMP_CALENDAR_VIEW (object);
 
   switch (id) {
-    case PROP_STACK:
-      g_set_object (&self->stack, g_value_get_object (value));
-      break;
-
     case PROP_ACTIVE_DATE:
       update_active_date (self, g_value_get_boxed (value));
       break;
@@ -915,10 +904,6 @@ stamp_calendar_view_class_init (StampCalendarViewClass *klass)
   object_class->finalize = stamp_calendar_view_finalize;
   object_class->get_property = stamp_calendar_view_get_property;
   object_class->set_property = stamp_calendar_view_set_property;
-
-  properties[PROP_STACK] = g_param_spec_object ("stack", NULL, NULL,
-                                                ADW_TYPE_VIEW_STACK,
-                                                G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
   properties[PROP_ACTIVE_DATE] = g_param_spec_boxed ("active-date", NULL, NULL,
                                                      G_TYPE_DATE_TIME,

@@ -21,7 +21,6 @@ struct _StampContactView {
   GtkWidget *book_list;
   GtkWidget *contact_list;
   GtkWidget *contact_details;
-  AdwViewStack *stack;
 
   gint saved_paned_pos;
 };
@@ -123,30 +122,6 @@ stamp_contact_view_dispose (GObject *object)
   G_OBJECT_CLASS (stamp_contact_view_parent_class)->dispose (object);
 }
 
-static void
-stamp_contact_view_get_property (GObject    *object,
-                                 guint       id,
-                                 GValue     *value,
-                                 GParamSpec *ps)
-{
-  if (id == 1)
-    g_value_set_object (value, STAMP_CONTACT_VIEW (object)->stack);
-  else
-    G_OBJECT_WARN_INVALID_PROPERTY_ID (object, id, ps);
-}
-
-static void
-stamp_contact_view_set_property (GObject      *object,
-                                 guint         id,
-                                 const GValue *value,
-                                 GParamSpec   *ps)
-{
-  if (id == 1)
-    g_set_object (&STAMP_CONTACT_VIEW (object)->stack, g_value_get_object (value));
-  else
-    G_OBJECT_WARN_INVALID_PROPERTY_ID (object, id, ps);
-}
-
 static gboolean
 is_mobile_view (StampContactView *self)
 {
@@ -170,13 +145,7 @@ stamp_contact_view_class_init (StampContactViewClass *klass)
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
 
-  object_class->set_property = stamp_contact_view_set_property;
-  object_class->get_property = stamp_contact_view_get_property;
   object_class->dispose = stamp_contact_view_dispose;
-
-  g_object_class_install_property (object_class, 1, g_param_spec_object ("stack", NULL, NULL,
-                                                                         ADW_TYPE_VIEW_STACK,
-                                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/views/contact/stamp-contact-view.ui");
 
