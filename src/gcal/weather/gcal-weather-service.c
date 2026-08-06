@@ -18,7 +18,6 @@
 
 #define G_LOG_DOMAIN      "GcalWeatherService"
 
-#include <geoclue.h>
 #include <string.h>
 #include <math.h>
 
@@ -56,9 +55,6 @@ typedef struct
  * @midnight_timer           Timer used to update weather reports at midnight.
  * @network_changed_sid      "network-changed" signal ID.
  * @location:                Used for from where to display the weather. Current location if NULL.
- * @location_service:        Used to monitor location changes.
- *                           Initialized by gcal_weather_service_run(),
- *                           freed by gcal_weather_service_stop().
  * @location_cancellable:    Used to deal with async location service construction.
  * @locaton_running:         Whether location service is active.
  * @weather_infos:           List of #GcalWeatherInfo objects.
@@ -98,7 +94,6 @@ struct _GcalWeatherService
 
   /* locations: */
   GWeatherLocation   *location;             /* owned, nullable */
-  GClueSimple        *location_service;     /* owned, nullable */
   GCancellable       *location_cancellable; /* owned, non-null */
   gboolean            location_service_running;
 
@@ -671,29 +666,6 @@ update_location (GcalWeatherService  *self,
 }
 
 static void
-update_gclue_location (GcalWeatherService  *self,
-                       GClueLocation       *location)
-{
-  g_autoptr (GWeatherLocation) wlocation = NULL; /* owned */
-
-  if (location)
-    {
-      GWeatherLocation *wworld; /* unowned */
-      gdouble latitude;
-      gdouble longitude;
-
-      latitude = gclue_location_get_latitude (location);
-      longitude = gclue_location_get_longitude (location);
-
-      /* nearest-city works more closely to gnome weather. */
-      wworld = gweather_location_get_world ();
-      wlocation = gweather_location_find_nearest_city (wworld, latitude, longitude);
-    }
-
-  update_location (self, wlocation);
-}
-
-static void
 start_or_stop_weather_service (GcalWeatherService *self)
 {
   if (self->use_counter > 0 && self->weather_service_active)
@@ -727,87 +699,6 @@ on_network_changed_cb (GNetworkMonitor    *monitor,
     {
       stop_timer (self);
     }
-}
-
-static void
-on_gclue_location_changed_cb (GClueLocation      *location,
-                              GcalWeatherService *self)
-{
-  update_gclue_location (self, location);
-}
-
-static void
-on_gclue_client_activity_changed_cb (GClueClient        *client,
-                                     GcalWeatherService *self)
-{
-  /* Notify listeners about unknown locations: */
-  update_location (self, NULL);
-}
-
-static void
-on_gclue_simple_creation_cb (GClueSimple        *_source,
-                             GAsyncResult       *result,
-                             GcalWeatherService *self)
-{
-  g_autoptr (GError) error = NULL;
-  GClueLocation *location;
-  GClueClient *client;
-
-  GCAL_ENTRY;
-
-  self->location_service = gclue_simple_new_finish (result, &error);
-
-  if (error)
-    {
-      g_assert_null (self->location_service);
-
-      if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED) &&
-          !(g_dbus_error_is_remote_error (error) && strcmp (g_dbus_error_get_remote_error (error), "org.freedesktop.DBus.Error.AccessDenied") == 0))
-        g_warning ("Could not create GCLueSimple: %s", error->message);
-
-      GCAL_RETURN ();
-    }
-
-  location = gclue_simple_get_location (self->location_service);
-  client = gclue_simple_get_client (self->location_service);
-
-  if (location)
-    {
-      update_gclue_location (self, location);
-
-      g_signal_connect_object (location,
-                               "notify::location",
-                               G_CALLBACK (on_gclue_location_changed_cb),
-                               self,
-                               0);
-    }
-  if (client)
-    {
-      g_signal_connect_object (client,
-                               "notify::active",
-                               G_CALLBACK (on_gclue_client_activity_changed_cb),
-                               self,
-                               0);
-    }
-  GCAL_EXIT;
-}
-
-static void
-on_gclue_client_stopped_cb (GClueClient  *client,
-                            GAsyncResult *res,
-                            GClueSimple  *simple)
-{
-  g_autoptr (GError) error = NULL;
-  gboolean stopped;
-
-  stopped = gclue_client_call_stop_finish (client, res, &error);
-
-  if (error)
-    g_warning ("Could not stop location service: %s", error->message);
-  else if (!stopped)
-    g_warning ("Could not stop location service");
-
-  g_object_unref (simple);
 }
 
 static void
@@ -883,7 +774,6 @@ gcal_weather_service_finalize (GObject *object)
   g_clear_pointer (&self->weather_infos, g_ptr_array_unref);
 
   g_clear_object (&self->gweather_info);
-  g_clear_object (&self->location_service);
   g_clear_object (&self->location_cancellable);
 
   if (self->network_changed_sid > 0)
@@ -1260,23 +1150,16 @@ gcal_weather_service_start (GcalWeatherService *self)
 
   if (!self->location)
     {
-      /* Start location and weather service: */
-      self->location_service_running = TRUE;
-
-      g_cancellable_cancel (self->location_cancellable);
-      g_cancellable_reset (self->location_cancellable);
-
-      gclue_simple_new (APPLICATION_ID,
-                        GCLUE_ACCURACY_LEVEL_CITY,
-                        self->location_cancellable,
-                        (GAsyncReadyCallback) on_gclue_simple_creation_cb,
-                        self);
+      /*
+       * Post: automatic location discovery via GeoClue was removed with the
+       * geoclue dependency, so without an explicit location the service
+       * stays idle and no weather is reported.
+       */
+      self->location_service_running = FALSE;
     }
   else
     {
       self->location_service_running = FALSE;
-
-      /* TODO: stop running location service */
 
       /*_update_location starts timer if necessary */
       update_location (self, self->location);
@@ -1299,7 +1182,6 @@ void
 gcal_weather_service_stop (GcalWeatherService *self)
 {
   GCAL_ENTRY;
-  GClueClient *client;
 
   g_return_if_fail (GCAL_IS_WEATHER_SERVICE (self));
 
@@ -1314,23 +1196,7 @@ gcal_weather_service_stop (GcalWeatherService *self)
   /* Notify all listeners about unknown location */
   update_location (self, NULL);
 
-  if (!self->location_service)
-    {
-      /* location service is under construction. Cancel creation. */
-      g_cancellable_cancel (self->location_cancellable);
-    }
-  else
-    {
-      client = gclue_simple_get_client (self->location_service);
-      if (client)
-        {
-          gclue_client_call_stop (client,
-                                  self->location_cancellable,
-                                  (GAsyncReadyCallback) on_gclue_client_stopped_cb,
-                                  self->location_service);
-        }
-      g_clear_object (&self->location_service);
-    }
+  g_cancellable_cancel (self->location_cancellable);
 
   GCAL_EXIT;
 }
