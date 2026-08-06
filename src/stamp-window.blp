@@ -19,10 +19,10 @@ template $StampWindow: Adw.ApplicationWindow {
       action: "action(win.show-contacts)";
     }
 
-    // Shortcut {
-    //   trigger: "<primary>3";
-    //   action: "action(win.show-calendar)";
-    // }
+    Shortcut {
+      trigger: "<primary>3";
+      action: "action(win.show-calendar)";
+    }
   }
 
   content: Adw.ViewStack app_view_stack {
@@ -111,9 +111,9 @@ template $StampWindow: Adw.ApplicationWindow {
           title: _("Calendar");
           icon-name: "x-office-calendar-symbolic";
 
-          child: $StampCalendarView calendar_view {};
-
-          visible: false;
+          child: $StampCalendarView calendar_view {
+            stack: bind main_view_stack;
+          };
         }
       };
     }

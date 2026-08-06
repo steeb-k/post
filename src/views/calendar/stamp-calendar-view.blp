@@ -5,108 +5,291 @@ template $StampCalendarView: Adw.BreakpointBin {
   width-request: 360;
   height-request: 200;
 
-  child: Adw.NavigationSplitView outer_view {
-    min-sidebar-width: 200;
-    max-sidebar-width: 351;
-    sidebar-width-fraction: 0.47;
+  Adw.Breakpoint bp_tablet {
+    condition ("max-width: 860sp")
 
-    sidebar: Adw.NavigationPage inner_view_page {
-      title: _("Post");
+    setters {
+      calendar_layout.layout-name: "tablet";
+    }
+  }
 
-      child: Adw.ToolbarView {
+  Adw.Breakpoint bp_mobile {
+    condition ("max-width: 550sp")
+
+    setters {
+      calendar_layout.layout-name: "mobile";
+      month_page.visible: false;
+      week_page.visible: false;
+      agenda_page.visible: true;
+      view_switcher.visible: false;
+      previous_date_button.visible: false;
+      next_date_button.visible: false;
+    }
+  }
+
+  child: Adw.ToastOverlay toast_overlay {
+    child: Adw.MultiLayoutView calendar_layout {
+      [sidebar]
+      Adw.ToolbarView {
         bottom-bar-style: raised;
 
         [top]
+        $StampHeaderBar {}
+
+        content: ScrolledWindow scrolled_window {
+          hscrollbar-policy: never;
+
+          child: Box {
+            orientation: vertical;
+
+            $GcalDateChooser date_chooser {
+              split-month-year: true;
+              vexpand: false;
+              active-date: bind template.active-date no-sync-create bidirectional;
+              day-selected => $on_day_selected(template) not-swapped;
+            }
+
+            $GcalCalendarList calendars_list {
+              vexpand: true;
+            }
+          };
+        };
+      }
+
+      [content]
+      Adw.ToolbarView {
+        [top]
         Adw.HeaderBar {
           [start]
-          Adw.Spinner spinner {
+          ToggleButton sidebar_button {
+            icon-name: "sidebar-show-symbolic";
+            tooltip-text: _("Toggle Sidebar");
             visible: false;
+
+            styles [
+              "flat",
+            ]
+          }
+
+          [start]
+          $GcalSyncIndicator sync_indicator {}
+
+          title-widget: $GcalCalendarNavigationButton navigation_button {
+            active-date: bind template.active-date no-sync-create bidirectional;
+          };
+
+          [end]
+          Button {
+            icon-name: "list-add-symbolic";
+            action-name: "calendar.new-event";
+            tooltip-text: C_("tooltip", "Add Event");
           }
 
           [end]
-          MenuButton {
-            primary: true;
-            icon-name: "open-menu-symbolic";
-            menu-model: primary_menu;
+          Button {
+            icon-name: "x-office-calendar-symbolic";
+            tooltip-text: _("Manage Calendars");
+            action-name: "calendar.show-calendars";
           }
         }
 
-        content: Box {
-          orientation: vertical;
+        content: Adw.ViewStack views_stack {
+          hexpand: true;
+          vexpand: true;
+          notify::visible-child => $on_view_changed(template) not-swapped;
 
-          ScrolledWindow {
-            hscrollbar-policy: never;
+          styles [
+            "view",
+          ]
 
-            child: Label calendar_list {
+          Adw.ViewStackPage month_page {
+            name: "month";
+            title: _("_Month");
+            use-underline: true;
+            icon-name: "calendar-month-symbolic";
+
+            child: $GcalMonthView month_view {
+              active-date: bind template.active-date no-sync-create bidirectional;
+              create-event => $show_new_event_widget(template) not-swapped;
+              create-event-detailed => $create_event_detailed_cb(template) not-swapped;
+              event-activated => $event_activated(template) not-swapped;
+            };
+          }
+
+          Adw.ViewStackPage week_page {
+            name: "week";
+            title: _("_Week");
+            use-underline: true;
+            icon-name: "calendar-week-symbolic";
+
+            child: $GcalWeekView week_view {
+              active-date: bind template.active-date no-sync-create bidirectional;
+              create-event => $show_new_event_widget(template) not-swapped;
+              event-activated => $event_activated(template) not-swapped;
+            };
+          }
+
+          Adw.ViewStackPage agenda_page {
+            name: "agenda";
+            title: _("_Agenda");
+            use-underline: true;
+            icon-name: "calendar-agenda-symbolic";
+            visible: false;
+
+            child: $GcalAgendaView agenda_view {
               vexpand: true;
+              active-date: bind template.active-date no-sync-create bidirectional;
+              create-event => $show_new_event_widget(template) not-swapped;
+              event-activated => $event_activated(template) not-swapped;
             };
           }
         };
 
         [bottom]
-        Adw.Clamp {
-          /* Two buttons worth of width, so they stay close to their content. */
-          maximum-size: 140;
-          margin-top: 6;
-          margin-bottom: 6;
+        ActionBar {
+          [start]
+          Button previous_date_button {
+            icon-name: bind $get_previous_date_icon(views_stack.visible-child) as <string>;
+            tooltip-text: bind $get_previous_date_tooltip(views_stack.visible-child-name) as <string>;
+            action-name: "calendar.previous-date";
+          }
 
-          child: Adw.ViewSwitcher view_switcher {
-            policy: narrow;
+          [start]
+          Button next_date_button {
+            icon-name: bind $get_next_date_icon(views_stack.visible-child) as <string>;
+            tooltip-text: bind $get_next_date_tooltip(views_stack.visible-child-name) as <string>;
+            action-name: "calendar.next-date";
+          }
 
-            styles [
-              "compact-switcher",
-            ]
-          };
+          [start]
+          Button {
+            action-name: "calendar.today";
+
+            child: Adw.ButtonContent {
+              label: _("_Today");
+              use-underline: true;
+              icon-name: "calendar-today-symbolic";
+              can-shrink: true;
+              tooltip-text: _("Go to Today");
+            };
+          }
+
+          [center]
+          Adw.ViewSwitcher view_switcher {
+            stack: views_stack;
+            policy: wide;
+          }
         }
-      };
-    };
+      }
 
-    content: Adw.NavigationPage week_page {
-      tag: "week";
-      title: _("Week");
+      Adw.Layout {
+        name: "desktop";
 
-      child: Adw.Bin week_view {};
+        content: Adw.OverlaySplitView outer_osv {
+          sidebar-width-fraction: 0.28;
+          min-sidebar-width: 250;
+          max-sidebar-width: 300;
+          show-sidebar: true;
+
+          sidebar: Adw.ToolbarView {
+            content: Adw.LayoutSlot {
+              id: "sidebar";
+            };
+
+            [bottom]
+            Adw.LayoutSlot {
+              id: "switcher";
+            }
+          };
+
+          content: Adw.LayoutSlot {
+            id: "content";
+          };
+        };
+      }
+
+      Adw.Layout {
+        name: "tablet";
+
+        content: Adw.OverlaySplitView tablet_osv {
+          sidebar-width-fraction: 0.28;
+          min-sidebar-width: 280;
+          max-sidebar-width: 340;
+          collapsed: true;
+
+          sidebar: Adw.ToolbarView {
+            bottom-bar-style: raised;
+
+            content: Adw.LayoutSlot {
+              id: "sidebar";
+            };
+
+            [bottom]
+            Adw.LayoutSlot {
+              id: "switcher";
+            }
+          };
+
+          content: Adw.LayoutSlot {
+            id: "content";
+          };
+        };
+      }
+
+      Adw.Layout {
+        name: "mobile";
+
+        content: Adw.OverlaySplitView mobile_osv {
+          collapsed: true;
+          sidebar-position: start;
+          sidebar-width-fraction: 0.75;
+          min-sidebar-width: 280;
+          max-sidebar-width: 300;
+
+          sidebar: Adw.LayoutSlot {
+            id: "sidebar";
+          };
+
+          content: Adw.ToolbarView {
+            content: Adw.LayoutSlot {
+              id: "content";
+            };
+
+            [bottom]
+            Adw.LayoutSlot {
+              id: "switcher";
+            }
+          };
+        };
+      }
+
+      [switcher]
+      Adw.Clamp {
+        /* Three buttons worth of width, so they stay close to their content. */
+        maximum-size: 210;
+        margin-top: 6;
+        margin-bottom: 6;
+
+        child: Adw.ViewSwitcher calendar_switcher {
+          stack: bind template.stack;
+          policy: narrow;
+
+          styles [
+            "compact-switcher",
+          ]
+        };
+      }
     };
   };
-
-  Adw.Breakpoint breakpoint_small {
-    condition ("max-width: 500sp")
-
-    setters {
-      outer_view.collapsed: true;
-    }
-  }
 }
 
-menu primary_menu {
-  section {
-    item {
-      label: _("A_ccounts");
-      action: 'app.accounts';
-    }
-  }
-
-  section {
-    item {
-      label: _("_Preferences");
-      action: 'app.preferences';
-    }
-
-    item {
-      label: _("_Keyboard Shortcuts");
-      action: "app.shortcuts";
-    }
-
-    item {
-      label: _("_About Post");
-      action: 'app.about';
-    }
-  }
-
-  section {
-    item {
-      label: _("_Quit");
-      action: 'app.quit';
-    }
-  }
+$GcalQuickAddPopover quick_add_popover {
+  edit-event => $edit_event(template) not-swapped;
+  closed => $close_new_event_widget(template) not-swapped;
 }
+
+$GcalEventEditorDialog event_editor {
+  remove-event => $on_event_editor_dialog_remove_event_cb(template) not-swapped;
+}
+
+$GcalCalendarManagementDialog calendar_management {}
