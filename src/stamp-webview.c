@@ -91,7 +91,7 @@ on_cid_request (WebKitURISchemeRequest *request,
 
   stream = self->cid_handler ? self->cid_handler (request, self->cid_handler_user_data) : NULL;
   if (!stream) {
-    GError *error = g_error_new_literal (g_quark_from_string ("Stamp"), 1, "Failed to handle internal response");
+    GError *error = g_error_new_literal (g_quark_from_string ("Post"), 1, "Failed to handle internal response");
     webkit_uri_scheme_request_finish_error (request, error);
   } else {
     if (G_IS_SEEKABLE (stream)) {
