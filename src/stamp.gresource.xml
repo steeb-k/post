@@ -63,6 +63,7 @@
     <file>styles/stamp-message-list.css</file>
     <file>styles/stamp-message-header.css</file>
     <file>styles/stamp-signatures.css</file>
+    <file>styles/stamp-view-switcher.css</file>
     <file>styles/stamp-window.css</file>
     <file alias="io.github.steeb_k.Post.metainfo.xml">../data/io.github.steeb_k.Post.metainfo.xml</file>
   </gresource>

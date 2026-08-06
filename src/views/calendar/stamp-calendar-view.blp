@@ -44,8 +44,19 @@ template $StampCalendarView: Adw.BreakpointBin {
         };
 
         [bottom]
-        Adw.ViewSwitcherBar view_switcher {
-          reveal: true;
+        Adw.Clamp {
+          /* Two buttons worth of width, so they stay close to their content. */
+          maximum-size: 140;
+          margin-top: 6;
+          margin-bottom: 6;
+
+          child: Adw.ViewSwitcher view_switcher {
+            policy: narrow;
+
+            styles [
+              "compact-switcher",
+            ]
+          };
         }
       };
     };

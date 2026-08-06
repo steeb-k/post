@@ -1,0 +1,13 @@
+/* Compact bottom view switcher.
+ *
+ * AdwViewSwitcher gives every button a natural width of 100px, which is far
+ * wider than the icon and label need. The buttons are clamped to their content
+ * width in the layouts, this trims the leftover vertical padding. */
+.compact-switcher button.toggle > stack > box.narrow {
+  padding-top: 2px;
+}
+
+.compact-switcher button.toggle > stack > box.narrow > label {
+  min-height: 16px;
+  padding-bottom: 0;
+}

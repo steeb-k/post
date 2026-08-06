@@ -175,9 +175,20 @@ template $StampContactView: Adw.BreakpointBin {
     }
 
     [switcher]
-    Adw.ViewSwitcherBar contacts_switcher {
-      stack: bind template.stack;
-      reveal: true;
+    Adw.Clamp {
+      /* Two buttons worth of width, so they stay close to their content. */
+      maximum-size: 140;
+      margin-top: 6;
+      margin-bottom: 6;
+
+      child: Adw.ViewSwitcher contacts_switcher {
+        stack: bind template.stack;
+        policy: narrow;
+
+        styles [
+          "compact-switcher",
+        ]
+      };
     }
   };
 }
