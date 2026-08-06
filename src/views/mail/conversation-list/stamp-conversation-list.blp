@@ -61,13 +61,6 @@ template $StampConversationList: Adw.Bin {
         }
 
         [end]
-        Button selection_button {
-          icon-name: "selection-mode-symbolic";
-          tooltip-text: _("Select Items");
-          clicked => $on_selection_button_clicked();
-        }
-
-        [end]
         Overlay {
           [overlay]
           Box sort_is_active {
@@ -130,7 +123,7 @@ template $StampConversationList: Adw.Bin {
         Button cancel_selection_button {
           label: _("Close");
           tooltip-text: _("Close Selection");
-          clicked => $on_selection_button_clicked();
+          clicked => $on_cancel_selection_clicked();
         }
       }
     }

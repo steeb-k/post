@@ -973,9 +973,12 @@ on_long_press_pressed (GtkGestureLongPress *controller,
   StampConversationList *self = STAMP_CONVERSATION_LIST (row_data->self);
   guint position = gtk_list_item_get_position (row_data->list_item);
 
-  set_selection_active (self, TRUE);
+  /* Entering selection mode clears the selection, so only do it once */
+  if (!self->selection_mode)
+    set_selection_active (self, TRUE);
 
   gtk_bitset_add (self->selected, position);
+  self->anchor_position = position;
   update_selection_title (self);
   refresh_checkboxes (self);
 }
@@ -999,23 +1002,38 @@ on_row_pressed (GtkGestureClick *gesture,
   if (!event || gdk_event_get_event_type (event) != GDK_BUTTON_PRESS)
     return;
 
-  if (!self->selection_mode) {
-    if (n_press == 2) {
-      GtkWidget *window = adw_window_new ();
-      GtkWidget *message_list = stamp_message_list_new ();
-      StampConversationItem *item = STAMP_CONVERSATION_ITEM (gtk_list_item_get_item (list_item));
-
-      stamp_message_list_set_conversation (STAMP_MESSAGE_LIST (message_list), self->account, stamp_conversation_item_get_node (item));
-      adw_window_set_content (ADW_WINDOW (window), message_list);
-      gtk_window_set_default_size (GTK_WINDOW (window), 800, 600);
-      gtk_window_present (GTK_WINDOW (window));
-    }
-    return;
-  }
-
   state = gdk_event_get_modifier_state (event);
   ctrl = (state & GDK_CONTROL_MASK) != 0;
   shift = (state & GDK_SHIFT_MASK) != 0;
+
+  if (!self->selection_mode) {
+    if (!ctrl && !shift) {
+      if (n_press == 2) {
+        GtkWidget *window = adw_window_new ();
+        GtkWidget *message_list = stamp_message_list_new ();
+        StampConversationItem *item = STAMP_CONVERSATION_ITEM (gtk_list_item_get_item (list_item));
+
+        stamp_message_list_set_conversation (STAMP_MESSAGE_LIST (message_list), self->account, stamp_conversation_item_get_node (item));
+        adw_window_set_content (ADW_WINDOW (window), message_list);
+        gtk_window_set_default_size (GTK_WINDOW (window), 800, 600);
+        gtk_window_present (GTK_WINDOW (window));
+      }
+      return;
+    } else {
+      /* A modifier click enters selection mode, using the currently shown
+       * conversation as the anchor of the new selection */
+      guint anchor = gtk_single_selection_get_selected (self->single_selection);
+
+      set_selection_active (self, TRUE);
+
+      if (anchor != GTK_INVALID_LIST_POSITION && anchor != position) {
+        self->anchor_position = anchor;
+        gtk_bitset_add (self->selected, anchor);
+      } else {
+        self->anchor_position = position;
+      }
+    }
+  }
 
   if (ctrl && !shift) {
     /* Ctrl: einzelne Row toggeln, Anchor setzen */
@@ -1215,7 +1233,7 @@ on_setup_list_item (GtkListItemFactory *factory,
   row_data->self = self;
   row_data->list_item = list_item;
   g_object_set_data_full (G_OBJECT (long_press), "row-data", row_data, g_free);
-  gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (long_press), TRUE);
+  gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (long_press), FALSE);
   g_signal_connect (long_press, "pressed", G_CALLBACK (on_long_press_pressed), self);
   gtk_widget_add_controller (row, GTK_EVENT_CONTROLLER (long_press));
 
@@ -1368,14 +1386,19 @@ on_key_pressed (GtkEventControllerKey *controller,
   if (!self->selection_mode)
     return GDK_EVENT_PROPAGATE;
 
+  focus = gtk_root_get_focus (gtk_widget_get_root (GTK_WIDGET (self)));
+  if (focus && (focus == self->search_entry || gtk_widget_is_ancestor (focus, self->search_entry)))
+    return GDK_EVENT_PROPAGATE;
+
+  if (keyval == GDK_KEY_Escape) {
+    set_selection_active (self, FALSE);
+    return GDK_EVENT_STOP;
+  }
+
   if ((keyval != GDK_KEY_a && keyval != GDK_KEY_A) || (state & GDK_CONTROL_MASK) == 0 || (state & (GDK_ALT_MASK | GDK_META_MASK)) != 0)
     return GDK_EVENT_PROPAGATE;
 
   shift = (state & GDK_SHIFT_MASK) != 0;
-
-  focus = gtk_root_get_focus (gtk_widget_get_root (GTK_WIDGET (self)));
-  if (focus && gtk_widget_is_ancestor (focus, self->search_entry))
-    return GDK_EVENT_PROPAGATE;
 
   if (shift) {
     on_unselect_all (NULL, self);
@@ -1387,12 +1410,12 @@ on_key_pressed (GtkEventControllerKey *controller,
 }
 
 static void
-on_selection_button_clicked (GtkWidget *button,
+on_cancel_selection_clicked (GtkWidget *button,
                              gpointer   user_data)
 {
   StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
 
-  set_selection_active (self, !self->selection_mode);
+  set_selection_active (self, FALSE);
 }
 
 static gboolean
@@ -1541,7 +1564,7 @@ stamp_conversation_list_class_init (StampConversationListClass *klass)
   gtk_widget_class_bind_template_callback (widget_class, on_setup_list_item);
   gtk_widget_class_bind_template_callback (widget_class, on_bind_list_item);
   gtk_widget_class_bind_template_callback (widget_class, on_unbind_list_item);
-  gtk_widget_class_bind_template_callback (widget_class, on_selection_button_clicked);
+  gtk_widget_class_bind_template_callback (widget_class, on_cancel_selection_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_scroll_to_top);
   gtk_widget_class_bind_template_callback (widget_class, on_scroll);
   gtk_widget_class_bind_template_callback (widget_class, on_select_all);
