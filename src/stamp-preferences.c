@@ -114,7 +114,7 @@ stamp_preferences_class_init (StampPreferencesClass *klass)
 
   gobject_class->dispose = stamp_preferences_dispose;
 
-  gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/stamp-preferences.ui");
+  gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/stamp-preferences.ui");
 
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, background_notifications);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, autostart);
@@ -187,7 +187,7 @@ on_autostart (GObject    *object,
   g_autoptr (XdpParent) parent_window = xdp_parent_new_gtk (window);
   g_autoptr (GPtrArray) commandline = g_ptr_array_new_with_free_func (g_free);
 
-  g_ptr_array_add (commandline, g_strdup ("stamp"));
+  g_ptr_array_add (commandline, g_strdup ("post-mail"));
   g_ptr_array_add (commandline, g_strdup ("--hidden"));
 
   xdp_portal_request_background (portal, parent_window, NULL, commandline, XDP_BACKGROUND_FLAG_AUTOSTART, self->cancellable, on_request_autostart, self);

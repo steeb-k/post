@@ -159,7 +159,7 @@ stamp_window_class_init (StampWindowClass *klass)
 
   object_class->dispose = stamp_window_dispose;
 
-  gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/stamp-window.ui");
+  gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/stamp-window.ui");
 
   gtk_widget_class_bind_template_child (widget_class, StampWindow, app_view_stack);
   gtk_widget_class_bind_template_child (widget_class, StampWindow, main_view_stack);

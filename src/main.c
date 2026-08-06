@@ -38,11 +38,11 @@ main (gint    argc,
 
   gst_init (&argc, &argv);
 
-  g_set_prgname ("stamp");
-  g_set_application_name (_("Stamp"));
+  g_set_prgname ("post-mail");
+  g_set_application_name (_("Post"));
   stamp_settings_init ();
 
-  app = stamp_application_new ("org.tabos.stamp", G_APPLICATION_HANDLES_COMMAND_LINE);
+  app = stamp_application_new ("io.github.steeb_k.Post", G_APPLICATION_HANDLES_COMMAND_LINE);
   ret = g_application_run (G_APPLICATION (app), argc, argv);
 
   stamp_settings_shutdown ();

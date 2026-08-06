@@ -51,7 +51,7 @@ stamp_application_new (const gchar       *application_id,
   stamp_application = g_object_new (STAMP_TYPE_APPLICATION,
                                     "application-id", application_id,
                                     "flags", flags,
-                                    "resource-base-path", "/org/tabos/stamp",
+                                    "resource-base-path", "/io/github/steeb_k/Post",
                                     NULL);
 
   return stamp_application;
@@ -285,7 +285,7 @@ stamp_application_about_action (GSimpleAction *action,
 
   window = gtk_application_get_active_window (GTK_APPLICATION (self));
 
-  dialog = adw_about_dialog_new_from_appdata ("/org/tabos/stamp/org.tabos.stamp.metainfo.xml", PACKAGE_VERSION);
+  dialog = adw_about_dialog_new_from_appdata ("/io/github/steeb_k/Post/io.github.steeb_k.Post.metainfo.xml", PACKAGE_VERSION);
   adw_about_dialog_set_translator_credits (ADW_ABOUT_DIALOG (dialog), _("translator-credits"));
   adw_about_dialog_set_developers (ADW_ABOUT_DIALOG (dialog), developers);
   adw_about_dialog_set_designers (ADW_ABOUT_DIALOG (dialog), designers);

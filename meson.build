@@ -1,4 +1,4 @@
-project('Stamp', 'c',
+project('Post', 'c',
           version: '0.4.0',
     meson_version: '>= 1.0.0',
   default_options: [ 'warning_level=2', 'werror=false', 'c_std=gnu11', ],
@@ -10,12 +10,12 @@ cc = meson.get_compiler('c')
 
 prefix = get_option('prefix')
 libdir = join_paths(prefix, get_option('libdir'))
-pkglibdir = join_paths(libdir, 'stamp')
+pkglibdir = join_paths(libdir, 'post-mail')
 webprocessextensionsdir = join_paths(pkglibdir, 'web-process-extensions')
 
 conf = configuration_data()
 conf.set_quoted('PACKAGE_VERSION', meson.project_version())
-conf.set_quoted('GETTEXT_PACKAGE', 'stamp')
+conf.set_quoted('GETTEXT_PACKAGE', 'post-mail')
 conf.set_quoted('LOCALEDIR', get_option('prefix') / get_option('localedir'))
 conf.set_quoted('STAMP_WEB_PROCESS_EXTENSIONS_DIR', webprocessextensionsdir)
 conf.set_quoted('VERSION', '@VCS_TAG@')

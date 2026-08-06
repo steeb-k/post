@@ -1,8 +1,8 @@
 [Desktop Entry]
-Name=Stamp
+Name=Post
 Comment=Send and receive mail
-Exec=stamp %U
-Icon=org.tabos.stamp
+Exec=post-mail %U
+Icon=io.github.steeb_k.Post
 Terminal=false
 Type=Application
 MimeType=x-scheme-handler/mailto;
@@ -14,5 +14,5 @@ Actions=Compose;
 
 [Desktop Action Compose]
 Name=Compose Message
-Exec=stamp mailto:
+Exec=post-mail mailto:
 Icon=mail-message-new

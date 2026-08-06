@@ -17,40 +17,40 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: data/org.tabos.stamp.desktop.in:2 data/org.tabos.stamp.metainfo.xml.in:7
+#: data/io.github.steeb_k.Post.desktop.in:2 data/io.github.steeb_k.Post.metainfo.xml.in:7
 #: src/main.c:42
-msgid "Stamp"
-msgstr "Stamp"
+msgid "Post"
+msgstr "Post"
 
-#: data/org.tabos.stamp.desktop.in:3
+#: data/io.github.steeb_k.Post.desktop.in:3
 msgid "Send and receive mail"
 msgstr "E-Mails senden und empfangen"
 
-#: data/org.tabos.stamp.desktop.in:10
+#: data/io.github.steeb_k.Post.desktop.in:10
 msgid "GTK;"
 msgstr "GTK;"
 
-#: data/org.tabos.stamp.desktop.in:16
+#: data/io.github.steeb_k.Post.desktop.in:16
 msgid "Compose Message"
 msgstr "Nachricht verfassen"
 
-#: data/org.tabos.stamp.gschema.xml:6 data/org.tabos.stamp.gschema.xml:7
+#: data/io.github.steeb_k.Post.gschema.xml:6 data/io.github.steeb_k.Post.gschema.xml:7
 msgid "Whether the window was maximized on last run"
 msgstr "Ob das Fenster beim letzten Ausführen maximiert war"
 
-#: data/org.tabos.stamp.gschema.xml:11 data/org.tabos.stamp.gschema.xml:12
+#: data/io.github.steeb_k.Post.gschema.xml:11 data/io.github.steeb_k.Post.gschema.xml:12
 msgid "Most recent window width"
 msgstr "Letzte Fensterbreite"
 
-#: data/org.tabos.stamp.gschema.xml:16 data/org.tabos.stamp.gschema.xml:17
+#: data/io.github.steeb_k.Post.gschema.xml:16 data/io.github.steeb_k.Post.gschema.xml:17
 msgid "Most recent window height"
 msgstr "Letzte Fensterhöhe"
 
-#: data/org.tabos.stamp.gschema.xml:21
+#: data/io.github.steeb_k.Post.gschema.xml:21
 msgid "Background notifications"
 msgstr "Hintergrundbenachrichtigungen"
 
-#: data/org.tabos.stamp.gschema.xml:22
+#: data/io.github.steeb_k.Post.gschema.xml:22
 msgid ""
 "If enabled, application continues running in the background after closing "
 "the window."
@@ -58,19 +58,19 @@ msgstr ""
 "Wenn aktiviert, läuft die Anwendung im Hintergrund weiter, nachdem das "
 "Fenster geschlossen wurde."
 
-#: data/org.tabos.stamp.gschema.xml:26
+#: data/io.github.steeb_k.Post.gschema.xml:26
 msgid "Autostart application"
 msgstr "Autostart-Anwendung"
 
-#: data/org.tabos.stamp.gschema.xml:27
+#: data/io.github.steeb_k.Post.gschema.xml:27
 msgid "If enabled, application will be autostart during system startup."
 msgstr "Wenn aktiviert, wird die Anwendung beim Systemstart automatisch gestartet."
 
-#: data/org.tabos.stamp.gschema.xml:31
+#: data/io.github.steeb_k.Post.gschema.xml:31
 msgid "Current View"
 msgstr "Aktuelle Ansicht"
 
-#: data/org.tabos.stamp.gschema.xml:32
+#: data/io.github.steeb_k.Post.gschema.xml:32
 msgid ""
 "Stores current view which will be used during application start to restore "
 "view."
@@ -78,98 +78,98 @@ msgstr ""
 "Speichert die aktuelle Ansicht, die beim Start der Anwendung zur "
 "Wiederherstellung verwendet wird."
 
-#: data/org.tabos.stamp.gschema.xml:36
+#: data/io.github.steeb_k.Post.gschema.xml:36
 msgid "Order of accounts"
 msgstr "Reihenfolge der Konten"
 
-#: data/org.tabos.stamp.gschema.xml:37
+#: data/io.github.steeb_k.Post.gschema.xml:37
 msgid "Saves account order for sidebars."
 msgstr "Speichert die Kontenreihenfolge für Seitenleisten."
 
-#: data/org.tabos.stamp.gschema.xml:44 data/org.tabos.stamp.gschema.xml:45
+#: data/io.github.steeb_k.Post.gschema.xml:44 data/io.github.steeb_k.Post.gschema.xml:45
 msgid "The account name and folder name of the last selected folder"
 msgstr "Kontoname und Ordnername des zuletzt ausgewählten Ordners"
 
-#: data/org.tabos.stamp.gschema.xml:49
+#: data/io.github.steeb_k.Post.gschema.xml:49
 msgid "Always show images"
 msgstr "Bilder immer anzeigen"
 
-#: data/org.tabos.stamp.gschema.xml:50
+#: data/io.github.steeb_k.Post.gschema.xml:50
 msgid "If enabled, all images will be displayed automatically."
 msgstr "Wenn aktiviert, werden alle Bilder automatisch angezeigt."
 
-#: data/org.tabos.stamp.gschema.xml:54
+#: data/io.github.steeb_k.Post.gschema.xml:54
 msgid "Load BIMI images"
 msgstr "BIMI-Bilder laden"
 
-#: data/org.tabos.stamp.gschema.xml:55
+#: data/io.github.steeb_k.Post.gschema.xml:55
 msgid "If enabled, all avatar images are loaded from BIMI TXT records."
 msgstr "Wenn aktiviert, werden alle Avatar-Bilder aus BIMI TXT-Einträgen geladen."
 
-#: data/org.tabos.stamp.gschema.xml:59
+#: data/io.github.steeb_k.Post.gschema.xml:59
 msgid "Mark read timeout"
 msgstr "Lese-Markierungs-Timeout"
 
-#: data/org.tabos.stamp.gschema.xml:60
+#: data/io.github.steeb_k.Post.gschema.xml:60
 msgid "How long it should take until a selected mail is marked read."
 msgstr "Wie lange es dauern soll, bis eine ausgewählte E-Mail als gelesen markiert wird."
 
-#: data/org.tabos.stamp.gschema.xml:64
+#: data/io.github.steeb_k.Post.gschema.xml:64
 msgid "Play incoming sound"
 msgstr "Eingehenden Ton abspielen"
 
-#: data/org.tabos.stamp.gschema.xml:65
+#: data/io.github.steeb_k.Post.gschema.xml:65
 msgid "Play an sound for new incoming mails."
 msgstr "Einen Ton für neue eingehende E-Mails abspielen."
 
-#: data/org.tabos.stamp.gschema.xml:69
+#: data/io.github.steeb_k.Post.gschema.xml:69
 msgid "Show important mails first"
 msgstr "Wichtige E-Mails zuerst anzeigen"
 
-#: data/org.tabos.stamp.gschema.xml:70
+#: data/io.github.steeb_k.Post.gschema.xml:70
 msgid "Whether to move important mails on top."
 msgstr "Ob wichtige E-Mails nach oben verschoben werden sollen."
 
-#: data/org.tabos.stamp.gschema.xml:74
+#: data/io.github.steeb_k.Post.gschema.xml:74
 msgid "Refresh interval in seconds"
 msgstr "Aktualisierungsintervall in Sekunden"
 
-#: data/org.tabos.stamp.gschema.xml:75
+#: data/io.github.steeb_k.Post.gschema.xml:75
 msgid ""
 "Defines in which refresh interval mail folders should be checked for changes."
 msgstr ""
 "Legt fest, in welchem Intervall E-Mail-Ordner auf Änderungen überprüft werden "
 "sollen."
 
-#: data/org.tabos.stamp.gschema.xml:82 data/org.tabos.stamp.gschema.xml:83
+#: data/io.github.steeb_k.Post.gschema.xml:82 data/io.github.steeb_k.Post.gschema.xml:83
 msgid "The account name and book name of the last selected book"
 msgstr "Kontoname und Adressbuchname des zuletzt ausgewählten Adressbuchs"
 
-#: data/org.tabos.stamp.gschema.xml:90 data/org.tabos.stamp.gschema.xml:91
+#: data/io.github.steeb_k.Post.gschema.xml:90 data/io.github.steeb_k.Post.gschema.xml:91
 msgid "Whether the account itself is expanded"
 msgstr "Ob das Konto selbst erweitert ist"
 
-#: data/org.tabos.stamp.gschema.xml:95 data/org.tabos.stamp.gschema.xml:96
+#: data/io.github.steeb_k.Post.gschema.xml:95 data/io.github.steeb_k.Post.gschema.xml:96
 msgid "The list of all the expanded folders"
 msgstr "Die Liste aller erweiterten Ordner"
 
-#: data/org.tabos.stamp.metainfo.xml.in:8
+#: data/io.github.steeb_k.Post.metainfo.xml.in:8
 msgid "Mails and more"
 msgstr "E-Mails und mehr"
 
-#: data/org.tabos.stamp.metainfo.xml.in:10
+#: data/io.github.steeb_k.Post.metainfo.xml.in:10
 msgid "No description"
 msgstr "Keine Beschreibung"
 
-#: data/org.tabos.stamp.metainfo.xml.in:14
+#: data/io.github.steeb_k.Post.metainfo.xml.in:14
 msgid "Jan-Michael Brummer"
 msgstr "Jan-Michael Brummer"
 
-#: data/org.tabos.stamp.metainfo.xml.in:49
+#: data/io.github.steeb_k.Post.metainfo.xml.in:49
 msgid "Overview"
 msgstr "Übersicht"
 
-#: data/org.tabos.stamp.metainfo.xml.in:53
+#: data/io.github.steeb_k.Post.metainfo.xml.in:53
 #: src/views/mail/conversation-list/stamp-conversation-list.blp:19
 #: src/views/mail/stamp-mail-view.blp:143
 msgid "Mail"
@@ -714,8 +714,8 @@ msgid "_Keyboard Shortcuts"
 msgstr "_Tastenkürzel"
 
 #: src/views/stamp-header-bar.blp:40
-msgid "_About Stamp"
-msgstr "_Über Stamp"
+msgid "_About Post"
+msgstr "_Über Post"
 
 #: src/views/stamp-header-bar.blp:47
 msgid "_Quit"

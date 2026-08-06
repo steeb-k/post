@@ -269,7 +269,7 @@ stamp_message_list_class_init (StampMessageListClass *klass)
 
   gobject_class->dispose = stamp_message_list_dispose;
 
-  gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/views/mail/message-list/stamp-message-list.ui");
+  gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/views/mail/message-list/stamp-message-list.ui");
 
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, scrolled_window);
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, list_box);

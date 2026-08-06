@@ -337,7 +337,7 @@ stamp_contact_list_class_init (StampContactListClass *klass)
   object_class->get_property = stamp_contact_list_get_property;
   object_class->set_property = stamp_contact_list_set_property;
 
-  gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/views/contact/contact-list/stamp-contact-list.ui");
+  gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/views/contact/contact-list/stamp-contact-list.ui");
 
   gtk_widget_class_bind_template_child (widget_class, StampContactList, sort_list_model);
   gtk_widget_class_bind_template_child (widget_class, StampContactList, filter_list_model);

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<schemalist gettext-domain="stamp">
-  <schema id="org.tabos.stamp" path="/org/tabos/stamp/">
+<schemalist gettext-domain="post-mail">
+  <schema id="io.github.steeb_k.Post" path="/io/github/steeb_k/Post/">
     <key name="window-maximized" type="b">
       <default>false</default>
       <summary>Whether the window was maximized on last run</summary>
@@ -53,7 +53,7 @@
     </key>
   </schema>
 
-  <schema id="org.tabos.stamp.mail" path="/org/tabos/stamp/mail/">
+  <schema id="io.github.steeb_k.Post.mail" path="/io/github/steeb_k/Post/mail/">
     <key name="selected-folder" type="(ss)">
       <default>("", "")</default>
       <summary>The account name and folder name of the last selected folder</summary>
@@ -91,7 +91,7 @@
     </key>
   </schema>
 
-  <schema id="org.tabos.stamp.contacts" path="/org/tabos/stamp/contacts/">
+  <schema id="io.github.steeb_k.Post.contacts" path="/io/github/steeb_k/Post/contacts/">
     <key name="selected-book" type="(ss)">
       <default>("", "")</default>
       <summary>The account name and book name of the last selected book</summary>
@@ -99,7 +99,7 @@
     </key>
   </schema>
 
-  <schema id="org.tabos.stamp.mail.accounts">
+  <schema id="io.github.steeb_k.Post.mail.accounts">
     <key name="expanded" type="b">
       <default>true</default>
       <summary>Whether the account itself is expanded</summary>

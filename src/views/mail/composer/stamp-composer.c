@@ -41,7 +41,7 @@
 #include "stamp-webview.h"
 #include "stamp-window.h"
 
-#define USER_AGENT ("Stamp " PACKAGE_VERSION)
+#define USER_AGENT ("Post " PACKAGE_VERSION)
 
 struct _StampComposer {
   AdwApplicationWindow parent_instance;
@@ -519,8 +519,8 @@ apply_crypto (CamelSession          *session,
   }
 
   if (smime_sign || smime_encrypt) {
-    g_autofree char *account_settings_path = g_strdup_printf ("/org/tabos/stamp/mail/accounts/%s/", account_uid);
-    g_autoptr (GSettings) account_settings = g_settings_new_with_path ("org.tabos.stamp.mail.accounts", account_settings_path);
+    g_autofree char *account_settings_path = g_strdup_printf ("/io/github/steeb_k/Post/mail/accounts/%s/", account_uid);
+    g_autoptr (GSettings) account_settings = g_settings_new_with_path ("io.github.steeb_k.Post.mail.accounts", account_settings_path);
     g_autofree char *sign_cert = g_settings_get_string (account_settings, "smime-sign-cert");
     g_autofree char *encrypt_cert = g_settings_get_string (account_settings, "smime-encrypt-cert");
     g_autoptr (CamelCipherContext) cipher = camel_smime_context_new (session);
@@ -1237,7 +1237,7 @@ on_load_changed (WebKitWebView   *view,
                                        "});",
                                        -1, NULL, NULL, NULL, NULL, NULL);
 
-  js = g_resources_lookup_data ("/org/tabos/stamp/stamp-composer.js", G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
+  js = g_resources_lookup_data ("/io/github/steeb_k/Post/stamp-composer.js", G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
   webkit_web_view_evaluate_javascript (view,
                                        g_bytes_get_data (js, NULL),
                                        -1, NULL, NULL, NULL, NULL, NULL);
@@ -1249,8 +1249,8 @@ on_load_changed (WebKitWebView   *view,
 
   if (!self->active_signature && self->composer_from) {
     StampAccount *account = stamp_composer_from_get_account (self->composer_from);
-    g_autofree char *path = g_strdup_printf ("/org/tabos/stamp/mail/accounts/%s/", stamp_account_get_uid (account));
-    g_autoptr (GSettings) account_settings = g_settings_new_with_path ("org.tabos.stamp.mail.accounts", path);
+    g_autofree char *path = g_strdup_printf ("/io/github/steeb_k/Post/mail/accounts/%s/", stamp_account_get_uid (account));
+    g_autoptr (GSettings) account_settings = g_settings_new_with_path ("io.github.steeb_k.Post.mail.accounts", path);
     g_autofree char *default_uid = g_settings_get_string (account_settings, STAMP_PREFS_MAIL_DEFAULT_SIGNATURE);
 
     if (default_uid && default_uid[0]) {
@@ -1516,7 +1516,7 @@ stamp_composer_init (StampComposer *self)
   gtk_widget_set_focusable (GTK_WIDGET (self->webview), TRUE);
   adw_bin_set_child (ADW_BIN (self->webview_bin), GTK_WIDGET (self->webview));
 
-  template = g_resources_lookup_data ("/org/tabos/stamp/blank-message-template.html", G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
+  template = g_resources_lookup_data ("/io/github/steeb_k/Post/blank-message-template.html", G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
   webkit_web_view_load_html (WEBKIT_WEB_VIEW (self->webview), g_bytes_get_data (template, NULL), NULL);
 
   factory = gtk_signal_list_item_factory_new ();
@@ -1720,7 +1720,7 @@ stamp_composer_class_init (StampComposerClass *klass)
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
-  gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/views/mail/composer/stamp-composer.ui");
+  gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/views/mail/composer/stamp-composer.ui");
 
   object_class->get_property = stamp_composer_get_property;
   object_class->set_property = stamp_composer_set_property;

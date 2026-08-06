@@ -142,7 +142,7 @@ stamp_preferences_signature_editor_class_init (StampPreferencesSignatureEditorCl
 
   gobject_class->dispose = stamp_preferences_signature_editor_dispose;
 
-  gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/stamp-preferences-signatures-editor.ui");
+  gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/stamp-preferences-signatures-editor.ui");
 
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesSignatureEditor, editor_window_title);
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesSignatureEditor, name_row);
@@ -178,7 +178,7 @@ stamp_preferences_signature_editor_setup (StampPreferencesSignatureEditor *self)
     gtk_widget_set_visible (GTK_WIDGET (self->save), TRUE);
     gtk_widget_set_visible (GTK_WIDGET (self->remove), FALSE);
 
-    template = g_resources_lookup_data ("/org/tabos/stamp/blank-message-template.html", G_RESOURCE_LOOKUP_FLAGS_NONE, &error);
+    template = g_resources_lookup_data ("/io/github/steeb_k/Post/blank-message-template.html", G_RESOURCE_LOOKUP_FLAGS_NONE, &error);
     if (error) {
       g_warning ("%s: Could not load blank message template: %s", G_STRFUNC, error->message);
       return;

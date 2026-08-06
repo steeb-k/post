@@ -219,8 +219,8 @@ on_row_expanded (GtkTreeListRow *row,
   g_auto (GStrv) new_folders = NULL;
   const gchar *full_name = stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item));
 
-  settings_path = g_strconcat ("/org/tabos/stamp/mail/accounts/", stamp_account_get_uid (account), "/", NULL);
-  account_settings = g_settings_new_with_path ("org.tabos.stamp.mail.accounts", settings_path);
+  settings_path = g_strconcat ("/io/github/steeb_k/Post/mail/accounts/", stamp_account_get_uid (account), "/", NULL);
+  account_settings = g_settings_new_with_path ("io.github.steeb_k.Post.mail.accounts", settings_path);
   folders = g_settings_get_strv (account_settings, "expanded-folders");
 
   if (gtk_tree_list_row_get_expanded (row)) {
@@ -314,8 +314,8 @@ on_bind_folder (GtkListItemFactory *factory,
   /* FIXME: Optimize the following code */
   account = stamp_item_get_account (STAMP_ITEM (item));
 
-  settings_path = g_strconcat ("/org/tabos/stamp/mail/accounts/", stamp_account_get_uid (account), "/", NULL);
-  account_settings = g_settings_new_with_path ("org.tabos.stamp.mail.accounts", settings_path);
+  settings_path = g_strconcat ("/io/github/steeb_k/Post/mail/accounts/", stamp_account_get_uid (account), "/", NULL);
+  account_settings = g_settings_new_with_path ("io.github.steeb_k.Post.mail.accounts", settings_path);
 
   if (STAMP_IS_FOLDER_ITEM (item)) {
     const gchar *full_name = stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item));
@@ -471,7 +471,7 @@ find_position (GListStore *store,
 static void
 save_account_order (StampFolderList *self)
 {
-  g_autoptr (GSettings) settings = g_settings_new ("org.tabos.stamp");
+  g_autoptr (GSettings) settings = g_settings_new ("io.github.steeb_k.Post");
   GListStore *store = self->list_store;
   guint n = g_list_model_get_n_items (G_LIST_MODEL (store));
   g_auto (GStrv) arr = g_new (gchar *, n + 1);
@@ -664,7 +664,7 @@ stamp_folder_list_class_init (StampFolderListClass *klass)
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
-  gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/views/mail/folder-list/stamp-folder-list.ui");
+  gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/views/mail/folder-list/stamp-folder-list.ui");
 
   object_class->dispose = stamp_folder_list_dispose;
 

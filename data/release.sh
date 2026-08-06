@@ -4,6 +4,6 @@
 python ./generate_changelog.py
 
 # Update metainfo
-python ./update_metainfo.py org.tabos.stamp.metainfo.xml.in CHANGELOG.md 0.4.0
+python ./update_metainfo.py io.github.steeb_k.Post.metainfo.xml.in CHANGELOG.md 0.4.0
 
 mv CHANGELOG.md ..

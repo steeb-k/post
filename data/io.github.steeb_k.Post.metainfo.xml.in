@@ -1,35 +1,25 @@
 <component type="desktop-application">
-  <id>org.tabos.stamp</id>
+  <id>io.github.steeb_k.Post</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
-  <name>Stamp</name>
+  <name>Post</name>
   <summary>Mails and more</summary>
   <description>
     <p>No description</p>
   </description>
-  <developer id="org.tabos">
-    <name>Jan-Michael Brummer</name>
+  <developer id="io.github.steeb_k">
+    <name>steeb-k</name>
   </developer>
-  <url type="homepage">https://www.tabos.org/</url>
-  <url type="vcs-browser">https://www.gitlab.com/tabos/stamp</url>
-  <url type="bugtracker">https://www.gitlab.com/tabos/stamp/issues</url>
-  <translation type="gettext">stamp</translation>
-  <launchable type="desktop-id">org.tabos.stamp.desktop</launchable>
+  <url type="homepage">https://github.com/steeb-k/post</url>
+  <url type="vcs-browser">https://github.com/steeb-k/post</url>
+  <url type="bugtracker">https://github.com/steeb-k/post/issues</url>
+  <translation type="gettext">post-mail</translation>
+  <launchable type="desktop-id">io.github.steeb_k.Post.desktop</launchable>
   <content_rating type="oars-1.1" />
   <branding>
-    <color type="primary" scheme_preference="light">#ff00ff</color>
-    <color type="primary" scheme_preference="dark">#993d3d</color>
+    <color type="primary" scheme_preference="light">#b5b2ff</color>
+    <color type="primary" scheme_preference="dark">#05009d</color>
   </branding>
-  <screenshots>
-    <screenshot type="default">
-      <image>https://www.tabos.org/stamp/stamp1.png</image>
-      <caption>Overview</caption>
-    </screenshot>
-    <screenshot>
-      <image>https://www.tabos.org/stamp/stamp1.png</image>
-      <caption>Mail</caption>
-    </screenshot>
-  </screenshots>
   <releases>
     <release version="0.4.0" date="2026-04-17">
       <description>

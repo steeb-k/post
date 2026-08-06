@@ -1,1 +1,1 @@
-i18n.gettext('stamp', preset: 'glib')
+i18n.gettext('post-mail', preset: 'glib')

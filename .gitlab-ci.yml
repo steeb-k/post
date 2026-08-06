@@ -12,10 +12,10 @@ include:
       gobject-linter: enabled
 
 variables:
-  APP_ID: 'org.tabos.stamp'
-  BUNDLE: 'org.tabos.stamp.flatpak'
-  FLATPAK_MODULE: 'stamp'
-  MANIFEST_PATH: 'org.tabos.stamp.json'
+  APP_ID: 'io.github.steeb_k.Post'
+  BUNDLE: 'io.github.steeb_k.Post.flatpak'
+  FLATPAK_MODULE: 'post-mail'
+  MANIFEST_PATH: 'io.github.steeb_k.Post.json'
   RUNTIME_REPO: 'https://nightly.gnome.org/gnome-nightly.flatpakrepo'
 
 stages:

@@ -1,6 +1,6 @@
 desktop_file = i18n.merge_file(
-        input: 'org.tabos.stamp.desktop.in',
-       output: 'org.tabos.stamp.desktop',
+        input: 'io.github.steeb_k.Post.desktop.in',
+       output: 'io.github.steeb_k.Post.desktop',
          type: 'desktop',
        po_dir: '../po',
       install: true,
@@ -13,8 +13,8 @@ if desktop_utils.found()
 endif
 
 appstream_file = i18n.merge_file(
-        input: 'org.tabos.stamp.metainfo.xml.in',
-       output: 'org.tabos.stamp.metainfo.xml',
+        input: 'io.github.steeb_k.Post.metainfo.xml.in',
+       output: 'io.github.steeb_k.Post.metainfo.xml',
        po_dir: '../po',
       install: true,
   install_dir: get_option('datadir') / 'metainfo'
@@ -24,7 +24,7 @@ appstreamcli = find_program('appstreamcli', required: false, disabler: true)
 test('Validate appstream file', appstreamcli,
      args: ['validate', '--no-net', '--explain', appstream_file])
 
-install_data('org.tabos.stamp.gschema.xml',
+install_data('io.github.steeb_k.Post.gschema.xml',
   install_dir: get_option('datadir') / 'glib-2.0' / 'schemas'
 )
 

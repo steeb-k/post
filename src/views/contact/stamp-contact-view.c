@@ -176,7 +176,7 @@ stamp_contact_view_class_init (StampContactViewClass *klass)
                                                                          ADW_TYPE_VIEW_STACK,
                                                                          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
-  gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/views/contact/stamp-contact-view.ui");
+  gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/views/contact/stamp-contact-view.ui");
 
   gtk_widget_class_bind_template_child (widget_class, StampContactView, contacts_layout);
   gtk_widget_class_bind_template_child (widget_class, StampContactView, mobile_nav);

@@ -24,7 +24,7 @@
 
 G_BEGIN_DECLS
 
-#define STAMP_PREFS_SCHEMA                    "org.tabos.stamp"
+#define STAMP_PREFS_SCHEMA                    "io.github.steeb_k.Post"
 #define STAMP_PREFS_WINDOW_MAXIMIZED          "window-maximized"
 #define STAMP_PREFS_WINDOW_SIZE               "window-size"
 #define STAMP_PREFS_WINDOW_WIDTH              "window-width"
@@ -37,7 +37,7 @@ G_BEGIN_DECLS
 #define STAMP_PREFS_COMPOSER_WIDTH            "composer-width"
 #define STAMP_PREFS_COMPOSER_HEIGHT           "composer-height"
 
-#define STAMP_PREFS_MAIL_SCHEMA               "org.tabos.stamp.mail"
+#define STAMP_PREFS_MAIL_SCHEMA               "io.github.steeb_k.Post.mail"
 #define STAMP_PREFS_MAIL_SELECTED_FOLDER      "selected-folder"
 #define STAMP_PREFS_MAIL_ALWAYS_SHOW_IMAGES   "always-show-images"
 #define STAMP_PREFS_MAIL_LOAD_BIMI_IMAGES     "load-bimi-images"
@@ -46,7 +46,7 @@ G_BEGIN_DECLS
 #define STAMP_PREFS_MAIL_IMPORTANT_FIRST      "important-first"
 #define STAMP_PREFS_MAIL_REFRESH_INTERVAL     "refresh-interval"
 
-#define STAMP_PREFS_ACCOUNTS_SCHEMA            "org.tabos.stamp.accounts"
+#define STAMP_PREFS_ACCOUNTS_SCHEMA            "io.github.steeb_k.Post.accounts"
 #define STAMP_PREFS_MAIL_DEFAULT_SIGNATURE     "default-signature"
 
 #define STAMP_SETTINGS stamp_settings_get (STAMP_PREFS_SCHEMA)

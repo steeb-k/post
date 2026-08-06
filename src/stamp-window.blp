@@ -6,7 +6,7 @@ template $StampWindow: Adw.ApplicationWindow {
   height-request: 200;
   default-width: 1200;
   default-height: 600;
-  title: _("Stamp");
+  title: _("Post");
 
   ShortcutController {
     Shortcut {
@@ -37,8 +37,8 @@ template $StampWindow: Adw.ApplicationWindow {
         }
 
         Adw.StatusPage {
-          title: _("Stamp");
-          icon-name: "org.tabos.stamp";
+          title: _("Post");
+          icon-name: "io.github.steeb_k.Post";
           description: _("Loading configuration");
 
           styles [
@@ -59,8 +59,8 @@ template $StampWindow: Adw.ApplicationWindow {
         }
 
         Adw.StatusPage welcome_page {
-          title: _("Stamp");
-          icon-name: "org.tabos.stamp";
+          title: _("Post");
+          icon-name: "io.github.steeb_k.Post";
           description: _("Add an account to get started.");
 
           styles [

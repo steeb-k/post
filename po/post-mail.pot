@@ -17,153 +17,153 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: data/org.tabos.stamp.desktop.in:2 data/org.tabos.stamp.metainfo.xml.in:7
+#: data/io.github.steeb_k.Post.desktop.in:2 data/io.github.steeb_k.Post.metainfo.xml.in:7
 #: src/main.c:42
-msgid "Stamp"
+msgid "Post"
 msgstr ""
 
-#: data/org.tabos.stamp.desktop.in:3
+#: data/io.github.steeb_k.Post.desktop.in:3
 msgid "Send and receive mail"
 msgstr ""
 
-#: data/org.tabos.stamp.desktop.in:10
+#: data/io.github.steeb_k.Post.desktop.in:10
 msgid "GTK;"
 msgstr ""
 
-#: data/org.tabos.stamp.desktop.in:16
+#: data/io.github.steeb_k.Post.desktop.in:16
 msgid "Compose Message"
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:6 data/org.tabos.stamp.gschema.xml:7
+#: data/io.github.steeb_k.Post.gschema.xml:6 data/io.github.steeb_k.Post.gschema.xml:7
 msgid "Whether the window was maximized on last run"
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:11 data/org.tabos.stamp.gschema.xml:12
+#: data/io.github.steeb_k.Post.gschema.xml:11 data/io.github.steeb_k.Post.gschema.xml:12
 msgid "Most recent window width"
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:16 data/org.tabos.stamp.gschema.xml:17
+#: data/io.github.steeb_k.Post.gschema.xml:16 data/io.github.steeb_k.Post.gschema.xml:17
 msgid "Most recent window height"
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:21
+#: data/io.github.steeb_k.Post.gschema.xml:21
 msgid "Background notifications"
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:22
+#: data/io.github.steeb_k.Post.gschema.xml:22
 msgid ""
 "If enabled, application continues running in the background after closing "
 "the window."
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:26
+#: data/io.github.steeb_k.Post.gschema.xml:26
 msgid "Autostart application"
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:27
+#: data/io.github.steeb_k.Post.gschema.xml:27
 msgid "If enabled, application will be autostart during system startup."
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:31
+#: data/io.github.steeb_k.Post.gschema.xml:31
 msgid "Current View"
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:32
+#: data/io.github.steeb_k.Post.gschema.xml:32
 msgid ""
 "Stores current view which will be used during application start to restore "
 "view."
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:36
+#: data/io.github.steeb_k.Post.gschema.xml:36
 msgid "Order of accounts"
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:37
+#: data/io.github.steeb_k.Post.gschema.xml:37
 msgid "Saves account order for sidebars."
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:44 data/org.tabos.stamp.gschema.xml:45
+#: data/io.github.steeb_k.Post.gschema.xml:44 data/io.github.steeb_k.Post.gschema.xml:45
 msgid "The account name and folder name of the last selected folder"
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:49
+#: data/io.github.steeb_k.Post.gschema.xml:49
 msgid "Always show images"
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:50
+#: data/io.github.steeb_k.Post.gschema.xml:50
 msgid "If enabled, all images will be displayed automatically."
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:54
+#: data/io.github.steeb_k.Post.gschema.xml:54
 msgid "Load BIMI images"
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:55
+#: data/io.github.steeb_k.Post.gschema.xml:55
 msgid "If enabled, all avatar images are loaded from BIMI TXT records."
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:59
+#: data/io.github.steeb_k.Post.gschema.xml:59
 msgid "Mark read timeout"
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:60
+#: data/io.github.steeb_k.Post.gschema.xml:60
 msgid "How long it should take until a selected mail is marked read."
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:64
+#: data/io.github.steeb_k.Post.gschema.xml:64
 msgid "Play incoming sound"
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:65
+#: data/io.github.steeb_k.Post.gschema.xml:65
 msgid "Play an sound for new incoming mails."
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:69
+#: data/io.github.steeb_k.Post.gschema.xml:69
 msgid "Show important mails first"
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:70
+#: data/io.github.steeb_k.Post.gschema.xml:70
 msgid "Whether to move important mails on top."
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:74
+#: data/io.github.steeb_k.Post.gschema.xml:74
 msgid "Refresh interval in seconds"
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:75
+#: data/io.github.steeb_k.Post.gschema.xml:75
 msgid ""
 "Defines in which refresh interval mail folders should be checked for changes."
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:82 data/org.tabos.stamp.gschema.xml:83
+#: data/io.github.steeb_k.Post.gschema.xml:82 data/io.github.steeb_k.Post.gschema.xml:83
 msgid "The account name and book name of the last selected book"
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:90 data/org.tabos.stamp.gschema.xml:91
+#: data/io.github.steeb_k.Post.gschema.xml:90 data/io.github.steeb_k.Post.gschema.xml:91
 msgid "Whether the account itself is expanded"
 msgstr ""
 
-#: data/org.tabos.stamp.gschema.xml:95 data/org.tabos.stamp.gschema.xml:96
+#: data/io.github.steeb_k.Post.gschema.xml:95 data/io.github.steeb_k.Post.gschema.xml:96
 msgid "The list of all the expanded folders"
 msgstr ""
 
-#: data/org.tabos.stamp.metainfo.xml.in:8
+#: data/io.github.steeb_k.Post.metainfo.xml.in:8
 msgid "Mails and more"
 msgstr ""
 
-#: data/org.tabos.stamp.metainfo.xml.in:10
+#: data/io.github.steeb_k.Post.metainfo.xml.in:10
 msgid "No description"
 msgstr ""
 
-#: data/org.tabos.stamp.metainfo.xml.in:14
+#: data/io.github.steeb_k.Post.metainfo.xml.in:14
 msgid "Jan-Michael Brummer"
 msgstr ""
 
-#: data/org.tabos.stamp.metainfo.xml.in:49
+#: data/io.github.steeb_k.Post.metainfo.xml.in:49
 msgid "Overview"
 msgstr ""
 
-#: data/org.tabos.stamp.metainfo.xml.in:53
+#: data/io.github.steeb_k.Post.metainfo.xml.in:53
 #: src/views/mail/conversation-list/stamp-conversation-list.blp:19
 #: src/views/mail/stamp-mail-view.blp:143
 msgid "Mail"
@@ -711,7 +711,7 @@ msgid "_Keyboard Shortcuts"
 msgstr ""
 
 #: src/views/stamp-header-bar.blp:40
-msgid "_About Stamp"
+msgid "_About Post"
 msgstr ""
 
 #: src/views/stamp-header-bar.blp:47

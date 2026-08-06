@@ -22,6 +22,7 @@
 - Fix compiler warnings (Jan-Michael Brummer)
 
 ### Other Changes
+- Rebrand the application as Post (steeb-k)
 - StampWindow: Use the standalone GNOME Online Accounts editor (steeb-k)
 - StampSession: Handle registry source-added and source-removed (steeb-k)
 - StampMailView: Show all three columns on wide windows (steeb-k)

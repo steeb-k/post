@@ -294,7 +294,7 @@ stamp_mail_view_class_init (StampMailViewClass *klass)
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
-  gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/views/mail/stamp-mail-view.ui");
+  gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/views/mail/stamp-mail-view.ui");
 
   object_class->dispose = stamp_mail_view_dispose;
   object_class->set_property = stamp_mail_view_set_property;

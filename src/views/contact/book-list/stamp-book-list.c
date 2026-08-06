@@ -159,7 +159,7 @@ stamp_book_list_class_init (StampBookListClass *klass)
 {
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
 
-  gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/views/contact/book-list/stamp-book-list.ui");
+  gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/views/contact/book-list/stamp-book-list.ui");
 
   gtk_widget_class_bind_template_child (widget_class, StampBookList, selection);
   gtk_widget_class_bind_template_child (widget_class, StampBookList, sorter);
@@ -312,7 +312,7 @@ stamp_book_list_init (StampBookList *self)
   g_signal_connect_object (session, "account-added", G_CALLBACK (on_stamp_book_list_account_added), self, G_CONNECT_DEFAULT);
   /* g_signal_connect_object (session, "account-removed", G_CALLBACK (on_stamp_book_list_account_removed), self, 0); */
 
-  self->settings = g_settings_new ("org.tabos.stamp.contacts");
+  self->settings = g_settings_new ("io.github.steeb_k.Post.contacts");
 
   self->account_table = g_hash_table_new_full (g_direct_hash, g_direct_equal, g_object_unref, g_object_unref);
 }

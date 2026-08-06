@@ -154,7 +154,7 @@ request_page_size_timeout (gpointer user_data)
 static void
 collapse_quotes_in_page (WebKitWebView *web_view)
 {
-  g_autoptr (GBytes) data = g_resources_lookup_data ("/org/tabos/stamp/stamp-quote-collapse.js", G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
+  g_autoptr (GBytes) data = g_resources_lookup_data ("/io/github/steeb_k/Post/stamp-quote-collapse.js", G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
 
   webkit_web_view_evaluate_javascript (web_view, g_bytes_get_data (data, NULL), -1, NULL, NULL, NULL, NULL, NULL);
 }
@@ -489,7 +489,7 @@ stamp_webview_load_plain_text (StampWebView *self,
                                gchar        *content)
 {
   if (content) {
-    g_autoptr (GBytes) template = g_resources_lookup_data ("/org/tabos/stamp/blank-message-template.html", G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
+    g_autoptr (GBytes) template = g_resources_lookup_data ("/io/github/steeb_k/Post/blank-message-template.html", G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
 
     webkit_web_view_load_html (WEBKIT_WEB_VIEW (self), g_bytes_get_data (template, NULL), NULL);
 

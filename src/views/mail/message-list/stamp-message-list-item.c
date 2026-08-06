@@ -38,7 +38,7 @@
 #include "stamp-settings.h"
 #include "stamp-webview.h"
 
-#define USER_AGENT ("Stamp " PACKAGE_VERSION)
+#define USER_AGENT ("Post " PACKAGE_VERSION)
 
 #define LIBICAL_GLIB_UNSTABLE_API 1
 struct _StampMessageListItem {
@@ -759,7 +759,7 @@ stamp_message_list_item_class_init (StampMessageListItemClass *klass)
 
   g_type_ensure (STAMP_TYPE_WEBVIEW);
 
-  gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/views/mail/message-list/stamp-message-list-item.ui");
+  gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/views/mail/message-list/stamp-message-list-item.ui");
 
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, header);
   gtk_widget_class_bind_template_child (widget_class, StampMessageListItem, blocked_images_banner);

@@ -36,5 +36,5 @@ stamp_header_bar_class_init (StampHeaderBarClass *klass)
 {
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
 
-  gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/views/stamp-header-bar.ui");
+  gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/views/stamp-header-bar.ui");
 }

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
-  <gresource prefix="/org/tabos/stamp">
+  <gresource prefix="/io/github/steeb_k/Post">
     <file preprocess="xml-stripblanks">shortcuts-dialog.ui</file>
     <file preprocess="xml-stripblanks">stamp-preferences.ui</file>
     <file preprocess="xml-stripblanks">stamp-preferences-account.ui</file>
@@ -64,6 +64,6 @@
     <file>styles/stamp-message-header.css</file>
     <file>styles/stamp-signatures.css</file>
     <file>styles/stamp-window.css</file>
-    <file alias="org.tabos.stamp.metainfo.xml">../data/org.tabos.stamp.metainfo.xml</file>
+    <file alias="io.github.steeb_k.Post.metainfo.xml">../data/io.github.steeb_k.Post.metainfo.xml</file>
   </gresource>
 </gresources>

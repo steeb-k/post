@@ -561,7 +561,7 @@ static gpointer
 refresh_folder (gpointer user_data)
 {
   StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data);
-  g_autoptr (GSettings) settings = g_settings_new ("org.tabos.stamp.mail");
+  g_autoptr (GSettings) settings = g_settings_new ("io.github.steeb_k.Post.mail");
 
   while (!g_cancellable_is_cancelled (self->cancellable)) {
     gint64 end;

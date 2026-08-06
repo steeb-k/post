@@ -47,7 +47,7 @@ stamp_folder_row_class_init (StampFolderRowClass *klass)
 {
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
 
-  gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/views/mail/folder-list/stamp-folder-row.ui");
+  gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/views/mail/folder-list/stamp-folder-row.ui");
 
   gtk_widget_class_bind_template_child (widget_class, StampFolderRow, image);
   gtk_widget_class_bind_template_child (widget_class, StampFolderRow, inscription);

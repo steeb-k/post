@@ -267,7 +267,7 @@ stamp_conversation_row_class_init (StampConversationRowClass *klass)
   object_class->get_property = stamp_conversation_row_get_property;
   object_class->set_property = stamp_conversation_row_set_property;
 
-  gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/views/mail/conversation-list/stamp-conversation-row.ui");
+  gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/views/mail/conversation-list/stamp-conversation-row.ui");
   gtk_widget_class_bind_template_child (widget_class, StampConversationRow, stack);
   gtk_widget_class_bind_template_child (widget_class, StampConversationRow, check_button);
   gtk_widget_class_bind_template_child (widget_class, StampConversationRow, avatar);

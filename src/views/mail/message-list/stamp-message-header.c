@@ -351,7 +351,7 @@ stamp_message_header_class_init (StampMessageHeaderClass *klass)
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
 
-  gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/views/mail/message-list/stamp-message-header.ui");
+  gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/views/mail/message-list/stamp-message-header.ui");
 
   object_class->get_property = stamp_message_header_get_property;
   object_class->set_property = stamp_message_header_set_property;

@@ -1,6 +1,18 @@
-# Stamp
+# Post
 
 A modern mail suite written in C using GTK4 and Adwaita, built on the Evolution Data Server stack.
+
+Post is a fork of [Stamp](https://gitlab.gnome.org/jbrummer/stamp).
+
+Post installs as its own application and shares nothing with Stamp: the
+application ID is `io.github.steeb_k.Post`, the binary is `post-mail`, and
+settings live under `/io/github/steeb_k/Post/` in dconf. Both can be
+installed side by side without collision.
+
+Inside the source tree, filenames, C symbols and GObject types keep the
+`stamp` prefix so that fixes from upstream still apply cleanly. Only the
+names that reach the outside world — application ID, binary, GSettings
+schemas, GResource paths, icons and the gettext domain — carry Post's own.
 
 ## Features
 
@@ -13,9 +25,9 @@ A modern mail suite written in C using GTK4 and Adwaita, built on the Evolution 
 
 ## Accounts
 
-Stamp does not manage accounts itself. Mail, contact and calendar
+Post does not manage accounts itself. Mail, contact and calendar
 accounts come from GNOME Online Accounts through the Evolution Data
-Server registry, and Stamp shows whatever it finds there.
+Server registry, and Post shows whatever it finds there.
 
 Adding and removing accounts is done in **gnome-online-accounts-gtk**,
 which is a required runtime dependency. It is a plain GTK application
@@ -42,7 +54,7 @@ and the host has to have the package installed.
 
 ## Building
 
-Stamp uses the [Meson](https://mesonbuild.com) build system.
+Post uses the [Meson](https://mesonbuild.com) build system.
 
 ```sh
 meson setup builddir
@@ -52,4 +64,4 @@ meson install -C builddir
 
 ## License
 
-Stamp is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+Post is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.

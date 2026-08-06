@@ -1,9 +1,9 @@
 {
-  "id": "org.tabos.stamp",
+  "id": "io.github.steeb_k.Post",
   "runtime": "org.gnome.Platform",
   "runtime-version": "master",
   "sdk": "org.gnome.Sdk",
-  "command": "stamp",
+  "command": "post-mail",
   "desktop-file-name-suffix": " (Development)",
   "finish-args": [
     "--share=ipc",
@@ -219,7 +219,7 @@
       ]
     },
     {
-      "name": "stamp",
+      "name": "post-mail",
       "builddir": true,
       "buildsystem": "meson",
       "config-opts" : [

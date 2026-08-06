@@ -48,7 +48,7 @@ Reproduced several times. The setting itself is stored.
 for the portal in a `GPtrArray` but never terminates it:
 
     commandline = g_ptr_array_new_with_free_func (g_free);
-    g_ptr_array_add (commandline, g_strdup ("stamp"));
+    g_ptr_array_add (commandline, g_strdup ("post-mail"));
     g_ptr_array_add (commandline, g_strdup ("--hidden"));
 
 libportal passes that array to `g_variant_new_strv` with a length of -1,

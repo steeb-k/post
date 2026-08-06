@@ -43,7 +43,7 @@ stamp_get_cache_dir (void)
   init_dir_mutex ();
   g_mutex_lock (&dir_mutex);
   if (!cache_dir)
-    cache_dir = g_build_path (G_DIR_SEPARATOR_S, g_get_user_cache_dir (), "stamp", NULL);
+    cache_dir = g_build_path (G_DIR_SEPARATOR_S, g_get_user_cache_dir (), "post-mail", NULL);
   g_mutex_unlock (&dir_mutex);
 
   return cache_dir;
@@ -55,7 +55,7 @@ stamp_get_data_dir (void)
   init_dir_mutex ();
   g_mutex_lock (&dir_mutex);
   if (!data_dir)
-    data_dir = g_build_path (G_DIR_SEPARATOR_S, g_get_user_data_dir (), "stamp", NULL);
+    data_dir = g_build_path (G_DIR_SEPARATOR_S, g_get_user_data_dir (), "post-mail", NULL);
   g_mutex_unlock (&dir_mutex);
 
   return data_dir;

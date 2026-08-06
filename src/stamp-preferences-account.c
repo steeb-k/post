@@ -344,8 +344,8 @@ setup_notifications (StampPreferencesAccount *self)
   const gchar *mode;
   guint selected;
 
-  settings_path = g_strconcat ("/org/tabos/stamp/mail/accounts/", stamp_account_get_uid (self->account), "/", NULL);
-  self->account_settings = g_settings_new_with_path ("org.tabos.stamp.mail.accounts", settings_path);
+  settings_path = g_strconcat ("/io/github/steeb_k/Post/mail/accounts/", stamp_account_get_uid (self->account), "/", NULL);
+  self->account_settings = g_settings_new_with_path ("io.github.steeb_k.Post.mail.accounts", settings_path);
 
   model = gtk_string_list_new ((const char *[]){_("Inbox"), _("All"), _("Custom"), NULL});
   adw_combo_row_set_model (self->notification_mode, G_LIST_MODEL (model));
@@ -608,8 +608,8 @@ set_account (StampPreferencesAccount *self,
   name = stamp_account_get_name (self->account);
   adw_window_title_set_title (self->window_title, name);
 
-  path = g_strdup_printf ("/org/tabos/stamp/mail/accounts/%s/", stamp_account_get_uid (self->account));
-  self->account_settings = g_settings_new_with_path ("org.tabos.stamp.mail.accounts", path);
+  path = g_strdup_printf ("/io/github/steeb_k/Post/mail/accounts/%s/", stamp_account_get_uid (self->account));
+  self->account_settings = g_settings_new_with_path ("io.github.steeb_k.Post.mail.accounts", path);
 
   refresh_default_signature (self);
   refresh_alias_list (self);
@@ -694,7 +694,7 @@ stamp_preferences_account_class_init (StampPreferencesAccountClass *klass)
   gobject_class->get_property = stamp_preferences_account_get_property;
   gobject_class->set_property = stamp_preferences_account_set_property;
 
-  gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/stamp-preferences-account.ui");
+  gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/stamp-preferences-account.ui");
 
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccount, window_title);
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccount, page);
@@ -852,7 +852,7 @@ stamp_preferences_account_editor_class_init (StampPreferencesAccountEditorClass 
   gobject_class->get_property = stamp_preferences_account_editor_get_property;
   gobject_class->set_property = stamp_preferences_account_editor_set_property;
 
-  gtk_widget_class_set_template_from_resource (widget_class, "/org/tabos/stamp/stamp-preferences-account-editor.ui");
+  gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/stamp-preferences-account-editor.ui");
 
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccountEditor, editor_window_title);
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesAccountEditor, mail_row);
