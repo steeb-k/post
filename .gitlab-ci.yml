@@ -38,7 +38,7 @@ codespell:
   before_script:
     - dnf install -y codespell
   script:
-    - codespell src -L crate -S "*.png,*.po,.git,*.jpg,eff_large_wordlist.txt,.mypy_cache,_build" -f
+    - codespell src -L crate -S "*.png,*.po,.git,*.jpg,eff_large_wordlist.txt,.mypy_cache,_build,gcal" -f
 
 build-flatpak:
   extends: '.flatpak@x86_64'

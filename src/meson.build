@@ -1,3 +1,7 @@
+# Vendored GNOME Calendar library; first so its per-directory `blueprints`
+# variables cannot clobber the one defined for Post's own resources below.
+subdir('gcal')
+
 types_headers = [
   'views/contact/contact-list/stamp-contact-list.h'
 ]
@@ -99,6 +103,7 @@ stamp_deps = [
   dependency('libsoup-3.0'),
   dependency('libedataserver-1.2'),
   dependency('libedataserverui4-1.0'),
+  dependency('libecal-2.0'),
   dependency('libebook-1.2'),
   dependency('libedata-book-1.2'),
   dependency('libebook-contacts-1.2'),
@@ -133,7 +138,7 @@ stamp_includes = include_directories(
 )
 
 executable('post-mail', stamp_sources,
-  dependencies: [stamp_deps, config_h],
+  dependencies: [stamp_deps, config_h, libgcal_dep],
   include_directories: stamp_includes,
        install: true,
 )

@@ -13,6 +13,5 @@
     <file compressed="true">gcal-search-button.ui</file>
     <file compressed="true">gcal-sync-indicator.ui</file>
     <file compressed="true">gcal-weather-settings.ui</file>
-    <file compressed="true">gcal-window.ui</file>
   </gresource>
 </gresources>

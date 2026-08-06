@@ -28,7 +28,7 @@ pushd $SOURCE_ROOT
 for DIR in src
 do
    # Aligning prototypes is not working yet, so avoid headers
-   for FILE in $(find "$DIR" -name "*.c" ! -path "*/contrib/*")
+   for FILE in $(find "$DIR" -name "*.c" ! -path "*/contrib/*" ! -path "*/gcal/*")
     do
         "$UNCRUSTIFY" -q -c "data/uncrustify.cfg" -f "$FILE" -o "$FILE.uncrustify"
         "$LINEUP_PARAMETERS" "$FILE.uncrustify" > "$FILE.temp" && mv "$FILE.temp" "$FILE.uncrustify"
@@ -36,7 +36,7 @@ do
             sed -e "1s|--- |--- a/|" -e "2s|+++ |+++ b/|" >> "$patch"
         rm "$FILE.uncrustify"
    done
-   for FILE in $(find "$DIR" -name "*.blp" ! -path "*/contrib/*")
+   for FILE in $(find "$DIR" -name "*.blp" ! -path "*/contrib/*" ! -path "*/gcal/*")
     do
         cp "$FILE" "$FILE.temp"
         blueprint-compiler format -f "$FILE.temp" > /dev/null

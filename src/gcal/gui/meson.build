@@ -19,7 +19,6 @@ blueprints = custom_target(
     'gcal-search-button.blp',
     'gcal-sync-indicator.blp',
     'gcal-weather-settings.blp',
-    'gcal-window.blp',
     'shortcuts-dialog.blp',
   ),
   output: '.',
@@ -40,7 +39,6 @@ built_sources += gnome.compile_resources(
 )
 
 sources += files(
-  'gcal-application.c',
   'gcal-bidi.c',
   'gcal-calendar-list.c',
   'gcal-calendar-navigation-button.c',
@@ -55,7 +53,5 @@ sources += files(
   'gcal-quick-add-popover.c',
   'gcal-search-button.c',
   'gcal-sync-indicator.c',
-  'gcal-tests.c',
   'gcal-weather-settings.c',
-  'gcal-window.c',
 )
