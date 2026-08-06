@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="post-mail">
+  <!-- Post-owned copy of GNOME Calendar's org.gnome.calendar schema, used
+       by the vendored calendar code in src/gcal (see src/gcal/VENDORED.md).
+       Renamed so it never collides with an installed GNOME Calendar. -->
+  <schema id="io.github.steeb_k.Post.gcal" path="/io/github/steeb_k/Post/gcal/">
+    <key name="window-maximized" type="b">
+      <default>true</default>
+      <summary>Window maximized</summary>
+      <description>Window maximized state</description>
+    </key>
+    <key name="window-size" type="(ii)">
+      <default>(768, 600)</default>
+      <summary>Window size</summary>
+      <description>Window size (width and height).</description>
+    </key>
+    <key name="active-view" enum="io.github.steeb_k.Post.gcal.GcalWindowView">
+      <default>'month'</default>
+      <summary>Type of the active view</summary>
+      <description>Type of the active window view, default value is: monthly view</description>
+    </key>
+    <key name="weather-settings" type="(bbsmv)">
+      <default>(true, true, '', nothing)</default>
+      <summary>Weather Service Configuration</summary>
+      <description>Whether weather reports are shown, automatic locations are used and a location-name</description>
+    </key>
+    <key name="week-view-zoom-level" type="d">
+      <default>1.0</default>
+      <summary>Zoom level of the week grid</summary>
+      <description>The current zoom level of the week grid</description>
+    </key>
+  </schema>
+</schemalist>
