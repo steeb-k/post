@@ -1,0 +1,49 @@
+using Gtk 4.0;
+
+template $GcalAgendaView: Box {
+  orientation: vertical;
+
+  $GcalDateChooser date_chooser {
+    split-month-year: false;
+    vexpand: false;
+    valign: end;
+    active-date: bind template.active-date no-sync-create bidirectional;
+  }
+
+  ScrolledWindow scrolled_window {
+    hexpand: true;
+    vexpand: true;
+    hscrollbar-policy: never;
+
+    ListView list_view {
+      hscroll-policy: natural;
+      vscroll-policy: natural;
+      single-click-activate: true;
+
+      model: Gtk.NoSelection {
+        model: FilterListModel filtered_days {
+          watch-items: true;
+
+          filter: BoolFilter {
+            expression: expr $n_items_and_date_to_boolean(
+              item as <$GcalAgendaViewDay>.n-items,
+              item as <$GcalAgendaViewDay>.date,
+            ) as <bool>;
+          };
+        };
+      };
+
+      factory: BuilderListItemFactory {
+        template ListItem {
+          activatable: false;
+          selectable: false;
+
+          child: $GcalAgendaViewDayRow {
+            day: bind template.item;
+            event-activated => $on_day_row_event_activated_cb(template) not-swapped;
+          };
+        }
+      };
+    }
+  }
+}

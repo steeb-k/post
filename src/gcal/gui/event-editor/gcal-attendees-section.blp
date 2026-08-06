@@ -1,0 +1,19 @@
+using Gtk 4.0;
+
+template $GcalAttendeesSection: $GcalEventEditorSection {
+  $GcalOrganizerRow organizer_row {
+    organizer: bind template.organizer;
+  }
+
+  $GcalAttendeeSummaryRow summary_row {
+    title: _("Participants");
+    attendees: bind template.attendees;
+    filter-flags: GCAL_EVENT_ATTENDEE_TYPE_FILTER_PERSON;
+  }
+
+  $GcalAttendeeSummaryRow {
+    title: _("Resources");
+    attendees: bind template.attendees;
+    filter-flags: GCAL_EVENT_ATTENDEE_TYPE_FILTER_RESOURCE;
+  }
+}

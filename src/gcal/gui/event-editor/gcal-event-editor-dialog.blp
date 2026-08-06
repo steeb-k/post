@@ -1,0 +1,102 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $GcalEventEditorDialog: Adw.Dialog {
+  content-width: 700;
+  content-height: 1000;
+
+  Adw.NavigationView nav_view {
+    Adw.NavigationPage main_page {
+      Adw.ToolbarView {
+        [top]
+        Adw.HeaderBar {
+          show-start-title-buttons: false;
+          show-end-title-buttons: false;
+
+          Button cancel_button {
+            use-underline: true;
+            label: _("_Cancel");
+            clicked => $on_cancel_button_clicked_cb(template) not-swapped;
+          }
+
+          [end]
+          Button done_button {
+            use-underline: true;
+            label: _("_Done");
+            action-name: "event-editor.save";
+
+            styles [
+              "suggested-action",
+            ]
+          }
+        }
+
+        content: Adw.PreferencesPage {
+          banner: Adw.Banner {
+            title: _("This event is in a read-only calendar. It cannot be edited or deleted.");
+            revealed: bind template.writable inverted;
+          };
+
+          $GcalSummarySection summary_section {
+            dialog: template;
+          }
+
+          Adw.PreferencesGroup {
+            $GcalCalendarComboRow calendar_combo_row {
+              sensitive: bind template.writable;
+            }
+          }
+
+          $GcalScheduleSection {
+            dialog: template;
+          }
+
+          $GcalAttendeesSection attendees_section {
+            sensitive: bind template.writable;
+            dialog: template;
+          }
+
+          $GcalRemindersSection {
+            title: _("Reminders");
+            sensitive: bind template.writable;
+            dialog: template;
+          }
+
+          $GcalNotesSection {
+            dialog: template;
+          }
+
+          Adw.PreferencesGroup delete_group {
+            Adw.ButtonRow {
+              activated => $on_delete_row_activated_cb(template) not-swapped;
+              title: _("_Delete Event");
+              use-underline: true;
+
+              styles [
+                "destructive-action",
+              ]
+            }
+          }
+        };
+      }
+    }
+
+    $GcalAttendeeDetailsPage attendee_details_page {}
+  }
+
+  ShortcutController {
+    Shortcut {
+      trigger: "<Control>s";
+      action: "action(event-editor.save)";
+    }
+  }
+}
+
+SizeGroup {
+  mode: vertical;
+
+  widgets [
+    cancel_button,
+    done_button,
+  ]
+}
