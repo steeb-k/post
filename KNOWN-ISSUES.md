@@ -26,6 +26,26 @@ manifest already shares `~/.config/evolution` and allows
 `org.gnome.evolution.dataserver.Sources5`, so accounts created on the
 host should be visible, but if the two disagree then nothing shows up.
 
+## Appstream metadata is still incomplete after the rebrand
+
+`data/io.github.steeb_k.Post.metainfo.xml.in` carries placeholder text
+that GNOME Software and the About dialog both show:
+
+    <summary>Mails and more</summary>
+    <description>
+      <p>No description</p>
+    </description>
+
+The summary is upstream's and the description has never been written.
+
+The screenshots were dropped during the rebrand rather than left in
+place, because both entries pointed at `tabos.org/stamp/stamp1.png` and
+would have shown Stamp's window and old icon on Post's page. Nothing
+replaces them yet, so the component has no screenshots at all.
+`appstreamcli validate` still passes without them.
+
+Worth fixing before the repository goes public.
+
 ## Folders show up empty until the app is restarted
 
 After adding an account the folder list appears, including custom folders,
