@@ -87,6 +87,7 @@ struct _StampComposer {
   gboolean discard_draft;
   gint autosave_source_id;
   gboolean ignore_missing_attachments;
+  gboolean asking_to_close;
 };
 
 G_DEFINE_FINAL_TYPE (StampComposer, stamp_composer, ADW_TYPE_APPLICATION_WINDOW);
@@ -96,6 +97,13 @@ typedef enum {
 } StampComposerProps;
 
 static GParamSpec *props[PROP_ACCOUNT + 1] = { NULL, };
+
+enum {
+  CLOSE_REJECTED,
+  LAST_SIGNAL
+};
+
+static guint signals[LAST_SIGNAL] = { 0, };
 
 typedef struct {
   StampMailView *mail_view;
@@ -1603,8 +1611,10 @@ on_draft_get_body_html (GObject      *source_object,
   const gchar *mail;
 
   if (!body) {
-    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
       g_warning ("Failed to get HTML content for mail: %s", error->message);
+      g_signal_emit (self, signals[CLOSE_REJECTED], 0);
+    }
     return;
   }
 
@@ -1616,9 +1626,10 @@ on_draft_get_body_html (GObject      *source_object,
   sender = build_sender (mime_message, name, mail);
   recipient = build_recipients (self, mime_message);
 
-  if (stamp_account_save_draft (stamp_composer_from_get_account (self->composer_from), self->draft_uid, mime_message, sender, recipient)) {
+  if (stamp_account_save_draft (stamp_composer_from_get_account (self->composer_from), self->draft_uid, mime_message, sender, recipient))
     gtk_window_destroy (GTK_WINDOW (self));
-  }
+  else
+    g_signal_emit (self, signals[CLOSE_REJECTED], 0);
 }
 
 static void
@@ -1628,14 +1639,19 @@ on_draft_response (AdwAlertDialog *dialog,
 {
   StampComposer *self = STAMP_COMPOSER (user_data);
 
+  self->asking_to_close = FALSE;
+
   if (g_strcmp0 (response, "save-draft") == 0) {
     if (self->is_dirty)
       stamp_webview_get_body_html (self->webview, self->cancellable, on_draft_get_body_html, self);
     else
       gtk_window_destroy (GTK_WINDOW (self));
-  } else if (g_strcmp0 (response, "close") == 0) {
+  } else if (g_strcmp0 (response, "discard") == 0) {
     stamp_account_remove_draft (stamp_composer_from_get_account (self->composer_from), self->draft_uid);
     gtk_window_destroy (GTK_WINDOW (self));
+  } else {
+    /* Continue editing, the window stays where it is */
+    g_signal_emit (self, signals[CLOSE_REJECTED], 0);
   }
 }
 
@@ -1651,17 +1667,28 @@ on_close_request (GtkWindow *source,
   if (!self->is_dirty)
     return FALSE;
 
-  dialog = adw_alert_dialog_new (_("Changes detected"), _("You have modified this mail and closing this window will lead to loss of those changes. How do you want to proceed?"));
-  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "close", _("Close"));
-  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "save-draft", _("Save Draft"));
-  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "continue", _("Continue Editing"));
-  adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "continue", ADW_RESPONSE_SUGGESTED);
-  adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "close", ADW_RESPONSE_DESTRUCTIVE);
+  /* Asked again while the question is still on screen, keep the one dialog */
+  if (self->asking_to_close)
+    return TRUE;
 
-  adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "continue");
-  adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "save-draft");
+  dialog = adw_alert_dialog_new (_("Changes detected"), _("You have modified this mail and closing this window will lead to loss of those changes. How do you want to proceed?"));
+  /* Responses are shown in the order they are added: the dismissing action
+   * first, the affirmative one last */
+  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "continue", _("Continue Editing"));
+  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "discard", _("Discard"));
+  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "save-draft", _("Save Draft"));
+  adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "discard", ADW_RESPONSE_DESTRUCTIVE);
+  adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "save-draft", ADW_RESPONSE_SUGGESTED);
+
+  adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "save-draft");
+  adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "continue");
+
+  /* Lay the responses out in a row, falling back to a vertical stack when the
+   * dialog cannot get wide enough for them */
+  adw_alert_dialog_set_prefer_wide_layout (ADW_ALERT_DIALOG (dialog), TRUE);
 
   g_signal_connect (dialog, "response", G_CALLBACK (on_draft_response), self);
+  self->asking_to_close = TRUE;
   adw_dialog_present (dialog, GTK_WIDGET (source));
 
   return TRUE;
@@ -1754,6 +1781,17 @@ stamp_composer_class_init (StampComposerClass *klass)
   gtk_widget_class_bind_template_callback (widget_class, on_close_request);
   gtk_widget_class_bind_template_callback (widget_class, on_subject_changed);
   gtk_widget_class_bind_template_callback (widget_class, on_security_toggle_toggled);
+
+  /*
+   * Emitted whenever the composer was asked to close and stays open instead,
+   * so that anything waiting for the window to go away - the application
+   * quitting, for example - can stop waiting for it.
+   */
+  signals[CLOSE_REJECTED] = g_signal_new ("close-rejected",
+                                          G_TYPE_FROM_CLASS (klass),
+                                          G_SIGNAL_RUN_FIRST,
+                                          0, NULL, NULL, NULL,
+                                          G_TYPE_NONE, 0);
 
   props[PROP_ACCOUNT] = g_param_spec_object ("account",
                                              NULL,

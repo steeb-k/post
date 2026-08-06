@@ -92,7 +92,7 @@ blueprints = custom_target('blueprints',
 stamp_deps = [
   dependency('gtk4'),
   dependency('gio-unix-2.0'),
-  dependency('libadwaita-1', version: '>= 1.4'),
+  dependency('libadwaita-1', version: '>= 1.6'),
   dependency('camel-1.2', version: '>= 3.28'),
   dependency('gsettings-desktop-schemas'),
   dependency('gstreamer-1.0'),
