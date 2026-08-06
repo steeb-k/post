@@ -46,7 +46,7 @@ template $StampCalendarView: Adw.BreakpointBin {
               split-month-year: true;
               vexpand: false;
               active-date: bind template.active-date no-sync-create bidirectional;
-              day-selected => $on_day_selected(template) not-swapped;
+              day-selected => $on_day_selected(template);
             }
 
             $GcalCalendarList calendars_list {
