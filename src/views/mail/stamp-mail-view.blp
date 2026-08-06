@@ -22,6 +22,7 @@ template $StampMailView: Adw.BreakpointBin {
 
     setters {
       mail_layout.layout-name: "mobile";
+      app_switcher.policy: narrow;
     }
   }
 
@@ -56,32 +57,41 @@ template $StampMailView: Adw.BreakpointBin {
       Adw.Layout {
         name: "desktop";
 
-        content: Adw.OverlaySplitView outer_osv {
-          sidebar-width-fraction: 0.28;
-          min-sidebar-width: 250;
-          max-sidebar-width: 300;
-          show-sidebar: true;
+        content: Adw.ToolbarView {
+          bottom-bar-style: raised;
 
-          sidebar: Adw.LayoutSlot {
-            id: "sidebar";
-          };
+          content: Adw.OverlaySplitView outer_osv {
+            sidebar-width-fraction: 0.28;
+            min-sidebar-width: 250;
+            max-sidebar-width: 300;
+            show-sidebar: true;
 
-          content: Paned desktop_paned {
-            orientation: horizontal;
-            position: 400;
-            shrink-start-child: false;
-            shrink-end-child: false;
-            resize-start-child: false;
-            resize-end-child: true;
-
-            start-child: Adw.LayoutSlot {
-              id: "list";
+            sidebar: Adw.LayoutSlot {
+              id: "sidebar";
             };
 
-            end-child: Adw.LayoutSlot {
-              id: "content";
+            content: Paned desktop_paned {
+              orientation: horizontal;
+              position: 400;
+              shrink-start-child: false;
+              shrink-end-child: false;
+              resize-start-child: false;
+              resize-end-child: true;
+
+              start-child: Adw.LayoutSlot {
+                id: "list";
+              };
+
+              end-child: Adw.LayoutSlot {
+                id: "content";
+              };
             };
           };
+
+          [bottom]
+          Adw.LayoutSlot {
+            id: "switcher";
+          }
         };
       }
 
@@ -98,21 +108,30 @@ template $StampMailView: Adw.BreakpointBin {
             id: "sidebar";
           };
 
-          content: Paned tablet_paned {
-            orientation: horizontal;
-            position: 400;
-            shrink-start-child: false;
-            shrink-end-child: false;
-            resize-start-child: false;
-            resize-end-child: true;
+          content: Adw.ToolbarView {
+            bottom-bar-style: raised;
 
-            start-child: Adw.LayoutSlot {
-              id: "list";
+            content: Paned tablet_paned {
+              orientation: horizontal;
+              position: 400;
+              shrink-start-child: false;
+              shrink-end-child: false;
+              resize-start-child: false;
+              resize-end-child: true;
+
+              start-child: Adw.LayoutSlot {
+                id: "list";
+              };
+
+              end-child: Adw.LayoutSlot {
+                id: "content";
+              };
             };
 
-            end-child: Adw.LayoutSlot {
-              id: "content";
-            };
+            [bottom]
+            Adw.LayoutSlot {
+              id: "switcher";
+            }
           };
         };
       }
@@ -144,6 +163,11 @@ template $StampMailView: Adw.BreakpointBin {
                 content: Adw.LayoutSlot {
                   id: "list";
                 };
+
+                [bottom]
+                Adw.LayoutSlot {
+                  id: "switcher";
+                }
               };
             };
           }
@@ -158,6 +182,15 @@ template $StampMailView: Adw.BreakpointBin {
             };
           }
         };
+      }
+
+      [switcher]
+      Adw.ViewSwitcher app_switcher {
+        stack: bind template.stack;
+        policy: wide;
+        halign: center;
+        margin-top: 6;
+        margin-bottom: 6;
       }
     };
   };

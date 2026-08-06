@@ -42,7 +42,7 @@ struct _StampCalendarView {
   AdwBreakpointBin parent_instance;
 
   GtkWidget *sidebar_pane;
-  gboolean sidebar_overlaid;
+  AdwViewStack *stack;
 
   AdwMultiLayoutView *calendar_layout;
   AdwOverlaySplitView *outer_osv;
@@ -81,9 +81,9 @@ struct _StampCalendarView {
 
 enum {
   PROP_0,
+  PROP_STACK,
   PROP_ACTIVE_DATE,
   PROP_ACTIVE_VIEW,
-  PROP_SIDEBAR_OVERLAID,
   N_PROPS
 };
 
@@ -311,26 +311,6 @@ get_current_osv (StampCalendarView *self)
   if (g_strcmp0 (layout, "mobile") == 0)
     return self->mobile_osv;
   return self->outer_osv;
-}
-
-static void
-update_sidebar_overlaid (StampCalendarView *self)
-{
-  const gchar *layout = adw_multi_layout_view_get_layout_name (self->calendar_layout);
-  AdwOverlaySplitView *osv;
-  gboolean overlaid;
-
-  if (g_strcmp0 (layout, "desktop") == 0)
-    osv = NULL;
-  else
-    osv = get_current_osv (self);
-
-  overlaid = osv && adw_overlay_split_view_get_show_sidebar (osv);
-  if (overlaid == self->sidebar_overlaid)
-    return;
-
-  self->sidebar_overlaid = overlaid;
-  g_object_notify (G_OBJECT (self), "sidebar-overlaid");
 }
 
 /*
@@ -817,8 +797,6 @@ on_toggle_sidebar (GtkToggleButton *btn G_GNUC_UNUSED,
 static void
 on_sidebar_visibility_changed (StampCalendarView *self)
 {
-  update_sidebar_overlaid (self);
-
   AdwOverlaySplitView *osv = get_current_osv (self);
   gboolean shown;
 
@@ -850,8 +828,6 @@ on_layout_changed (AdwMultiLayoutView *view,
   gboolean narrow = g_strcmp0 (name, "desktop") != 0;
 
   gtk_widget_set_visible (GTK_WIDGET (self->sidebar_button), narrow);
-
-  update_sidebar_overlaid (self);
 }
 
 /*
@@ -910,16 +886,16 @@ stamp_calendar_view_get_property (GObject    *object,
   StampCalendarView *self = STAMP_CALENDAR_VIEW (object);
 
   switch (id) {
+    case PROP_STACK:
+      g_value_set_object (value, self->stack);
+      break;
+
     case PROP_ACTIVE_DATE:
       g_value_set_boxed (value, self->active_date);
       break;
 
     case PROP_ACTIVE_VIEW:
       g_value_set_enum (value, self->active_view);
-      break;
-
-    case PROP_SIDEBAR_OVERLAID:
-      g_value_set_boolean (value, self->sidebar_overlaid);
       break;
 
     default:
@@ -936,6 +912,10 @@ stamp_calendar_view_set_property (GObject      *object,
   StampCalendarView *self = STAMP_CALENDAR_VIEW (object);
 
   switch (id) {
+    case PROP_STACK:
+      g_set_object (&self->stack, g_value_get_object (value));
+      break;
+
     case PROP_ACTIVE_DATE:
       update_active_date (self, g_value_get_boxed (value));
       break;
@@ -973,6 +953,10 @@ stamp_calendar_view_class_init (StampCalendarViewClass *klass)
   object_class->get_property = stamp_calendar_view_get_property;
   object_class->set_property = stamp_calendar_view_set_property;
 
+  properties[PROP_STACK] = g_param_spec_object ("stack", NULL, NULL,
+                                                ADW_TYPE_VIEW_STACK,
+                                                G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+
   properties[PROP_ACTIVE_DATE] = g_param_spec_boxed ("active-date", NULL, NULL,
                                                      G_TYPE_DATE_TIME,
                                                      G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
@@ -981,10 +965,6 @@ stamp_calendar_view_class_init (StampCalendarViewClass *klass)
                                                     GCAL_TYPE_WINDOW_VIEW,
                                                     GCAL_WINDOW_VIEW_MONTH,
                                                     G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-
-  properties[PROP_SIDEBAR_OVERLAID] = g_param_spec_boolean ("sidebar-overlaid", NULL, NULL,
-                                                            FALSE,
-                                                            G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
   g_object_class_install_properties (object_class, N_PROPS, properties);
 
@@ -1097,10 +1077,4 @@ GtkWidget *
 stamp_calendar_view_get_sidebar (StampCalendarView *self)
 {
   return self->sidebar_pane;
-}
-
-gboolean
-stamp_calendar_view_get_sidebar_overlaid (StampCalendarView *self)
-{
-  return self->sidebar_overlaid;
 }

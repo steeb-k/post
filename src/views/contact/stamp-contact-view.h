@@ -15,9 +15,6 @@ stamp_contact_view_new (void);
 GtkWidget *
 stamp_contact_view_get_sidebar (StampContactView *self);
 
-gboolean
-stamp_contact_view_get_sidebar_overlaid (StampContactView *self);
-
 void
 stamp_contact_view_show_contact (StampContactView *self,
                                  const gchar       *mail);

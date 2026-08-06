@@ -30,7 +30,7 @@ struct _StampMailView {
   AdwBreakpointBin parent_instance;
 
   GtkWidget *sidebar_pane;
-  gboolean sidebar_overlaid;
+  AdwViewStack *stack;
 
   AdwMultiLayoutView *mail_layout;
   AdwOverlaySplitView *tablet_osv;
@@ -60,7 +60,19 @@ stamp_mail_view_get_property (GObject    *object,
                               GParamSpec *ps)
 {
   if (id == 1)
-    g_value_set_boolean (value, STAMP_MAIL_VIEW (object)->sidebar_overlaid);
+    g_value_set_object (value, STAMP_MAIL_VIEW (object)->stack);
+  else
+    G_OBJECT_WARN_INVALID_PROPERTY_ID (object, id, ps);
+}
+
+static void
+stamp_mail_view_set_property (GObject      *object,
+                              guint         id,
+                              const GValue *value,
+                              GParamSpec   *ps)
+{
+  if (id == 1)
+    g_set_object (&STAMP_MAIL_VIEW (object)->stack, g_value_get_object (value));
   else
     G_OBJECT_WARN_INVALID_PROPERTY_ID (object, id, ps);
 }
@@ -80,26 +92,6 @@ get_current_osv (StampMailView *self)
 }
 
 static void
-update_sidebar_overlaid (StampMailView *self)
-{
-  const gchar *layout = adw_multi_layout_view_get_layout_name (self->mail_layout);
-  AdwOverlaySplitView *osv;
-  gboolean overlaid;
-
-  if (g_strcmp0 (layout, "desktop") == 0)
-    osv = NULL;
-  else
-    osv = get_current_osv (self);
-
-  overlaid = osv && adw_overlay_split_view_get_show_sidebar (osv);
-  if (overlaid == self->sidebar_overlaid)
-    return;
-
-  self->sidebar_overlaid = overlaid;
-  g_object_notify (G_OBJECT (self), "sidebar-overlaid");
-}
-
-static void
 on_details_hidden (AdwNavigationPage *page,
                    gpointer           user_data)
 {
@@ -111,8 +103,6 @@ on_details_hidden (AdwNavigationPage *page,
 static void
 on_sidebar_visibility_changed (StampMailView *self)
 {
-  update_sidebar_overlaid (self);
-
   AdwOverlaySplitView *osv = get_current_osv (self);
   GtkToggleButton *toggle_button;
   gboolean shown;
@@ -298,10 +288,11 @@ stamp_mail_view_class_init (StampMailViewClass *klass)
 
   object_class->dispose = stamp_mail_view_dispose;
   object_class->get_property = stamp_mail_view_get_property;
+  object_class->set_property = stamp_mail_view_set_property;
 
-  g_object_class_install_property (object_class, 1, g_param_spec_boolean ("sidebar-overlaid", NULL, NULL,
-                                                                          FALSE,
-                                                                          G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
+  g_object_class_install_property (object_class, 1, g_param_spec_object ("stack", NULL, NULL,
+                                                                         ADW_TYPE_VIEW_STACK,
+                                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   gtk_widget_class_bind_template_child (widget_class, StampMailView, mail_layout);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, folder_list);
@@ -448,8 +439,6 @@ on_layout_changed (AdwMultiLayoutView *view,
     gtk_paned_set_position (self->desktop_paned, self->saved_paned_pos);
     gtk_paned_set_position (self->tablet_paned, self->saved_paned_pos);
   }
-
-  update_sidebar_overlaid (self);
 }
 
 static void
@@ -588,10 +577,4 @@ GtkWidget *
 stamp_mail_view_get_sidebar (StampMailView *self)
 {
   return self->sidebar_pane;
-}
-
-gboolean
-stamp_mail_view_get_sidebar_overlaid (StampMailView *self)
-{
-  return self->sidebar_overlaid;
 }

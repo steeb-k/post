@@ -85,52 +85,37 @@ template $StampWindow: Adw.ApplicationWindow {
     Adw.ViewStackPage {
       name: "main";
 
-      child: Adw.ToolbarView main_toolbar {
-        bottom-bar-style: raised;
+      child: Adw.ViewStack main_view_stack {
+        Adw.ViewStackPage mail_stack_page {
+          name: "mail";
+          title: _("Mail");
+          icon-name: "mail-unread-symbolic";
 
-        content: Adw.ViewStack main_view_stack {
-          Adw.ViewStackPage mail_stack_page {
-            name: "mail";
-            title: _("Mail");
-            icon-name: "mail-unread-symbolic";
+          child: $StampMailView mail_view {
+            stack: bind main_view_stack;
+          };
+        }
 
-            child: $StampMailView mail_view {};
-          }
+        Adw.ViewStackPage contact_stack_page {
+          name: "contacts";
+          title: _("Contacts");
+          icon-name: "system-users-symbolic";
 
-          Adw.ViewStackPage contact_stack_page {
-            name: "contacts";
-            title: _("Contacts");
-            icon-name: "system-users-symbolic";
+          child: $StampContactView contact_view {
+            stack: bind main_view_stack;
+          };
+        }
 
-            child: $StampContactView contact_view {};
-          }
+        Adw.ViewStackPage calendar_stack_page {
+          name: "calendar";
+          title: _("Calendar");
+          icon-name: "x-office-calendar-symbolic";
 
-          Adw.ViewStackPage calendar_stack_page {
-            name: "calendar";
-            title: _("Calendar");
-            icon-name: "x-office-calendar-symbolic";
-
-            child: $StampCalendarView calendar_view {};
-          }
-        };
-
-        [bottom]
-        Adw.ViewSwitcher main_switcher {
-          stack: main_view_stack;
-          policy: wide;
-          halign: center;
-          margin-top: 6;
-          margin-bottom: 6;
+          child: $StampCalendarView calendar_view {
+            stack: bind main_view_stack;
+          };
         }
       };
     }
   };
-
-  Adw.Breakpoint {
-    condition ("max-width: 550sp")
-
-    setters {
-      main_switcher.policy: narrow;
-    }
-  }
 }

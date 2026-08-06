@@ -24,6 +24,7 @@ template $StampCalendarView: Adw.BreakpointBin {
       view_menu_button.visible: false;
       previous_date_button.visible: false;
       next_date_button.visible: false;
+      app_switcher.policy: narrow;
     }
   }
 
@@ -184,25 +185,33 @@ template $StampCalendarView: Adw.BreakpointBin {
             };
           }
         };
-
       }
 
       Adw.Layout {
         name: "desktop";
 
-        content: Adw.OverlaySplitView outer_osv {
-          sidebar-width-fraction: 0.28;
-          min-sidebar-width: 250;
-          max-sidebar-width: 300;
-          show-sidebar: true;
+        content: Adw.ToolbarView {
+          bottom-bar-style: raised;
 
-          sidebar: Adw.LayoutSlot {
-            id: "sidebar";
+          content: Adw.OverlaySplitView outer_osv {
+            sidebar-width-fraction: 0.28;
+            min-sidebar-width: 250;
+            max-sidebar-width: 300;
+            show-sidebar: true;
+
+            sidebar: Adw.LayoutSlot {
+              id: "sidebar";
+            };
+
+            content: Adw.LayoutSlot {
+              id: "content";
+            };
           };
 
-          content: Adw.LayoutSlot {
-            id: "content";
-          };
+          [bottom]
+          Adw.LayoutSlot {
+            id: "switcher";
+          }
         };
       }
 
@@ -219,8 +228,17 @@ template $StampCalendarView: Adw.BreakpointBin {
             id: "sidebar";
           };
 
-          content: Adw.LayoutSlot {
-            id: "content";
+          content: Adw.ToolbarView {
+            bottom-bar-style: raised;
+
+            content: Adw.LayoutSlot {
+              id: "content";
+            };
+
+            [bottom]
+            Adw.LayoutSlot {
+              id: "switcher";
+            }
           };
         };
       }
@@ -243,8 +261,22 @@ template $StampCalendarView: Adw.BreakpointBin {
             content: Adw.LayoutSlot {
               id: "content";
             };
+
+            [bottom]
+            Adw.LayoutSlot {
+              id: "switcher";
+            }
           };
         };
+      }
+
+      [switcher]
+      Adw.ViewSwitcher app_switcher {
+        stack: bind template.stack;
+        policy: wide;
+        halign: center;
+        margin-top: 6;
+        margin-bottom: 6;
       }
     };
   };
