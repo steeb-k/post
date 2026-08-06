@@ -36,7 +36,21 @@ struct _StampApplication {
   gboolean start_hidden;
   StampSession *session;
   gchar *password;
+
+  gboolean quit_pending;
+  GtkWindow *closing_window;
+  gulong close_rejected_id;
 };
+
+/*
+ * Quitting closes every window that may want to ask the user something first -
+ * a composer holding an unsaved mail, for example - one at a time, and only
+ * quits once all of them are gone. Such a window is recognized by providing a
+ * "close-rejected" signal, which it has to emit whenever it was asked to close
+ * and stayed open anyway, otherwise the application would keep waiting for a
+ * window that is never going away.
+ */
+#define CLOSE_REJECTED_SIGNAL "close-rejected"
 
 G_DEFINE_FINAL_TYPE (StampApplication, stamp_application, ADW_TYPE_APPLICATION);
 
@@ -245,10 +259,97 @@ stamp_application_handle_local_options (GApplication *application,
   return -1;
 }
 
+static GtkWindow *
+stamp_application_find_asking_window (StampApplication *self)
+{
+  GList *windows = gtk_application_get_windows (GTK_APPLICATION (self));
+
+  for (GList *iter = windows; iter; iter = iter->next) {
+    if (g_signal_lookup (CLOSE_REJECTED_SIGNAL, G_OBJECT_TYPE (iter->data)))
+      return GTK_WINDOW (iter->data);
+  }
+
+  return NULL;
+}
+
+static void
+stamp_application_stop_waiting (StampApplication *self)
+{
+  if (self->closing_window)
+    g_clear_signal_handler (&self->close_rejected_id, self->closing_window);
+
+  self->close_rejected_id = 0;
+  g_clear_weak_pointer (&self->closing_window);
+}
+
+static void
+stamp_application_quit_now (StampApplication *self)
+{
+  g_autoptr (GList) windows = g_list_copy (gtk_application_get_windows (GTK_APPLICATION (self)));
+
+  self->quit_pending = FALSE;
+  stamp_application_stop_waiting (self);
+
+  for (GList *iter = windows; iter; iter = iter->next)
+    gtk_window_destroy (GTK_WINDOW (iter->data));
+
+  g_application_quit (G_APPLICATION (self));
+}
+
+static void
+stamp_application_quit_step (StampApplication *self);
+
+static void
+on_close_rejected (GtkWindow *window,
+                   gpointer   user_data)
+{
+  StampApplication *self = STAMP_APPLICATION (user_data);
+
+  /* The window is staying, so the application does as well */
+  self->quit_pending = FALSE;
+  stamp_application_stop_waiting (self);
+}
+
+static void
+stamp_application_quit_step (StampApplication *self)
+{
+  GtkWindow *window = stamp_application_find_asking_window (self);
+
+  if (!window) {
+    stamp_application_quit_now (self);
+    return;
+  }
+
+  self->quit_pending = TRUE;
+  g_set_weak_pointer (&self->closing_window, window);
+  self->close_rejected_id = g_signal_connect (window, CLOSE_REJECTED_SIGNAL, G_CALLBACK (on_close_rejected), self);
+
+  /* Bring the window up so its question is not asked behind another one */
+  gtk_window_present (window);
+  gtk_window_close (window);
+}
+
+static void
+stamp_application_window_removed (GtkApplication *application,
+                                  GtkWindow      *window)
+{
+  StampApplication *self = STAMP_APPLICATION (application);
+
+  GTK_APPLICATION_CLASS (stamp_application_parent_class)->window_removed (application, window);
+
+  if (!self->quit_pending)
+    return;
+
+  stamp_application_stop_waiting (self);
+  stamp_application_quit_step (self);
+}
+
 static void
 stamp_application_dispose (GObject *object)
 {
   StampApplication *self = STAMP_APPLICATION (object);
+
+  stamp_application_stop_waiting (self);
 
   g_clear_object (&self->session);
   g_clear_pointer (&self->password, g_free);
@@ -260,12 +361,15 @@ static void
 stamp_application_class_init (StampApplicationClass *klass)
 {
   GApplicationClass *app_class = G_APPLICATION_CLASS (klass);
+  GtkApplicationClass *gtk_app_class = GTK_APPLICATION_CLASS (klass);
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
   app_class->activate = stamp_application_activate;
   app_class->command_line = stamp_application_command_line;
   app_class->startup = stamp_application_startup;
   app_class->handle_local_options = stamp_application_handle_local_options;
+
+  gtk_app_class->window_removed = stamp_application_window_removed;
 
   object_class->dispose = stamp_application_dispose;
 }
@@ -300,20 +404,18 @@ stamp_application_quit_action (GSimpleAction *action,
                                gpointer       user_data)
 {
   StampApplication *self = STAMP_APPLICATION (user_data);
-  GList *windows = NULL;
 
   g_assert (STAMP_IS_APPLICATION (self));
 
-  windows = gtk_application_get_windows (GTK_APPLICATION (self));
+  if (self->quit_pending) {
+    /* A window is already being asked about, bring it back to the front */
+    if (self->closing_window)
+      gtk_window_present (self->closing_window);
 
-  while (windows && windows->data) {
-    GtkWindow *window = GTK_WINDOW (windows->data);
-
-    windows = windows->next;
-    gtk_window_destroy (GTK_WINDOW (window));
+    return;
   }
 
-  g_application_quit (G_APPLICATION (self));
+  stamp_application_quit_step (self);
 }
 
 static void
