@@ -41,6 +41,8 @@ typedef struct {
 struct _StampCalendarView {
   AdwBreakpointBin parent_instance;
 
+  GtkWidget *sidebar_pane;
+
   AdwMultiLayoutView *calendar_layout;
   AdwOverlaySplitView *outer_osv;
   AdwOverlaySplitView *tablet_osv;
@@ -934,6 +936,7 @@ stamp_calendar_view_class_init (StampCalendarViewClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampCalendarView, calendar_layout);
   gtk_widget_class_bind_template_child (widget_class, StampCalendarView, outer_osv);
   gtk_widget_class_bind_template_child (widget_class, StampCalendarView, tablet_osv);
+  gtk_widget_class_bind_template_child (widget_class, StampCalendarView, sidebar_pane);
   gtk_widget_class_bind_template_child (widget_class, StampCalendarView, mobile_osv);
   gtk_widget_class_bind_template_child (widget_class, StampCalendarView, toast_overlay);
   gtk_widget_class_bind_template_child (widget_class, StampCalendarView, sidebar_button);
@@ -1028,4 +1031,10 @@ GtkWidget *
 stamp_calendar_view_new (void)
 {
   return g_object_new (STAMP_TYPE_CALENDAR_VIEW, NULL);
+}
+
+GtkWidget *
+stamp_calendar_view_get_sidebar (StampCalendarView *self)
+{
+  return self->sidebar_pane;
 }

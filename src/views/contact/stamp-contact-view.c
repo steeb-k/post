@@ -9,6 +9,8 @@
 struct _StampContactView {
   AdwBreakpointBin parent_instance;
 
+  GtkWidget *sidebar_pane;
+
   AdwMultiLayoutView *contacts_layout;
   AdwNavigationView *mobile_nav;
   AdwOverlaySplitView *tablet_osv;
@@ -184,6 +186,7 @@ stamp_contact_view_class_init (StampContactViewClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampContactView, contact_details);
   gtk_widget_class_bind_template_child (widget_class, StampContactView, book_list);
   gtk_widget_class_bind_template_child (widget_class, StampContactView, tablet_osv);
+  gtk_widget_class_bind_template_child (widget_class, StampContactView, sidebar_pane);
   gtk_widget_class_bind_template_child (widget_class, StampContactView, mobile_osv);
   gtk_widget_class_bind_template_child (widget_class, StampContactView, desktop_paned);
   gtk_widget_class_bind_template_child (widget_class, StampContactView, tablet_paned);
@@ -281,4 +284,10 @@ stamp_contact_view_show_contact (StampContactView *self,
 
   if (g_strcmp0 (layout, "mobile") == 0 && self->mobile_nav)
     adw_navigation_view_pop_to_tag (self->mobile_nav, "main");
+}
+
+GtkWidget *
+stamp_contact_view_get_sidebar (StampContactView *self)
+{
+  return self->sidebar_pane;
 }

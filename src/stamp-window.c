@@ -41,8 +41,11 @@ struct _StampWindow {
   AdwViewStack *main_view_stack;
   StampMailView *mail_view;
   StampContactView *contact_view;
+  StampCalendarView *calendar_view;
   AdwStatusPage *welcome_page;
   GtkWidget *welcome_button;
+
+  GtkSizeGroup *sidebar_size_group;
 
   gint current_width;
   gint current_height;
@@ -146,6 +149,8 @@ stamp_window_dispose (GObject *object)
   if (self->mail_view)
     g_signal_handlers_disconnect_by_data (self->mail_view, self);
 
+  g_clear_object (&self->sidebar_size_group);
+
   gtk_widget_dispose_template (GTK_WIDGET (self), STAMP_TYPE_WINDOW);
 
   G_OBJECT_CLASS (stamp_window_parent_class)->dispose (object);
@@ -165,6 +170,7 @@ stamp_window_class_init (StampWindowClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampWindow, main_view_stack);
   gtk_widget_class_bind_template_child (widget_class, StampWindow, mail_view);
   gtk_widget_class_bind_template_child (widget_class, StampWindow, contact_view);
+  gtk_widget_class_bind_template_child (widget_class, StampWindow, calendar_view);
   gtk_widget_class_bind_template_child (widget_class, StampWindow, welcome_page);
   gtk_widget_class_bind_template_child (widget_class, StampWindow, welcome_button);
 
@@ -201,6 +207,14 @@ stamp_window_init (StampWindow *self)
   g_autoptr (XdpParent) parent_window = xdp_parent_new_gtk (GTK_WINDOW (self));
 
   gtk_widget_init_template (GTK_WIDGET (self));
+
+  /* Keep the sidebars the same width in all three views, so the bottom
+   * view switcher does not move around when switching between them. The
+   * calendar's date chooser has the widest minimum and sets the pace. */
+  self->sidebar_size_group = gtk_size_group_new (GTK_SIZE_GROUP_HORIZONTAL);
+  gtk_size_group_add_widget (self->sidebar_size_group, stamp_mail_view_get_sidebar (self->mail_view));
+  gtk_size_group_add_widget (self->sidebar_size_group, stamp_contact_view_get_sidebar (self->contact_view));
+  gtk_size_group_add_widget (self->sidebar_size_group, stamp_calendar_view_get_sidebar (self->calendar_view));
 
   g_action_map_add_action_entries (G_ACTION_MAP (self),
                                    stamp_window_action_entries,

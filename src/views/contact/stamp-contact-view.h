@@ -12,6 +12,9 @@ G_DECLARE_FINAL_TYPE (StampContactView, stamp_contact_view, STAMP, CONTACT_VIEW,
 GtkWidget *
 stamp_contact_view_new (void);
 
+GtkWidget *
+stamp_contact_view_get_sidebar (StampContactView *self);
+
 void
 stamp_contact_view_show_contact (StampContactView *self,
                                  const gchar       *mail);

@@ -28,7 +28,7 @@ template $StampMailView: Adw.BreakpointBin {
   child: Adw.ToastOverlay toast_overlay {
     child: Adw.MultiLayoutView mail_layout {
       [sidebar]
-      Adw.ToolbarView {
+      Adw.ToolbarView sidebar_pane {
         bottom-bar-style: raised;
 
         [top]
@@ -58,8 +58,8 @@ template $StampMailView: Adw.BreakpointBin {
 
         content: Adw.OverlaySplitView outer_osv {
           sidebar-width-fraction: 0.28;
-          min-sidebar-width: 230;
-          max-sidebar-width: 280;
+          min-sidebar-width: 250;
+          max-sidebar-width: 300;
           show-sidebar: true;
 
           sidebar: Adw.ToolbarView {

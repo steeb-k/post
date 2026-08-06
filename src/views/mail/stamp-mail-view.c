@@ -29,6 +29,8 @@
 struct _StampMailView {
   AdwBreakpointBin parent_instance;
 
+  GtkWidget *sidebar_pane;
+
   AdwMultiLayoutView *mail_layout;
   AdwOverlaySplitView *tablet_osv;
   AdwOverlaySplitView *mobile_osv;
@@ -314,6 +316,7 @@ stamp_mail_view_class_init (StampMailViewClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampMailView, desktop_paned);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, tablet_paned);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, tablet_osv);
+  gtk_widget_class_bind_template_child (widget_class, StampMailView, sidebar_pane);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, mobile_osv);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, mobile_nav);
   gtk_widget_class_bind_template_callback (widget_class, on_details_hidden);
@@ -582,4 +585,10 @@ StampConversationList *
 stamp_mail_view_get_conversation_list (StampMailView *self)
 {
   return self->conversation_list;
+}
+
+GtkWidget *
+stamp_mail_view_get_sidebar (StampMailView *self)
+{
+  return self->sidebar_pane;
 }

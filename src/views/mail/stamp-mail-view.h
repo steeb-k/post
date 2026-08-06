@@ -32,6 +32,9 @@ G_DECLARE_FINAL_TYPE (StampMailView, stamp_mail_view, STAMP, MAIL_VIEW, AdwBreak
 GtkWidget *
 stamp_mail_view_new (void);
 
+GtkWidget *
+stamp_mail_view_get_sidebar (StampMailView *self);
+
 void
 stamp_mail_view_search_contact (StampMailView *self,
                                 const gchar    *mail);
