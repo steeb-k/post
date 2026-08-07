@@ -31,6 +31,7 @@
 #include <webkit/webkit.h>
 
 #include "stamp-attachment-button.h"
+#include "stamp-calendar-import.h"
 #include "stamp-gcal.h"
 #include "stamp-message-header.h"
 #include "stamp-message-list.h"
@@ -72,6 +73,7 @@ struct _StampMessageListItem {
   GCancellable *cancellable;
   CamelMimeMessage *message;
   ICalComponent *calendar;
+  gchar *calendar_method;
   StampMimeListUnsubscribe *unsubscribe;
 
   GSimpleActionGroup *actions;
@@ -217,8 +219,18 @@ open_message (StampMessageListItem *self,
       adw_banner_set_title (ADW_BANNER (self->vcard_banner), tmp);
       adw_banner_set_revealed (ADW_BANNER (self->vcard_banner), TRUE);
 
-      if (g_strcmp0 (calendar->method, "REPLY") == 0)
+      self->calendar_method = g_strdup (calendar->method);
+
+      /*
+       * Only REQUEST asks the recipient a question. PUBLISH and friends
+       * are events to file away, and REPLY/CANCEL need nothing from us.
+       */
+      if (!self->calendar_method || g_strcmp0 (self->calendar_method, "REQUEST") == 0)
+        adw_banner_set_button_label (ADW_BANNER (self->vcard_banner), _("RSVP"));
+      else if (g_strcmp0 (self->calendar_method, "REPLY") == 0 || g_strcmp0 (self->calendar_method, "CANCEL") == 0)
         adw_banner_set_button_label (ADW_BANNER (self->vcard_banner), NULL);
+      else
+        adw_banner_set_button_label (ADW_BANNER (self->vcard_banner), _("Add to Calendar"));
     }
   }
 
@@ -651,11 +663,25 @@ on_rsvp_response (GtkWidget *dialog,
 }
 
 static void
-on_rsvp (AdwBanner *banner,
-         gpointer   user_data)
+on_calendar_banner_button_clicked (AdwBanner *banner,
+                                   gpointer   user_data)
 {
   StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
   AdwDialog *dialog;
+
+  if (self->calendar_method && g_strcmp0 (self->calendar_method, "REQUEST") != 0) {
+    g_autofree char *ics = i_cal_component_as_ical_string (self->calendar);
+    g_autoptr (GBytes) data = NULL;
+
+    if (!ics) {
+      g_warning ("%s: Could not serialize the invitation, abort", G_STRFUNC);
+      return;
+    }
+
+    data = g_bytes_new (ics, strlen (ics));
+    stamp_calendar_import_ics_data (data, "invite.ics", GTK_WIDGET (self));
+    return;
+  }
   const gchar *sender = camel_message_info_get_from (self->message_info);
   g_autofree char *body = g_strdup_printf (_("%s wants to know whether you can join this meeting"), sender);
 
@@ -692,6 +718,7 @@ stamp_message_list_item_dispose (GObject *object)
 
   g_clear_object (&self->message);
   g_clear_object (&self->calendar);
+  g_clear_pointer (&self->calendar_method, g_free);
   g_clear_object (&self->parser);
 
   gtk_widget_dispose_template (GTK_WIDGET (self), STAMP_TYPE_MESSAGE_LIST_ITEM);
@@ -782,7 +809,7 @@ stamp_message_list_item_class_init (StampMessageListItemClass *klass)
   gtk_widget_class_bind_template_callback (widget_class, on_row_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_show_images);
   gtk_widget_class_bind_template_callback (widget_class, on_show_signatures);
-  gtk_widget_class_bind_template_callback (widget_class, on_rsvp);
+  gtk_widget_class_bind_template_callback (widget_class, on_calendar_banner_button_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_image_load_blocked);
   gtk_widget_class_bind_template_callback (widget_class, on_mouse_target_changed);
   gtk_widget_class_bind_template_callback (widget_class, on_send_disposition);

@@ -19,6 +19,8 @@
 
 #include "stamp-attachment-button.h"
 
+#include "stamp-calendar-import.h"
+
 #include <adwaita.h>
 #include <gio/gio.h>
 #include <glib/gi18n.h>
@@ -241,6 +243,58 @@ on_open_activate (GAction  *action,
   }
 }
 
+/*
+ * Calendar data reaches us either as a well-typed MIME part or, for
+ * attachments the sender mislabelled, only as a .ics file name.
+ */
+static gboolean
+attachment_is_calendar (const gchar *mime_type,
+                        const gchar *filename)
+{
+  if (g_strcmp0 (mime_type, "text/calendar") == 0 ||
+      g_strcmp0 (mime_type, "application/ics") == 0)
+    return TRUE;
+
+  if (filename) {
+    g_autofree char *lower = g_ascii_strdown (filename, -1);
+
+    return g_str_has_suffix (lower, ".ics") || g_str_has_suffix (lower, ".ical");
+  }
+
+  return FALSE;
+}
+
+static void
+on_add_to_calendar_activate (GAction  *action,
+                             GVariant *parameter,
+                             gpointer  user_data)
+{
+  StampAttachmentButton *self = STAMP_ATTACHMENT_BUTTON (user_data);
+  const gchar *filename = gtk_label_get_text (GTK_LABEL (self->filename_label));
+
+  if (self->file) {
+    stamp_calendar_import_ics_file (self->file, GTK_WIDGET (self));
+  } else if (self->data) {
+    stamp_calendar_import_ics_data (self->data, filename, GTK_WIDGET (self));
+  } else if (self->mime_part) {
+    g_autoptr (GOutputStream) stream = g_memory_output_stream_new_resizable ();
+    g_autoptr (GBytes) data = NULL;
+    g_autoptr (GError) error = NULL;
+
+    camel_data_wrapper_decode_to_output_stream_sync (CAMEL_DATA_WRAPPER (camel_medium_get_content (CAMEL_MEDIUM (self->mime_part))),
+                                                     stream,
+                                                     self->cancellable,
+                                                     &error);
+    if (error) {
+      g_warning ("%s: Could not decode the calendar attachment: %s", G_STRFUNC, error->message);
+      return;
+    }
+
+    data = g_memory_output_stream_steal_as_bytes (G_MEMORY_OUTPUT_STREAM (stream));
+    stamp_calendar_import_ics_data (data, filename, GTK_WIDGET (self));
+  }
+}
+
 static void
 on_open_folder (AdwToast *toast,
                 gpointer  user_data)
@@ -429,6 +483,7 @@ stamp_attachment_button_init (StampAttachmentButton *self)
   GSimpleAction *save_as_action = g_simple_action_new ("save-as", NULL);
   GSimpleAction *remove_action = g_simple_action_new ("remove", NULL);
   GSimpleAction *rename_action = g_simple_action_new ("rename", NULL);
+  GSimpleAction *add_to_calendar_action = g_simple_action_new ("add-to-calendar", NULL);
 
   g_action_map_add_action (G_ACTION_MAP (actions), G_ACTION (open_action));
   g_signal_connect_object (open_action, "activate", G_CALLBACK (on_open_activate), self, G_CONNECT_DEFAULT);
@@ -441,6 +496,9 @@ stamp_attachment_button_init (StampAttachmentButton *self)
 
   g_signal_connect_object (rename_action, "activate", G_CALLBACK (on_rename_activate), self, G_CONNECT_DEFAULT);
   g_action_map_add_action (G_ACTION_MAP (actions), G_ACTION (rename_action));
+
+  g_signal_connect_object (add_to_calendar_action, "activate", G_CALLBACK (on_add_to_calendar_activate), self, G_CONNECT_DEFAULT);
+  g_action_map_add_action (G_ACTION_MAP (actions), G_ACTION (add_to_calendar_action));
 
   gtk_widget_insert_action_group (GTK_WIDGET (self), "attachmentbutton", G_ACTION_GROUP (actions));
 }
@@ -500,6 +558,9 @@ stamp_attachment_button_constructed (GObject *object)
     tmp = g_strdup_printf ("<small>%s</small>", readable_size);
     gtk_label_set_markup (GTK_LABEL (self->size_label), tmp);
   }
+
+  if (!attachment_is_calendar (mime_type, filename))
+    remove_menu_item (G_MENU (self->context_menu), "attachmentbutton.add-to-calendar");
 
   if (self->mime_part) {
     remove_menu_item (G_MENU (self->context_menu), "attachmentbutton.remove");

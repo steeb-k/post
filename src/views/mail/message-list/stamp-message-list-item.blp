@@ -78,7 +78,7 @@ template $StampMessageListItem: ListBoxRow {
 
         Adw.Banner vcard_banner {
           button-label: _("RSVP");
-          button-clicked => $on_rsvp();
+          button-clicked => $on_calendar_banner_button_clicked();
           revealed: false;
 
           styles [
