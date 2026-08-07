@@ -21,29 +21,46 @@ The manifest still builds gnome-online-accounts as a module and EDS with
 missing is the editor itself, since the bundled GOA has no user
 interface.
 
-### The sandbox has no evolution-data-server of its own
+### The sandbox runs its own evolution-data-server (fixed)
 
-Settled by building the flatpak and running it (2026-08-06): the host's
-registry wins, because the sandbox has no alternative. The manifest
-cleans `/libexec` and `/share/dbus-1` out of the EDS module, so the
-bundle ships neither the factories (`evolution-source-registry`,
-`evolution-calendar-factory`, `evolution-addressbook-factory`) nor the
-D-Bus service files that would activate them. Everything goes over the
-session bus to whatever EDS the host is running, which is what the
-`--talk-name=org.gnome.evolution.dataserver.*` args are for.
+The manifest used to clean `/libexec` and `/share/dbus-1` out of the EDS
+module and ask for `--talk-name` on the dataserver names, so the flatpak
+had no registry of its own and depended on the host having
+evolution-data-server installed. That is fixed, and the fix has three
+parts — all of them are needed, and it does not work with only some:
 
-That works, and mail, contacts and CalDAV calendars all came up in the
-sandbox against a Nextcloud account. But it means **the flatpak does not
-run on a host without evolution-data-server installed**, which is
-exactly the host a Flatpak user is likely to have. Nothing detects this;
-the app would simply show no accounts.
+1. Keep `/libexec` and `/share/dbus-1`, so the factories and their
+   service files are in the bundle.
+2. Build EDS with `-DDBUS_SERVICES_PREFIX=io.github.steeb_k.Post`. The
+   bus names become `io.github.steeb_k.Post.org.gnome.evolution.…`,
+   which both avoids colliding with a host EDS and stays inside the
+   names Flatpak lets the app own.
+3. Start the factories from a wrapper installed as `/app/bin/post-mail`.
+   This is the part that is easy to miss: the session bus **cannot**
+   activate service files that live inside the sandbox, so shipping them
+   is not enough — something has to launch the daemons. The wrapper
+   checks each name and starts `/app/libexec/evolution-*` if nobody owns
+   it. GNOME Evolution's Flatpak does the same thing.
 
-It also means the bundled backends above are currently unused — the
-host's copies are the ones that load. They are kept because they are a
-prerequisite for ever making the sandbox self-contained, which is the
-real fix here: stop cleaning `/libexec` and `/share/dbus-1`, and then
-work out how a sandboxed registry and the host's are meant to coexist
-given that `~/.config/evolution` is shared between them.
+Verified 2026-08-06: `/app/libexec/evolution-source-registry`,
+`-addressbook-factory` and `-calendar-factory` all run inside the
+sandbox alongside the host's own copies, with a private registry under
+`~/.var/app/io.github.steeb_k.Post/config/evolution/`, and mail,
+contacts and CalDAV calendars all work.
+
+### The flatpak still needs a GNOME Online Accounts daemon on the host
+
+The one remaining host dependency. The bundle does ship `goa-daemon`,
+but `org.gnome.OnlineAccounts` is not an app-id-prefixed name and is
+already owned by the host's daemon, so the same rename-and-launch trick
+that works for EDS does not apply. Confirmed by inspection: the name is
+owned by the host's `/usr/lib/goa-daemon`, reached through
+`--talk-name=org.gnome.OnlineAccounts`.
+
+In practice the sandbox EDS then discovers the host's GOA accounts and
+everything works, and Evolution's Flatpak has the same arrangement. But
+GOA is the only way Post gets an account, so on a host without the GOA
+daemon the flatpak would still come up empty.
 
 ## Appstream metadata is still incomplete after the rebrand
 

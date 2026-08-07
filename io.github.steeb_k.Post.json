@@ -105,6 +105,7 @@
       ],
       "config-opts": [
         "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
+        "-DDBUS_SERVICES_PREFIX=io.github.steeb_k.Post",
         "-DENABLE_EXAMPLES=OFF",
         "-DENABLE_GOA=ON",
         "-DENABLE_OAUTH2=ON",
@@ -170,18 +171,18 @@
       ]
     },
     {
-      "name" : "libportal",
-      "buildsystem" : "meson",
-      "config-opts" : [
+      "name": "libportal",
+      "buildsystem": "meson",
+      "config-opts": [
         "-Dbackend-gtk4=enabled",
         "-Dintrospection=false",
         "-Ddocs=false"
       ],
-      "sources" : [
+      "sources": [
         {
-          "type" : "git",
-          "url" : "https://github.com/flatpak/libportal.git",
-          "branch" : "main"
+          "type": "git",
+          "url": "https://github.com/flatpak/libportal.git",
+          "branch": "main"
         }
       ]
     },
@@ -256,7 +257,7 @@
       "name": "post-mail",
       "builddir": true,
       "buildsystem": "meson",
-      "config-opts" : [
+      "config-opts": [
         "-Ddevel=true"
       ],
       "sources": [
@@ -266,6 +267,43 @@
           "skip": [
             ".flatpak-builder",
             "builddir"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "post-mail-wrapper",
+      "buildsystem": "simple",
+      "build-commands": [
+        "sed -e \"s|@SOURCES_SERVICE@|$(pkg-config --variable=sourcesdbusservicename evolution-data-server-1.2)|\" -e \"s|@ADDRESSBOOK_SERVICE@|$(pkg-config --variable=addressbookdbusservicename evolution-data-server-1.2)|\" -e \"s|@CALENDAR_SERVICE@|$(pkg-config --variable=calendardbusservicename evolution-data-server-1.2)|\" post-mail-wrapper.sh.in > post-mail-wrapper.sh",
+        "chmod a+x post-mail-wrapper.sh",
+        "mv /app/bin/post-mail /app/bin/post-mail.bin",
+        "cp post-mail-wrapper.sh /app/bin/post-mail"
+      ],
+      "sources": [
+        {
+          "type": "script",
+          "dest-filename": "post-mail-wrapper.sh.in",
+          "commands": [
+            "# The session bus cannot activate service files that live inside the",
+            "# sandbox, so start the data server ourselves. The names are prefixed",
+            "# with the app id (DBUS_SERVICES_PREFIX), so this never collides with",
+            "# an evolution-data-server running on the host.",
+            "start_service () {",
+            "  name=\"$1\"",
+            "  shift",
+            "  if ! gdbus call --session --dest org.freedesktop.DBus --object-path /org/freedesktop/DBus \\",
+            "       --method org.freedesktop.DBus.NameHasOwner \"${name}\" | grep -q true; then",
+            "    \"$@\" &",
+            "    gdbus wait --session --timeout=10 \"${name}\"",
+            "  fi",
+            "}",
+            "",
+            "start_service @SOURCES_SERVICE@ /app/libexec/evolution-source-registry",
+            "start_service @ADDRESSBOOK_SERVICE@ /app/libexec/evolution-addressbook-factory -r",
+            "start_service @CALENDAR_SERVICE@ /app/libexec/evolution-calendar-factory -r",
+            "",
+            "exec /app/bin/post-mail.bin \"$@\""
           ]
         }
       ]
