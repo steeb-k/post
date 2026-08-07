@@ -586,7 +586,9 @@ stamp_message_list_item_send_rsvp (StampMessageListItem  *self,
   const gchar *collection_uid = e_source_get_parent (stamp_mail_service_get_source (service));
   GcalCalendar *calendar = stamp_gcal_get_calendar_for_collection (collection_uid);
   CamelInternetAddress *address = stamp_account_get_address (self->account);
-  g_autoptr (ICalComponent) event = NULL;
+  /* No g_autoptr: libical-glib only declares a cleanup function for
+   * ICalComponent from 4.0 on, and the flatpak still builds against 3. */
+  ICalComponent *event;
   ICalProperty *prop;
   const gchar *name;
   const gchar *email;
@@ -641,6 +643,8 @@ stamp_message_list_item_send_rsvp (StampMessageListItem  *self,
                                 self->cancellable,
                                 on_rsvp_received,
                                 NULL);
+
+  g_object_unref (event);
 }
 
 static void
