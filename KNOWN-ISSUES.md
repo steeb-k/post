@@ -48,6 +48,29 @@ sandbox alongside the host's own copies, with a private registry under
 `~/.var/app/io.github.steeb_k.Post/config/evolution/`, and mail,
 contacts and CalDAV calendars all work.
 
+### OAuth providers do not work in the flatpak
+
+Google and Microsoft 365 sign-in cannot complete inside the sandbox. GOA
+catches the browser's OAuth redirect with a handler registered for a
+custom URI scheme, shipped as
+`share/applications/org.gnome.OnlineAccounts.OAuth2.desktop`. Flatpak
+only exports files whose name begins with the app id, so that handler is
+dropped and the redirect has nowhere to go.
+
+Renaming it to `io.github.steeb_k.Post.OAuth2.desktop` does make Flatpak
+export it, and was tried — but it then becomes the system-wide default
+handler for `x-scheme-handler/goa-oauth2`, ahead of the host's own GNOME
+Online Accounts. An app should not take over a session-wide scheme, so
+that was reverted.
+
+Doing this properly means Post registering its own OAuth clients with
+Google and Microsoft and building GOA with
+`-Dgoogle_client_id=`/`-Dms_graph_client_id=` plus the matching scheme,
+rather than borrowing GNOME's. That is worth doing regardless of
+Flatpak: as it stands Post authenticates to Google as GNOME Online
+Accounts. Until then, use the providers that do not need a browser —
+IMAP/SMTP and WebDAV.
+
 ### The flatpak still needs a GNOME Online Accounts daemon on the host
 
 The one remaining host dependency. The bundle does ship `goa-daemon`,
@@ -61,6 +84,27 @@ In practice the sandbox EDS then discovers the host's GOA accounts and
 everything works, and Evolution's Flatpak has the same arrangement. But
 GOA is the only way Post gets an account, so on a host without the GOA
 daemon the flatpak would still come up empty.
+
+Granting `--own-name=org.gnome.OnlineAccounts` so the bundled daemon
+could claim the name when it is free was tried, and does work. It was
+reverted anyway, because keeping the bundled daemon reachable is not
+worth what it drags in.
+
+The thing to know here, which cost an hour to find: **Flatpak exports
+D-Bus service files out of the bundle with no app-id-prefix rule**,
+unlike `.desktop` files. So once the EDS module stopped cleaning
+`/share/dbus-1`, GOA's `org.gnome.OnlineAccounts.service` was exported
+to `~/.local/share/flatpak/exports/share/dbus-1/services/` — a directory
+that sits *ahead of* `/usr/share` in `XDG_DATA_DIRS`. The host would
+then activate Post's sandboxed goa-daemon instead of its own, session
+wide. It is nothing to do with `--own-name`; the file being present is
+enough. The gnome-online-accounts module now deletes it explicitly.
+
+The EDS service files are fine to ship: they carry the app id, courtesy
+of `DBUS_SERVICES_PREFIX`, so they only ever claim Post's own names.
+
+This is worth remembering for any future bundled daemon: check what
+lands in the exports directory, because it is host-visible.
 
 ## Appstream metadata is still incomplete after the rebrand
 

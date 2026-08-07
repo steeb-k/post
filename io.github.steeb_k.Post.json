@@ -13,6 +13,8 @@
     "--socket=pcsc",
     "--socket=wayland",
     "--talk-name=org.gnome.OnlineAccounts",
+    "--own-name=org.gnome.OnlineAccounts.*",
+    "--talk-name=org.freedesktop.secrets",
     "--talk-name=org.gnome.keyring.SystemPrompter",
     "--filesystem=/tmp",
     "--filesystem=~/.pki/nssdb:rw",
@@ -85,7 +87,8 @@
         "-Dkerberos=false"
       ],
       "cleanup": [
-        "/bin"
+        "/bin",
+        "/share/dbus-1/services/org.gnome.OnlineAccounts.service"
       ],
       "sources": [
         {
