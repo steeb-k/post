@@ -4,11 +4,11 @@ Issues found while testing this fork. Not yet fixed.
 
 ## Flatpak packaging notes
 
-Accounts come from GNOME Online Accounts and are edited in
-gnome-online-accounts-gtk, which runs on the host. `stamp_launch_goa()`
-starts it with `flatpak-spawn --host`, so the manifest needs
-`--talk-name=org.freedesktop.Flatpak` in its finish args, and the host
-has to have the package installed. Nothing checks that at build time.
+Accounts come from GNOME Online Accounts. Post hosts GOA's own provider
+dialogs in process through `libgoa-backend`, so it no longer shells out
+to gnome-online-accounts-gtk and no longer needs
+`--talk-name=org.freedesktop.Flatpak`. The account *store* is still the
+host's goa-daemon; see below.
 
 The evolution-data-server module used to clean up
 `/lib/evolution-data-server/*-backends`, which threw away
@@ -16,10 +16,11 @@ The evolution-data-server module used to clean up
 is gone now; the backends are a few hundred kilobytes and every one of
 them is reachable from an account Post supports.
 
-The manifest still builds gnome-online-accounts as a module and EDS with
-`-DENABLE_GOA=ON`. Both are needed now, so leave them alone. What is
-missing is the editor itself, since the bundled GOA has no user
-interface.
+The manifest builds gnome-online-accounts as a module and EDS with
+`-DENABLE_GOA=ON`; both are needed. `goabackend` is enabled too, since
+that is the library carrying the provider dialogs Post now presents
+itself. Neither `goa-1.0` nor `goa-backend-1.0` is in the GNOME runtime,
+so bundling the module is the only way to link against them.
 
 ### The sandbox runs its own evolution-data-server (fixed)
 
