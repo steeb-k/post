@@ -7,8 +7,8 @@ Issues found while testing this fork. Not yet fixed.
 Accounts come from GNOME Online Accounts. Post hosts GOA's own provider
 dialogs in process through `libgoa-backend`, so it no longer shells out
 to gnome-online-accounts-gtk and no longer needs
-`--talk-name=org.freedesktop.Flatpak`. The account *store* is still the
-host's goa-daemon; see below.
+`--talk-name=org.freedesktop.Flatpak`. The account *store* is the host's
+goa-daemon when there is one and the bundled daemon otherwise; see below.
 
 The evolution-data-server module used to clean up
 `/lib/evolution-data-server/*-backends`, which threw away
@@ -79,24 +79,32 @@ ran its own GOA daemon, and for Google that means verification of a
 restricted scope with an annual third-party security assessment. Not
 worth it for this.
 
-### The flatpak still needs a GNOME Online Accounts daemon on the host
+### The sandbox runs its own GNOME Online Accounts daemon (fixed)
 
-The one remaining host dependency. The bundle does ship `goa-daemon`,
-but `org.gnome.OnlineAccounts` is not an app-id-prefixed name and is
-already owned by the host's daemon, so the same rename-and-launch trick
-that works for EDS does not apply. Confirmed by inspection: the name is
-owned by the host's `/usr/lib/goa-daemon`, reached through
-`--talk-name=org.gnome.OnlineAccounts`.
+`org.gnome.OnlineAccounts` is not an app-id-prefixed name, so the
+rename-and-launch trick used for EDS does not apply to it. Instead the
+manifest grants `--own-name=org.gnome.OnlineAccounts` (and `.*`), and
+the wrapper starts `/app/libexec/goa-daemon` only when nobody already
+owns the name. A host with its own daemon keeps winning, so accounts
+stay shared there, exactly as Evolution's Flatpak behaves; a host with
+no GOA at all gets the bundled one.
 
-In practice the sandbox EDS then discovers the host's GOA accounts and
-everything works, and Evolution's Flatpak has the same arrangement. But
-GOA is the only way Post gets an account, so on a host without the GOA
-daemon the flatpak would still come up empty.
+Verified 2026-08-07 with `tools/test-without-host-goa.sh`, which
+shadows the host's service file, kills the daemon, and keeps a watchdog
+killing it if anything relaunches it — shadowing blocks activation but
+not a direct launch, and without the watchdog the host daemon creeps
+back and every result afterwards is meaningless. Under a run the script
+reported VALID, the bundled daemon served Google over OAuth2, plus
+Nextcloud and a Proton Bridge IMAP/SMTP account.
 
-Granting `--own-name=org.gnome.OnlineAccounts` so the bundled daemon
-could claim the name when it is free was tried, and does work. It was
-reverted anyway, because keeping the bundled daemon reachable is not
-worth what it drags in.
+One trap for self-signed servers: GOA prompts to accept the certificate
+**once per leg**, IMAP and SMTP separately. If only one prompt is
+answered the account is left half-provisioned — EDS then makes no
+credential calls for it at all and mail shows no folders, with no error
+anywhere. Removing and re-adding the account fixes it. GOA's cert
+acceptance (`ImapAcceptSslErrors` / `SmtpAcceptSslErrors`) is separate
+from camel's per-fingerprint exceptions in `camel_certs`; having the
+latter does not help GOA.
 
 The thing to know here, which cost an hour to find: **Flatpak exports
 D-Bus service files out of the bundle with no app-id-prefix rule**,
@@ -206,3 +214,28 @@ That points at `src/views/mail/conversation-list/stamp-conversation-list.c:658`
 which runs before the `account` null check below it and does not check
 `full_name`. Worth checking whether this is connected to the empty folder
 issue above, since both involve loading a folder right after startup.
+
+## Dependencies worth trimming
+
+Not bugs, just weight. Came out of costing what a native package would
+have to pull in, and they apply to the flatpak bundle equally.
+
+**GStreamer for notification sounds.** `src/meson.build` depends on
+`gstreamer-1.0` to play a sound on new mail. That is an enormous stack
+for one purpose; `libcanberra` or `gsound` does the same job in a
+fraction of the size, and GNOME apps generally use the latter. Check
+what else, if anything, reaches for GStreamer before swapping it.
+
+**libgweather for time zones.** Bundled solely so the calendar can
+resolve zone names, and it drags `geocode-glib` and a
+`gweather-locations` database along with it — three modules in the
+manifest for what the system tzdata already knows. The vendored gcal
+code is what uses it, so this is a `src/gcal/**` patch, and vendored
+patches are separate commits marked `/* Post: ... */`.
+
+**Verifying a floor is not the same as declaring one.** `src/meson.build`
+declared `libadwaita-1 >= 1.6` while `src/shortcuts-dialog.blp` used
+`Adw.ShortcutsDialog`, which is `ADW_AVAILABLE_IN_1_8`. It built here
+only because this machine has 1.9.2. Nothing catches this except
+building against the declared minimum, so treat every version floor in
+that file as unverified until something does.
