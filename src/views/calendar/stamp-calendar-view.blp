@@ -6,6 +6,18 @@ template $StampCalendarView: Adw.BreakpointBin {
   height-request: 200;
   notify::current-breakpoint => $on_breakpoint_changed(template) not-swapped;
 
+  ShortcutController {
+    Shortcut {
+      trigger: "<Ctrl>r";
+      action: "action(calendar.refresh)";
+    }
+
+    Shortcut {
+      trigger: "F5";
+      action: "action(calendar.refresh)";
+    }
+  }
+
   Adw.Breakpoint bp_tablet {
     condition ("max-width: 1200sp")
 

@@ -34,6 +34,8 @@
 #include <glib/gi18n.h>
 #include <libecal/libecal.h>
 
+#define STAMP_CALENDAR_REFRESH_INTERVAL_SECONDS (15 * 60)
+
 typedef struct {
   gint x;
   gint y;
@@ -79,6 +81,7 @@ struct _StampCalendarView {
   AdwToast *delete_event_toast;
 
   GtkCssProvider *colors_provider;
+  guint refresh_timeout_id;
 };
 
 enum {
@@ -803,6 +806,35 @@ stamp_calendar_view_create_event (StampCalendarView *self,
   present_new_event (self, summary, description);
 }
 
+/*
+ * Ask every calendar to talk to its server again. GNOME Calendar hangs
+ * this off an app action the user triggers by hand; nothing calls it
+ * automatically, and the GOA-backed sources carry no Refresh extension
+ * either, so without this a calendar is only ever fetched once, when its
+ * client is first added. Deletions made elsewhere would never show up.
+ */
+static void
+refresh_calendars (StampCalendarView *self)
+{
+  gcal_manager_refresh (gcal_context_get_manager (gcal_get_default_context ()));
+}
+
+static void
+on_refresh_activated (GSimpleAction *action G_GNUC_UNUSED,
+                      GVariant *param       G_GNUC_UNUSED,
+                      gpointer               user_data)
+{
+  refresh_calendars (STAMP_CALENDAR_VIEW (user_data));
+}
+
+static gboolean
+on_refresh_timeout (gpointer user_data)
+{
+  refresh_calendars (STAMP_CALENDAR_VIEW (user_data));
+
+  return G_SOURCE_CONTINUE;
+}
+
 static void
 on_show_calendars_activated (GSimpleAction *action G_GNUC_UNUSED,
                              GVariant *param       G_GNUC_UNUSED,
@@ -910,6 +942,8 @@ stamp_calendar_view_dispose (GObject *object)
 {
   StampCalendarView *self = STAMP_CALENDAR_VIEW (object);
   GcalContext *context = gcal_get_default_context ();
+
+  g_clear_handle_id (&self->refresh_timeout_id, g_source_remove);
 
   if (context && self->subscribed) {
     GcalTimeline *timeline = gcal_manager_get_timeline (gcal_context_get_manager (context));
@@ -1084,6 +1118,7 @@ stamp_calendar_view_init (StampCalendarView *self)
     { .name = "next-date", .activate = on_next_date_activated },
     { .name = "new-event", .activate = on_new_event_activated },
     { .name = "previous-date", .activate = on_previous_date_activated },
+    { .name = "refresh", .activate = on_refresh_activated },
     { .name = "show-calendars", .activate = on_show_calendars_activated },
     { .name = "today", .activate = on_today_activated },
     { .name = "undo-delete-event", .activate = on_undo_delete_event_activated },
@@ -1137,6 +1172,12 @@ stamp_calendar_view_init (StampCalendarView *self)
     g_autoptr (GDateTime) today = g_date_time_new_now_local ();
     update_active_date (self, today);
   }
+
+  /* Post stays open for hours at a time, so poll rather than leaving the
+   * user to notice that a calendar has gone stale and refresh it. */
+  self->refresh_timeout_id = g_timeout_add_seconds (STAMP_CALENDAR_REFRESH_INTERVAL_SECONDS,
+                                                    on_refresh_timeout,
+                                                    self);
 }
 
 GtkWidget *
