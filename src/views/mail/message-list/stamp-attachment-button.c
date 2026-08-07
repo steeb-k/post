@@ -775,16 +775,8 @@ stamp_attachment_button_get_mime_part (StampAttachmentButton *self)
   content_type = g_file_info_get_content_type (info);
   mime_type = g_content_type_get_mime_type (content_type);
 
-  if (g_strcmp0 (mime_type, "text/calendar") == 0) {
+  if (g_strcmp0 (mime_type, "text/calendar") == 0)
     method = calendar_method_from_file (self->file, self->cancellable);
-
-    if (method) {
-      g_autofree gchar *typed = g_strdup_printf ("text/calendar; method=%s; charset=UTF-8", method);
-
-      g_free (g_steal_pointer (&mime_type));
-      mime_type = g_steal_pointer (&typed);
-    }
-  }
 
   wrapper = camel_data_wrapper_new ();
 
@@ -799,6 +791,18 @@ stamp_attachment_button_get_mime_part (StampAttachmentButton *self)
   camel_medium_set_content (CAMEL_MEDIUM (part), wrapper);
 
   camel_mime_part_set_encoding (part, CAMEL_TRANSFER_ENCODING_BASE64);
+
+  /*
+   * Last, because set_filename() and set_content() both rewrite the
+   * part's content type and would drop the method again.
+   */
+  if (method) {
+    const gchar *name = self->filename ? self->filename : g_file_info_get_display_name (info);
+    g_autofree gchar *typed = g_strdup_printf ("text/calendar; method=%s; charset=UTF-8; name=\"%s\"",
+                                               method, name ? name : "invite.ics");
+
+    camel_mime_part_set_content_type (part, typed);
+  }
 
   return part;
 }
