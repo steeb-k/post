@@ -29,4 +29,7 @@ stamp_gcal_ensure_context (void);
 GcalCalendar *
 stamp_gcal_get_writable_calendar (void);
 
+GcalCalendar *
+stamp_gcal_get_calendar_for_collection (const gchar *collection_uid);
+
 G_END_DECLS

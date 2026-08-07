@@ -69,3 +69,33 @@ stamp_gcal_get_writable_calendar (void)
 
   return NULL;
 }
+
+/*
+ * Invitations should land in the calendar of the account that received
+ * them, so that the reply travels back over the same collection. Falls
+ * back to any writable calendar when the account has none.
+ */
+GcalCalendar *
+stamp_gcal_get_calendar_for_collection (const gchar *collection_uid)
+{
+  GcalContext *context = stamp_gcal_ensure_context ();
+  GcalManager *manager = gcal_context_get_manager (context);
+  g_autoptr (GList) calendars = NULL;
+
+  if (collection_uid) {
+    calendars = gcal_manager_get_calendars (manager);
+
+    for (GList *l = calendars; l; l = l->next) {
+      GcalCalendar *calendar = l->data;
+      ESource *parent = gcal_calendar_get_parent_source (calendar);
+
+      if (gcal_calendar_is_read_only (calendar))
+        continue;
+
+      if (parent && g_strcmp0 (e_source_get_uid (parent), collection_uid) == 0)
+        return calendar;
+    }
+  }
+
+  return stamp_gcal_get_writable_calendar ();
+}

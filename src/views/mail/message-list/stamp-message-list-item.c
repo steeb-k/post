@@ -31,6 +31,7 @@
 #include <webkit/webkit.h>
 
 #include "stamp-attachment-button.h"
+#include "stamp-gcal.h"
 #include "stamp-message-header.h"
 #include "stamp-message-list.h"
 #include "stamp-mime-parser.h"
@@ -548,43 +549,52 @@ on_show_signatures (AdwBanner *banner,
 }
 
 static void
+on_rsvp_received (GObject      *source_object,
+                  GAsyncResult *result,
+                  gpointer      user_data)
+{
+  g_autoptr (GError) local_error = NULL;
+
+  if (!e_cal_client_receive_objects_finish (E_CAL_CLIENT (source_object), result, &local_error) &&
+      !g_error_matches (local_error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+    g_warning ("%s: Could not send the reply: %s", G_STRFUNC, local_error->message);
+}
+
+/*
+ * Sets our own PARTSTAT on the invitation and hands it back to the
+ * calendar as a REPLY. The calendar comes from the shared gcal backend,
+ * so an accepted invitation shows up in the calendar view right away.
+ */
+static void
 stamp_message_list_item_send_rsvp (StampMessageListItem  *self,
                                    ICalParameterPartstat  stat)
 {
-  ICalProperty *prop;
-  ICalComponent *event;
-  GCancellable *cancellable = g_cancellable_new ();
-  g_autoptr (EClient) client = NULL;
-  g_autoptr (GError) local_error = NULL;
-  ESourceRegistry *registry = e_source_registry_new_sync (cancellable, &local_error);
   StampMailService *service = stamp_account_get_mail_service (self->account);
   const gchar *collection_uid = e_source_get_parent (stamp_mail_service_get_source (service));
-  GList *sources = e_source_registry_list_sources (registry, E_SOURCE_EXTENSION_CALENDAR);
-  ESource *source = NULL;
+  GcalCalendar *calendar = stamp_gcal_get_calendar_for_collection (collection_uid);
   CamelInternetAddress *address = stamp_account_get_address (self->account);
+  g_autoptr (ICalComponent) event = NULL;
+  ICalProperty *prop;
   const gchar *name;
   const gchar *email;
   gboolean stat_set = FALSE;
 
-  camel_internet_address_get (address, 0, &name, &email);
-
-  for (GList *l = sources; l; l = l->next) {
-    ESource *src = l->data;
-
-    if (g_strcmp0 (e_source_get_parent (src), collection_uid) == 0 /* && g_strcmp0 (e_source_get_display_name (src), "Kalender") == 0*/) {
-      source = g_object_ref (src);
-      break;
-    }
-  }
-
-  if (!source) {
-    g_warning ("%s: Could not find source, abort", G_STRFUNC);
+  if (!calendar) {
+    g_warning ("%s: No writable calendar to reply from, abort", G_STRFUNC);
     return;
   }
 
   event = i_cal_component_get_first_component (self->calendar, I_CAL_VEVENT_COMPONENT);
+  if (!event) {
+    g_warning ("%s: Invitation carries no event, abort", G_STRFUNC);
+    return;
+  }
 
-  for (prop = i_cal_component_get_first_property (event, I_CAL_ATTENDEE_PROPERTY); prop; prop = i_cal_component_get_next_property (event, I_CAL_ATTENDEE_PROPERTY)) {
+  camel_internet_address_get (address, 0, &name, &email);
+
+  for (prop = i_cal_component_get_first_property (event, I_CAL_ATTENDEE_PROPERTY);
+       prop;
+       prop = i_cal_component_get_next_property (event, I_CAL_ATTENDEE_PROPERTY)) {
     const gchar *attendee = i_cal_property_get_attendee (prop);
     const gchar *attendee_email;
 
@@ -594,34 +604,30 @@ stamp_message_list_item_send_rsvp (StampMessageListItem  *self,
       attendee_email = attendee;
 
     if (g_strcmp0 (attendee_email, email) == 0) {
-      ICalParameter *p = i_cal_parameter_new_partstat (stat);
-
-      i_cal_property_set_parameter (prop, p);
+      i_cal_property_take_parameter (prop, i_cal_parameter_new_partstat (stat));
       stat_set = TRUE;
+      g_object_unref (prop);
       break;
     }
+
+    g_object_unref (prop);
   }
 
   if (!stat_set) {
     g_autofree char *mailto = g_strdup_printf ("mailto:%s", email);
     ICalProperty *attendee = i_cal_property_new_attendee (mailto);
 
-    i_cal_property_add_parameter (attendee, i_cal_parameter_new_partstat (stat));
-    i_cal_component_add_property (event, attendee);
-  }
-
-  client = e_cal_client_connect_sync (source, E_CAL_CLIENT_SOURCE_TYPE_EVENTS, 30, cancellable, &local_error);
-  if (!client) {
-    g_warning ("%s: Could not create ECalClient: %s", G_STRFUNC, local_error->message);
-    return;
+    i_cal_property_take_parameter (attendee, i_cal_parameter_new_partstat (stat));
+    i_cal_component_take_property (event, attendee);
   }
 
   i_cal_component_set_method (self->calendar, I_CAL_METHOD_REPLY);
-  e_cal_client_receive_objects_sync (E_CAL_CLIENT (client), self->calendar, E_CAL_OPERATION_FLAG_NONE, cancellable, &local_error);
-  if (local_error) {
-    g_warning ("%s: Could not receive event: %s", G_STRFUNC, local_error->message);
-    return;
-  }
+  e_cal_client_receive_objects (gcal_calendar_get_client (calendar),
+                                self->calendar,
+                                E_CAL_OPERATION_FLAG_NONE,
+                                self->cancellable,
+                                on_rsvp_received,
+                                NULL);
 }
 
 static void
