@@ -933,12 +933,14 @@ static void
 present_event_editor (StampMessageListItem *self,
                       const gchar          *description)
 {
-  StampWindow *window = STAMP_WINDOW (gtk_widget_get_root (GTK_WIDGET (self)));
+  GtkRoot *root = gtk_widget_get_root (GTK_WIDGET (self));
 
-  if (!window)
+  if (!STAMP_IS_WINDOW (root))
     return;
 
-  stamp_window_create_event (window, camel_message_info_get_subject (self->message_info), description);
+  stamp_window_create_event (STAMP_WINDOW (root),
+                             camel_message_info_get_subject (self->message_info),
+                             description);
 }
 
 /*

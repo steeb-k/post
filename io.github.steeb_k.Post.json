@@ -272,7 +272,11 @@
       "sources": [
         {
           "type": "dir",
-          "path": "."
+          "path": ".",
+          "skip": [
+            ".flatpak-builder",
+            "builddir"
+          ]
         }
       ]
     }
