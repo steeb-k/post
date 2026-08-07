@@ -393,11 +393,137 @@ on_event_created (GObject      *source_object,
  * error, but a more sophisticated implementation will come in no time.
  *
  **/
+/*
+ * Post: modifying or removing "this and following events" truncates the
+ * master component with an UNTIL, but detached instances scheduled after
+ * the new end stay behind as orphans that some servers and clients keep
+ * showing. After such an edit succeeds, remove every detached instance
+ * whose recurrence id lies beyond the master's UNTIL. Backends that
+ * handle the edit without truncating the master are left untouched.
+ */
+
+static void
+on_orphaned_instance_removed_cb (GObject      *source_object,
+                                 GAsyncResult *result,
+                                 gpointer      user_data)
+{
+  GError *error = NULL;
+
+  if (!e_cal_client_remove_object_finish (E_CAL_CLIENT (source_object), result, &error))
+    {
+      g_warning ("Error removing orphaned detached instance: %s", error->message);
+      g_error_free (error);
+    }
+}
+
+static void
+on_orphan_sweep_objects_received_cb (GObject      *source_object,
+                                     GAsyncResult *result,
+                                     gpointer      user_data)
+{
+  ECalClient *client = E_CAL_CLIENT (source_object);
+  g_autofree gchar *uid = user_data;
+  ICalTime *until = NULL;
+  GSList *components = NULL;
+  GError *error = NULL;
+  GSList *l;
+
+  if (!e_cal_client_get_objects_for_uid_finish (client, result, &components, &error))
+    {
+      g_warning ("Error listing detached instances: %s", error->message);
+      g_error_free (error);
+      return;
+    }
+
+  /* Find the master component's UNTIL, if any */
+  for (l = components; l; l = l->next)
+    {
+      ECalComponent *component = l->data;
+      ICalComponent *icalcomp;
+      ICalProperty *rrule;
+
+      if (e_cal_component_is_instance (component))
+        continue;
+
+      icalcomp = e_cal_component_get_icalcomponent (component);
+      rrule = i_cal_component_get_first_property (icalcomp, I_CAL_RRULE_PROPERTY);
+      if (rrule)
+        {
+          ICalRecurrence *recurrence = i_cal_property_get_rrule (rrule);
+
+          if (recurrence)
+            {
+              until = i_cal_recurrence_get_until (recurrence);
+              g_object_unref (recurrence);
+            }
+
+          g_object_unref (rrule);
+        }
+      break;
+    }
+
+  if (until && !i_cal_time_is_null_time (until))
+    {
+      for (l = components; l; l = l->next)
+        {
+          ECalComponent *component = l->data;
+          ECalComponentId *id;
+          const gchar *rid;
+
+          if (!e_cal_component_is_instance (component))
+            continue;
+
+          id = e_cal_component_get_id (component);
+          rid = id ? e_cal_component_id_get_rid (id) : NULL;
+
+          if (rid)
+            {
+              ICalTime *recurrence_id = i_cal_time_new_from_string (rid);
+
+              if (recurrence_id && i_cal_time_compare (recurrence_id, until) > 0)
+                {
+                  g_debug ("Removing orphaned detached instance %s of %s", rid, uid);
+                  e_cal_client_remove_object (client,
+                                              uid,
+                                              rid,
+                                              E_CAL_OBJ_MOD_THIS,
+                                              E_CAL_OPERATION_FLAG_NONE,
+                                              NULL,
+                                              on_orphaned_instance_removed_cb,
+                                              NULL);
+                }
+
+              g_clear_object (&recurrence_id);
+            }
+
+          g_clear_pointer (&id, e_cal_component_id_free);
+        }
+    }
+
+  g_clear_object (&until);
+  g_slist_free_full (components, g_object_unref);
+}
+
+static void
+remove_orphaned_detached_instances (ECalClient  *client,
+                                    const gchar *uid)
+{
+  if (!uid)
+    return;
+
+  e_cal_client_get_objects_for_uid (client,
+                                    uid,
+                                    NULL,
+                                    on_orphan_sweep_objects_received_cb,
+                                    g_strdup (uid));
+}
+
 static void
 on_event_updated (GObject      *source_object,
                   GAsyncResult *result,
                   gpointer      user_data)
 {
+  ECalComponent *component = user_data;
   GError *error = NULL;
 
   GCAL_ENTRY;
@@ -409,7 +535,12 @@ on_event_updated (GObject      *source_object,
       g_warning ("Error updating component: %s", error->message);
       g_error_free (error);
     }
-  g_object_unref (E_CAL_COMPONENT (user_data));
+  else
+    {
+      remove_orphaned_detached_instances (E_CAL_CLIENT (source_object),
+                                          e_cal_component_get_uid (component));
+    }
+  g_object_unref (component);
 
   GCAL_EXIT;
 }
@@ -448,6 +579,9 @@ on_event_removed (GObject      *source_object,
       g_error_free (error);
       GCAL_RETURN ();
     }
+
+  remove_orphaned_detached_instances (client,
+                                      e_cal_component_get_uid (gcal_event_get_component (event)));
 
   g_object_unref (event);
 
