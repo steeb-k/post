@@ -4,6 +4,7 @@ using Adw 1;
 template $StampCalendarView: Adw.BreakpointBin {
   width-request: 360;
   height-request: 200;
+  notify::current-breakpoint => $on_breakpoint_changed(template) not-swapped;
 
   Adw.Breakpoint bp_tablet {
     condition ("max-width: 1200sp")
