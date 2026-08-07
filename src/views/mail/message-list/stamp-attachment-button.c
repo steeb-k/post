@@ -720,12 +720,47 @@ stamp_attachment_button_save_to_file (StampAttachmentButton  *self,
   return FALSE;
 }
 
+/*
+ * An iCalendar file says what it is with a METHOD line — REQUEST for an
+ * invitation, REPLY for an answer, PUBLISH for something to file away.
+ * Mail clients carry that on the MIME part as a content type parameter,
+ * and it is what makes a message read as an invitation rather than as a
+ * file someone attached. Dig it out of the file so a calendar Post sends
+ * arrives as an invitation.
+ */
+static gchar *
+calendar_method_from_file (GFile        *file,
+                           GCancellable *cancellable)
+{
+  g_autofree gchar *contents = NULL;
+  const gchar *line;
+  gsize length = 0;
+
+  if (!g_file_load_contents (file, cancellable, &contents, &length, NULL, NULL))
+    return NULL;
+
+  for (line = contents; line && *line; line = strchr (line, '\n')) {
+    while (*line == '\n' || *line == '\r')
+      line++;
+
+    if (g_ascii_strncasecmp (line, "METHOD:", 7) == 0) {
+      const gchar *value = line + 7;
+      gsize len = strcspn (value, "\r\n");
+
+      return len > 0 ? g_ascii_strup (value, len) : NULL;
+    }
+  }
+
+  return NULL;
+}
+
 CamelMimePart *
 stamp_attachment_button_get_mime_part (StampAttachmentButton *self)
 {
   g_autoptr (GFileInfo) info = NULL;
+  g_autofree gchar *mime_type = NULL;
+  g_autofree gchar *method = NULL;
   const gchar *content_type;
-  const gchar *mime_type;
   CamelMimePart *part = NULL;
   CamelDataWrapper *wrapper;
   GInputStream *input_stream;
@@ -739,6 +774,17 @@ stamp_attachment_button_get_mime_part (StampAttachmentButton *self)
 
   content_type = g_file_info_get_content_type (info);
   mime_type = g_content_type_get_mime_type (content_type);
+
+  if (g_strcmp0 (mime_type, "text/calendar") == 0) {
+    method = calendar_method_from_file (self->file, self->cancellable);
+
+    if (method) {
+      g_autofree gchar *typed = g_strdup_printf ("text/calendar; method=%s; charset=UTF-8", method);
+
+      g_free (g_steal_pointer (&mime_type));
+      mime_type = g_steal_pointer (&typed);
+    }
+  }
 
   wrapper = camel_data_wrapper_new ();
 
