@@ -8,6 +8,8 @@
 
 #include "stamp-calendar-view.h"
 
+#include "stamp-gcal.h"
+
 #include "gcal-agenda-view.h"
 #include "gcal-calendar-list.h"
 #include "gcal-calendar-management-dialog.h"
@@ -96,24 +98,21 @@ static void event_activated (GcalView        *view,
 G_DEFINE_FINAL_TYPE (StampCalendarView, stamp_calendar_view, ADW_TYPE_BREAKPOINT_BIN);
 
 /*
- * One-time gcal setup: default context, icon resources and stylesheets.
- * The vendored widgets expect all of these to be prepared by
- * GcalApplication; in Post the calendar view is the only consumer.
+ * The display-side half of the gcal setup that GcalApplication would do:
+ * icon resources and stylesheets. The context itself comes from
+ * stamp_gcal_ensure_context(), shared with the mail-side consumers.
  */
 static void
 ensure_gcal (void)
 {
   static gboolean done = FALSE;
   GtkCssProvider *theme_provider;
-  GcalContext *context;
 
   if (done)
     return;
   done = TRUE;
 
-  context = gcal_context_new ();
-  gcal_set_default_context (context);
-  gcal_context_startup (context);
+  stamp_gcal_ensure_context ();
 
   gtk_icon_theme_add_resource_path (gtk_icon_theme_get_for_display (gdk_display_get_default ()),
                                     "/org/gnome/calendar/icons");
