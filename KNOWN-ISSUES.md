@@ -10,11 +10,16 @@ starts it with `flatpak-spawn --host`, so the manifest needs
 `--talk-name=org.freedesktop.Flatpak` in its finish args, and the host
 has to have the package installed. Nothing checks that at build time.
 
-The evolution-data-server module cleans up
-`/lib/evolution-data-server/*-backends`, which throws away
-`libebookbackendcarddav.so`. A CardDAV address book added in GNOME
-Online Accounts then shows up in the account but never opens. Narrow
-that cleanup so the address book backends survive.
+The evolution-data-server module used to clean up
+`/lib/evolution-data-server/*-backends`, which threw away
+`libebookbackendcarddav.so` and `libecalbackendcaldav.so`. A CardDAV
+address book added in GNOME Online Accounts showed up in the account but
+never opened. The cleanup is gone now; the backends are a few hundred
+kilobytes and every one of them is reachable from an account Post
+supports.
+
+Whether those backends are the ones actually loaded is still open — see
+the note on the bundled versus host registry below.
 
 The manifest still builds gnome-online-accounts as a module and EDS with
 `-DENABLE_GOA=ON`. Both are needed now, so leave them alone. What is
