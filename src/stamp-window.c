@@ -33,6 +33,7 @@
 #include "stamp-mail-view.h"
 #include "stamp-session.h"
 #include "stamp-settings.h"
+#include "stamp-today-counter.h"
 
 struct _StampWindow {
   AdwApplicationWindow parent_instance;
@@ -42,6 +43,8 @@ struct _StampWindow {
   StampMailView *mail_view;
   StampContactView *contact_view;
   StampCalendarView *calendar_view;
+  AdwViewStackPage *calendar_stack_page;
+  StampTodayCounter *today_counter;
   AdwStatusPage *welcome_page;
   GtkWidget *welcome_button;
 
@@ -150,6 +153,7 @@ stamp_window_dispose (GObject *object)
     g_signal_handlers_disconnect_by_data (self->mail_view, self);
 
   g_clear_object (&self->sidebar_size_group);
+  g_clear_object (&self->today_counter);
 
   gtk_widget_dispose_template (GTK_WIDGET (self), STAMP_TYPE_WINDOW);
 
@@ -171,6 +175,7 @@ stamp_window_class_init (StampWindowClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampWindow, mail_view);
   gtk_widget_class_bind_template_child (widget_class, StampWindow, contact_view);
   gtk_widget_class_bind_template_child (widget_class, StampWindow, calendar_view);
+  gtk_widget_class_bind_template_child (widget_class, StampWindow, calendar_stack_page);
   gtk_widget_class_bind_template_child (widget_class, StampWindow, welcome_page);
   gtk_widget_class_bind_template_child (widget_class, StampWindow, welcome_button);
 
@@ -215,6 +220,12 @@ stamp_window_init (StampWindow *self)
   gtk_size_group_add_widget (self->sidebar_size_group, stamp_mail_view_get_sidebar (self->mail_view));
   gtk_size_group_add_widget (self->sidebar_size_group, stamp_contact_view_get_sidebar (self->contact_view));
   gtk_size_group_add_widget (self->sidebar_size_group, stamp_calendar_view_get_sidebar (self->calendar_view));
+
+  /* Badge the Calendar button with how much is happening today. */
+  self->today_counter = stamp_today_counter_new ();
+  g_object_bind_property (self->today_counter, "count",
+                          self->calendar_stack_page, "badge-number",
+                          G_BINDING_SYNC_CREATE);
 
   g_action_map_add_action_entries (G_ACTION_MAP (self),
                                    stamp_window_action_entries,

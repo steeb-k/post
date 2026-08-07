@@ -34,6 +34,7 @@ stamp_sources = [
   'views/stamp-tag.c',
   'views/calendar/stamp-calendar-import.c',
   'views/calendar/stamp-calendar-view.c',
+  'views/calendar/stamp-today-counter.c',
   'views/contact/stamp-contact-details.c',
   'views/contact/stamp-contact-view.c',
   'views/contact/contact-list/stamp-contact-item.c',
