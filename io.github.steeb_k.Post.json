@@ -14,15 +14,8 @@
     "--socket=wayland",
     "--talk-name=org.gnome.OnlineAccounts",
     "--talk-name=org.gnome.keyring.SystemPrompter",
-    "--talk-name=org.gnome.evolution.dataserver.AddressBook10",
-    "--talk-name=org.gnome.evolution.dataserver.Calendar8",
-    "--talk-name=org.gnome.evolution.dataserver.Sources5",
-    "--talk-name=org.gnome.evolution.dataserver.Subprocess.Backend",
-    "--talk-name=org.freedesktop.Flatpak",
     "--filesystem=/tmp",
     "--filesystem=~/.pki/nssdb:rw",
-    "--filesystem=~/.cache/evolution:rw",
-    "--filesystem=~/.config/evolution:rw",
     "--filesystem=xdg-config/pki:rw",
     "--filesystem=~/.gnupg:rw",
     "--filesystem=xdg-config/gnupg:rw",
@@ -88,7 +81,6 @@
       "buildsystem": "meson",
       "config-opts": [
         "-Dvapi=false",
-        "-Dgoabackend=false",
         "-Dintrospection=false",
         "-Dkerberos=false"
       ],
@@ -108,8 +100,6 @@
       "buildsystem": "cmake-ninja",
       "cleanup": [
         "/etc",
-        "/libexec",
-        "/share/dbus-1",
         "/share/GConf",
         "/share/pixmaps"
       ],
