@@ -12,24 +12,38 @@ has to have the package installed. Nothing checks that at build time.
 
 The evolution-data-server module used to clean up
 `/lib/evolution-data-server/*-backends`, which threw away
-`libebookbackendcarddav.so` and `libecalbackendcaldav.so`. A CardDAV
-address book added in GNOME Online Accounts showed up in the account but
-never opened. The cleanup is gone now; the backends are a few hundred
-kilobytes and every one of them is reachable from an account Post
-supports.
-
-Whether those backends are the ones actually loaded is still open — see
-the note on the bundled versus host registry below.
+`libebookbackendcarddav.so` and `libecalbackendcaldav.so`. The cleanup
+is gone now; the backends are a few hundred kilobytes and every one of
+them is reachable from an account Post supports.
 
 The manifest still builds gnome-online-accounts as a module and EDS with
 `-DENABLE_GOA=ON`. Both are needed now, so leave them alone. What is
 missing is the editor itself, since the bundled GOA has no user
 interface.
 
-Untested: whether the bundled registry or the one on the host wins. The
-manifest already shares `~/.config/evolution` and allows
-`org.gnome.evolution.dataserver.Sources5`, so accounts created on the
-host should be visible, but if the two disagree then nothing shows up.
+### The sandbox has no evolution-data-server of its own
+
+Settled by building the flatpak and running it (2026-08-06): the host's
+registry wins, because the sandbox has no alternative. The manifest
+cleans `/libexec` and `/share/dbus-1` out of the EDS module, so the
+bundle ships neither the factories (`evolution-source-registry`,
+`evolution-calendar-factory`, `evolution-addressbook-factory`) nor the
+D-Bus service files that would activate them. Everything goes over the
+session bus to whatever EDS the host is running, which is what the
+`--talk-name=org.gnome.evolution.dataserver.*` args are for.
+
+That works, and mail, contacts and CalDAV calendars all came up in the
+sandbox against a Nextcloud account. But it means **the flatpak does not
+run on a host without evolution-data-server installed**, which is
+exactly the host a Flatpak user is likely to have. Nothing detects this;
+the app would simply show no accounts.
+
+It also means the bundled backends above are currently unused — the
+host's copies are the ones that load. They are kept because they are a
+prerequisite for ever making the sandbox self-contained, which is the
+real fix here: stop cleaning `/libexec` and `/share/dbus-1`, and then
+work out how a sandboxed registry and the host's are meant to coexist
+given that `~/.config/evolution` is shared between them.
 
 ## Appstream metadata is still incomplete after the rebrand
 
