@@ -7,3 +7,14 @@
   margin-top: 24px;
   margin-bottom: 32px;
 }
+
+/* The today count on the Calendar button. Adwaita's default badge is a
+ * muted grey that reads as decoration; red reads as "you have things
+ * happening today". */
+viewswitcher indicatorbin.badge > indicator {
+  background: var(--destructive-bg-color);
+}
+
+viewswitcher indicatorbin.badge > indicator > label {
+  color: var(--destructive-fg-color);
+}
