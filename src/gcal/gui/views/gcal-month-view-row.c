@@ -427,6 +427,10 @@ focus_vertical_cell (GcalMonthViewRow *self,
 
   cell = gcal_month_view_row_get_cell_at_x (self, point.x);
 
+  /* Post: focus_horizontal_cell already guards this; this one did not. */
+  if (!cell)
+    return FALSE;
+
   return gtk_widget_grab_focus (cell);
 }
 
@@ -1414,7 +1418,14 @@ gcal_month_view_row_get_cell_at_x (GcalMonthViewRow *self,
   g_assert (GCAL_IS_MONTH_VIEW_ROW (self));
 
   width = gtk_widget_get_width (GTK_WIDGET (self));
-  if (x < 0.0 || x > width)
+
+  /*
+   * Post: x == width used to fall through, making column N_WEEKDAYS and
+   * reading one past day_cells (day_cells[-1] under RTL). A row with no
+   * width yet — which happens while the view is relaying out, say after
+   * events were deleted — divided by zero and indexed with the result.
+   */
+  if (width <= 0 || x < 0.0 || x >= width)
     return NULL;
 
   column = floor ((float) N_WEEKDAYS * x / (gdouble) width);
