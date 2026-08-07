@@ -21,11 +21,11 @@
 
 #include "stamp-window.h"
 
-#include <gio/gdesktopappinfo.h>
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
 #include <libportal-gtk4/portal-gtk4.h>
 
+#include "stamp-accounts.h"
 #include "stamp-account.h"
 #include "stamp-calendar-view.h"
 #include "stamp-contact-view.h"
@@ -45,8 +45,6 @@ struct _StampWindow {
   StampCalendarView *calendar_view;
   AdwViewStackPage *calendar_stack_page;
   StampTodayCounter *today_counter;
-  AdwStatusPage *welcome_page;
-  GtkWidget *welcome_button;
 
   GtkSizeGroup *sidebar_size_group;
 
@@ -63,21 +61,7 @@ on_open_settings_clicked (GtkWidget     *listbox,
                           GtkListBoxRow *row,
                           StampWindow   *self)
 {
-  stamp_launch_goa ();
-}
-
-/* Accounts are set up in GNOME Online Accounts. Say so plainly when its
- * editor is not installed, instead of offering a button that cannot do
- * anything. */
-static void
-stamp_window_update_welcome_page (StampWindow *self)
-{
-  if (stamp_goa_is_available ())
-    return;
-
-  adw_status_page_set_description (self->welcome_page,
-                                   _("Install the gnome-online-accounts-gtk package to add an account."));
-  gtk_widget_set_sensitive (self->welcome_button, FALSE);
+  stamp_accounts_present (GTK_WIDGET (self));
 }
 
 static void
@@ -176,8 +160,6 @@ stamp_window_class_init (StampWindowClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampWindow, contact_view);
   gtk_widget_class_bind_template_child (widget_class, StampWindow, calendar_view);
   gtk_widget_class_bind_template_child (widget_class, StampWindow, calendar_stack_page);
-  gtk_widget_class_bind_template_child (widget_class, StampWindow, welcome_page);
-  gtk_widget_class_bind_template_child (widget_class, StampWindow, welcome_button);
 
   gtk_widget_class_bind_template_callback (widget_class, on_open_settings_clicked);
 }
@@ -235,8 +217,6 @@ stamp_window_init (StampWindow *self)
   g_signal_connect_object (session, "account-added", G_CALLBACK (on_account_changed), self, G_CONNECT_DEFAULT);
   g_signal_connect_object (session, "account-removed", G_CALLBACK (on_account_changed), self, G_CONNECT_DEFAULT);
   g_signal_connect_object (session, "accounts-loaded", G_CALLBACK (stamp_window_update_view), self, G_CONNECT_SWAPPED);
-
-  stamp_window_update_welcome_page (self);
 
   /* The session may have finished loading before this window existed. */
   if (stamp_session_get_accounts_loaded (session))

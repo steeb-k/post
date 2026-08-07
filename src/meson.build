@@ -12,6 +12,7 @@ enums = gnome.mkenums_simple('stamp-type-builtins',
 
 stamp_sources = [
   'main.c',
+  'stamp-accounts.c',
   'stamp-application.c',
   'stamp-preferences.c',
   'stamp-preferences-account.c',
@@ -66,6 +67,7 @@ stamp_sources = [
 blueprints = custom_target('blueprints',
   input: files(
     'shortcuts-dialog.blp',
+    'stamp-accounts.blp',
     'stamp-preferences.blp',
     'stamp-preferences-account.blp',
     'stamp-preferences-account-editor.blp',
@@ -98,6 +100,8 @@ blueprints = custom_target('blueprints',
 
 stamp_deps = [
   dependency('gtk4'),
+  dependency('goa-1.0'),
+  dependency('goa-backend-1.0'),
   dependency('gio-unix-2.0'),
   dependency('libadwaita-1', version: '>= 1.6'),
   dependency('camel-1.2', version: '>= 3.28'),

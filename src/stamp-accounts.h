@@ -19,26 +19,18 @@
 
 #pragma once
 
-#include <glib.h>
+#include <adwaita.h>
 
 G_BEGIN_DECLS
 
-const gchar *
-stamp_get_cache_dir (void);
+#define STAMP_TYPE_ACCOUNTS (stamp_accounts_get_type ())
 
-const gchar *
-stamp_get_data_dir (void);
+G_DECLARE_FINAL_TYPE (StampAccounts, stamp_accounts, STAMP, ACCOUNTS, AdwDialog)
 
-gchar *
-stamp_strip_department (const gchar *str);
+AdwDialog *
+stamp_accounts_new (void);
 
-gchar **
-g_strv_remove (const gchar * const *strv,
-               const gchar         *str);
-
-gchar **
-g_strv_append (const gchar * const *strv,
-               const gchar         *str);
+void
+stamp_accounts_present (GtkWidget *parent);
 
 G_END_DECLS
-

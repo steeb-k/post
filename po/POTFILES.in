@@ -70,6 +70,8 @@ src/gcal/utils/gcal-utils.c
 src/main.c
 src/shortcuts-dialog.blp
 src/stamp-application.c
+src/stamp-accounts.blp
+src/stamp-accounts.c
 src/stamp-preferences-account.blp
 src/stamp-preferences-account.c
 src/stamp-preferences-account-editor.blp

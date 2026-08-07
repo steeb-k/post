@@ -19,6 +19,8 @@
 
 #include "stamp-preferences.h"
 
+#include "stamp-accounts.h"
+
 #include <glib/gi18n.h>
 #include <libportal-gtk4/portal-gtk4.h>
 
@@ -78,7 +80,9 @@ static void
 on_add_account_clicked (GtkWidget *button,
                         gpointer   user_data)
 {
-  stamp_launch_goa ();
+  StampPreferences *self = STAMP_PREFERENCES (user_data);
+
+  stamp_accounts_present (GTK_WIDGET (self));
 }
 
 static void

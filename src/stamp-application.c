@@ -21,6 +21,8 @@
 
 #include "stamp-application.h"
 
+#include "stamp-accounts.h"
+
 #include <glib/gi18n.h>
 #include <pk11pub.h>
 
@@ -423,7 +425,10 @@ stamp_application_accounts_action (GSimpleAction *action,
                                    GVariant      *parameter,
                                    gpointer       user_data)
 {
-  stamp_launch_goa ();
+  StampApplication *self = STAMP_APPLICATION (user_data);
+  GtkWindow *window = gtk_application_get_active_window (GTK_APPLICATION (self));
+
+  stamp_accounts_present (GTK_WIDGET (window));
 }
 
 static void

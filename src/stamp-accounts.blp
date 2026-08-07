@@ -1,0 +1,31 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampAccounts: Adw.Dialog {
+  content-width: 480;
+  content-height: 560;
+  title: _("Accounts");
+
+  child: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {}
+
+    content: Adw.PreferencesPage {
+      Adw.PreferencesGroup accounts_group {
+        title: _("Your Accounts");
+        visible: false;
+      }
+
+      Adw.PreferencesGroup providers_group {
+        title: _("Add an Account");
+
+        Adw.StatusPage providers_spinner {
+          Adw.Spinner {
+            width-request: 32;
+            height-request: 32;
+          }
+        }
+      }
+    };
+  };
+}
