@@ -48,28 +48,35 @@ sandbox alongside the host's own copies, with a private registry under
 `~/.var/app/io.github.steeb_k.Post/config/evolution/`, and mail,
 contacts and CalDAV calendars all work.
 
-### OAuth providers do not work in the flatpak
+### OAuth account setup inside the flatpak is unverified
 
-Google and Microsoft 365 sign-in cannot complete inside the sandbox. GOA
-catches the browser's OAuth redirect with a handler registered for a
-custom URI scheme, shipped as
-`share/applications/org.gnome.OnlineAccounts.OAuth2.desktop`. Flatpak
-only exports files whose name begins with the app id, so that handler is
-dropped and the redirect has nowhere to go.
+Adding a Google or Microsoft 365 account from Post's own accounts dialog
+while sandboxed has not been shown to work end to end. Password-based
+providers (IMAP/SMTP, WebDAV) are unaffected, and accounts added on the
+host through GNOME Settings show up in the flatpak normally, because the
+sandbox uses the host's GOA daemon.
 
-Renaming it to `io.github.steeb_k.Post.OAuth2.desktop` does make Flatpak
-export it, and was tried — but it then becomes the system-wide default
-handler for `x-scheme-handler/goa-oauth2`, ahead of the host's own GNOME
-Online Accounts. An app should not take over a session-wide scheme, so
-that was reverted.
+The mechanism should work as things stand. Post owns
+`org.gnome.OnlineAccounts.OAuth2` while an exchange is in flight
+(`--own-name=org.gnome.OnlineAccounts.*`), the browser redirect is caught
+by the *host's* handler, and that handler's only job is to put the
+authorization code on the session bus under that name. The handler does
+not need to live inside the sandbox. What has not happened is somebody
+completing a real sign-in to confirm it.
 
-Doing this properly means Post registering its own OAuth clients with
-Google and Microsoft and building GOA with
-`-Dgoogle_client_id=`/`-Dms_graph_client_id=` plus the matching scheme,
-rather than borrowing GNOME's. That is worth doing regardless of
-Flatpak: as it stands Post authenticates to Google as GNOME Online
-Accounts. Until then, use the providers that do not need a browser —
-IMAP/SMTP and WebDAV.
+Renaming the bundled handler to `io.github.steeb_k.Post.OAuth2.desktop`
+so Flatpak would export it was tried and reverted: it made Post the
+system-wide default for `x-scheme-handler/goa-oauth2`, ahead of the
+host's own GNOME Online Accounts. An app should not take over a
+session-wide scheme.
+
+Note that using GOA's client id is not a misuse to be corrected. GOA is
+a shared system account broker, and gnome-control-center, GNOME Calendar,
+Contacts and Evolution all obtain accounts through it the same way.
+Registering separate client ids would only be needed for a flatpak that
+ran its own GOA daemon, and for Google that means verification of a
+restricted scope with an annual third-party security assessment. Not
+worth it for this.
 
 ### The flatpak still needs a GNOME Online Accounts daemon on the host
 
