@@ -128,8 +128,8 @@
       "sources": [
         {
           "type": "archive",
-          "url": "https://download.gnome.org/sources/evolution-data-server/3.59/evolution-data-server-3.59.2.tar.xz",
-          "sha256": "15bd798c85dee923462bebe880761b4668b6c5065584e840900988389add83bf"
+          "url": "https://download.gnome.org/sources/evolution-data-server/3.60/evolution-data-server-3.60.2.tar.xz",
+          "sha256": "2084dbdac396371b365d504c1ff45866ba8dca2f1252e5da1d3d9c33abdc1286"
         }
       ],
       "modules": [
@@ -194,17 +194,13 @@
       "buildsystem": "cmake-ninja",
       "config-opts": [
         "-DWITH_MSPACK=OFF",
-        "-DENABLE_WITH_EVOLUTION=OFF"
+        "-DWITH_EVOLUTION=OFF"
       ],
       "sources": [
         {
           "type": "archive",
-          "url": "https://download.gnome.org/sources/evolution-ews/3.59/evolution-ews-3.59.2.tar.xz",
-          "sha256": "e7f5857a1b12a793aa5028c829cd93d66a7ba7fd212564b8507071cdbec515d2"
-        },
-        {
-          "type": "patch",
-          "path": "./evolution-compilation-switch.patch"
+          "url": "https://download.gnome.org/sources/evolution-ews/3.60/evolution-ews-3.60.2.tar.xz",
+          "sha256": "940205818f6988411457ddf5804d210f3515c26e33415debd8fbb2731b1daf2b"
         }
       ],
       "post-install": [
