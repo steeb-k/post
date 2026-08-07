@@ -46,4 +46,9 @@ stamp_get_main_window (void);
 void
 stamp_window_show_mail_view (StampWindow *self);
 
+void
+stamp_window_create_event (StampWindow *self,
+                           const gchar *summary,
+                           const gchar *description);
+
 G_END_DECLS

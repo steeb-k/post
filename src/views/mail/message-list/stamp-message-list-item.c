@@ -39,6 +39,7 @@
 #include "stamp-session.h"
 #include "stamp-settings.h"
 #include "stamp-webview.h"
+#include "stamp-window.h"
 
 #define USER_AGENT ("Post " PACKAGE_VERSION)
 
@@ -667,6 +668,8 @@ on_calendar_banner_button_clicked (AdwBanner *banner,
                                    gpointer   user_data)
 {
   StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
+  const gchar *sender = camel_message_info_get_from (self->message_info);
+  g_autofree char *body = NULL;
   AdwDialog *dialog;
 
   if (self->calendar_method && g_strcmp0 (self->calendar_method, "REQUEST") != 0) {
@@ -682,9 +685,7 @@ on_calendar_banner_button_clicked (AdwBanner *banner,
     stamp_calendar_import_ics_data (data, "invite.ics", GTK_WIDGET (self));
     return;
   }
-  const gchar *sender = camel_message_info_get_from (self->message_info);
-  g_autofree char *body = g_strdup_printf (_("%s wants to know whether you can join this meeting"), sender);
-
+  body = g_strdup_printf (_("%s wants to know whether you can join this meeting"), sender);
   dialog = adw_alert_dialog_new (_("RVSP"), body);
 
   adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "cancel", _("Cancel"));
@@ -929,6 +930,68 @@ on_view_source_activate (GSimpleAction *action,
 }
 
 static void
+present_event_editor (StampMessageListItem *self,
+                      const gchar          *description)
+{
+  StampWindow *window = STAMP_WINDOW (gtk_widget_get_root (GTK_WIDGET (self)));
+
+  if (!window)
+    return;
+
+  stamp_window_create_event (window, camel_message_info_get_subject (self->message_info), description);
+}
+
+/*
+ * The rendered message is the only place the body exists as readable
+ * text, HTML mail included, so ask the web view for it rather than
+ * trying to undo the markup ourselves.
+ */
+static void
+on_event_description_ready (GObject      *source,
+                            GAsyncResult *res,
+                            gpointer      user_data)
+{
+  g_autoptr (StampMessageListItem) self = STAMP_MESSAGE_LIST_ITEM (user_data);
+  g_autoptr (JSCValue) value = NULL;
+  g_autofree char *description = NULL;
+  g_autoptr (GError) error = NULL;
+
+  value = webkit_web_view_evaluate_javascript_finish (WEBKIT_WEB_VIEW (source), res, &error);
+  if (error) {
+    if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+      return;
+
+    g_warning ("%s: Could not read the message text: %s", G_STRFUNC, error->message);
+  } else if (jsc_value_is_string (value)) {
+    description = jsc_value_to_string (value);
+  }
+
+  present_event_editor (self, description);
+}
+
+static void
+on_new_event_activate (GSimpleAction *action,
+                       GVariant      *parameter,
+                       gpointer       user_data)
+{
+  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
+
+  if (!self->message_loaded) {
+    present_event_editor (self, NULL);
+    return;
+  }
+
+  webkit_web_view_evaluate_javascript (WEBKIT_WEB_VIEW (self->web_view),
+                                       "window.getSelection().toString() || document.body.innerText",
+                                       -1,
+                                       NULL,
+                                       NULL,
+                                       self->cancellable,
+                                       on_event_description_ready,
+                                       g_object_ref (self));
+}
+
+static void
 on_message_body (GObject      *source,
                  GAsyncResult *res,
                  gpointer      user_data)
@@ -1069,6 +1132,7 @@ static const GActionEntry actions[] = {
   { "unsubscribe", on_unsubscribe_activate},
   { "print", on_print},
   { "view-source", on_view_source_activate},
+  { "new-event", on_new_event_activate},
 };
 
 static GInputStream *

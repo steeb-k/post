@@ -733,12 +733,16 @@ on_today_activated (GSimpleAction *action G_GNUC_UNUSED,
   update_active_date (STAMP_CALENDAR_VIEW (user_data), today);
 }
 
+/*
+ * Opens the editor on a fresh all-day event covering the active date.
+ * Both the toolbar's + button and the mail view's "new event from this
+ * message" end up here; only the prefilled text differs.
+ */
 static void
-on_new_event_activated (GSimpleAction *action G_GNUC_UNUSED,
-                        GVariant *param       G_GNUC_UNUSED,
-                        gpointer               user_data)
+present_new_event (StampCalendarView *self,
+                   const gchar       *summary,
+                   const gchar       *description)
 {
-  StampCalendarView *self = STAMP_CALENDAR_VIEW (user_data);
   GcalContext *context = gcal_get_default_context ();
   g_autoptr (ECalComponent) comp = NULL;
   g_autoptr (GDateTime) start = NULL;
@@ -754,11 +758,49 @@ on_new_event_activated (GSimpleAction *action G_GNUC_UNUSED,
   end = g_date_time_add_days (start, 1);
 
   manager = gcal_context_get_manager (context);
-  comp = build_component_from_details ("", start, end);
+  comp = build_component_from_details (summary ? summary : "", start, end);
+
+  if (description && *description) {
+    ECalComponentText *text = e_cal_component_text_new (description, NULL);
+    GSList *descriptions = g_slist_prepend (NULL, text);
+
+    e_cal_component_set_descriptions (comp, descriptions);
+    g_slist_free_full (descriptions, (GDestroyNotify)e_cal_component_text_free);
+  }
+
   default_calendar = gcal_manager_get_default_calendar (manager);
   event = gcal_event_new (default_calendar, comp, NULL);
 
   gcal_event_editor_dialog_present_event (self->event_editor, GTK_WIDGET (self), event, TRUE);
+}
+
+static void
+on_new_event_activated (GSimpleAction *action G_GNUC_UNUSED,
+                        GVariant *param       G_GNUC_UNUSED,
+                        gpointer               user_data)
+{
+  StampCalendarView *self = STAMP_CALENDAR_VIEW (user_data);
+
+  present_new_event (self, NULL, NULL);
+}
+
+/**
+ * stamp_calendar_view_create_event:
+ * @self: a #StampCalendarView
+ * @summary: (nullable): the event title
+ * @description: (nullable): the event description
+ *
+ * Opens the event editor on a new all-day event for the active date,
+ * prefilled with @summary and @description.
+ */
+void
+stamp_calendar_view_create_event (StampCalendarView *self,
+                                  const gchar       *summary,
+                                  const gchar       *description)
+{
+  g_return_if_fail (STAMP_IS_CALENDAR_VIEW (self));
+
+  present_new_event (self, summary, description);
 }
 
 static void

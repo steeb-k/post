@@ -288,3 +288,23 @@ stamp_window_show_mail_view (StampWindow *self)
 {
   adw_view_stack_set_visible_child_name (self->main_view_stack, "mail");
 }
+
+/**
+ * stamp_window_create_event:
+ * @self: a #StampWindow
+ * @summary: (nullable): the event title
+ * @description: (nullable): the event description
+ *
+ * Brings the calendar view up and opens its event editor on a new
+ * event prefilled with @summary and @description.
+ */
+void
+stamp_window_create_event (StampWindow *self,
+                           const gchar *summary,
+                           const gchar *description)
+{
+  g_return_if_fail (STAMP_IS_WINDOW (self));
+
+  adw_view_stack_set_visible_child_name (self->main_view_stack, "calendar");
+  stamp_calendar_view_create_event (self->calendar_view, summary, description);
+}
