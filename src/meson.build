@@ -103,7 +103,7 @@ stamp_deps = [
   dependency('goa-1.0'),
   dependency('goa-backend-1.0'),
   dependency('gio-unix-2.0'),
-  dependency('libadwaita-1', version: '>= 1.6'),
+  dependency('libadwaita-1', version: '>= 1.8'),
   dependency('camel-1.2', version: '>= 3.28'),
   dependency('gsettings-desktop-schemas'),
   dependency('gstreamer-1.0'),
