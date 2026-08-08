@@ -806,6 +806,35 @@ stamp_calendar_view_create_event (StampCalendarView *self,
   present_new_event (self, summary, description);
 }
 
+/**
+ * stamp_calendar_view_show_event:
+ * @self: a #StampCalendarView
+ * @event: the #GcalEvent to show
+ *
+ * Moves the calendar to the day @event starts on and opens the event
+ * editor on it, so an event picked elsewhere in the app lands somewhere
+ * the user can see it in context.
+ */
+void
+stamp_calendar_view_show_event (StampCalendarView *self,
+                                GcalEvent         *event)
+{
+  GDateTime *start;
+
+  g_return_if_fail (STAMP_IS_CALENDAR_VIEW (self));
+  g_return_if_fail (GCAL_IS_EVENT (event));
+
+  start = gcal_event_get_date_start (event);
+  if (start) {
+    /* All-day events carry a UTC date; the view thinks in local days. */
+    g_autoptr (GDateTime) local = g_date_time_to_local (start);
+
+    update_active_date (self, local);
+  }
+
+  gcal_event_editor_dialog_present_event (self->event_editor, GTK_WIDGET (self), event, FALSE);
+}
+
 /*
  * Ask every calendar to talk to its server again. GNOME Calendar hangs
  * this off an app action the user triggers by hand; nothing calls it

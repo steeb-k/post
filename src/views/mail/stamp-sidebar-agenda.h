@@ -21,39 +21,10 @@
 
 #include <adwaita.h>
 
-#include "gcal-event.h"
-#include "stamp-mail-view.h"
-
 G_BEGIN_DECLS
 
-#define STAMP_TYPE_WINDOW (stamp_window_get_type())
+#define STAMP_TYPE_SIDEBAR_AGENDA (stamp_sidebar_agenda_get_type ())
 
-G_DECLARE_FINAL_TYPE (StampWindow, stamp_window, STAMP, WINDOW, AdwApplicationWindow);
-
-void
-stamp_window_search_contact (StampWindow *self,
-                             const gchar  *mail);
-
-void
-stamp_window_show_contact (StampWindow *self,
-                           const gchar  *mail);
-
-StampMailView *
-stamp_window_get_mail_view (StampWindow *self);
-
-StampWindow *
-stamp_get_main_window (void);
-
-void
-stamp_window_show_mail_view (StampWindow *self);
-
-void
-stamp_window_create_event (StampWindow *self,
-                           const gchar *summary,
-                           const gchar *description);
-
-void
-stamp_window_show_event (StampWindow *self,
-                         GcalEvent   *event);
+G_DECLARE_FINAL_TYPE (StampSidebarAgenda, stamp_sidebar_agenda, STAMP, SIDEBAR_AGENDA, GtkBox)
 
 G_END_DECLS

@@ -1,6 +1,7 @@
 #include <adwaita.h>
 #include <gtk/gtk.h>
 
+#include "gcal-event.h"
 #include "stamp-window.h"
 
 #pragma once
@@ -21,6 +22,10 @@ void
 stamp_calendar_view_create_event (StampCalendarView *self,
                                   const gchar       *summary,
                                   const gchar       *description);
+
+void
+stamp_calendar_view_show_event (StampCalendarView *self,
+                                GcalEvent         *event);
 
 G_END_DECLS
 

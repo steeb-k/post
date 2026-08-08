@@ -299,3 +299,21 @@ stamp_window_create_event (StampWindow *self,
   adw_view_stack_set_visible_child_name (self->main_view_stack, "calendar");
   stamp_calendar_view_create_event (self->calendar_view, summary, description);
 }
+
+/**
+ * stamp_window_show_event:
+ * @self: a #StampWindow
+ * @event: the #GcalEvent to show
+ *
+ * Brings the calendar view up on @event's day and opens its editor.
+ */
+void
+stamp_window_show_event (StampWindow *self,
+                         GcalEvent   *event)
+{
+  g_return_if_fail (STAMP_IS_WINDOW (self));
+  g_return_if_fail (GCAL_IS_EVENT (event));
+
+  adw_view_stack_set_visible_child_name (self->main_view_stack, "calendar");
+  stamp_calendar_view_show_event (self->calendar_view, event);
+}

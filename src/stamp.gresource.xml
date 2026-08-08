@@ -21,6 +21,7 @@
     <file preprocess="xml-stripblanks">views/contact/contact-list/stamp-contact-list.ui</file>
     <file preprocess="xml-stripblanks">views/contact/contact-list/stamp-contact-row.ui</file>
     <file preprocess="xml-stripblanks">views/mail/stamp-mail-view.ui</file>
+    <file preprocess="xml-stripblanks">views/mail/stamp-sidebar-agenda.ui</file>
     <file preprocess="xml-stripblanks">views/mail/composer/stamp-composer.ui</file>
     <file preprocess="xml-stripblanks">views/mail/composer/stamp-contact-completion.ui</file>
     <file preprocess="xml-stripblanks">views/mail/conversation-list/stamp-conversation-row.ui</file>
@@ -64,6 +65,7 @@
     <file>styles/stamp-week-header.css</file>
     <file>styles/stamp-week-view.css</file>
     <file>styles/stamp-calendar-view.css</file>
+    <file>styles/stamp-sidebar-agenda.css</file>
     <file>styles/stamp-message-list.css</file>
     <file>styles/stamp-message-header.css</file>
     <file>styles/stamp-profile.css</file>

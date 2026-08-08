@@ -1,0 +1,41 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampSidebarAgenda: Box {
+  orientation: vertical;
+
+  ToggleButton toggle_button {
+    active: bind template.expanded bidirectional;
+    tooltip-text: _("Show a calendar to pick another day");
+
+    child: Adw.ButtonContent {
+      icon-name: bind $get_toggle_icon(template.expanded) as <string>;
+      label: _("Agenda");
+      can-shrink: true;
+    };
+
+    styles [
+      "flat",
+    ]
+  }
+
+  Revealer revealer {
+    transition-type: slide_up;
+    reveal-child: bind template.expanded;
+
+    child: $GcalDateChooser date_chooser {
+      split-month-year: false;
+      vexpand: false;
+      day-selected => $on_day_selected();
+    };
+  }
+
+  ScrolledWindow scrolled_window {
+    hscrollbar-policy: never;
+    propagate-natural-height: true;
+
+    child: $GcalAgendaViewDayRow day_row {
+      event-activated => $on_event_activated();
+    };
+  }
+}

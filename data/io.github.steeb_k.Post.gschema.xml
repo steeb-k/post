@@ -109,6 +109,11 @@
         <summary>Refresh interval in seconds</summary>
         <description>Defines in which refresh interval mail folders should be checked for changes.</description>
     </key>
+    <key type="b" name="agenda-expanded">
+        <default>false</default>
+        <summary>Expand the sidebar agenda</summary>
+        <description>Whether the agenda at the bottom of the mail sidebar shows its calendar, so another day can be picked.</description>
+    </key>
   </schema>
 
   <schema id="io.github.steeb_k.Post.contacts" path="/io/github/steeb_k/Post/contacts/">

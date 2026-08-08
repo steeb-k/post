@@ -23,6 +23,10 @@ template $StampMailView: Adw.BreakpointBin {
     setters {
       mail_layout.layout-name: "mobile";
       app_switcher.policy: narrow;
+
+      /* The sidebar is a narrow overlay here, and the calendar view's
+       * own agenda is one tap away in the switcher. */
+      sidebar_agenda.enabled: false;
     }
   }
 
@@ -30,7 +34,10 @@ template $StampMailView: Adw.BreakpointBin {
     child: Adw.MultiLayoutView mail_layout {
       [sidebar]
       Adw.ToolbarView sidebar_pane {
-        bottom-bar-style: raised;
+        /* A crisp line rather than "raised"'s blurred shadow: the blur
+         * composites over whatever the folder list leaves above it, so
+         * the break read thicker collapsed than expanded. */
+        bottom-bar-style: raised_border;
 
         [top]
         $StampHeaderBar {}
@@ -44,6 +51,9 @@ template $StampMailView: Adw.BreakpointBin {
             folder-cleared => $on_folder_cleared();
           };
         };
+
+        [bottom]
+        $StampSidebarAgenda sidebar_agenda {}
       }
 
       [list]

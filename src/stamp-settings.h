@@ -49,6 +49,7 @@ G_BEGIN_DECLS
 #define STAMP_PREFS_MAIL_PLAY_INCOMING_SOUND  "play-incoming-sound"
 #define STAMP_PREFS_MAIL_IMPORTANT_FIRST      "important-first"
 #define STAMP_PREFS_MAIL_REFRESH_INTERVAL     "refresh-interval"
+#define STAMP_PREFS_MAIL_AGENDA_EXPANDED      "agenda-expanded"
 
 #define STAMP_PREFS_ACCOUNTS_SCHEMA            "io.github.steeb_k.Post.accounts"
 #define STAMP_PREFS_MAIL_DEFAULT_SIGNATURE     "default-signature"

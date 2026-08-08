@@ -25,6 +25,7 @@
 #include "stamp-folder-list.h"
 #include "stamp-header-bar.h"
 #include "stamp-message-list.h"
+#include "stamp-sidebar-agenda.h"
 
 struct _StampMailView {
   AdwBreakpointBin parent_instance;
@@ -298,6 +299,8 @@ stamp_mail_view_class_init (StampMailViewClass *klass)
 {
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
+
+  g_type_ensure (STAMP_TYPE_SIDEBAR_AGENDA);
 
   gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/views/mail/stamp-mail-view.ui");
 
