@@ -46,7 +46,17 @@ struct _StampFolderList {
   GtkCustomFilter *account_filter;
   GPtrArray *expand_queue;
   guint expand_handler;
-  guint select_inbox_handler;
+  guint restore_handler;
+
+  /* The folder to land on while nothing is selected yet: the one this
+   * profile was last reading, or the one from the last run. */
+  gchar *restore_account;
+  gchar *restore_folder;
+
+  /* Rows collapse as the profile filter takes their account out of the
+   * tree. That is the model tidying up, not the user folding anything,
+   * so it must not be written down as a preference. */
+  gboolean refiltering;
 
   StampConversationList *conversation_list;
 };
@@ -61,6 +71,83 @@ enum {
 
 static gint signals[LAST_SIGNAL] = { 0 };
 
+/* "" is the no-profile case, which is a profile as far as this is
+ * concerned: it was reading something too. */
+static const gchar *
+active_profile_id (void)
+{
+  StampProfile *active = stamp_profile_manager_get_active (stamp_profile_manager_get_default ());
+
+  return active ? stamp_profile_get_id (active) : "";
+}
+
+static void
+store_profile_folder (StampAccount *account,
+                      const gchar  *full_name)
+{
+  const gchar *id = active_profile_id ();
+  g_autoptr (GVariant) stored = g_settings_get_value (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_PROFILE_FOLDERS);
+  GVariantBuilder builder;
+  GVariantIter iter;
+  const gchar *key;
+  GVariant *value;
+
+  g_variant_builder_init (&builder, G_VARIANT_TYPE ("a{s(ss)}"));
+
+  g_variant_iter_init (&iter, stored);
+  while (g_variant_iter_next (&iter, "{&s@(ss)}", &key, &value)) {
+    if (g_strcmp0 (key, id) != 0)
+      g_variant_builder_add (&builder, "{s@(ss)}", key, value);
+
+    g_variant_unref (value);
+  }
+
+  g_variant_builder_add (&builder, "{s(ss)}", id, stamp_account_get_name (account), full_name);
+
+  g_settings_set_value (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_PROFILE_FOLDERS, g_variant_builder_end (&builder));
+}
+
+/*
+ * Where the profile that just became active was last reading. Falls
+ * back to the folder from the last run, which is all there is to go on
+ * the first time a profile is used.
+ */
+static void
+load_restore_target (StampFolderList *self)
+{
+  g_autoptr (GVariant) stored = g_settings_get_value (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_PROFILE_FOLDERS);
+  const gchar *account_name = NULL;
+  const gchar *folder_name = NULL;
+
+  if (!g_variant_lookup (stored, active_profile_id (), "(&s&s)", &account_name, &folder_name)) {
+    g_autofree gchar *saved_account = NULL;
+    g_autofree gchar *saved_folder = NULL;
+
+    g_settings_get (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_SELECTED_FOLDER, "(ss)", &saved_account, &saved_folder);
+    g_set_str (&self->restore_account, saved_account);
+    g_set_str (&self->restore_folder, saved_folder);
+    return;
+  }
+
+  g_set_str (&self->restore_account, account_name);
+  g_set_str (&self->restore_folder, folder_name);
+}
+
+static gboolean
+is_restore_target (StampFolderList *self,
+                   StampItem       *item)
+{
+  StampAccount *account;
+
+  if (!STAMP_IS_FOLDER_ITEM (item) || !self->restore_folder)
+    return FALSE;
+
+  account = stamp_item_get_account (item);
+
+  return g_strcmp0 (stamp_account_get_name (account), self->restore_account) == 0 &&
+         g_strcmp0 (stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item)), self->restore_folder) == 0;
+}
+
 static void
 on_selection_changed (GtkSelectionModel *selection,
                       guint              position,
@@ -72,7 +159,9 @@ on_selection_changed (GtkSelectionModel *selection,
   GtkTreeListRow *row;
   StampItem *item;
 
-  if (!selected_item)
+  /* Whatever the model settles on while it is being refiltered is not a
+   * choice anyone made, and must not be recorded as one. */
+  if (!selected_item || self->refiltering)
     return;
 
   row = GTK_TREE_LIST_ROW (selected_item);
@@ -83,6 +172,10 @@ on_selection_changed (GtkSelectionModel *selection,
     const gchar *full_name = stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item));
 
     g_settings_set (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_SELECTED_FOLDER, "(ss)", stamp_account_get_name (account), full_name);
+    store_profile_folder (account, full_name);
+
+    g_set_str (&self->restore_account, stamp_account_get_name (account));
+    g_set_str (&self->restore_folder, full_name);
 
     g_signal_emit (self, signals[FOLDER_SELECTED], 0, account, full_name);
   }
@@ -219,13 +312,23 @@ on_row_expanded (GtkTreeListRow *row,
                  GParamSpec     *pspec,
                  gpointer        user_data)
 {
-  StampItem *item = STAMP_ITEM (gtk_tree_list_row_get_item (row));
-  StampAccount *account = stamp_item_get_account (STAMP_ITEM (item));
+  StampFolderList *self = STAMP_FOLDER_LIST (user_data);
+  g_autoptr (StampItem) item = STAMP_ITEM (gtk_tree_list_row_get_item (row));
+  StampAccount *account;
   g_autofree char *settings_path = NULL;
   g_autoptr (GSettings) account_settings = NULL;
   g_auto (GStrv) folders = NULL;
   g_auto (GStrv) new_folders = NULL;
-  const gchar *full_name = stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item));
+  const gchar *full_name;
+
+  /* A row whose account the filter just dropped reports itself
+   * collapsed on the way out, and a row already torn down has no item
+   * left to ask. Neither is the user folding anything away. */
+  if (self->refiltering || !item)
+    return;
+
+  account = stamp_item_get_account (item);
+  full_name = stamp_folder_item_get_full_name (STAMP_FOLDER_ITEM (item));
 
   settings_path = g_strconcat ("/io/github/steeb_k/Post/mail/accounts/", stamp_account_get_uid (account), "/", NULL);
   account_settings = g_settings_new_with_path ("io.github.steeb_k.Post.mail.accounts", settings_path);
@@ -238,6 +341,27 @@ on_row_expanded (GtkTreeListRow *row,
   }
 
   g_settings_set_strv (account_settings, "expanded-folders", (const char * const *)new_folders);
+}
+
+static void
+on_account_row_expanded (GtkTreeListRow *row,
+                         GParamSpec     *pspec,
+                         gpointer        user_data)
+{
+  StampFolderList *self = STAMP_FOLDER_LIST (user_data);
+  g_autoptr (StampItem) item = STAMP_ITEM (gtk_tree_list_row_get_item (row));
+  g_autofree char *settings_path = NULL;
+  g_autoptr (GSettings) account_settings = NULL;
+  StampAccount *account;
+
+  if (self->refiltering || !item)
+    return;
+
+  account = stamp_item_get_account (item);
+  settings_path = g_strconcat ("/io/github/steeb_k/Post/mail/accounts/", stamp_account_get_uid (account), "/", NULL);
+  account_settings = g_settings_new_with_path ("io.github.steeb_k.Post.mail.accounts", settings_path);
+
+  g_settings_set_boolean (account_settings, "expanded", gtk_tree_list_row_get_expanded (row));
 }
 
 static void
@@ -267,22 +391,66 @@ item_is_inbox (StampItem *item)
          g_strcmp0 (full_name, "Posteingang") == 0;
 }
 
-/* After setting up an account there is no folder to restore, and
- * starting on an empty mail list is a poor first impression. Pick the
- * first inbox we can find instead. */
+/*
+ * A folder inside a collapsed account has no row to select, so the tree
+ * has nothing to offer and the mail list stays empty. Open the account
+ * the remembered folder belongs to -- only that one, so an account
+ * deliberately folded away stays folded.
+ */
 static void
-select_inbox_idle (gpointer user_data)
+expand_restore_account (StampFolderList *self)
+{
+  GListModel *model = G_LIST_MODEL (self->selection);
+  guint n_items = g_list_model_get_n_items (model);
+
+  if (!self->restore_account)
+    return;
+
+  for (guint i = 0; i < n_items; i++) {
+    g_autoptr (GtkTreeListRow) row = g_list_model_get_item (model, i);
+    g_autoptr (StampItem) item = row ? STAMP_ITEM (gtk_tree_list_row_get_item (row)) : NULL;
+
+    if (!item || STAMP_IS_FOLDER_ITEM (item))
+      continue;
+
+    if (g_strcmp0 (stamp_account_get_name (stamp_item_get_account (item)), self->restore_account) == 0)
+      gtk_tree_list_row_set_expanded (row, TRUE);
+  }
+}
+
+/*
+ * Land somewhere: the folder this profile was last reading if it is on
+ * screen, and otherwise the first inbox, because starting on an empty
+ * mail list is a poor first impression -- and after a profile switch it
+ * reads as a broken window rather than a different view.
+ */
+static void
+restore_selection_idle (gpointer user_data)
 {
   StampFolderList *self = STAMP_FOLDER_LIST (user_data);
   GListModel *model = G_LIST_MODEL (self->selection);
   guint n_items;
 
-  self->select_inbox_handler = 0;
+  self->restore_handler = 0;
 
   if (self->already_selected)
     return;
 
+  expand_restore_account (self);
+
   n_items = g_list_model_get_n_items (model);
+
+  for (guint i = 0; i < n_items; i++) {
+    g_autoptr (GtkTreeListRow) row = g_list_model_get_item (model, i);
+    g_autoptr (StampItem) item = row ? STAMP_ITEM (gtk_tree_list_row_get_item (row)) : NULL;
+
+    if (item && is_restore_target (self, item)) {
+      gtk_single_selection_set_selected (self->selection, i);
+      self->already_selected = TRUE;
+      return;
+    }
+  }
+
   for (guint i = 0; i < n_items; i++) {
     g_autoptr (GtkTreeListRow) row = g_list_model_get_item (model, i);
     g_autoptr (StampItem) item = row ? STAMP_ITEM (gtk_tree_list_row_get_item (row)) : NULL;
@@ -293,6 +461,13 @@ select_inbox_idle (gpointer user_data)
       return;
     }
   }
+}
+
+static void
+schedule_restore (StampFolderList *self)
+{
+  if (self->restore_handler == 0)
+    self->restore_handler = g_idle_add_once (restore_selection_idle, self);
 }
 
 static void
@@ -334,16 +509,12 @@ on_bind_folder (GtkListItemFactory *factory,
     g_auto (GStrv) expanded_folders = g_settings_get_strv (account_settings, "expanded-folders");
 
     if (!self->already_selected) {
-      g_autofree char *account_name = NULL;
-      g_autofree char *folder_name = NULL;
-
-      g_settings_get (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_SELECTED_FOLDER, "(ss)", &account_name, &folder_name);
-      if (g_strcmp0 (stamp_account_get_name (account), account_name) == 0 && g_strcmp0 (full_name, folder_name) == 0) {
+      if (is_restore_target (self, item)) {
         gtk_single_selection_set_selected (self->selection, gtk_list_item_get_position (list_item));
         self->already_selected = TRUE;
-      } else if (self->select_inbox_handler == 0) {
+      } else {
         /* Also covers a saved folder whose account is gone. */
-        self->select_inbox_handler = g_idle_add_once (select_inbox_idle, self);
+        schedule_restore (self);
       }
     }
 
@@ -356,8 +527,29 @@ on_bind_folder (GtkListItemFactory *factory,
 
     g_signal_connect_object (row, "notify::expanded", G_CALLBACK (on_row_expanded), self, G_CONNECT_DEFAULT);
   } else {
-    /* Set initial account expanded state */
-    g_settings_bind (account_settings, "expanded", row, "expanded", G_SETTINGS_BIND_DEFAULT | G_SETTINGS_BIND_GET_NO_CHANGES);
+    /* Restore the account's own state, and write it back by hand. A
+     * two-way g_settings_bind() here would record the collapse the
+     * model performs while filtering a profile's accounts out of the
+     * tree, so every account came back collapsed.
+     *
+     * Expanding waits for an idle, as the folders above do. Expanding a
+     * row inserts its children into the model, and doing that from
+     * inside a bind -- while the list view is walking that very model
+     * -- leaves the row looking expanded with nothing under it until it
+     * is toggled by hand. */
+    if (g_settings_get_boolean (account_settings, "expanded")) {
+      g_ptr_array_add (self->expand_queue, g_object_ref (row));
+
+      if (self->expand_handler == 0)
+        self->expand_handler = g_idle_add_once (expand_idle, self);
+    }
+
+    g_signal_connect_object (row, "notify::expanded", G_CALLBACK (on_account_row_expanded), self, G_CONNECT_DEFAULT);
+
+    /* With every account collapsed there are no folder rows to trigger
+     * the restore, and the mail list would sit empty. */
+    if (!self->already_selected)
+      schedule_restore (self);
   }
 }
 
@@ -384,21 +576,36 @@ on_profile_changed (StampProfileManager *manager,
                     gpointer             user_data)
 {
   StampFolderList *self = STAMP_FOLDER_LIST (user_data);
+  GtkTreeListRow *selected;
 
+  /* Each profile remembers its own folder, so switching to one goes
+   * back to what it was reading rather than to whatever the profile
+   * before it happened to leave open. Read it before the tree churns,
+   * so nothing the churn selects can overwrite it first. */
+  load_restore_target (self);
+
+  /* Accounts leaving and rejoining the tree collapse on the way, which
+   * is the model's doing and must not be saved as the user's choice. */
+  self->refiltering = TRUE;
   gtk_filter_changed (GTK_FILTER (self->account_filter), GTK_FILTER_CHANGE_DIFFERENT);
+  self->refiltering = FALSE;
 
-  /* Still on a folder this profile shows: nothing to do. */
-  if (gtk_single_selection_get_selected_item (self->selection))
-    return;
+  selected = GTK_TREE_LIST_ROW (gtk_single_selection_get_selected_item (self->selection));
 
-  /* The folder we were reading belongs to an account the new profile
-   * hides, so the list is showing mail that is no longer meant to be
-   * on screen. Empty it, then land somewhere sensible. */
+  if (selected) {
+    g_autoptr (StampItem) item = STAMP_ITEM (gtk_tree_list_row_get_item (selected));
+
+    /* Already on this profile's folder, or on one it shows and has no
+     * memory of: either way there is nothing worth disturbing. */
+    if (item && (is_restore_target (self, item) || !self->restore_folder))
+      return;
+  }
+
+  /* Whatever is on screen belongs to the profile before this one, and
+   * may be from an account this one hides. Empty it, then land. */
   self->already_selected = FALSE;
   g_signal_emit (self, signals[FOLDER_CLEARED], 0);
-
-  if (self->select_inbox_handler == 0)
-    self->select_inbox_handler = g_idle_add_once (select_inbox_idle, self);
+  schedule_restore (self);
 }
 
 static GListModel *
@@ -704,7 +911,9 @@ stamp_folder_list_dispose (GObject *object)
   g_clear_object (&self->account_filter);
 
   g_clear_handle_id (&self->expand_handler, g_source_remove);
-  g_clear_handle_id (&self->select_inbox_handler, g_source_remove);
+  g_clear_handle_id (&self->restore_handler, g_source_remove);
+  g_clear_pointer (&self->restore_account, g_free);
+  g_clear_pointer (&self->restore_folder, g_free);
   g_clear_pointer (&self->expand_queue, g_ptr_array_unref);
 
   self->conversation_list = NULL;
@@ -771,6 +980,10 @@ stamp_folder_list_init (StampFolderList *self)
   g_signal_connect_object (profiles, "changed", G_CALLBACK (on_profile_changed), self, G_CONNECT_DEFAULT);
 
   self->expand_queue = g_ptr_array_new_with_free_func (g_object_unref);
+
+  /* Nothing has been selected yet, so the folder to look for is the one
+   * the active profile was reading when the app last ran. */
+  load_restore_target (self);
 
   g_type_ensure (STAMP_TYPE_ITEM);
 }

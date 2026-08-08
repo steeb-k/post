@@ -125,6 +125,11 @@
         <summary>How the mail view arranges its panes</summary>
         <description>Side by side puts the conversation list and the reading pane next to each other; stacked puts the reading pane below the list; dense is stacked with the agenda moved into a pane of its own on the right. A profile can override this while it is active.</description>
     </key>
+    <key name="profile-folders" type="a{s(ss)}">
+        <default>{}</default>
+        <summary>Where each profile was last reading</summary>
+        <description>Maps a profile identifier to the account name and folder that profile was last showing, so that switching back to it returns to that folder rather than to someone else's inbox. The empty identifier is the no-profile case.</description>
+    </key>
     <key type="b" name="agenda-expanded">
         <default>false</default>
         <summary>Expand the sidebar agenda</summary>
