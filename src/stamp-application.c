@@ -29,6 +29,7 @@
 #include "stamp-composer.h"
 #include "stamp-helper.h"
 #include "stamp-preferences.h"
+#include "stamp-profiles.h"
 #include "stamp-session.h"
 #include "stamp-window.h"
 
@@ -444,6 +445,17 @@ stamp_application_preferences_action (GSimpleAction *action,
 }
 
 static void
+stamp_application_profiles_action (GSimpleAction *action,
+                                   GVariant      *parameter,
+                                   gpointer       user_data)
+{
+  StampApplication *self = STAMP_APPLICATION (user_data);
+  GtkWindow *window = gtk_application_get_active_window (GTK_APPLICATION (self));
+
+  stamp_profiles_present (GTK_WIDGET (window));
+}
+
+static void
 stamp_application_show_message (GSimpleAction *action,
                                 GVariant      *parameter,
                                 gpointer       user_data)
@@ -460,6 +472,7 @@ static const GActionEntry app_actions[] = {
   { "quit", stamp_application_quit_action },
   { "about", stamp_application_about_action },
   { "preferences", stamp_application_preferences_action },
+  { "profiles", stamp_application_profiles_action },
   { "show-message", stamp_application_show_message, "s" },
 };
 

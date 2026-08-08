@@ -1,0 +1,77 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampProfilesEditor: Adw.NavigationPage {
+  title: _("Profile");
+  tag: "editor";
+
+  child: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {
+      title-widget: Adw.WindowTitle editor_title {};
+    }
+
+    content: Adw.PreferencesPage {
+      Adw.PreferencesGroup {
+        Adw.Avatar preview {
+          size: 72;
+          margin-bottom: 12;
+        }
+      }
+
+      Adw.PreferencesGroup {
+        Adw.EntryRow name_row {
+          title: _("Name");
+          changed => $on_name_changed();
+        }
+
+        Adw.ActionRow {
+          title: _("Color");
+
+          [suffix]
+          Box swatches {
+            orientation: horizontal;
+            spacing: 6;
+            valign: center;
+          }
+        }
+      }
+
+      Adw.PreferencesGroup accounts_group {
+        title: _("Accounts");
+        description: _("Only these accounts are shown while the profile is active. Everything else keeps syncing quietly in the background.");
+      }
+
+      Adw.PreferencesGroup rules_group {
+        title: _("Schedule");
+        description: _("The profile switches itself on during these hours. Picking a profile by hand overrides the schedule until it next changes.");
+
+        [header-suffix]
+        Button {
+          icon-name: "list-add-symbolic";
+          tooltip-text: _("Add Schedule Rule");
+          clicked => $on_add_rule_clicked();
+
+          styles [
+            "flat",
+          ]
+
+          accessibility {
+            label: _("Add Schedule Rule");
+          }
+        }
+      }
+
+      Adw.PreferencesGroup {
+        Adw.ButtonRow remove_row {
+          title: _("Remove Profile");
+          activated => $on_remove_clicked();
+
+          styles [
+            "destructive-action",
+          ]
+        }
+      }
+    };
+  };
+}

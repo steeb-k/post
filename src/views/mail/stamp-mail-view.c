@@ -178,6 +178,21 @@ on_folder_selected (GtkWidget    *object,
   stamp_message_list_set_conversation (self->message_list, self->account, NULL);
 }
 
+/* The active profile stopped showing the account whose folder was open,
+ * so there is nothing to select and nothing that should stay on screen. */
+static void
+on_folder_cleared (GtkWidget *object,
+                   gpointer   user_data)
+{
+  StampMailView *self = STAMP_MAIL_VIEW (user_data);
+
+  g_clear_handle_id (&self->load_folder_handler, g_source_remove);
+  g_clear_object (&self->account);
+
+  stamp_message_list_set_conversation (self->message_list, NULL, NULL);
+  stamp_conversation_list_clear (self->conversation_list);
+}
+
 static void
 on_conversation_selected (GtkWidget *object,
                           gpointer   thread_node,
@@ -308,6 +323,7 @@ stamp_mail_view_class_init (StampMailViewClass *klass)
   gtk_widget_class_bind_template_callback (widget_class, on_details_hidden);
   gtk_widget_class_bind_template_callback (widget_class, on_apply_view);
   gtk_widget_class_bind_template_callback (widget_class, on_folder_selected);
+  gtk_widget_class_bind_template_callback (widget_class, on_folder_cleared);
   gtk_widget_class_bind_template_callback (widget_class, on_conversation_selected);
   gtk_widget_class_bind_template_callback (widget_class, on_conversation_trash);
 }

@@ -24,6 +24,7 @@
 
 #include "stamp-account.h"
 #include "stamp-item.h"
+#include "stamp-profile-manager.h"
 #include "stamp-settings.h"
 
 struct _StampFolderItem {
@@ -248,6 +249,12 @@ on_folder_item_folder_changed (CamelFolder           *folder,
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_UNREAD]);
 
   if (!changes->uid_added || folder == trash_folder || folder == draft_folder)
+    return;
+
+  /* The account keeps syncing while a profile hides it -- it just does
+   * so quietly. The unread count above is still updated, so switching
+   * back shows an accurate sidebar straight away. */
+  if (!stamp_profile_shows_account (stamp_account_get_uid (account)))
     return;
 
   if (g_strcmp0 (mode, "inbox") == 0) {

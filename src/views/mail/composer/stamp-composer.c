@@ -33,6 +33,7 @@
 #include "stamp-composer-from.h"
 #include "stamp-contact-completion.h"
 #include "stamp-mail-view.h"
+#include "stamp-profile-manager.h"
 #include "stamp-session.h"
 #include "stamp-settings.h"
 #include "stamp-settings.h"
@@ -1000,11 +1001,31 @@ on_add_attachment_activated (GSimpleAction *action,
   gtk_file_dialog_open_multiple (dialog, GTK_WINDOW (self), self->cancellable, on_attachment_added, self);
 }
 
+/*
+ * Whether the account behind an identity is one the active profile
+ * shows. Identities outside it stay selectable -- you may well want to
+ * answer a work mail from a personal address -- but they are marked, so
+ * the address is never a silent surprise.
+ */
+static gboolean
+from_is_in_profile (StampComposerFrom *from)
+{
+  StampAccount *account = stamp_composer_from_get_account (from);
+
+  if (!account)
+    return TRUE;
+
+  return stamp_profile_shows_account (stamp_account_get_uid (account));
+}
+
 static void
 load_from_combobox (StampComposer *self)
 {
   GListStore *store;
   GList *accounts;
+  /* Falls back to the first identity of any kind, so a composer opened
+   * under a profile that shows no mail account still has a sender. */
+  StampComposerFrom *first_any = NULL;
 
   accounts = stamp_session_get_accounts (stamp_session_get_default ());
 
@@ -1033,7 +1054,11 @@ load_from_combobox (StampComposer *self)
         from = stamp_composer_from_new (account, name, mail);
         g_list_store_append (store, from);
 
-        if (!self->composer_from)
+        if (!first_any)
+          first_any = from;
+
+        /* Prefer an address the active profile actually shows. */
+        if (!self->composer_from && from_is_in_profile (from))
           stamp_composer_set_composer_from (self, from);
       }
       g_list_free (mails);
@@ -1042,11 +1067,17 @@ load_from_combobox (StampComposer *self)
       from = stamp_composer_from_new (account, name, mail);
 
       g_list_store_append (store, from);
-      if (!self->composer_from)
+
+      if (!first_any)
+        first_any = from;
+
+      if (!self->composer_from && from_is_in_profile (from))
         stamp_composer_set_composer_from (self, from);
     }
   }
 
+  if (!self->composer_from && first_any)
+    stamp_composer_set_composer_from (self, first_any);
 
   gtk_drop_down_set_model (GTK_DROP_DOWN (self->from), G_LIST_MODEL (store));
 }
@@ -1094,9 +1125,18 @@ on_from_bind (GtkSignalListItemFactory *f,
   GtkWidget *email = g_object_get_data (G_OBJECT (box), "email");
   const gchar *name_str = stamp_composer_from_get_name (from);
   const gchar *mail_str = stamp_composer_from_get_mail (from);
+  gboolean in_profile = from_is_in_profile (from);
 
   gtk_label_set_text (GTK_LABEL (name), name_str ? name_str : mail_str);
   gtk_label_set_text (GTK_LABEL (email), mail_str);
+
+  if (in_profile) {
+    gtk_widget_remove_css_class (box, "profile-foreign");
+    gtk_widget_set_tooltip_text (box, NULL);
+  } else {
+    gtk_widget_add_css_class (box, "profile-foreign");
+    gtk_widget_set_tooltip_text (box, _("Not part of the active profile"));
+  }
 }
 
 static void
@@ -1121,9 +1161,19 @@ on_bind_selected (GtkSignalListItemFactory *f,
   const gchar *name_str = stamp_composer_from_get_name (from);
   const gchar *mail_str = stamp_composer_from_get_mail (from);
   g_autofree gchar *markup = g_strdup_printf ("<b>%s</b> (%s)", name_str, g_markup_escape_text (mail_str, -1));
+  gboolean in_profile = from_is_in_profile (from);
 
   gtk_label_set_markup (GTK_LABEL (name), markup);
-  gtk_widget_set_tooltip_text (name, mail_str);
+
+  if (in_profile) {
+    gtk_widget_remove_css_class (name, "profile-foreign");
+    gtk_widget_set_tooltip_text (name, mail_str);
+  } else {
+    g_autofree gchar *tooltip = g_strdup_printf (_("%s — not part of the active profile"), mail_str);
+
+    gtk_widget_add_css_class (name, "profile-foreign");
+    gtk_widget_set_tooltip_text (name, tooltip);
+  }
 }
 
 static void

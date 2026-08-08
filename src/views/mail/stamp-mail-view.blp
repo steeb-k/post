@@ -41,6 +41,7 @@ template $StampMailView: Adw.BreakpointBin {
           child: $StampFolderList folder_list {
             vexpand: true;
             folder-selected => $on_folder_selected();
+            folder-cleared => $on_folder_cleared();
           };
         };
       }

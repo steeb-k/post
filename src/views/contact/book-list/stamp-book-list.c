@@ -24,12 +24,14 @@
 #include "stamp-book-item.h"
 #include "stamp-book-row.h"
 #include "stamp-item.h"
+#include "stamp-profile-manager.h"
 #include "stamp-session.h"
 
 struct _StampBookList {
   AdwBin parent_instance;
 
   GListStore *list_store;
+  GtkCustomFilter *account_filter;
   GtkWidget *sorter;
   GtkWidget *sort_list_model;
   GtkSingleSelection *selection;
@@ -261,6 +263,38 @@ on_stamp_book_list_account_added (GObject      *object,
   g_list_store_append (self->list_store, account_item);
 }
 
+/* Accounts are the root of the tree, so their books follow them out of
+ * view when the active profile stops showing them. */
+static gboolean
+account_is_in_profile (gpointer item,
+                       gpointer user_data)
+{
+  StampAccount *account;
+
+  if (!STAMP_IS_ITEM (item))
+    return TRUE;
+
+  account = stamp_item_get_account (STAMP_ITEM (item));
+  if (!account)
+    return TRUE;
+
+  return stamp_profile_shows_account (stamp_account_get_uid (account));
+}
+
+static void
+on_profile_changed (StampProfileManager *manager,
+                    gpointer             user_data)
+{
+  StampBookList *self = STAMP_BOOK_LIST (user_data);
+
+  gtk_filter_changed (GTK_FILTER (self->account_filter), GTK_FILTER_CHANGE_DIFFERENT);
+
+  /* Let the saved-book restore run again, so switching back to a
+   * profile lands on the book it was last showing. */
+  if (!gtk_single_selection_get_selected_item (self->selection))
+    self->already_selected = FALSE;
+}
+
 static GListModel *
 get_child (void     *item,
            gpointer  user_data)
@@ -297,20 +331,30 @@ static void
 stamp_book_list_init (StampBookList *self)
 {
   StampSession *session = NULL;
+  StampProfileManager *profiles = stamp_profile_manager_get_default ();
   GtkTreeListModel *tree;
+  GtkFilterListModel *filtered;
 
   gtk_widget_init_template (GTK_WIDGET (self));
 
   session = stamp_session_get_default ();
 
   self->list_store = g_list_store_new (STAMP_TYPE_ITEM);
-  tree = gtk_tree_list_model_new (G_LIST_MODEL (self->list_store), FALSE, TRUE, get_child, g_object_ref (self), g_object_unref);
+  /* Borrowed from here on: the filter model takes the reference, and
+   * outlives this widget's use of it. */
+  self->account_filter = gtk_custom_filter_new (account_is_in_profile, NULL, NULL);
+
+  filtered = gtk_filter_list_model_new (g_object_ref (G_LIST_MODEL (self->list_store)),
+                                        GTK_FILTER (self->account_filter));
+  tree = gtk_tree_list_model_new (G_LIST_MODEL (filtered), FALSE, TRUE, get_child, g_object_ref (self), g_object_unref);
 
   gtk_sort_list_model_set_model (GTK_SORT_LIST_MODEL (self->sort_list_model), G_LIST_MODEL (tree));
   gtk_custom_sorter_set_sort_func (GTK_CUSTOM_SORTER (self->sorter), books_sorter, NULL, NULL);
 
   g_signal_connect_object (session, "account-added", G_CALLBACK (on_stamp_book_list_account_added), self, G_CONNECT_DEFAULT);
   /* g_signal_connect_object (session, "account-removed", G_CALLBACK (on_stamp_book_list_account_removed), self, 0); */
+
+  g_signal_connect_object (profiles, "changed", G_CALLBACK (on_profile_changed), self, G_CONNECT_DEFAULT);
 
   self->settings = g_settings_new ("io.github.steeb_k.Post.contacts");
 

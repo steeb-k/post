@@ -1,5 +1,5 @@
 /*
- * Copyright 2025-2026 Jan-Michael Brummer
+ * Copyright 2026 Jan-Michael Brummer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,28 +17,20 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "stamp-header-bar.h"
+#pragma once
 
-#include "stamp-profile-button.h"
+#include <adwaita.h>
 
-struct _StampHeaderBar {
-  AdwBin parent_instance;
-};
+G_BEGIN_DECLS
 
-G_DEFINE_FINAL_TYPE (StampHeaderBar, stamp_header_bar, ADW_TYPE_BIN);
+#define STAMP_TYPE_PROFILES (stamp_profiles_get_type ())
 
-static void
-stamp_header_bar_init (StampHeaderBar *self)
-{
-  gtk_widget_init_template (GTK_WIDGET (self));
-}
+G_DECLARE_FINAL_TYPE (StampProfiles, stamp_profiles, STAMP, PROFILES, AdwDialog);
 
-static void
-stamp_header_bar_class_init (StampHeaderBarClass *klass)
-{
-  GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
+AdwDialog *
+stamp_profiles_new (void);
 
-  g_type_ensure (STAMP_TYPE_PROFILE_BUTTON);
+void
+stamp_profiles_present (GtkWidget *parent);
 
-  gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/views/stamp-header-bar.ui");
-}
+G_END_DECLS

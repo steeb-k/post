@@ -1,0 +1,30 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampProfileButton: Adw.Bin {
+  child: MenuButton button {
+    tooltip-text: _("Profile");
+    popover: popover;
+
+    styles [
+      "flat",
+    ]
+
+    child: Adw.Avatar avatar {
+      size: 24;
+    };
+  };
+}
+
+Popover popover {
+  show => $on_popover_show();
+
+  child: Box popover_box {
+    orientation: vertical;
+    width-request: 260;
+    margin-top: 6;
+    margin-bottom: 6;
+    margin-start: 6;
+    margin-end: 6;
+  };
+}

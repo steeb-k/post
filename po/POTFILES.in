@@ -12,6 +12,8 @@ src/backend/stamp-helper.c
 src/backend/stamp-mime-parser.c
 src/backend/stamp-photo-cache.c
 src/backend/stamp-session.c
+src/backend/stamp-profile.c
+src/backend/stamp-profile-manager.c
 src/backend/stamp-signature.c
 src/gcal/core/gcal-event.c
 src/gcal/core/gcal-recurrence.c
@@ -80,6 +82,9 @@ src/stamp-preferences.c
 src/stamp-preferences-signatures.blp
 src/stamp-preferences-signatures.c
 src/stamp-preferences-signatures-editor.blp
+src/stamp-profiles.blp
+src/stamp-profiles.c
+src/stamp-profiles-editor.blp
 src/stamp-settings.c
 src/stamp-time-helpers.c
 src/stamp-webview.c
@@ -130,6 +135,8 @@ src/views/mail/stamp-mail-view.blp
 src/views/mail/stamp-mail-view.c
 src/views/stamp-header-bar.blp
 src/views/stamp-header-bar.c
+src/views/stamp-profile-button.blp
+src/views/stamp-profile-button.c
 src/views/stamp-item.c
 src/views/stamp-tag.blp
 src/views/stamp-tag.c

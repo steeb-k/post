@@ -710,6 +710,30 @@ stamp_conversation_list_load_folder (StampConversationList *self,
   camel_store_get_folder (CAMEL_STORE (stamp_mail_service_get_service (mail_service)), full_name, CAMEL_STORE_FOLDER_NONE, G_PRIORITY_DEFAULT, self->cancellable, on_get_folder, self);
 }
 
+/**
+ * stamp_conversation_list_clear:
+ * @self: a #StampConversationList
+ *
+ * Drops whatever folder is on screen, without loading another. Used
+ * when the active profile stops showing the account the current folder
+ * belongs to: leaving its mail visible would defeat the point.
+ */
+void
+stamp_conversation_list_clear (StampConversationList *self)
+{
+  g_return_if_fail (STAMP_IS_CONVERSATION_LIST (self));
+
+  if (self->cancellable) {
+    g_cancellable_cancel (self->cancellable);
+    g_clear_object (&self->cancellable);
+  }
+
+  self->account = NULL;
+  g_clear_pointer (&self->full_name, g_free);
+
+  g_list_store_remove_all (self->list_store);
+}
+
 static void
 on_mail_search_entry_changed (GtkWidget *search_entry,
                               gpointer   user_data)

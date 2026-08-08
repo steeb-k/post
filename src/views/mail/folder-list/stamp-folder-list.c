@@ -25,6 +25,7 @@
 #include "stamp-folder-item.h"
 #include "stamp-folder-row.h"
 #include "stamp-helper.h"
+#include "stamp-profile-manager.h"
 #include "stamp-session.h"
 #include "stamp-settings.h"
 
@@ -42,6 +43,7 @@ struct _StampFolderList {
 
   gboolean already_selected;
   GListStore *list_store;
+  GtkCustomFilter *account_filter;
   GPtrArray *expand_queue;
   guint expand_handler;
   guint select_inbox_handler;
@@ -53,6 +55,7 @@ G_DEFINE_FINAL_TYPE (StampFolderList, stamp_folder_list, ADW_TYPE_BIN);
 
 enum {
   FOLDER_SELECTED,
+  FOLDER_CLEARED,
   LAST_SIGNAL
 };
 
@@ -358,6 +361,46 @@ on_bind_folder (GtkListItemFactory *factory,
   }
 }
 
+/* Only the accounts sit at the root of the tree, so filtering the root
+ * takes their folders with them. */
+static gboolean
+account_is_in_profile (gpointer item,
+                       gpointer user_data)
+{
+  StampAccount *account;
+
+  if (!STAMP_IS_ITEM (item))
+    return TRUE;
+
+  account = stamp_item_get_account (STAMP_ITEM (item));
+  if (!account)
+    return TRUE;
+
+  return stamp_profile_shows_account (stamp_account_get_uid (account));
+}
+
+static void
+on_profile_changed (StampProfileManager *manager,
+                    gpointer             user_data)
+{
+  StampFolderList *self = STAMP_FOLDER_LIST (user_data);
+
+  gtk_filter_changed (GTK_FILTER (self->account_filter), GTK_FILTER_CHANGE_DIFFERENT);
+
+  /* Still on a folder this profile shows: nothing to do. */
+  if (gtk_single_selection_get_selected_item (self->selection))
+    return;
+
+  /* The folder we were reading belongs to an account the new profile
+   * hides, so the list is showing mail that is no longer meant to be
+   * on screen. Empty it, then land somewhere sensible. */
+  self->already_selected = FALSE;
+  g_signal_emit (self, signals[FOLDER_CLEARED], 0);
+
+  if (self->select_inbox_handler == 0)
+    self->select_inbox_handler = g_idle_add_once (select_inbox_idle, self);
+}
+
 static GListModel *
 get_child (void     *item,
            gpointer  user_data)
@@ -658,6 +701,7 @@ stamp_folder_list_dispose (GObject *object)
   StampFolderList *self = STAMP_FOLDER_LIST (object);
 
   g_clear_object (&self->list_store);
+  g_clear_object (&self->account_filter);
 
   g_clear_handle_id (&self->expand_handler, g_source_remove);
   g_clear_handle_id (&self->select_inbox_handler, g_source_remove);
@@ -691,18 +735,31 @@ stamp_folder_list_class_init (StampFolderListClass *klass)
                                            0, NULL, NULL, NULL,
                                            G_TYPE_NONE,
                                            2, G_TYPE_OBJECT, G_TYPE_STRING);
+
+  /* The selected folder went out of view because the active profile
+   * stopped showing its account. */
+  signals[FOLDER_CLEARED] = g_signal_new ("folder-cleared", G_OBJECT_CLASS_TYPE (klass),
+                                          G_SIGNAL_RUN_LAST,
+                                          0, NULL, NULL, NULL,
+                                          G_TYPE_NONE, 0);
 }
 
 static void
 stamp_folder_list_init (StampFolderList *self)
 {
   StampSession *session = NULL;
+  StampProfileManager *profiles = stamp_profile_manager_get_default ();
   GtkTreeListModel *tree;
+  GtkFilterListModel *filtered;
 
   gtk_widget_init_template (GTK_WIDGET (self));
 
   self->list_store = g_list_store_new (STAMP_TYPE_ITEM);
-  tree = gtk_tree_list_model_new (G_LIST_MODEL (self->list_store), FALSE, FALSE, get_child, g_object_ref (self), g_object_unref);
+  self->account_filter = gtk_custom_filter_new (account_is_in_profile, NULL, NULL);
+
+  filtered = gtk_filter_list_model_new (g_object_ref (G_LIST_MODEL (self->list_store)),
+                                        GTK_FILTER (g_object_ref (self->account_filter)));
+  tree = gtk_tree_list_model_new (G_LIST_MODEL (filtered), FALSE, FALSE, get_child, g_object_ref (self), g_object_unref);
 
   gtk_sort_list_model_set_model (GTK_SORT_LIST_MODEL (self->sort_list_model), G_LIST_MODEL (tree));
   gtk_custom_sorter_set_sort_func (self->sorter, folders_sorter, NULL, NULL);
@@ -710,6 +767,8 @@ stamp_folder_list_init (StampFolderList *self)
   session = stamp_session_get_default ();
   g_signal_connect_object (session, "account-added", G_CALLBACK (on_stamp_folder_list_account_added), self, G_CONNECT_DEFAULT);
   g_signal_connect_object (session, "account-removed", G_CALLBACK (on_stamp_folder_list_account_removed), self, G_CONNECT_DEFAULT);
+
+  g_signal_connect_object (profiles, "changed", G_CALLBACK (on_profile_changed), self, G_CONNECT_DEFAULT);
 
   self->expand_queue = g_ptr_array_new_with_free_func (g_object_unref);
 

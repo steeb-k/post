@@ -23,6 +23,7 @@
 #include <gst/gst.h>
 
 #include "stamp-application.h"
+#include "stamp-profile-manager.h"
 #include "stamp-settings.h"
 
 gint
@@ -45,6 +46,8 @@ main (gint    argc,
   app = stamp_application_new ("io.github.steeb_k.Post", G_APPLICATION_HANDLES_COMMAND_LINE);
   ret = g_application_run (G_APPLICATION (app), argc, argv);
 
+  /* Before the settings go, since the manager writes through them. */
+  stamp_profile_manager_shutdown ();
   stamp_settings_shutdown ();
 
   return ret;

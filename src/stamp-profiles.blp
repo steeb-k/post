@@ -1,0 +1,55 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampProfiles: Adw.Dialog {
+  content-width: 520;
+  content-height: 620;
+  title: _("Profiles");
+
+  child: Adw.NavigationView navigation_view {
+    Adw.NavigationPage {
+      title: _("Profiles");
+      tag: "list";
+
+      child: Adw.ToolbarView {
+        [top]
+        Adw.HeaderBar {}
+
+        content: Adw.PreferencesPage {
+          Adw.PreferencesGroup {
+            description: _("A profile shows only the accounts you pick. Switch between them from the button at the top of the sidebar.");
+          }
+
+          Adw.PreferencesGroup profiles_group {
+            title: _("Your Profiles");
+
+            [header-suffix]
+            Button {
+              icon-name: "list-add-symbolic";
+              tooltip-text: _("Add Profile");
+              clicked => $on_add_clicked();
+
+              styles [
+                "flat",
+              ]
+
+              accessibility {
+                label: _("Add Profile");
+              }
+            }
+          }
+
+          Adw.PreferencesGroup {
+            title: _("Schedule");
+            description: _("Which profile applies during hours no schedule rule claims.");
+
+            Adw.ComboRow default_row {
+              title: _("Default Profile");
+              notify::selected => $on_default_changed();
+            }
+          }
+        };
+      };
+    }
+  };
+}

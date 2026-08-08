@@ -1,5 +1,5 @@
 /*
- * Copyright 2025-2026 Jan-Michael Brummer
+ * Copyright 2026 Jan-Michael Brummer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,28 +17,28 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "stamp-header-bar.h"
+#pragma once
 
-#include "stamp-profile-button.h"
+#include <adwaita.h>
 
-struct _StampHeaderBar {
-  AdwBin parent_instance;
-};
+#include "stamp-profile.h"
 
-G_DEFINE_FINAL_TYPE (StampHeaderBar, stamp_header_bar, ADW_TYPE_BIN);
+G_BEGIN_DECLS
 
-static void
-stamp_header_bar_init (StampHeaderBar *self)
-{
-  gtk_widget_init_template (GTK_WIDGET (self));
-}
+#define STAMP_TYPE_PROFILE_BUTTON (stamp_profile_button_get_type ())
 
-static void
-stamp_header_bar_class_init (StampHeaderBarClass *klass)
-{
-  GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
+G_DECLARE_FINAL_TYPE (StampProfileButton, stamp_profile_button, STAMP, PROFILE_BUTTON, AdwBin);
 
-  g_type_ensure (STAMP_TYPE_PROFILE_BUTTON);
+GtkWidget *
+stamp_profile_button_new (void);
 
-  gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/views/stamp-header-bar.ui");
-}
+/*
+ * Dresses @avatar as @profile's badge, or as the "Show All" badge when
+ * @profile is NULL. Shared so the switcher and the management dialog
+ * render a profile identically.
+ */
+void
+stamp_profile_button_style_avatar (AdwAvatar    *avatar,
+                                   StampProfile *profile);
+
+G_END_DECLS

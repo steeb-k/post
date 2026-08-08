@@ -31,10 +31,43 @@
 #include "gcal-global.h"
 #include "gcal-manager.h"
 
+#include "stamp-profile-manager.h"
+
+/*
+ * A calendar belongs to the account whose collection its source hangs
+ * off. Calendars with no collection -- a local calendar the user made
+ * themselves -- belong to no account, and so are never something a
+ * profile should hide.
+ */
+static gboolean
+calendar_is_in_profile (GcalCalendar *calendar,
+                        gpointer      user_data)
+{
+  ESource *parent = gcal_calendar_get_parent_source (calendar);
+
+  if (!parent)
+    return TRUE;
+
+  return stamp_profile_shows_account (e_source_get_uid (parent));
+}
+
+static void
+on_profile_changed (StampProfileManager *manager,
+                    gpointer             user_data)
+{
+  GcalContext *context = gcal_get_default_context ();
+
+  if (!context)
+    return;
+
+  gcal_manager_refilter_calendars (gcal_context_get_manager (context));
+}
+
 GcalContext *
 stamp_gcal_ensure_context (void)
 {
   GcalContext *context = gcal_get_default_context ();
+  StampProfileManager *profiles;
 
   if (context)
     return context;
@@ -42,6 +75,14 @@ stamp_gcal_ensure_context (void)
   context = gcal_context_new ();
   gcal_set_default_context (context);
   gcal_context_startup (context);
+
+  /* Profiles hide calendars by keeping them off the timeline. Going
+   * through gcal_calendar_set_visible() instead would overwrite the
+   * user's own per-calendar checkboxes, which live in the ESource. */
+  profiles = stamp_profile_manager_get_default ();
+  gcal_manager_set_calendar_filter (gcal_context_get_manager (context),
+                                    calendar_is_in_profile, NULL, NULL);
+  g_signal_connect (profiles, "changed", G_CALLBACK (on_profile_changed), NULL);
 
   return context;
 }

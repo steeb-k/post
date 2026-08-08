@@ -7,8 +7,11 @@
     <file preprocess="xml-stripblanks">stamp-preferences-account.ui</file>
     <file preprocess="xml-stripblanks">stamp-preferences-account-editor.ui</file>
     <file preprocess="xml-stripblanks">stamp-preferences-signatures-editor.ui</file>
+    <file preprocess="xml-stripblanks">stamp-profiles.ui</file>
+    <file preprocess="xml-stripblanks">stamp-profiles-editor.ui</file>
     <file preprocess="xml-stripblanks">stamp-window.ui</file>
     <file preprocess="xml-stripblanks">views/stamp-header-bar.ui</file>
+    <file preprocess="xml-stripblanks">views/stamp-profile-button.ui</file>
     <file preprocess="xml-stripblanks">views/stamp-tag.ui</file>
     <file preprocess="xml-stripblanks">views/calendar/stamp-calendar-view.ui</file>
     <file preprocess="xml-stripblanks">views/contact/stamp-contact-details.ui</file>
@@ -63,6 +66,7 @@
     <file>styles/stamp-calendar-view.css</file>
     <file>styles/stamp-message-list.css</file>
     <file>styles/stamp-message-header.css</file>
+    <file>styles/stamp-profile.css</file>
     <file>styles/stamp-signatures.css</file>
     <file>styles/stamp-window.css</file>
     <file alias="io.github.steeb_k.Post.metainfo.xml">../data/io.github.steeb_k.Post.metainfo.xml</file>

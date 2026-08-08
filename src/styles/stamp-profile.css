@@ -1,0 +1,72 @@
+/* Profile badges.
+ *
+ * The color is applied by hand rather than through AdwAvatar's own
+ * .color1-.color14 classes, because those hues are assigned from a hash
+ * of the name and the user picks these deliberately. The gradients are
+ * libadwaita's own pairs, so a profile badge still looks like every
+ * other avatar in the shell -- only the hue is the user's choice.
+ *
+ * The `.profile-avatar avatar` shape matters. A CSS class set on an
+ * AdwAvatar lands on the outer widget, while the circle that actually
+ * gets painted is an inner node named `avatar` -- so `avatar.profile-*`
+ * matches nothing at all, silently, and every badge falls back to the
+ * hashed libadwaita color. The descendant form also clears the
+ * specificity of libadwaita's own `avatar.colorN` rules.
+ *
+ * Keep the values literal: an unresolvable @named-color takes the whole
+ * @import down with it, just as quietly. */
+
+.profile-avatar avatar {
+  font-weight: bold;
+}
+
+.profile-avatar.profile-blue avatar { background-image: linear-gradient(#83b6ec, #337fdc); color: #cfe1f5; }
+.profile-avatar.profile-teal avatar { background-image: linear-gradient(#7ad9f1, #0f9ac8); color: #caeaf2; }
+.profile-avatar.profile-green avatar { background-image: linear-gradient(#8de6b1, #29ae74); color: #cef8d8; }
+.profile-avatar.profile-yellow avatar { background-image: linear-gradient(#f8e359, #d29d09); color: #f9f4e1; }
+.profile-avatar.profile-orange avatar { background-image: linear-gradient(#ffa95a, #ed5b00); color: #ffe5c5; }
+.profile-avatar.profile-red avatar { background-image: linear-gradient(#f78773, #e62d42); color: #f8d2ce; }
+.profile-avatar.profile-pink avatar { background-image: linear-gradient(#e973ab, #e33b6a); color: #fac7de; }
+.profile-avatar.profile-purple avatar { background-image: linear-gradient(#cb78d4, #9945b5); color: #e7c2e8; }
+.profile-avatar.profile-slate avatar { background-image: linear-gradient(#c0bfbc, #6e6d71); color: #d8d7d3; }
+
+/* "Show All" is deliberately the one neutral badge: it should read as
+ * the absence of a profile rather than as another one. */
+.profile-avatar.profile-all avatar {
+  background-image: linear-gradient(#c0bfbc, #6e6d71);
+  color: #ffffff;
+}
+
+/* The swatches in the profile editor's color picker, echoing the badge
+ * each one produces. */
+button.profile-swatch {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  border-radius: 9999px;
+}
+
+button.profile-swatch.profile-blue { background-image: linear-gradient(#83b6ec, #337fdc); }
+button.profile-swatch.profile-teal { background-image: linear-gradient(#7ad9f1, #0f9ac8); }
+button.profile-swatch.profile-green { background-image: linear-gradient(#8de6b1, #29ae74); }
+button.profile-swatch.profile-yellow { background-image: linear-gradient(#f8e359, #d29d09); }
+button.profile-swatch.profile-orange { background-image: linear-gradient(#ffa95a, #ed5b00); }
+button.profile-swatch.profile-red { background-image: linear-gradient(#f78773, #e62d42); }
+button.profile-swatch.profile-pink { background-image: linear-gradient(#e973ab, #e33b6a); }
+button.profile-swatch.profile-purple { background-image: linear-gradient(#cb78d4, #9945b5); }
+button.profile-swatch.profile-slate { background-image: linear-gradient(#c0bfbc, #6e6d71); }
+
+/* The check mark that marks the chosen swatch needs to stay legible on
+ * every one of those backgrounds. */
+button.profile-swatch image {
+  color: #ffffff;
+}
+
+/* An identity whose account the active profile hides. Still selectable
+ * -- the point is to say "this is not the profile you are in", not to
+ * take the choice away. */
+.profile-foreign {
+  opacity: 0.55;
+}
