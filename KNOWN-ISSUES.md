@@ -41,6 +41,49 @@ and adds them back, and `gcal_timeline_add_calendar()` builds a fresh
 refetches its range. Fine for something that happens on a profile
 switch; would not be fine if anything started calling it frequently.
 
+**A profile's layout override has only been driven from the action, not
+the editor.** The combo row in the editor writes through
+`stamp_profile_set_layout()` and the manager stores it in the
+`profile-layouts` map, but as with the schedule widgets, nothing on this
+machine can click it. What was exercised is `win.mail-layout` over
+D-Bus: it moves the default, and the mail view follows it into all three
+layouts without complaint. The path that was reasoned about rather than
+run is a profile's turn *ending* while a layout was picked by hand
+during it.
+
+**The layout lives in a map beside the profiles, not in the profile.**
+Growing the `a(sssasa(yqq))` tuple would change the key's type, and
+GSettings answers a type mismatch by dropping the stored value, which
+would silently delete every profile on upgrade. So `profile-layouts` is
+`a{ss}` keyed by profile id, and inherits the wart the accounts list
+already has: removing a profile outside the manager would leave its
+layout behind.
+
+**A two-way `g_settings_bind()` on a tree row records what the model
+does, not what the user does.** The folder list bound an account row's
+`expanded` straight to its GSettings key, so when a profile switch
+filtered the account out of the tree, the row collapsed on its way out
+and wrote `false`. The account came back collapsed, every time, and the
+state degraded across switches. Expansion is now read at bind time and
+written from an explicit handler that stands down while the tree is
+being refiltered and when the row has already lost its item. The same
+guard was needed for the per-folder `expanded-folders` list, which had
+the additional bug of dereferencing that missing item.
+
+**With every account collapsed nothing could restore a selection.** The
+folder-restore path only ran when a folder row was bound, and a
+collapsed account has no folder rows -- so the mail list sat empty and
+the window read as broken. The restore now also runs when an account
+row appears, and opens the one account the remembered folder lives in.
+
+**The strip's "at most half the sidebar" cap only recomputes when the
+agenda is toggled.** It was written to run from `size_allocate()`, which
+GTK4 never calls on this widget: a widget with a layout manager --
+`GtkBox` has one -- has its allocation done by the layout manager, and
+the vfunc is skipped. The dead override is gone. Expanding or collapsing
+the agenda recomputes the cap, so it self-corrects, but resizing the
+window alone does not.
+
 **The schedule resolves on a 60-second tick.** Deliberate — it means a
 suspended laptop, a changed timezone or a stepped clock heal themselves
 on the next tick instead of leaving a timer armed for a moment that has

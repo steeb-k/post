@@ -24,8 +24,9 @@ What follows is what was deliberately left out.
   Ctrl+1..3; profiles have nothing. `app.profiles` opens the dialog but
   no action activates a profile, so nothing can be bound yet.
 - **Per-profile defaults.** A profile knows which accounts it shows and
-  nothing else. Obvious extensions: default sending identity, default
-  calendar for new events, a per-profile notification mode.
+  which layout it wants, and nothing else. Obvious extensions: default
+  sending identity, default calendar for new events, a per-profile
+  notification mode.
 - **Any profile awareness in search.** Global search still reaches every
   account. Arguably correct — you often search precisely for the thing
   you cannot see — but it is not a decision that was made, it is one that
