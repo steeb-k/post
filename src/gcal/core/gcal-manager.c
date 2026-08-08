@@ -25,7 +25,12 @@
 #include "gcal-timeline-subscriber.h"
 #include "gcal-utils.h"
 
+#include <gtk/gtk.h>
 #include <libedataserverui4/libedataserverui4.h>
+
+/* Post: calendar filtering, defined further down. */
+static gboolean calendar_passes_filter (gpointer item,
+                                        gpointer user_data);
 
 /**
  * SECTION:gcal-manager
@@ -64,6 +69,13 @@ struct _GcalManager
    */
   GHashTable         *clients;
   GListStore         *calendars_model;
+
+  /* Post: see gcal_manager_set_calendar_filter(). */
+  GtkFilterListModel *filtered_calendars_model;
+  GtkCustomFilter    *calendar_filter;
+  GcalCalendarFilterFunc filter_func;
+  gpointer            filter_user_data;
+  GDestroyNotify      filter_notify;
 
   ESourceRegistry    *source_registry;
   ECredentialsPrompter *credentials_prompter;
@@ -277,7 +289,10 @@ on_calendar_created_cb (GObject      *source_object,
   g_list_store_insert_sorted (self->calendars_model, calendar, sort_calendar_by_name_cb, self);
   g_signal_connect (calendar, "notify::name", G_CALLBACK (on_calendar_name_changed_cb), self);
 
-  gcal_timeline_add_calendar (self->timeline, calendar);
+  /* Post: a calendar the filter excludes stays off the timeline until
+   * the filter changes its mind. */
+  if (calendar_passes_filter (calendar, self))
+    gcal_timeline_add_calendar (self->timeline, calendar);
 
   /* refresh client when it's added */
   if (visible && e_client_check_refresh_supported (E_CLIENT (client)))
@@ -739,6 +754,19 @@ gcal_manager_finalize (GObject *object)
 
   g_clear_object (&self->timeline);
 
+  /* Post: calendar filtering. */
+  if (self->filter_notify)
+    {
+      self->filter_notify (self->filter_user_data);
+      self->filter_notify = NULL;
+    }
+
+  self->filter_func = NULL;
+  self->filter_user_data = NULL;
+
+  g_clear_object (&self->filtered_calendars_model);
+  g_clear_object (&self->calendar_filter);
+
   g_clear_object (&self->calendars_model);
   g_clear_pointer (&self->clients, g_hash_table_destroy);
 
@@ -864,6 +892,11 @@ static void
 gcal_manager_init (GcalManager *self)
 {
   self->calendars_model = g_list_store_new (GCAL_TYPE_CALENDAR);
+
+  /* Post: admits everything until a host application sets a filter. */
+  self->calendar_filter = gtk_custom_filter_new (calendar_passes_filter, self, NULL);
+  self->filtered_calendars_model = gtk_filter_list_model_new (g_object_ref (G_LIST_MODEL (self->calendars_model)),
+                                                              GTK_FILTER (g_object_ref (self->calendar_filter)));
 }
 
 /* Public API */
@@ -907,6 +940,107 @@ gcal_manager_get_calendars (GcalManager *self)
   g_return_val_if_fail (GCAL_IS_MANAGER (self), NULL);
 
   return g_hash_table_get_values (self->clients);
+}
+
+/*
+ * Post: calendar filtering.
+ */
+
+static gboolean
+calendar_passes_filter (gpointer item,
+                        gpointer user_data)
+{
+  GcalManager *self = GCAL_MANAGER (user_data);
+
+  if (!self->filter_func)
+    return TRUE;
+
+  return self->filter_func (GCAL_CALENDAR (item), self->filter_user_data);
+}
+
+/**
+ * gcal_manager_set_calendar_filter:
+ * @self: a #GcalManager
+ * @func: (nullable): the filter, or %NULL to admit every calendar
+ * @user_data: data passed to @func
+ * @notify: (nullable): destroy notify for @user_data
+ *
+ * Post addition. Restricts which calendars take part in the timeline
+ * and appear in the filtered model, without disturbing the per-calendar
+ * visibility the user set, which lives in the #ESource.
+ */
+void
+gcal_manager_set_calendar_filter (GcalManager            *self,
+                                  GcalCalendarFilterFunc  func,
+                                  gpointer                user_data,
+                                  GDestroyNotify          notify)
+{
+  g_return_if_fail (GCAL_IS_MANAGER (self));
+
+  if (self->filter_notify)
+    self->filter_notify (self->filter_user_data);
+
+  self->filter_func = func;
+  self->filter_user_data = user_data;
+  self->filter_notify = notify;
+
+  gcal_manager_refilter_calendars (self);
+}
+
+/**
+ * gcal_manager_refilter_calendars:
+ * @self: a #GcalManager
+ *
+ * Post addition. Runs the calendar filter again, adding to or removing
+ * from the timeline whatever changed. Call when the filter would now
+ * answer differently.
+ */
+void
+gcal_manager_refilter_calendars (GcalManager *self)
+{
+  guint n_calendars;
+
+  g_return_if_fail (GCAL_IS_MANAGER (self));
+
+  GCAL_ENTRY;
+
+  n_calendars = g_list_model_get_n_items (G_LIST_MODEL (self->calendars_model));
+
+  for (guint i = 0; i < n_calendars; i++)
+    {
+      g_autoptr (GcalCalendar) calendar = g_list_model_get_item (G_LIST_MODEL (self->calendars_model), i);
+
+      /* Adding a calendar already on the timeline, or removing one that
+       * is not, are both no-ops, so this needs no bookkeeping of its
+       * own. Removing does drop the calendar's monitor, so a calendar
+       * coming back into view refetches -- acceptable for something
+       * that only happens on a profile switch. */
+      if (calendar_passes_filter (calendar, self))
+        gcal_timeline_add_calendar (self->timeline, calendar);
+      else
+        gcal_timeline_remove_calendar (self->timeline, calendar);
+    }
+
+  gtk_filter_changed (GTK_FILTER (self->calendar_filter), GTK_FILTER_CHANGE_DIFFERENT);
+
+  GCAL_EXIT;
+}
+
+/**
+ * gcal_manager_get_filtered_calendars_model:
+ * @self: a #GcalManager
+ *
+ * Post addition.
+ *
+ * Returns: (transfer none): a #GListModel of the #GcalCalendar the
+ * filter admits.
+ */
+GListModel*
+gcal_manager_get_filtered_calendars_model (GcalManager *self)
+{
+  g_return_val_if_fail (GCAL_IS_MANAGER (self), NULL);
+
+  return G_LIST_MODEL (self->filtered_calendars_model);
 }
 
 /**

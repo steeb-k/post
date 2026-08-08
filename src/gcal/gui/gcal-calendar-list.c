@@ -120,7 +120,9 @@ create_sorted_calendars_model (GcalCalendarList *self)
   sorter = gtk_string_sorter_new (gtk_property_expression_new (E_TYPE_SOURCE,
                                                                gtk_property_expression_new (GCAL_TYPE_CALENDAR, NULL, "parent-source"),
                                                                "display-name"));
-  sort_model = gtk_sort_list_model_new (g_object_ref (gcal_manager_get_calendars_model (manager)),
+  /* Post: the filtered model, so the sidebar lists only the calendars
+   * the active profile shows. */
+  sort_model = gtk_sort_list_model_new (g_object_ref (gcal_manager_get_filtered_calendars_model (manager)),
                                         GTK_SORTER (g_steal_pointer (&sorter)));
 
   return G_LIST_MODEL (g_steal_pointer (&sort_model));

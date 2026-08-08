@@ -1480,7 +1480,9 @@ gcal_create_writable_calendars_model (GcalManager *manager)
 
   g_return_val_if_fail (GCAL_IS_MANAGER (manager), NULL);
 
-  calendars = gcal_manager_get_calendars_model (manager);
+  /* Post: the filtered model, so the event editor only offers to file
+   * events into calendars the active profile shows. */
+  calendars = gcal_manager_get_filtered_calendars_model (manager);
 
   bool_filter = gtk_bool_filter_new (gtk_property_expression_new (GCAL_TYPE_CALENDAR, NULL, "read-only"));
   gtk_bool_filter_set_invert (bool_filter, TRUE);

@@ -39,6 +39,29 @@ GList*               gcal_manager_get_calendars                  (GcalManager   
 
 GListModel*          gcal_manager_get_calendars_model            (GcalManager        *self);
 
+/*
+ * Post: a filter layered over the calendars, so a host application can
+ * put some of them out of view without touching their ESource. Note
+ * that gcal_calendar_set_visible() writes the choice into the source,
+ * which is the user's own per-calendar checkbox and must be left alone.
+ */
+typedef gboolean (*GcalCalendarFilterFunc) (GcalCalendar *calendar,
+                                            gpointer      user_data);
+
+void                 gcal_manager_set_calendar_filter            (GcalManager            *self,
+                                                                  GcalCalendarFilterFunc  func,
+                                                                  gpointer                user_data,
+                                                                  GDestroyNotify          notify);
+
+void                 gcal_manager_refilter_calendars             (GcalManager        *self);
+
+/*
+ * The calendars the filter admits. Unlike
+ * gcal_manager_get_calendars_model(), which keeps returning every
+ * calendar so calendar management can still show them all.
+ */
+GListModel*          gcal_manager_get_filtered_calendars_model   (GcalManager        *self);
+
 GcalCalendar*        gcal_manager_get_default_calendar           (GcalManager        *self);
 
 void                 gcal_manager_set_default_calendar           (GcalManager        *self,
