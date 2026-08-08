@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist gettext-domain="post-mail">
+  <enum id="io.github.steeb_k.Post.MailLayout">
+    <value nick="side-by-side" value="0"/>
+    <value nick="stacked" value="1"/>
+    <value nick="dense" value="2"/>
+  </enum>
+
   <schema id="io.github.steeb_k.Post" path="/io/github/steeb_k/Post/">
     <key name="window-maximized" type="b">
       <default>false</default>
@@ -108,6 +114,11 @@
         <default>60</default>
         <summary>Refresh interval in seconds</summary>
         <description>Defines in which refresh interval mail folders should be checked for changes.</description>
+    </key>
+    <key name="layout" enum="io.github.steeb_k.Post.MailLayout">
+        <default>'side-by-side'</default>
+        <summary>How the mail view arranges its panes</summary>
+        <description>Side by side puts the conversation list and the reading pane next to each other; stacked puts the reading pane below the list; dense is stacked with the agenda moved into a pane of its own on the right. A profile can override this while it is active.</description>
     </key>
     <key type="b" name="agenda-expanded">
         <default>false</default>

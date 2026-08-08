@@ -50,6 +50,7 @@ G_BEGIN_DECLS
 #define STAMP_PREFS_MAIL_IMPORTANT_FIRST      "important-first"
 #define STAMP_PREFS_MAIL_REFRESH_INTERVAL     "refresh-interval"
 #define STAMP_PREFS_MAIL_AGENDA_EXPANDED      "agenda-expanded"
+#define STAMP_PREFS_MAIL_LAYOUT               "layout"
 
 #define STAMP_PREFS_ACCOUNTS_SCHEMA            "io.github.steeb_k.Post.accounts"
 #define STAMP_PREFS_MAIL_DEFAULT_SIGNATURE     "default-signature"
@@ -57,6 +58,36 @@ G_BEGIN_DECLS
 #define STAMP_SETTINGS stamp_settings_get (STAMP_PREFS_SCHEMA)
 #define STAMP_SETTINGS_MAIL stamp_settings_get (STAMP_PREFS_MAIL_SCHEMA)
 #define STAMP_SETTINGS_ACCOUNTS stamp_settings_get (STAMP_PREFS_ACCOUNTS_SCHEMA)
+
+/*
+ * How the mail view arranges its panes. The nicks match the
+ * io.github.steeb_k.Post.MailLayout enum in the schema, and are what a
+ * profile stores when it overrides the layout.
+ */
+typedef enum {
+  STAMP_MAIL_LAYOUT_SIDE_BY_SIDE,
+  STAMP_MAIL_LAYOUT_STACKED,
+  STAMP_MAIL_LAYOUT_DENSE,
+} StampMailLayout;
+
+/*
+ * The nick @layout is stored under. Never NULL.
+ */
+const gchar *
+stamp_mail_layout_to_nick (StampMailLayout layout);
+
+/*
+ * The layout @nick names, or side by side for anything unrecognized --
+ * including NULL, which is what "no override" reads as.
+ */
+StampMailLayout
+stamp_mail_layout_from_nick (const gchar *nick);
+
+/*
+ * Whether @nick names a layout at all. An empty or NULL nick does not.
+ */
+gboolean
+stamp_mail_layout_nick_is_valid (const gchar *nick);
 
 GSettings *
 stamp_settings_get (const gchar *schema);

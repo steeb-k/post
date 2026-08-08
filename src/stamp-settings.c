@@ -26,6 +26,49 @@
 
 static GHashTable *settings = NULL;
 
+/* Indexed by StampMailLayout. */
+static const gchar *layout_nicks[] = {
+  "side-by-side",
+  "stacked",
+  "dense",
+};
+
+const gchar *
+stamp_mail_layout_to_nick (StampMailLayout layout)
+{
+  if (layout >= G_N_ELEMENTS (layout_nicks))
+    return layout_nicks[STAMP_MAIL_LAYOUT_SIDE_BY_SIDE];
+
+  return layout_nicks[layout];
+}
+
+StampMailLayout
+stamp_mail_layout_from_nick (const gchar *nick)
+{
+  if (nick) {
+    for (guint i = 0; i < G_N_ELEMENTS (layout_nicks); i++) {
+      if (g_strcmp0 (nick, layout_nicks[i]) == 0)
+        return (StampMailLayout)i;
+    }
+  }
+
+  return STAMP_MAIL_LAYOUT_SIDE_BY_SIDE;
+}
+
+gboolean
+stamp_mail_layout_nick_is_valid (const gchar *nick)
+{
+  if (!nick || *nick == '\0')
+    return FALSE;
+
+  for (guint i = 0; i < G_N_ELEMENTS (layout_nicks); i++) {
+    if (g_strcmp0 (nick, layout_nicks[i]) == 0)
+      return TRUE;
+  }
+
+  return FALSE;
+}
+
 GSettings *
 stamp_settings_get (const gchar *schema)
 {
