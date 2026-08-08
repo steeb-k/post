@@ -74,6 +74,275 @@ template $StampPreferences: Adw.PreferencesDialog {
     Adw.PreferencesGroup {
       title: _("Visual");
 
+      Adw.PreferencesRow {
+        title: _("Layout");
+        activatable: false;
+        focusable: false;
+
+        child: Box {
+          orientation: vertical;
+          spacing: 6;
+          margin-top: 12;
+          margin-bottom: 12;
+          margin-start: 12;
+          margin-end: 12;
+
+          Label {
+            label: _("Layout");
+            xalign: 0;
+
+            styles [
+              "heading",
+            ]
+          }
+
+          Label {
+            label: _("Where the reading pane and the agenda sit. A profile can ask for a different one while it is active.");
+            xalign: 0;
+            wrap: true;
+            margin-bottom: 6;
+
+            styles [
+              "caption",
+              "dim-label",
+            ]
+          }
+
+          Box {
+            orientation: horizontal;
+            spacing: 12;
+            homogeneous: true;
+
+            ToggleButton layout_side_by_side {
+              tooltip-text: _("Side by Side");
+              toggled => $on_layout_toggled();
+
+              styles [
+                "flat",
+              ]
+
+              accessibility {
+                label: _("Side by Side");
+              }
+
+              child: Box {
+                orientation: vertical;
+                spacing: 6;
+
+                Box {
+                  orientation: horizontal;
+                  spacing: 3;
+
+                  styles [
+                    "layout-preview",
+                  ]
+
+                  Box {
+                    orientation: vertical;
+                    spacing: 3;
+                    width-request: 16;
+
+                    Box {
+                      vexpand: true;
+
+                      styles [
+                        "layout-preview-pane",
+                      ]
+                    }
+
+                    Box {
+                      height-request: 16;
+
+                      styles [
+                        "layout-preview-agenda",
+                      ]
+                    }
+                  }
+
+                  Box {
+                    width-request: 22;
+
+                    styles [
+                      "layout-preview-pane",
+                    ]
+                  }
+
+                  Box {
+                    hexpand: true;
+
+                    styles [
+                      "layout-preview-pane",
+                    ]
+                  }
+                }
+
+                Label {
+                  label: _("Side by Side");
+
+                  styles [
+                    "caption",
+                  ]
+                }
+              };
+            }
+
+            ToggleButton layout_stacked {
+              group: layout_side_by_side;
+              tooltip-text: _("Stacked");
+              toggled => $on_layout_toggled();
+
+              styles [
+                "flat",
+              ]
+
+              accessibility {
+                label: _("Stacked");
+              }
+
+              child: Box {
+                orientation: vertical;
+                spacing: 6;
+
+                Box {
+                  orientation: horizontal;
+                  spacing: 3;
+
+                  styles [
+                    "layout-preview",
+                  ]
+
+                  Box {
+                    orientation: vertical;
+                    spacing: 3;
+                    width-request: 16;
+
+                    Box {
+                      vexpand: true;
+
+                      styles [
+                        "layout-preview-pane",
+                      ]
+                    }
+
+                    Box {
+                      height-request: 16;
+
+                      styles [
+                        "layout-preview-agenda",
+                      ]
+                    }
+                  }
+
+                  Box {
+                    orientation: vertical;
+                    spacing: 3;
+                    hexpand: true;
+
+                    Box {
+                      height-request: 14;
+
+                      styles [
+                        "layout-preview-pane",
+                      ]
+                    }
+
+                    Box {
+                      vexpand: true;
+
+                      styles [
+                        "layout-preview-pane",
+                      ]
+                    }
+                  }
+                }
+
+                Label {
+                  label: _("Stacked");
+
+                  styles [
+                    "caption",
+                  ]
+                }
+              };
+            }
+
+            ToggleButton layout_dense {
+              group: layout_side_by_side;
+              tooltip-text: _("Dense");
+              toggled => $on_layout_toggled();
+
+              styles [
+                "flat",
+              ]
+
+              accessibility {
+                label: _("Dense");
+              }
+
+              child: Box {
+                orientation: vertical;
+                spacing: 6;
+
+                Box {
+                  orientation: horizontal;
+                  spacing: 3;
+
+                  styles [
+                    "layout-preview",
+                  ]
+
+                  Box {
+                    width-request: 16;
+
+                    styles [
+                      "layout-preview-pane",
+                    ]
+                  }
+
+                  Box {
+                    orientation: vertical;
+                    spacing: 3;
+                    hexpand: true;
+
+                    Box {
+                      height-request: 14;
+
+                      styles [
+                        "layout-preview-pane",
+                      ]
+                    }
+
+                    Box {
+                      vexpand: true;
+
+                      styles [
+                        "layout-preview-pane",
+                      ]
+                    }
+                  }
+
+                  Box {
+                    width-request: 18;
+
+                    styles [
+                      "layout-preview-agenda",
+                    ]
+                  }
+                }
+
+                Label {
+                  label: _("Dense");
+
+                  styles [
+                    "caption",
+                  ]
+                }
+              };
+            }
+          }
+        };
+      }
+
       Adw.SwitchRow always_show_images {
         title: _("Always Show Images");
         subtitle: _("Except for Junk and Trash folders");

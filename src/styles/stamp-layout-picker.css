@@ -1,0 +1,24 @@
+/* The little diagrams in the layout picker. The colors are deliberately
+ * fixed rather than themed: the tile is a picture of a window, and it
+ * has to read the same way the sketch it came from does -- gray panes,
+ * bold white gutters showing through from the frame behind them. Only
+ * the agenda follows the accent, because that is the one thing that
+ * moves between the three. */
+.layout-preview {
+  min-width: 116px;
+  min-height: 72px;
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  background-color: #ffffff;
+}
+
+.layout-preview-pane {
+  border-radius: 2px;
+  background-color: #3d3d3d;
+}
+
+.layout-preview-agenda {
+  border-radius: 2px;
+  background-color: var(--accent-bg-color);
+}
