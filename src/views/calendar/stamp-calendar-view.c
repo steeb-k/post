@@ -416,19 +416,17 @@ on_day_selected (StampCalendarView *self)
   update_active_date (self, gcal_view_get_date (GCAL_VIEW (self->date_chooser)));
 }
 
+/*
+ * Only some of the views are available at any one width -- the agenda
+ * exists at the mobile breakpoint and nowhere else, and the month and
+ * week views step aside for it there. Fall back to the previous visible
+ * view, exactly as GcalWindow does.
+ */
 static void
-on_breakpoint_changed (GObject *object   G_GNUC_UNUSED,
-                       GParamSpec *pspec G_GNUC_UNUSED,
-                       gpointer           user_data)
+settle_active_view (StampCalendarView *self)
 {
-  StampCalendarView *self = STAMP_CALENDAR_VIEW (user_data);
   gint32 view = self->active_view;
 
-  /*
-   * Breakpoints only flip page visibility; the stack does not leave a
-   * now-hidden page on its own. Fall back to the previous visible view,
-   * exactly as GcalWindow does.
-   */
   while (!adw_view_stack_page_get_visible (adw_view_stack_get_page (self->views_stack, self->views[view]))) {
     view--;
 
@@ -444,6 +442,16 @@ on_breakpoint_changed (GObject *object   G_GNUC_UNUSED,
     adw_view_stack_set_visible_child (self->views_stack, self->views[self->active_view]);
     g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_ACTIVE_VIEW]);
   }
+}
+
+/* Breakpoints only flip page visibility; the stack does not leave a
+ * now-hidden page on its own. */
+static void
+on_breakpoint_changed (GObject *object   G_GNUC_UNUSED,
+                       GParamSpec *pspec G_GNUC_UNUSED,
+                       gpointer           user_data)
+{
+  settle_active_view (STAMP_CALENDAR_VIEW (user_data));
 }
 
 static void
@@ -1196,6 +1204,13 @@ stamp_calendar_view_init (StampCalendarView *self)
                    self,
                    "active-view",
                    G_SETTINGS_BIND_SET | G_SETTINGS_BIND_GET);
+
+  /* The view that was open when the app last closed may not exist at
+   * this width: a window last used narrow enough for the agenda saves
+   * "agenda", and restoring that on a desktop-sized window leaves the
+   * calendar showing a view its own dropdown does not offer. No
+   * breakpoint changes at startup to catch it, so settle it here. */
+  settle_active_view (self);
 
   {
     g_autoptr (GDateTime) today = g_date_time_new_now_local ();
