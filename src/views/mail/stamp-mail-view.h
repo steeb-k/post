@@ -21,6 +21,8 @@
 
 #pragma once
 
+#include "stamp-settings.h"
+
 G_BEGIN_DECLS
 
 typedef struct _StampConversationList StampConversationList;
@@ -48,6 +50,18 @@ stamp_mail_view_show_toast (StampMailView *self,
 
 StampConversationList *
 stamp_mail_view_get_conversation_list (StampMailView *self);
+
+/*
+ * How the panes are arranged. The window decides which layout applies;
+ * the view only knows how to wear it, and narrows it down to what fits
+ * the width it has.
+ */
+void
+stamp_mail_view_set_layout (StampMailView   *self,
+                            StampMailLayout  layout);
+
+StampMailLayout
+stamp_mail_view_get_layout (StampMailView *self);
 
 G_END_DECLS
 

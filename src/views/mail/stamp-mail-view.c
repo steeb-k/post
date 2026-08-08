@@ -23,9 +23,28 @@
 
 #include "stamp-conversation-list.h"
 #include "stamp-folder-list.h"
+#include "stamp-gcal.h"
 #include "stamp-header-bar.h"
 #include "stamp-message-list.h"
+#include "stamp-settings.h"
 #include "stamp-sidebar-agenda.h"
+#include "stamp-window.h"
+
+#include "gcal-agenda-view.h"
+#include "gcal-event-widget.h"
+#include "gcal-global.h"
+#include "gcal-manager.h"
+#include "gcal-timeline.h"
+#include "gcal-timeline-subscriber.h"
+#include "gcal-view.h"
+
+/* How much room the window has, which is what the breakpoints decide.
+ * The layout the user picked says what to do with it. */
+typedef enum {
+  SIZE_DESKTOP,
+  SIZE_TABLET,
+  SIZE_MOBILE,
+} StampMailViewSize;
 
 struct _StampMailView {
   AdwBreakpointBin parent_instance;
@@ -34,7 +53,10 @@ struct _StampMailView {
   AdwViewStack *stack;
 
   AdwMultiLayoutView *mail_layout;
+  AdwBreakpoint *bp_tablet;
+  AdwBreakpoint *bp_mobile;
   AdwOverlaySplitView *tablet_osv;
+  AdwOverlaySplitView *tablet_stacked_osv;
   AdwOverlaySplitView *mobile_osv;
   AdwNavigationView *mobile_nav;
   StampFolderList *folder_list;
@@ -45,17 +67,37 @@ struct _StampMailView {
   GtkSizeGroup *agenda_clearance;
   GtkPaned *desktop_paned;
   GtkPaned *tablet_paned;
+  GtkPaned *stacked_paned;
+  GtkPaned *dense_paned;
+  GtkPaned *tablet_stacked_paned;
+  GtkPaned *dense_agenda_paned;
+  GtkWidget *dense_agenda;
+  AdwHeaderBar *agenda_header;
   AdwToastOverlay *toast_overlay;
 
 
   GSimpleActionGroup *actions;
   StampAccount *account;
 
+  StampMailViewSize size;
+  StampMailLayout layout;
+
   gint saved_paned_pos;
+  gint saved_stacked_pos;
+  gint agenda_width;
+  guint agenda_width_pending : 1;
+  guint agenda_subscribed : 1;
   guint load_folder_handler;
 };
 
 G_DEFINE_FINAL_TYPE (StampMailView, stamp_mail_view, ADW_TYPE_BREAKPOINT_BIN);
+
+static void set_agenda_subscribed (StampMailView *self,
+                                   gboolean       subscribed);
+
+static void on_agenda_event_activated (GcalAgendaView  *view,
+                                       GcalEventWidget *event_widget,
+                                       gpointer         user_data);
 
 static void
 stamp_mail_view_get_property (GObject    *object,
@@ -81,6 +123,10 @@ stamp_mail_view_set_property (GObject      *object,
     G_OBJECT_WARN_INVALID_PROPERTY_ID (object, id, ps);
 }
 
+/*
+ * The split view whose sidebar overlays the content, so it can be
+ * toggled and closed again. The desktop layouts keep theirs open.
+ */
 static AdwOverlaySplitView *
 get_current_osv (StampMailView *self)
 {
@@ -89,10 +135,68 @@ get_current_osv (StampMailView *self)
   if (g_strcmp0 (layout, "tablet") == 0)
     return self->tablet_osv;
 
+  if (g_strcmp0 (layout, "tablet-stacked") == 0)
+    return self->tablet_stacked_osv;
+
   if (g_strcmp0 (layout, "mobile") == 0)
     return self->mobile_osv;
 
   return NULL;
+}
+
+/*
+ * The layout name for the size the window is at and the layout that was
+ * asked for. Dense needs a column the tablet width cannot spare, so it
+ * falls back to stacked, which is the closest thing.
+ */
+static const gchar *
+layout_name_for (StampMailView *self)
+{
+  switch (self->size) {
+    case SIZE_MOBILE:
+      return "mobile";
+
+    case SIZE_TABLET:
+      return self->layout == STAMP_MAIL_LAYOUT_SIDE_BY_SIDE ? "tablet" : "tablet-stacked";
+
+    case SIZE_DESKTOP:
+    default:
+      switch (self->layout) {
+        case STAMP_MAIL_LAYOUT_STACKED:
+          return "desktop-stacked";
+
+        case STAMP_MAIL_LAYOUT_DENSE:
+          return "desktop-dense";
+
+        case STAMP_MAIL_LAYOUT_SIDE_BY_SIDE:
+        default:
+          return "desktop";
+      }
+  }
+}
+
+static void
+update_layout_name (StampMailView *self)
+{
+  adw_multi_layout_view_set_layout_name (self->mail_layout, layout_name_for (self));
+}
+
+static void
+on_size_changed (GObject *object     G_GNUC_UNUSED,
+                 GParamSpec *pspec   G_GNUC_UNUSED,
+                 gpointer            user_data)
+{
+  StampMailView *self = STAMP_MAIL_VIEW (user_data);
+  AdwBreakpoint *current = adw_breakpoint_bin_get_current_breakpoint (ADW_BREAKPOINT_BIN (self));
+
+  if (current == self->bp_mobile)
+    self->size = SIZE_MOBILE;
+  else if (current == self->bp_tablet)
+    self->size = SIZE_TABLET;
+  else
+    self->size = SIZE_DESKTOP;
+
+  update_layout_name (self);
 }
 
 static void
@@ -271,6 +375,10 @@ stamp_mail_view_dispose (GObject *object)
   StampMailView *self = STAMP_MAIL_VIEW (object);
 
   g_clear_handle_id (&self->load_folder_handler, g_source_remove);
+
+  if (self->dense_agenda)
+    set_agenda_subscribed (self, FALSE);
+
   g_clear_object (&self->actions);
   g_clear_object (&self->account);
   g_clear_object (&self->agenda_clearance);
@@ -284,18 +392,7 @@ stamp_mail_view_dispose (GObject *object)
 static gboolean
 is_mobile_view (StampMailView *self)
 {
-  return g_strcmp0 (adw_multi_layout_view_get_layout_name (self->mail_layout), "mobile") == 0;
-}
-
-static
-void
-on_apply_view (AdwBreakpoint *breakpoint,
-               gpointer       user_data)
-{
-  StampMailView *self = STAMP_MAIL_VIEW (user_data);
-  gboolean show = is_mobile_view (self);
-
-  stamp_consersation_list_set_show_buttons (self->conversation_list, show);
+  return self->size == SIZE_MOBILE;
 }
 
 void
@@ -305,6 +402,7 @@ stamp_mail_view_class_init (StampMailViewClass *klass)
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
   g_type_ensure (STAMP_TYPE_SIDEBAR_AGENDA);
+  g_type_ensure (GCAL_TYPE_AGENDA_VIEW);
 
   gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/views/mail/stamp-mail-view.ui");
 
@@ -317,20 +415,30 @@ stamp_mail_view_class_init (StampMailViewClass *klass)
                                                                          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   gtk_widget_class_bind_template_child (widget_class, StampMailView, mail_layout);
+  gtk_widget_class_bind_template_child (widget_class, StampMailView, bp_tablet);
+  gtk_widget_class_bind_template_child (widget_class, StampMailView, bp_mobile);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, folder_list);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, message_list);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, conversation_list);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, toast_overlay);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, desktop_paned);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, tablet_paned);
+  gtk_widget_class_bind_template_child (widget_class, StampMailView, stacked_paned);
+  gtk_widget_class_bind_template_child (widget_class, StampMailView, dense_paned);
+  gtk_widget_class_bind_template_child (widget_class, StampMailView, tablet_stacked_paned);
+  gtk_widget_class_bind_template_child (widget_class, StampMailView, dense_agenda_paned);
+  gtk_widget_class_bind_template_child (widget_class, StampMailView, dense_agenda);
+  gtk_widget_class_bind_template_child (widget_class, StampMailView, agenda_header);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, tablet_osv);
+  gtk_widget_class_bind_template_child (widget_class, StampMailView, tablet_stacked_osv);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, sidebar_pane);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, sidebar_agenda);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, folder_spacer);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, mobile_osv);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, mobile_nav);
   gtk_widget_class_bind_template_callback (widget_class, on_details_hidden);
-  gtk_widget_class_bind_template_callback (widget_class, on_apply_view);
+  gtk_widget_class_bind_template_callback (widget_class, on_size_changed);
+  gtk_widget_class_bind_template_callback (widget_class, on_agenda_event_activated);
   gtk_widget_class_bind_template_callback (widget_class, on_folder_selected);
   gtk_widget_class_bind_template_callback (widget_class, on_folder_cleared);
   gtk_widget_class_bind_template_callback (widget_class, on_conversation_selected);
@@ -446,6 +554,86 @@ on_toggle_sidebar (GtkToggleButton *btn G_GNUC_UNUSED,
   adw_overlay_split_view_set_show_sidebar (osv, !adw_overlay_split_view_get_show_sidebar (osv));
 }
 
+/*
+ * The dense agenda only costs anything while it is on screen, so it
+ * joins the timeline when the dense layout does and leaves with it.
+ */
+static void
+set_agenda_subscribed (StampMailView *self,
+                       gboolean       subscribed)
+{
+  GcalContext *context;
+  GcalTimeline *timeline;
+
+  if (self->agenda_subscribed == subscribed)
+    return;
+
+  context = subscribed ? stamp_gcal_ensure_context () : gcal_get_default_context ();
+  if (!context)
+    return;
+
+  timeline = gcal_manager_get_timeline (gcal_context_get_manager (context));
+
+  if (subscribed) {
+    g_autoptr (GDateTime) now = g_date_time_new_now_local ();
+
+    /* The day may well have turned over while it was away. */
+    gcal_view_set_date (GCAL_VIEW (self->dense_agenda), now);
+    gcal_timeline_add_subscriber (timeline, GCAL_TIMELINE_SUBSCRIBER (self->dense_agenda));
+  } else {
+    gcal_timeline_remove_subscriber (timeline, GCAL_TIMELINE_SUBSCRIBER (self->dense_agenda));
+  }
+
+  self->agenda_subscribed = subscribed;
+}
+
+/* The agenda starts at the day it was given, so a dense layout left up
+ * overnight would still be starting at yesterday. */
+static void
+on_day_changed (GcalClock     *clock G_GNUC_UNUSED,
+                StampMailView *self)
+{
+  g_autoptr (GDateTime) now = NULL;
+
+  if (!self->agenda_subscribed)
+    return;
+
+  now = g_date_time_new_now_local ();
+  gcal_view_set_date (GCAL_VIEW (self->dense_agenda), now);
+}
+
+static void
+on_agenda_event_activated (GcalAgendaView  *view G_GNUC_UNUSED,
+                           GcalEventWidget *event_widget,
+                           gpointer         user_data)
+{
+  StampWindow *window = stamp_get_main_window ();
+
+  if (window)
+    stamp_window_show_event (window, gcal_event_widget_get_event (event_widget));
+}
+
+/*
+ * The window controls belong in the window's top right corner, which is
+ * a different pane in every layout: the reading pane when it is beside
+ * the list, the list when the reading pane is below it, and the agenda
+ * column when there is one. On mobile each page is the whole window, so
+ * the two that can be on top both need a set.
+ */
+static void
+update_window_controls (StampMailView *self,
+                        const gchar   *layout)
+{
+  gboolean stacked = g_strcmp0 (layout, "desktop-stacked") == 0 ||
+                     g_strcmp0 (layout, "tablet-stacked") == 0;
+  gboolean dense = g_strcmp0 (layout, "desktop-dense") == 0;
+  gboolean mobile = g_strcmp0 (layout, "mobile") == 0;
+
+  stamp_consersation_list_set_show_buttons (self->conversation_list, stacked || mobile);
+  stamp_message_list_set_show_window_controls (self->message_list, mobile || !(stacked || dense));
+  adw_header_bar_set_show_end_title_buttons (self->agenda_header, dense);
+}
+
 static void
 on_layout_changed (AdwMultiLayoutView *view,
                    GParamSpec *ps      G_GNUC_UNUSED,
@@ -453,16 +641,35 @@ on_layout_changed (AdwMultiLayoutView *view,
 {
   StampMailView *self = STAMP_MAIL_VIEW (user_data);
   const gchar *name = adw_multi_layout_view_get_layout_name (view);
-  gboolean narrow = g_strcmp0 (name, "desktop") != 0;
+  gboolean dense = g_strcmp0 (name, "desktop-dense") == 0;
+  gboolean narrow = self->size != SIZE_DESKTOP;
   GtkToggleButton *toggle_button = stamp_conversation_list_get_sidebar_button (self->conversation_list);
 
   gtk_widget_set_visible (GTK_WIDGET (toggle_button), narrow);
 
-  stamp_message_list_set_mobile_mode (self->message_list, g_strcmp0 (name, "mobile") == 0);
+  stamp_message_list_set_mobile_mode (self->message_list, self->size == SIZE_MOBILE);
+
+  update_window_controls (self, name);
+
+  /* The sidebar strip stands down where the agenda has a pane of its
+   * own, and on mobile, where the sidebar is a narrow overlay and the
+   * calendar's own agenda is one tap away in the switcher. */
+  stamp_sidebar_agenda_set_enabled (self->sidebar_agenda, !dense && self->size != SIZE_MOBILE);
+
+  set_agenda_subscribed (self, dense);
+
+  if (dense)
+    self->agenda_width_pending = TRUE;
 
   if (!narrow && self->saved_paned_pos > 50) {
     gtk_paned_set_position (self->desktop_paned, self->saved_paned_pos);
     gtk_paned_set_position (self->tablet_paned, self->saved_paned_pos);
+  }
+
+  if (self->saved_stacked_pos > 50) {
+    gtk_paned_set_position (self->stacked_paned, self->saved_stacked_pos);
+    gtk_paned_set_position (self->dense_paned, self->saved_stacked_pos);
+    gtk_paned_set_position (self->tablet_stacked_paned, self->saved_stacked_pos);
   }
 }
 
@@ -478,6 +685,48 @@ on_paned_changed (GtkPaned      *paned,
     return;
 
   self->saved_paned_pos = pos;
+}
+
+static void
+on_stacked_paned_changed (GtkPaned      *paned,
+                          GParamSpec *ps G_GNUC_UNUSED,
+                          gpointer       user_data)
+{
+  StampMailView *self = STAMP_MAIL_VIEW (user_data);
+  gint pos = gtk_paned_get_position (paned);
+
+  if (pos < 50)
+    return;
+
+  self->saved_stacked_pos = pos;
+}
+
+/*
+ * GtkPaned counts from the start, so the agenda column would grow with
+ * the window if left alone. Its width is what is worth remembering, so
+ * position is worked out from it once the pane has a width to work
+ * with, and read back out of it whenever the handle is dragged.
+ */
+static void
+on_agenda_paned_changed (GtkPaned      *paned,
+                         GParamSpec *ps G_GNUC_UNUSED,
+                         gpointer       user_data)
+{
+  StampMailView *self = STAMP_MAIL_VIEW (user_data);
+  gint width = gtk_widget_get_width (GTK_WIDGET (paned));
+  gint pos = gtk_paned_get_position (paned);
+
+  if (width <= 0)
+    return;
+
+  if (self->agenda_width_pending) {
+    self->agenda_width_pending = FALSE;
+    gtk_paned_set_position (paned, width - self->agenda_width);
+    return;
+  }
+
+  if (width - pos > 0)
+    self->agenda_width = width - pos;
 }
 
 typedef struct {
@@ -515,9 +764,33 @@ stamp_mail_view_init (StampMailView *self)
 {
   GtkEventController *controller;
 
+  /* The dense agenda's date chooser reaches for the clock as it is
+   * built, so the context has to exist before the template does. */
+  GcalContext *context = stamp_gcal_ensure_context ();
+
   gtk_widget_init_template (GTK_WIDGET (self));
 
-  adw_multi_layout_view_set_layout_name (self->mail_layout, "desktop");
+  g_signal_connect_object (gcal_context_get_clock (context), "day-changed",
+                           G_CALLBACK (on_day_changed), self, G_CONNECT_DEFAULT);
+
+  /* The sidebar's content reaches the bottom edge so that folder names
+   * stay visible in the gap beside the agenda's tab, which would leave
+   * the last of them stranded behind the card. A spacer at the end of
+   * the list holds that room open, and a size group keeps it exactly as
+   * tall as the card's body -- including through the reveal animation,
+   * which changes that height on every frame. */
+  self->agenda_clearance = gtk_size_group_new (GTK_SIZE_GROUP_VERTICAL);
+  gtk_size_group_add_widget (self->agenda_clearance, stamp_sidebar_agenda_get_body (self->sidebar_agenda));
+  gtk_size_group_add_widget (self->agenda_clearance, self->folder_spacer);
+
+  self->size = SIZE_DESKTOP;
+  self->layout = STAMP_MAIL_LAYOUT_SIDE_BY_SIDE;
+  self->agenda_width = 320;
+  update_layout_name (self);
+
+  /* Starting in the layout the view already had leaves no notify to
+   * hang this off, so place the controls once up front. */
+  update_window_controls (self, layout_name_for (self));
 
   self->actions = g_simple_action_group_new ();
   g_action_map_add_action_entries (G_ACTION_MAP (self->actions),
@@ -539,19 +812,9 @@ stamp_mail_view_init (StampMailView *self)
 
   g_signal_connect (self->mail_layout, "notify::layout-name", G_CALLBACK (on_layout_changed), self);
 
-  /* The sidebar's content reaches the bottom edge so that folder names
-   * stay visible in the gap beside the agenda's tab, which would leave
-   * the last of them stranded behind the card. A spacer at the end of
-   * the list holds that room open, and a size group keeps it exactly as
-   * tall as the card's body -- including through the reveal animation,
-   * which changes that height on every frame. */
-  self->agenda_clearance = gtk_size_group_new (GTK_SIZE_GROUP_VERTICAL);
-  gtk_size_group_add_widget (self->agenda_clearance, stamp_sidebar_agenda_get_body (self->sidebar_agenda));
-  gtk_size_group_add_widget (self->agenda_clearance, self->folder_spacer);
-
   self->saved_paned_pos = 360;
+  self->saved_stacked_pos = 300;
 
-  g_signal_connect (self->mail_layout, "notify::layout-name", G_CALLBACK (on_layout_changed), self);
   g_signal_connect (stamp_conversation_list_get_sidebar_button (self->conversation_list), "clicked", G_CALLBACK (on_toggle_sidebar), self);
 
   stamp_folder_list_set_conversation_list (self->folder_list, self->conversation_list);
@@ -559,6 +822,14 @@ stamp_mail_view_init (StampMailView *self)
   /* Remember paned position */
   g_signal_connect (self->desktop_paned, "notify::position", G_CALLBACK (on_paned_changed), self);
   g_signal_connect (self->tablet_paned, "notify::position", G_CALLBACK (on_paned_changed), self);
+  g_signal_connect (self->stacked_paned, "notify::position", G_CALLBACK (on_stacked_paned_changed), self);
+  g_signal_connect (self->dense_paned, "notify::position", G_CALLBACK (on_stacked_paned_changed), self);
+  g_signal_connect (self->tablet_stacked_paned, "notify::position", G_CALLBACK (on_stacked_paned_changed), self);
+  g_signal_connect (self->dense_agenda_paned, "notify::position", G_CALLBACK (on_agenda_paned_changed), self);
+
+  /* The width to work the position out from only exists once the pane
+   * has been allocated, which is what moves max-position. */
+  g_signal_connect (self->dense_agenda_paned, "notify::max-position", G_CALLBACK (on_agenda_paned_changed), self);
 
   /* Synchronize button state with show-sidebar */
   g_signal_connect_swapped (self->tablet_osv, "notify::show-sidebar", G_CALLBACK (on_sidebar_visibility_changed), self);
@@ -612,4 +883,25 @@ GtkWidget *
 stamp_mail_view_get_sidebar (StampMailView *self)
 {
   return self->sidebar_pane;
+}
+
+void
+stamp_mail_view_set_layout (StampMailView   *self,
+                            StampMailLayout  layout)
+{
+  g_return_if_fail (STAMP_IS_MAIL_VIEW (self));
+
+  if (self->layout == layout)
+    return;
+
+  self->layout = layout;
+  update_layout_name (self);
+}
+
+StampMailLayout
+stamp_mail_view_get_layout (StampMailView *self)
+{
+  g_return_val_if_fail (STAMP_IS_MAIL_VIEW (self), STAMP_MAIL_LAYOUT_SIDE_BY_SIDE);
+
+  return self->layout;
 }

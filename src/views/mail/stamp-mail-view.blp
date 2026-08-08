@@ -4,29 +4,20 @@ using Adw 1;
 template $StampMailView: Adw.BreakpointBin {
   width-request: 360;
   height-request: 200;
+  notify::current-breakpoint => $on_size_changed(template) not-swapped;
 
+  /* Which breakpoint is current decides how much room there is; the
+   * chosen layout decides what to do with it. $on_size_changed() puts
+   * the two together and names the layout. */
   Adw.Breakpoint bp_tablet {
     condition ("max-width: 1200sp")
-    apply => $on_apply_view();
-    unapply => $on_apply_view();
-
-    setters {
-      mail_layout.layout-name: "tablet";
-    }
   }
 
   Adw.Breakpoint bp_mobile {
     condition ("max-width: 550sp")
-    apply => $on_apply_view();
-    unapply => $on_apply_view();
 
     setters {
-      mail_layout.layout-name: "mobile";
       app_switcher.policy: narrow;
-
-      /* The sidebar is a narrow overlay here, and the calendar view's
-       * own agenda is one tap away in the switcher. */
-      sidebar_agenda.enabled: false;
     }
   }
 
@@ -85,6 +76,28 @@ template $StampMailView: Adw.BreakpointBin {
       [content]
       $StampMessageList message_list {}
 
+      /* Only the dense layout has a slot for this; everywhere else the
+       * agenda is the strip at the bottom of the sidebar. The header bar
+       * is here because this column is the window's top right corner in
+       * that layout, and that is where the window controls belong. */
+      [agenda]
+      Adw.ToolbarView agenda_pane {
+        width-request: 300;
+
+        [top]
+        Adw.HeaderBar agenda_header {
+          show-start-title-buttons: false;
+
+          title-widget: Adw.WindowTitle {
+            title: _("Agenda");
+          };
+        }
+
+        content: $GcalAgendaView dense_agenda {
+          event-activated => $on_agenda_event_activated();
+        };
+      }
+
       Adw.Layout {
         name: "desktop";
 
@@ -126,6 +139,104 @@ template $StampMailView: Adw.BreakpointBin {
         };
       }
 
+      /* Stacked: the sidebar keeps the full height it has side by side,
+       * and the list hands its width to the reading pane below it. */
+      Adw.Layout {
+        name: "desktop-stacked";
+
+        content: Adw.ToolbarView {
+          bottom-bar-style: raised;
+
+          content: Adw.OverlaySplitView stacked_osv {
+            sidebar-width-fraction: 0.28;
+            min-sidebar-width: 250;
+            max-sidebar-width: 300;
+            show-sidebar: true;
+
+            sidebar: Adw.LayoutSlot {
+              id: "sidebar";
+            };
+
+            content: Paned stacked_paned {
+              orientation: vertical;
+              position: 300;
+              shrink-start-child: false;
+              shrink-end-child: false;
+              resize-start-child: false;
+              resize-end-child: true;
+
+              start-child: Adw.LayoutSlot {
+                id: "list";
+              };
+
+              end-child: Adw.LayoutSlot {
+                id: "content";
+              };
+            };
+          };
+
+          [bottom]
+          Adw.LayoutSlot {
+            id: "switcher";
+          }
+        };
+      }
+
+      /* Dense: stacked, with the agenda pulled out of the sidebar into
+       * a column of its own that keeps its width as the window grows. */
+      Adw.Layout {
+        name: "desktop-dense";
+
+        content: Adw.ToolbarView {
+          bottom-bar-style: raised;
+
+          content: Adw.OverlaySplitView dense_osv {
+            sidebar-width-fraction: 0.28;
+            min-sidebar-width: 250;
+            max-sidebar-width: 300;
+            show-sidebar: true;
+
+            sidebar: Adw.LayoutSlot {
+              id: "sidebar";
+            };
+
+            content: Paned dense_agenda_paned {
+              orientation: horizontal;
+              shrink-start-child: false;
+              shrink-end-child: false;
+              resize-start-child: true;
+              resize-end-child: false;
+
+              start-child: Paned dense_paned {
+                orientation: vertical;
+                position: 300;
+                shrink-start-child: false;
+                shrink-end-child: false;
+                resize-start-child: false;
+                resize-end-child: true;
+
+                start-child: Adw.LayoutSlot {
+                  id: "list";
+                };
+
+                end-child: Adw.LayoutSlot {
+                  id: "content";
+                };
+              };
+
+              end-child: Adw.LayoutSlot {
+                id: "agenda";
+              };
+            };
+          };
+
+          [bottom]
+          Adw.LayoutSlot {
+            id: "switcher";
+          }
+        };
+      }
+
       Adw.Layout {
         name: "tablet";
 
@@ -145,6 +256,49 @@ template $StampMailView: Adw.BreakpointBin {
             content: Paned tablet_paned {
               orientation: horizontal;
               position: 400;
+              shrink-start-child: false;
+              shrink-end-child: false;
+              resize-start-child: false;
+              resize-end-child: true;
+
+              start-child: Adw.LayoutSlot {
+                id: "list";
+              };
+
+              end-child: Adw.LayoutSlot {
+                id: "content";
+              };
+            };
+
+            [bottom]
+            Adw.LayoutSlot {
+              id: "switcher";
+            }
+          };
+        };
+      }
+
+      /* Both stacked and dense land here once the window is too narrow
+       * for an agenda column of its own. */
+      Adw.Layout {
+        name: "tablet-stacked";
+
+        content: Adw.OverlaySplitView tablet_stacked_osv {
+          sidebar-width-fraction: 0.28;
+          min-sidebar-width: 280;
+          max-sidebar-width: 340;
+          collapsed: true;
+
+          sidebar: Adw.LayoutSlot {
+            id: "sidebar";
+          };
+
+          content: Adw.ToolbarView {
+            bottom-bar-style: raised;
+
+            content: Paned tablet_stacked_paned {
+              orientation: vertical;
+              position: 300;
               shrink-start-child: false;
               shrink-end-child: false;
               resize-start-child: false;

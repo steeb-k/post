@@ -65,4 +65,13 @@ void
 stamp_message_list_set_mobile_mode (StampMessageList *self,
                                     gboolean          mobile);
 
+/*
+ * Whether this pane's header bars carry the window controls. Only the
+ * pane in the window's top right corner should, and which pane that is
+ * depends on the layout.
+ */
+void
+stamp_message_list_set_show_window_controls (StampMessageList *self,
+                                             gboolean          show);
+
 G_END_DECLS

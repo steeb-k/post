@@ -34,6 +34,28 @@ menu primary_menu {
   }
 
   section {
+    label: _("Layout");
+
+    item {
+      label: _("_Side by Side");
+      action: 'win.mail-layout';
+      target: 'side-by-side';
+    }
+
+    item {
+      label: _("S_tacked");
+      action: 'win.mail-layout';
+      target: 'stacked';
+    }
+
+    item {
+      label: _("_Dense");
+      action: 'win.mail-layout';
+      target: 'dense';
+    }
+  }
+
+  section {
     item {
       label: _("_Preferences");
       action: 'app.preferences';

@@ -42,6 +42,9 @@ struct _StampMessageList {
   GtkWidget *edit_button;
   GtkWidget *external;
 
+  GtkWidget *content_headerbar;
+  GtkWidget *placeholder_headerbar;
+
   GtkWidget *reply_btn;
   GtkWidget *reply_all_btn;
   GtkWidget *forward_btn;
@@ -261,6 +264,20 @@ stamp_message_list_set_mobile_mode (StampMessageList *self,
   }
 }
 
+/*
+ * Only one header bar in the window carries the window controls, and
+ * which one that is depends on the layout. See stamp-mail-view.c.
+ */
+void
+stamp_message_list_set_show_window_controls (StampMessageList *self,
+                                             gboolean          show)
+{
+  g_return_if_fail (STAMP_IS_MESSAGE_LIST (self));
+
+  adw_header_bar_set_show_end_title_buttons (ADW_HEADER_BAR (self->content_headerbar), show);
+  adw_header_bar_set_show_end_title_buttons (ADW_HEADER_BAR (self->placeholder_headerbar), show);
+}
+
 static void
 stamp_message_list_class_init (StampMessageListClass *klass)
 {
@@ -271,6 +288,8 @@ stamp_message_list_class_init (StampMessageListClass *klass)
 
   gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/views/mail/message-list/stamp-message-list.ui");
 
+  gtk_widget_class_bind_template_child (widget_class, StampMessageList, content_headerbar);
+  gtk_widget_class_bind_template_child (widget_class, StampMessageList, placeholder_headerbar);
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, scrolled_window);
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, list_box);
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, message_title);

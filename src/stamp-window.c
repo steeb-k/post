@@ -31,6 +31,7 @@
 #include "stamp-contact-view.h"
 #include "stamp-helper.h"
 #include "stamp-mail-view.h"
+#include "stamp-profile-manager.h"
 #include "stamp-session.h"
 #include "stamp-settings.h"
 #include "stamp-today-counter.h"
@@ -47,6 +48,13 @@ struct _StampWindow {
   StampTodayCounter *today_counter;
 
   GtkSizeGroup *sidebar_size_group;
+
+  GSimpleAction *layout_action;
+
+  /* A layout picked by hand while a profile was imposing one of its
+   * own, which holds until that profile's turn is over. */
+  gchar *manual_layout;
+  gchar *active_profile_id;
 
   gint current_width;
   gint current_height;
@@ -114,10 +122,105 @@ on_show_calendar (GSimpleAction *action G_GNUC_UNUSED,
   adw_view_stack_set_visible_child_name (self->main_view_stack, "calendar");
 }
 
+/*
+ * The layout the active profile asks for, or NULL when it asks for
+ * nothing -- which is most of them, since a profile only overrides the
+ * layout if it was told to.
+ */
+static const gchar *
+profile_layout (void)
+{
+  StampProfile *active = stamp_profile_manager_get_active (stamp_profile_manager_get_default ());
+
+  return active ? stamp_profile_get_layout (active) : NULL;
+}
+
+/*
+ * What the mail view should be wearing right now: a layout picked by
+ * hand during a profile's turn, else whatever the profile asks for,
+ * else the default from the preferences.
+ */
+static void
+stamp_window_update_layout (StampWindow *self)
+{
+  g_autofree gchar *configured = NULL;
+  const gchar *nick = self->manual_layout;
+
+  if (!nick)
+    nick = profile_layout ();
+
+  if (!nick) {
+    configured = g_settings_get_string (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_LAYOUT);
+    nick = configured;
+  }
+
+  stamp_mail_view_set_layout (self->mail_view, stamp_mail_layout_from_nick (nick));
+
+  if (self->layout_action)
+    g_simple_action_set_state (self->layout_action, g_variant_new_string (nick));
+}
+
+/*
+ * Picking a layout by hand while a profile is imposing one only lasts
+ * as long as that profile does; with nothing to override, it is simply
+ * the new default.
+ */
+static void
+on_change_layout (GSimpleAction *action,
+                  GVariant      *value,
+                  gpointer       user_data)
+{
+  StampWindow *self = STAMP_WINDOW (user_data);
+  const gchar *nick = g_variant_get_string (value, NULL);
+
+  if (!stamp_mail_layout_nick_is_valid (nick))
+    return;
+
+  if (profile_layout ()) {
+    g_set_str (&self->manual_layout, nick);
+  } else {
+    g_clear_pointer (&self->manual_layout, g_free);
+    g_settings_set_string (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_LAYOUT, nick);
+  }
+
+  stamp_window_update_layout (self);
+}
+
+/*
+ * A profile whose turn has ended takes its layout with it, and hands
+ * the hand-picked one back to the default too.
+ */
+static void
+on_profile_changed (StampProfileManager *manager,
+                    gpointer             user_data)
+{
+  StampWindow *self = STAMP_WINDOW (user_data);
+  StampProfile *active = stamp_profile_manager_get_active (manager);
+  const gchar *id = active ? stamp_profile_get_id (active) : NULL;
+
+  /* The manager also announces edits to the profile that is already
+   * active, which should not throw away a deliberate choice. */
+  if (g_strcmp0 (self->active_profile_id, id) != 0) {
+    g_set_str (&self->active_profile_id, id);
+    g_clear_pointer (&self->manual_layout, g_free);
+  }
+
+  stamp_window_update_layout (self);
+}
+
+static void
+on_layout_setting_changed (GSettings   *settings,
+                           const gchar *key,
+                           gpointer     user_data)
+{
+  stamp_window_update_layout (STAMP_WINDOW (user_data));
+}
+
 static const GActionEntry stamp_window_action_entries[] = {
   { .name = "show-mail", .activate = on_show_mail },
   { .name = "show-contacts", .activate = on_show_contacts },
   { .name = "show-calendar", .activate = on_show_calendar },
+  { .name = "mail-layout", .parameter_type = "s", .state = "'side-by-side'", .change_state = on_change_layout },
 };
 
 static void
@@ -138,6 +241,8 @@ stamp_window_dispose (GObject *object)
 
   g_clear_object (&self->sidebar_size_group);
   g_clear_object (&self->today_counter);
+  g_clear_pointer (&self->manual_layout, g_free);
+  g_clear_pointer (&self->active_profile_id, g_free);
 
   gtk_widget_dispose_template (GTK_WIDGET (self), STAMP_TYPE_WINDOW);
 
@@ -163,6 +268,15 @@ stamp_window_class_init (StampWindowClass *klass)
 
   gtk_widget_class_bind_template_callback (widget_class, on_open_settings_clicked);
 }
+
+static const struct {
+  const gchar *layout;
+  const gchar *shortcut;
+} LayoutShortcuts[] = {
+  { "side-by-side", "<primary><alt>1" },
+  { "stacked", "<primary><alt>2" },
+  { "dense", "<primary><alt>3" },
+};
 
 static void
 on_background_status (GObject      *source_object,
@@ -192,6 +306,7 @@ stamp_window_init (StampWindow *self)
   g_autofree char *view = NULL;
   XdpPortal *portal = xdp_portal_new ();
   g_autoptr (XdpParent) parent_window = xdp_parent_new_gtk (GTK_WINDOW (self));
+  GtkEventController *controller;
 
   gtk_widget_init_template (GTK_WIDGET (self));
 
@@ -213,6 +328,36 @@ stamp_window_init (StampWindow *self)
                                    stamp_window_action_entries,
                                    G_N_ELEMENTS (stamp_window_action_entries),
                                    self);
+
+  self->layout_action = G_SIMPLE_ACTION (g_action_map_lookup_action (G_ACTION_MAP (self), "mail-layout"));
+
+  /* Blueprint has no way to spell a shortcut that carries a target, so
+   * the layout accelerators are built here. */
+  controller = gtk_shortcut_controller_new ();
+  gtk_shortcut_controller_set_scope (GTK_SHORTCUT_CONTROLLER (controller), GTK_SHORTCUT_SCOPE_GLOBAL);
+  gtk_widget_add_controller (GTK_WIDGET (self), controller);
+
+  for (guint i = 0; i < G_N_ELEMENTS (LayoutShortcuts); i++) {
+    GtkShortcut *shortcut;
+
+    shortcut = gtk_shortcut_new (gtk_shortcut_trigger_parse_string (LayoutShortcuts[i].shortcut),
+                                 gtk_named_action_new ("win.mail-layout"));
+    gtk_shortcut_set_arguments (shortcut, g_variant_new_string (LayoutShortcuts[i].layout));
+    gtk_shortcut_controller_add_shortcut (GTK_SHORTCUT_CONTROLLER (controller), shortcut);
+  }
+
+  g_signal_connect_object (stamp_profile_manager_get_default (), "changed",
+                           G_CALLBACK (on_profile_changed), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (STAMP_SETTINGS_MAIL, "changed::" STAMP_PREFS_MAIL_LAYOUT,
+                           G_CALLBACK (on_layout_setting_changed), self, G_CONNECT_DEFAULT);
+
+  {
+    StampProfile *active = stamp_profile_manager_get_active (stamp_profile_manager_get_default ());
+
+    self->active_profile_id = g_strdup (active ? stamp_profile_get_id (active) : NULL);
+  }
+
+  stamp_window_update_layout (self);
 
   g_signal_connect_object (session, "account-added", G_CALLBACK (on_account_changed), self, G_CONNECT_DEFAULT);
   g_signal_connect_object (session, "account-removed", G_CALLBACK (on_account_changed), self, G_CONNECT_DEFAULT);

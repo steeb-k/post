@@ -66,6 +66,25 @@ Adw.ShortcutsDialog shortcuts_dialog {
   }
 
   Adw.ShortcutsSection {
+    title: C_("Shortcut window title", "Layout");
+
+    Adw.ShortcutsItem {
+      title: C_("Shortcut window description", "Side by Side Layout");
+      accelerator: "<primary><alt>1";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("Shortcut window description", "Stacked Layout");
+      accelerator: "<primary><alt>2";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("Shortcut window description", "Dense Layout");
+      accelerator: "<primary><alt>3";
+    }
+  }
+
+  Adw.ShortcutsSection {
     title: C_("Shortcut window title", "Calendar");
 
     Adw.ShortcutsItem {
