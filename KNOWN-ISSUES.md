@@ -2,6 +2,79 @@
 
 Issues found while testing this fork. Not yet fixed.
 
+## Profiles: snags to watch
+
+Not reproduced failures, just the places this is thin. The schedule
+itself was exercised — rule matching, midnight wrap, override expiry —
+and the filtering was checked live against all three accounts.
+
+**The editor's rule widgets have been seen, not driven.** The schedule
+rows render correctly, but nothing has clicked a weekday toggle or
+dragged a spin button, because there is no input-injection tool on the
+development machine. The write path they use (`rule_row_apply()`) is
+shared with nothing else.
+
+**A profile that shows no mail account leaves the composer stranded.**
+`load_from_combobox()` prefers an in-profile identity and falls back to
+the first identity of any kind, so there is always a sender — but it
+will be one the active profile hides, marked as such. Nothing warns
+before sending.
+
+**Removing an account does not clean up profiles.** Membership is
+stored as a collection `ESource` uid; delete the account and the uid
+stays in every profile that listed it, harmlessly but forever. If the
+same account is added back it gets a new uid, so the profile will not
+pick it up again — it looks like the profile forgot.
+
+**A profile with no accounts hides everything.** That is what it says it
+does, and the mail view empties correctly, but it reads as a broken app
+rather than an empty profile. There is no "this profile shows nothing"
+state anywhere.
+
+**Overlapping schedules resolve by list order**, which the user cannot
+see or change. See TODO.md.
+
+**Switching profiles drops and rebuilds calendar monitors.**
+`gcal_manager_refilter_calendars()` removes calendars from the timeline
+and adds them back, and `gcal_timeline_add_calendar()` builds a fresh
+`GcalCalendarMonitor` each time, so a calendar returning to view
+refetches its range. Fine for something that happens on a profile
+switch; would not be fine if anything started calling it frequently.
+
+**The schedule resolves on a 60-second tick.** Deliberate — it means a
+suspended laptop, a changed timezone or a stepped clock heal themselves
+on the next tick instead of leaving a timer armed for a moment that has
+passed. The cost is that a transition can be up to a minute late.
+
+## Profiles do not scope calendar notifications, because there are none
+
+A profile mutes new-mail notifications for the accounts it hides
+(`stamp_profile_shows_account()` gates the `GNotification` in
+`src/views/mail/folder-list/stamp-folder-item.c`). It does *not* mute
+calendar event reminders — Post has never had any. The only
+`GNotification` in the whole application is the new-mail one, and event
+reminders would normally come from EDS's `evolution-alarm-notify`, which
+the flatpak does not bundle and Post does not start.
+
+So the calendar half of "only notify me for this profile's accounts" is
+satisfied vacuously today. Whenever event reminders are added, they must
+be filtered the same way, from the calendar's parent collection:
+
+```c
+ESource *parent = gcal_calendar_get_parent_source (calendar);
+if (parent && !stamp_profile_shows_account (e_source_get_uid (parent)))
+  return;
+```
+
+The pieces to build it from are already in place: `StampTodayCounter`
+(`src/views/calendar/stamp-today-counter.c`) shows how to subscribe to
+the gcal timeline without a widget, and `GcalEvent` already parses
+VALARM triggers into `gcal_event_get_alarms()`. Note that the timeline a
+subscriber sees is *already* profile-filtered, so a reminder service
+built on it would inherit the filtering for free — but it would then go
+quiet for hidden accounts even when the user wants a reminder, which is
+a design decision to make deliberately rather than inherit by accident.
+
 ## Flatpak packaging notes
 
 Accounts come from GNOME Online Accounts. Post hosts GOA's own provider
