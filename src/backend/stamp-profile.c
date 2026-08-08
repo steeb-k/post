@@ -37,6 +37,7 @@ struct _StampProfile {
   gchar *name;
   gchar *color;
   gchar *initial;
+  gchar *layout;
 
   GStrv accounts;
   GArray *rules;
@@ -130,6 +131,7 @@ stamp_profile_dispose (GObject *object)
   g_clear_pointer (&self->name, g_free);
   g_clear_pointer (&self->color, g_free);
   g_clear_pointer (&self->initial, g_free);
+  g_clear_pointer (&self->layout, g_free);
   g_clear_pointer (&self->accounts, g_strfreev);
   g_clear_pointer (&self->rules, g_array_unref);
 
@@ -224,6 +226,7 @@ stamp_profile_copy (StampProfile *self)
   g_return_val_if_fail (STAMP_IS_PROFILE (self), NULL);
 
   copy = stamp_profile_new (self->id, self->name, self->color);
+  stamp_profile_set_layout (copy, self->layout);
   stamp_profile_set_accounts (copy, (const gchar * const *)self->accounts);
   g_array_append_vals (copy->rules, self->rules->data, self->rules->len);
 
@@ -288,6 +291,31 @@ stamp_profile_set_color (StampProfile *self,
   g_set_str (&self->color, resolved);
 
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_COLOR]);
+}
+
+const gchar *
+stamp_profile_get_layout (StampProfile *self)
+{
+  g_return_val_if_fail (STAMP_IS_PROFILE (self), NULL);
+
+  return self->layout;
+}
+
+void
+stamp_profile_set_layout (StampProfile *self,
+                          const gchar  *layout)
+{
+  g_return_if_fail (STAMP_IS_PROFILE (self));
+
+  /* An empty nick is how "no override" arrives from the settings, and
+   * is stored as no override at all. */
+  if (layout && *layout == '\0')
+    layout = NULL;
+
+  if (g_strcmp0 (self->layout, layout) == 0)
+    return;
+
+  g_set_str (&self->layout, layout);
 }
 
 const gchar *

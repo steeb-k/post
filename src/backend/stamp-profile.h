@@ -88,6 +88,18 @@ stamp_profile_set_color (StampProfile *self,
                          const gchar  *color);
 
 /*
+ * The mail layout the profile asks for while it is active, as one of
+ * the StampMailLayout nicks, or NULL when it leaves the layout alone.
+ * Stored beside the profiles rather than in them; see the manager.
+ */
+const gchar *
+stamp_profile_get_layout (StampProfile *self);
+
+void
+stamp_profile_set_layout (StampProfile *self,
+                          const gchar  *layout);
+
+/*
  * The letter shown in the switcher. Owned by @self.
  */
 const gchar *

@@ -62,6 +62,11 @@
       <summary>Profiles</summary>
       <description>Each profile is an identifier, a name, a color, the accounts it shows, and its schedule rules. A rule is a weekday bitmask (bit 0 is Monday), a start minute of the day and an end minute of the day; a rule whose end is not after its start wraps past midnight.</description>
     </key>
+    <key name="profile-layouts" type="a{ss}">
+      <default>{}</default>
+      <summary>Per profile mail layout</summary>
+      <description>Maps a profile identifier to the mail layout it asks for while it is active. A profile that names no layout leaves the default alone. Kept beside the profiles rather than inside them so that profiles written by an older version keep loading.</description>
+    </key>
     <key name="default-profile" type="s">
       <default>''</default>
       <summary>Default profile</summary>

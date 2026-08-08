@@ -35,6 +35,7 @@
 #include "stamp-profile-button.h"
 #include "stamp-profile-manager.h"
 #include "stamp-session.h"
+#include "stamp-settings.h"
 
 #define STAMP_TYPE_PROFILES_EDITOR (stamp_profiles_editor_get_type ())
 
@@ -46,6 +47,7 @@ struct _StampProfilesEditor {
   AdwWindowTitle *editor_title;
   AdwAvatar *preview;
   AdwEntryRow *name_row;
+  AdwComboRow *layout_row;
   GtkBox *swatches;
   AdwPreferencesGroup *accounts_group;
   AdwPreferencesGroup *rules_group;
@@ -469,6 +471,26 @@ on_name_changed (GtkEditable *editable,
   stamp_profile_manager_save (stamp_profile_manager_get_default ());
 }
 
+/* The first entry is "Default", so the layouts start one along. */
+static void
+on_layout_changed (GObject    *row,
+                   GParamSpec *pspec G_GNUC_UNUSED,
+                   gpointer    user_data)
+{
+  StampProfilesEditor *self = STAMP_PROFILES_EDITOR (user_data);
+  guint selected = adw_combo_row_get_selected (ADW_COMBO_ROW (row));
+
+  if (self->updating)
+    return;
+
+  if (selected == 0)
+    stamp_profile_set_layout (self->profile, NULL);
+  else
+    stamp_profile_set_layout (self->profile, stamp_mail_layout_to_nick ((StampMailLayout)(selected - 1)));
+
+  stamp_profile_manager_save (stamp_profile_manager_get_default ());
+}
+
 static void
 on_remove_response (AdwAlertDialog *dialog,
                     gchar          *response,
@@ -547,12 +569,14 @@ stamp_profiles_editor_class_init (StampProfilesEditorClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampProfilesEditor, editor_title);
   gtk_widget_class_bind_template_child (widget_class, StampProfilesEditor, preview);
   gtk_widget_class_bind_template_child (widget_class, StampProfilesEditor, name_row);
+  gtk_widget_class_bind_template_child (widget_class, StampProfilesEditor, layout_row);
   gtk_widget_class_bind_template_child (widget_class, StampProfilesEditor, swatches);
   gtk_widget_class_bind_template_child (widget_class, StampProfilesEditor, accounts_group);
   gtk_widget_class_bind_template_child (widget_class, StampProfilesEditor, rules_group);
   gtk_widget_class_bind_template_child (widget_class, StampProfilesEditor, remove_row);
 
   gtk_widget_class_bind_template_callback (widget_class, on_name_changed);
+  gtk_widget_class_bind_template_callback (widget_class, on_layout_changed);
   gtk_widget_class_bind_template_callback (widget_class, on_add_rule_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_remove_clicked);
 }
@@ -576,6 +600,14 @@ stamp_profiles_editor_new (StampProfile *profile)
 
   self->updating = TRUE;
   gtk_editable_set_text (GTK_EDITABLE (self->name_row), stamp_profile_get_name (profile));
+
+  {
+    const gchar *layout = stamp_profile_get_layout (profile);
+
+    adw_combo_row_set_selected (self->layout_row,
+                                layout ? stamp_mail_layout_from_nick (layout) + 1 : 0);
+  }
+
   self->updating = FALSE;
 
   adw_window_title_set_title (self->editor_title, stamp_profile_get_name (profile));

@@ -219,6 +219,55 @@ store_profiles (StampProfileManager *self)
   g_settings_set_value (self->settings, STAMP_PREFS_PROFILES, g_variant_builder_end (&builder));
 }
 
+/*
+ * The layout a profile overrides lives in a map of its own rather than
+ * in the profile tuple, so that profiles written before layouts existed
+ * still load: growing the tuple would change the key's type and make
+ * GSettings drop every stored profile.
+ */
+static void
+store_layouts (StampProfileManager *self)
+{
+  GVariantBuilder builder;
+  guint len = n_profiles (self);
+
+  if (self->loading)
+    return;
+
+  g_variant_builder_init (&builder, G_VARIANT_TYPE ("a{ss}"));
+
+  for (guint i = 0; i < len; i++) {
+    StampProfile *profile = profile_at (self, i);
+    const gchar *layout = stamp_profile_get_layout (profile);
+
+    if (layout)
+      g_variant_builder_add (&builder, "{ss}", stamp_profile_get_id (profile), layout);
+  }
+
+  g_settings_set_value (self->settings, STAMP_PREFS_PROFILE_LAYOUTS, g_variant_builder_end (&builder));
+}
+
+static void
+load_layouts (StampProfileManager *self)
+{
+  g_autoptr (GVariant) layouts = NULL;
+  guint len = n_profiles (self);
+
+  layouts = g_settings_get_value (self->settings, STAMP_PREFS_PROFILE_LAYOUTS);
+
+  for (guint i = 0; i < len; i++) {
+    StampProfile *profile = profile_at (self, i);
+    const gchar *layout = NULL;
+
+    if (!g_variant_lookup (layouts, stamp_profile_get_id (profile), "&s", &layout))
+      continue;
+
+    /* A nick this version does not know is no override at all. */
+    if (stamp_mail_layout_nick_is_valid (layout))
+      stamp_profile_set_layout (profile, layout);
+  }
+}
+
 static void
 store_override (StampProfileManager *self)
 {
@@ -305,6 +354,8 @@ load (StampProfileManager *self)
     g_clear_object (&profile);
     g_variant_unref (child);
   }
+
+  load_layouts (self);
 
   self->default_id = g_settings_get_string (self->settings, STAMP_PREFS_DEFAULT_PROFILE);
   self->override_id = g_settings_get_string (self->settings, STAMP_PREFS_OVERRIDE_PROFILE);
@@ -467,6 +518,7 @@ stamp_profile_manager_save (StampProfileManager *self)
   g_return_if_fail (STAMP_IS_PROFILE_MANAGER (self));
 
   store_profiles (self);
+  store_layouts (self);
 
   /* Editing the schedule can move the moment the manual choice was
    * meant to last until, so work it out again. */

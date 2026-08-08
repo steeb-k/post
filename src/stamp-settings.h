@@ -34,6 +34,7 @@ G_BEGIN_DECLS
 #define STAMP_PREFS_VIEW                      "view"
 #define STAMP_PREFS_ACCOUNT_ORDER             "account-order"
 #define STAMP_PREFS_PROFILES                  "profiles"
+#define STAMP_PREFS_PROFILE_LAYOUTS           "profile-layouts"
 #define STAMP_PREFS_DEFAULT_PROFILE           "default-profile"
 #define STAMP_PREFS_OVERRIDE_PROFILE          "override-profile"
 #define STAMP_PREFS_OVERRIDE_UNTIL            "override-until"

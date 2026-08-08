@@ -35,6 +35,21 @@ template $StampProfilesEditor: Adw.NavigationPage {
             valign: center;
           }
         }
+
+        Adw.ComboRow layout_row {
+          title: _("Layout");
+          subtitle: _("Applies while the profile is active. The default comes back when its turn ends.");
+          notify::selected => $on_layout_changed();
+
+          model: StringList {
+            strings [
+              C_("Mail layout", "Default"),
+              C_("Mail layout", "Side by Side"),
+              C_("Mail layout", "Stacked"),
+              C_("Mail layout", "Dense"),
+            ]
+          };
+        }
       }
 
       Adw.PreferencesGroup accounts_group {
