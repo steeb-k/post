@@ -4,38 +4,87 @@ using Adw 1;
 template $StampSidebarAgenda: Box {
   orientation: vertical;
 
-  ToggleButton toggle_button {
-    active: bind template.expanded bidirectional;
-    tooltip-text: _("Show a calendar to pick another day");
+  /* Shares its CSS name with GcalAgendaView, which the dense layout puts
+   * in a pane of its own, so the strip's own styling has to say which
+   * of the two it means. */
+  styles [
+    "sidebar-agenda",
+  ]
 
-    child: Adw.ButtonContent {
-      icon-name: bind $get_toggle_icon(template.expanded) as <string>;
-      label: _("Agenda");
-      can-shrink: true;
-    };
+  /* The tab. It takes its natural width and sits against the right edge,
+   * where it is least likely to cover a folder name; the card's own
+   * background is painted by this box and the body below it, not by the
+   * template, so that the two together outline a pull tab. */
+  Box tab {
+    halign: end;
 
     styles [
-      "flat",
+      "sidebar-agenda-tab",
     ]
+
+    ToggleButton toggle_button {
+      active: bind template.expanded bidirectional;
+      tooltip-text: bind $get_toggle_tooltip(template.expanded) as <string>;
+
+      styles [
+        "flat",
+      ]
+
+      /* Both wordings are always in the stack, so the tab is as wide as
+       * the longer of them and does not resize as it is clicked. */
+      child: Stack toggle_stack {
+        hhomogeneous: true;
+        vhomogeneous: true;
+        transition-type: crossfade;
+        transition-duration: 100;
+        visible-child-name: bind $get_toggle_page(template.expanded) as <string>;
+
+        StackPage {
+          name: "collapsed";
+
+          child: Adw.ButtonContent {
+            icon-name: "pan-up-symbolic";
+            label: _("Expand Agenda");
+          };
+        }
+
+        StackPage {
+          name: "expanded";
+
+          child: Adw.ButtonContent {
+            icon-name: "pan-down-symbolic";
+            label: _("Collapse Agenda");
+          };
+        }
+      };
+    }
   }
 
-  Revealer revealer {
-    transition-type: slide_up;
-    reveal-child: bind template.expanded;
+  Box body {
+    orientation: vertical;
 
-    child: $GcalDateChooser date_chooser {
-      split-month-year: false;
-      vexpand: false;
-      day-selected => $on_day_selected();
-    };
-  }
+    styles [
+      "sidebar-agenda-body",
+    ]
 
-  ScrolledWindow scrolled_window {
-    hscrollbar-policy: never;
-    propagate-natural-height: true;
+    Revealer revealer {
+      transition-type: slide_up;
+      reveal-child: bind template.expanded;
 
-    child: $GcalAgendaViewDayRow day_row {
-      event-activated => $on_event_activated();
-    };
+      child: $GcalDateChooser date_chooser {
+        split-month-year: false;
+        vexpand: false;
+        day-selected => $on_day_selected();
+      };
+    }
+
+    ScrolledWindow scrolled_window {
+      hscrollbar-policy: never;
+      propagate-natural-height: true;
+
+      child: $GcalAgendaViewDayRow day_row {
+        event-activated => $on_event_activated();
+      };
+    }
   }
 }

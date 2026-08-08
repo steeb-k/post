@@ -40,6 +40,9 @@ struct _StampMailView {
   StampFolderList *folder_list;
   StampMessageList *message_list;
   StampConversationList *conversation_list;
+  StampSidebarAgenda *sidebar_agenda;
+  GtkWidget *folder_spacer;
+  GtkSizeGroup *agenda_clearance;
   GtkPaned *desktop_paned;
   GtkPaned *tablet_paned;
   AdwToastOverlay *toast_overlay;
@@ -270,6 +273,7 @@ stamp_mail_view_dispose (GObject *object)
   g_clear_handle_id (&self->load_folder_handler, g_source_remove);
   g_clear_object (&self->actions);
   g_clear_object (&self->account);
+  g_clear_object (&self->agenda_clearance);
 
   /* FIXME: Does not work with AdwBreakpointBin */
   /* gtk_widget_dispose_template (GTK_WIDGET (self), STAMP_TYPE_MAIL_VIEW); */
@@ -321,6 +325,8 @@ stamp_mail_view_class_init (StampMailViewClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampMailView, tablet_paned);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, tablet_osv);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, sidebar_pane);
+  gtk_widget_class_bind_template_child (widget_class, StampMailView, sidebar_agenda);
+  gtk_widget_class_bind_template_child (widget_class, StampMailView, folder_spacer);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, mobile_osv);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, mobile_nav);
   gtk_widget_class_bind_template_callback (widget_class, on_details_hidden);
@@ -532,6 +538,16 @@ stamp_mail_view_init (StampMailView *self)
   }
 
   g_signal_connect (self->mail_layout, "notify::layout-name", G_CALLBACK (on_layout_changed), self);
+
+  /* The sidebar's content reaches the bottom edge so that folder names
+   * stay visible in the gap beside the agenda's tab, which would leave
+   * the last of them stranded behind the card. A spacer at the end of
+   * the list holds that room open, and a size group keeps it exactly as
+   * tall as the card's body -- including through the reveal animation,
+   * which changes that height on every frame. */
+  self->agenda_clearance = gtk_size_group_new (GTK_SIZE_GROUP_VERTICAL);
+  gtk_size_group_add_widget (self->agenda_clearance, stamp_sidebar_agenda_get_body (self->sidebar_agenda));
+  gtk_size_group_add_widget (self->agenda_clearance, self->folder_spacer);
 
   self->saved_paned_pos = 360;
 

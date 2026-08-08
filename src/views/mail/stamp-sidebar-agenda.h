@@ -27,4 +27,20 @@ G_BEGIN_DECLS
 
 G_DECLARE_FINAL_TYPE (StampSidebarAgenda, stamp_sidebar_agenda, STAMP, SIDEBAR_AGENDA, GtkBox)
 
+/*
+ * The opaque part of the card, below the tab. Whatever scrolls beneath
+ * the strip has to leave this much room at its end, and a vertical
+ * GtkSizeGroup is how that is kept in step.
+ */
+GtkWidget *
+stamp_sidebar_agenda_get_body (StampSidebarAgenda *self);
+
+/*
+ * Whether the strip shows at all. Layouts that put the agenda somewhere
+ * else, and widths too narrow to spare the room, turn it off.
+ */
+void
+stamp_sidebar_agenda_set_enabled (StampSidebarAgenda *self,
+                                  gboolean            enabled);
+
 G_END_DECLS

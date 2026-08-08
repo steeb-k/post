@@ -1,38 +1,89 @@
 /* Sidebar agenda */
 
 /*
- * The strip lives in the sidebar's raised bottom bar, which paints an
- * opaque background of its own - covering the 1px right edge the
- * .sidebar-pane draws down the whole pane, so the strip reads as a
- * detached slab. Redraw that edge here.
+ * Every rule here is for the strip at the bottom of the mail sidebar,
+ * never for the pane the dense layout gives GcalAgendaView -- the two
+ * widgets share the "agenda-view" CSS name, so each rule has to say so.
  */
-agenda-view {
+
+/*
+ * The strip is a card in two pieces: a tab holding the toggle, and the
+ * body under it. Both paint the content background, and between them
+ * they outline a pull tab -- the tab rounds both its top corners, the
+ * body rounds only the one the tab is not sitting on, so the right edge
+ * runs straight down through the pair. The template itself paints
+ * nothing, or the notch beside the tab would be filled in.
+ *
+ * The background is opaque and so covers the 1px right edge that
+ * .sidebar-pane draws down the whole pane; both pieces redraw it.
+ */
+agenda-view.sidebar-agenda .sidebar-agenda-tab,
+agenda-view.sidebar-agenda .sidebar-agenda-body {
+  background-color: var(--view-bg-color);
   box-shadow: inset -1px 0 var(--sidebar-border-color);
 }
 
-/*
- * Both of these assume the agenda fills a content area painted in
- * --view-bg-color, which is what it does in the calendar view. Here it
- * sits on the bar instead, so the list frames each event in a darker
- * slab and the event itself tints towards that same darker base. Drop
- * the frame, and tint into the bar's own background.
- */
-agenda-view list {
-  background: none;
+agenda-view.sidebar-agenda .sidebar-agenda-tab {
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+
+  /* Clears the toggle on three sides by the same amount, so the tab
+   * grips it rather than the button sitting loose in a bar. */
+  padding: 6px 6px 0 6px;
 }
 
-agenda-view event {
-  background-color: color-mix(in srgb, var(--event-bg-color) 25%, var(--headerbar-bg-color));
+agenda-view.sidebar-agenda .sidebar-agenda-body {
+  border-top-left-radius: 12px;
+}
+
+/*
+ * The tab is the thing being pulled, so the toggle inside it gives up
+ * every bit of chrome that would read as a second, smaller button: no
+ * background of its own, no rounding, and none of the 34px minimum a
+ * header bar button carries. What is left is the label and the arrow,
+ * at caption size, with the tab itself lighting up under the pointer.
+ */
+agenda-view.sidebar-agenda .sidebar-agenda-tab > button {
+  min-height: 0;
+  min-width: 0;
+  padding: 1px 4px;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  opacity: 0.7;
+}
+
+agenda-view.sidebar-agenda .sidebar-agenda-tab > button label {
+  font-size: 0.85em;
+  font-weight: bold;
+}
+
+agenda-view.sidebar-agenda .sidebar-agenda-tab > button image {
+  -gtk-icon-size: 12px;
+}
+
+agenda-view.sidebar-agenda .sidebar-agenda-tab:hover > button,
+agenda-view.sidebar-agenda .sidebar-agenda-tab > button:focus-visible {
+  opacity: 1;
+}
+
+/*
+ * A flat bottom bar makes AdwToolbarView mark the pane
+ * .undershoot-bottom, and the folder list above then draws a 1px line
+ * and a short gradient at its bottom edge to say the content runs on
+ * under the bar. The agenda is an opaque card, not something content
+ * disappears beneath, so that hint is a lie -- and it is the last thing
+ * still drawing a line above the card.
+ */
+toolbarview.sidebar-agenda-host.undershoot-bottom scrolledwindow > undershoot.bottom {
+  background: none;
+  box-shadow: none;
 }
 
 /*
  * The day row brings its own margins from the calendar stylesheet, so
- * only the toggle needs spacing.
+ * only the date chooser needs spacing.
  */
-agenda-view > button {
-  margin: 3px 6px;
-}
-
-agenda-view > revealer > datechooser {
+agenda-view.sidebar-agenda revealer > datechooser {
   margin-bottom: 3px;
 }

@@ -34,10 +34,22 @@ template $StampMailView: Adw.BreakpointBin {
     child: Adw.MultiLayoutView mail_layout {
       [sidebar]
       Adw.ToolbarView sidebar_pane {
-        /* A crisp line rather than "raised"'s blurred shadow: the blur
-         * composites over whatever the folder list leaves above it, so
-         * the break read thicker collapsed than expanded. */
-        bottom-bar-style: raised_border;
+        /* No line and no shadow above the agenda: the strip paints its
+         * own darker background with rounded top corners, which is the
+         * break. A raised bar would also paint the corners back in.
+         * A flat bar asks the folder list for an undershoot line
+         * instead, which the stylesheet turns off. */
+        bottom-bar-style: flat;
+
+        /* The folder list runs all the way to the bottom edge, so its
+         * rows show through the gap beside the tab and stay scrollable
+         * there. Trailing space under the list, sized to the card's
+         * body, keeps the last folder from being stranded behind it. */
+        extend-content-to-bottom-edge: true;
+
+        styles [
+          "sidebar-agenda-host",
+        ]
 
         [top]
         $StampHeaderBar {}
@@ -45,10 +57,18 @@ template $StampMailView: Adw.BreakpointBin {
         content: ScrolledWindow {
           hscrollbar-policy: never;
 
-          child: $StampFolderList folder_list {
-            vexpand: true;
-            folder-selected => $on_folder_selected();
-            folder-cleared => $on_folder_cleared();
+          child: Box {
+            orientation: vertical;
+
+            $StampFolderList folder_list {
+              vexpand: true;
+              folder-selected => $on_folder_selected();
+              folder-cleared => $on_folder_cleared();
+            }
+
+            /* Kept the same height as the agenda's body by a size group,
+             * so the last folder can always be scrolled clear of it. */
+            Box folder_spacer {}
           };
         };
 

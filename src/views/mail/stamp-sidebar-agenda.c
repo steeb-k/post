@@ -57,6 +57,8 @@
 struct _StampSidebarAgenda {
   GtkBox parent_instance;
 
+  GtkWidget *tab;
+  GtkWidget *body;
   GtkToggleButton *toggle_button;
   GtkRevealer *revealer;
   GcalDateChooser *date_chooser;
@@ -128,7 +130,7 @@ update_list_height_cap (StampSidebarAgenda *self)
   if (available <= 0)
     return;
 
-  gtk_widget_measure (GTK_WIDGET (self->toggle_button), GTK_ORIENTATION_VERTICAL, -1, NULL, &used, NULL, NULL);
+  gtk_widget_measure (self->tab, GTK_ORIENTATION_VERTICAL, -1, NULL, &used, NULL, NULL);
   available -= used;
 
   if (self->expanded) {
@@ -198,11 +200,22 @@ update_chooser_subscription (StampSidebarAgenda *self)
  * Callbacks
  */
 
+/* The wording and the arrow both live in the stack; this picks which. */
 static gchar *
-get_toggle_icon (StampSidebarAgenda *self G_GNUC_UNUSED,
+get_toggle_page (StampSidebarAgenda *self G_GNUC_UNUSED,
                  gboolean            expanded)
 {
-  return g_strdup (expanded ? "pan-down-symbolic" : "pan-up-symbolic");
+  return g_strdup (expanded ? "expanded" : "collapsed");
+}
+
+/* Collapsing also drops the strip back to today, which is worth saying
+ * before it happens rather than after. */
+static gchar *
+get_toggle_tooltip (StampSidebarAgenda *self G_GNUC_UNUSED,
+                    gboolean            expanded)
+{
+  return g_strdup (expanded ? _("Hide the calendar and go back to today")
+                            : _("Show a calendar to pick another day"));
 }
 
 static void
@@ -427,17 +440,6 @@ stamp_sidebar_agenda_set_property (GObject      *object,
 }
 
 static void
-stamp_sidebar_agenda_size_allocate (GtkWidget *widget,
-                                    int        width,
-                                    int        height,
-                                    int        baseline)
-{
-  GTK_WIDGET_CLASS (stamp_sidebar_agenda_parent_class)->size_allocate (widget, width, height, baseline);
-
-  update_list_height_cap (STAMP_SIDEBAR_AGENDA (widget));
-}
-
-static void
 stamp_sidebar_agenda_class_init (StampSidebarAgendaClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
@@ -450,8 +452,6 @@ stamp_sidebar_agenda_class_init (StampSidebarAgendaClass *klass)
   object_class->dispose = stamp_sidebar_agenda_dispose;
   object_class->get_property = stamp_sidebar_agenda_get_property;
   object_class->set_property = stamp_sidebar_agenda_set_property;
-
-  widget_class->size_allocate = stamp_sidebar_agenda_size_allocate;
 
   properties[PROP_EXPANDED] = g_param_spec_boolean ("expanded",
                                                     NULL,
@@ -469,13 +469,16 @@ stamp_sidebar_agenda_class_init (StampSidebarAgendaClass *klass)
 
   gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/views/mail/stamp-sidebar-agenda.ui");
 
+  gtk_widget_class_bind_template_child (widget_class, StampSidebarAgenda, tab);
+  gtk_widget_class_bind_template_child (widget_class, StampSidebarAgenda, body);
   gtk_widget_class_bind_template_child (widget_class, StampSidebarAgenda, toggle_button);
   gtk_widget_class_bind_template_child (widget_class, StampSidebarAgenda, revealer);
   gtk_widget_class_bind_template_child (widget_class, StampSidebarAgenda, date_chooser);
   gtk_widget_class_bind_template_child (widget_class, StampSidebarAgenda, scrolled_window);
   gtk_widget_class_bind_template_child (widget_class, StampSidebarAgenda, day_row);
 
-  gtk_widget_class_bind_template_callback (widget_class, get_toggle_icon);
+  gtk_widget_class_bind_template_callback (widget_class, get_toggle_page);
+  gtk_widget_class_bind_template_callback (widget_class, get_toggle_tooltip);
   gtk_widget_class_bind_template_callback (widget_class, on_day_selected);
   gtk_widget_class_bind_template_callback (widget_class, on_event_activated);
 
@@ -506,4 +509,21 @@ stamp_sidebar_agenda_init (StampSidebarAgenda *self)
   gcal_agenda_view_day_row_set_day (self->day_row, self->day);
 
   update_day_row_visible (self);
+}
+
+GtkWidget *
+stamp_sidebar_agenda_get_body (StampSidebarAgenda *self)
+{
+  g_return_val_if_fail (STAMP_IS_SIDEBAR_AGENDA (self), NULL);
+
+  return self->body;
+}
+
+void
+stamp_sidebar_agenda_set_enabled (StampSidebarAgenda *self,
+                                  gboolean            enabled)
+{
+  g_return_if_fail (STAMP_IS_SIDEBAR_AGENDA (self));
+
+  g_object_set (self, "enabled", enabled, NULL);
 }
