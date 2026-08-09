@@ -369,3 +369,9 @@ stamp_contact_view_get_sidebar (StampContactView *self)
 {
   return self->sidebar_pane;
 }
+
+GtkWidget *
+stamp_contact_view_get_primary_action (StampContactView *self)
+{
+  return self->contact_button;
+}

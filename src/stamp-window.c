@@ -48,6 +48,7 @@ struct _StampWindow {
   StampTodayCounter *today_counter;
 
   GtkSizeGroup *sidebar_size_group;
+  GtkSizeGroup *action_size_group;
 
   GSimpleAction *layout_action;
 
@@ -240,6 +241,7 @@ stamp_window_dispose (GObject *object)
     g_signal_handlers_disconnect_by_data (self->mail_view, self);
 
   g_clear_object (&self->sidebar_size_group);
+  g_clear_object (&self->action_size_group);
   g_clear_object (&self->today_counter);
   g_clear_pointer (&self->manual_layout, g_free);
   g_clear_pointer (&self->active_profile_id, g_free);
@@ -317,6 +319,15 @@ stamp_window_init (StampWindow *self)
   gtk_size_group_add_widget (self->sidebar_size_group, stamp_mail_view_get_sidebar (self->mail_view));
   gtk_size_group_add_widget (self->sidebar_size_group, stamp_contact_view_get_sidebar (self->contact_view));
   gtk_size_group_add_widget (self->sidebar_size_group, stamp_calendar_view_get_sidebar (self->calendar_view));
+
+  /* And the same for what each view makes: Compose, Event and Contact
+   * are different lengths, so without this the pill grows and shrinks
+   * under the pointer as you move between views. The widest label sets
+   * the width for all three. */
+  self->action_size_group = gtk_size_group_new (GTK_SIZE_GROUP_HORIZONTAL);
+  gtk_size_group_add_widget (self->action_size_group, stamp_mail_view_get_primary_action (self->mail_view));
+  gtk_size_group_add_widget (self->action_size_group, stamp_contact_view_get_primary_action (self->contact_view));
+  gtk_size_group_add_widget (self->action_size_group, stamp_calendar_view_get_primary_action (self->calendar_view));
 
   /* Badge the Calendar button with how much is happening today. */
   self->today_counter = stamp_today_counter_new ();

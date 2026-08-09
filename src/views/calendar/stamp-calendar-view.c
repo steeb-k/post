@@ -50,6 +50,7 @@ struct _StampCalendarView {
   AdwMultiLayoutView *calendar_layout;
   AdwViewSwitcher *app_switcher;
   GtkSizeGroup *switcher_sizes;
+  GtkWidget *event_button;
   gboolean switcher_sized;
   AdwOverlaySplitView *outer_osv;
   AdwOverlaySplitView *tablet_osv;
@@ -1153,6 +1154,7 @@ stamp_calendar_view_class_init (StampCalendarViewClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampCalendarView, calendar_layout);
   gtk_widget_class_bind_template_child (widget_class, StampCalendarView, app_switcher);
   gtk_widget_class_bind_template_child (widget_class, StampCalendarView, switcher_sizes);
+  gtk_widget_class_bind_template_child (widget_class, StampCalendarView, event_button);
   gtk_widget_class_bind_template_child (widget_class, StampCalendarView, outer_osv);
   gtk_widget_class_bind_template_child (widget_class, StampCalendarView, tablet_osv);
   gtk_widget_class_bind_template_child (widget_class, StampCalendarView, sidebar_pane);
@@ -1272,4 +1274,10 @@ GtkWidget *
 stamp_calendar_view_get_sidebar (StampCalendarView *self)
 {
   return self->sidebar_pane;
+}
+
+GtkWidget *
+stamp_calendar_view_get_primary_action (StampCalendarView *self)
+{
+  return self->event_button;
 }

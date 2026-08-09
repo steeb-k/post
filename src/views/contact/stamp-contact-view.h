@@ -15,6 +15,9 @@ stamp_contact_view_new (void);
 GtkWidget *
 stamp_contact_view_get_sidebar (StampContactView *self);
 
+GtkWidget *
+stamp_contact_view_get_primary_action (StampContactView *self);
+
 void
 stamp_contact_view_show_contact (StampContactView *self,
                                  const gchar       *mail);

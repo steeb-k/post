@@ -55,6 +55,7 @@ struct _StampMailView {
   AdwMultiLayoutView *mail_layout;
   AdwViewSwitcher *app_switcher;
   GtkSizeGroup *switcher_sizes;
+  GtkWidget *compose_button;
   gboolean switcher_sized;
   AdwBreakpoint *bp_tablet;
   AdwBreakpoint *bp_mobile;
@@ -466,6 +467,7 @@ stamp_mail_view_class_init (StampMailViewClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampMailView, mail_layout);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, app_switcher);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, switcher_sizes);
+  gtk_widget_class_bind_template_child (widget_class, StampMailView, compose_button);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, bp_tablet);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, bp_mobile);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, folder_list);
@@ -939,6 +941,12 @@ GtkWidget *
 stamp_mail_view_get_sidebar (StampMailView *self)
 {
   return self->sidebar_pane;
+}
+
+GtkWidget *
+stamp_mail_view_get_primary_action (StampMailView *self)
+{
+  return self->compose_button;
 }
 
 void

@@ -18,6 +18,9 @@ stamp_calendar_view_new (void);
 GtkWidget *
 stamp_calendar_view_get_sidebar (StampCalendarView *self);
 
+GtkWidget *
+stamp_calendar_view_get_primary_action (StampCalendarView *self);
+
 void
 stamp_calendar_view_create_event (StampCalendarView *self,
                                   const gchar       *summary,
