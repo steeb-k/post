@@ -12,6 +12,7 @@
     <file preprocess="xml-stripblanks">stamp-profiles-editor.ui</file>
     <file preprocess="xml-stripblanks">stamp-window.ui</file>
     <file preprocess="xml-stripblanks">views/stamp-header-bar.ui</file>
+    <file preprocess="xml-stripblanks">views/stamp-layout-picker.ui</file>
     <file preprocess="xml-stripblanks">views/stamp-profile-button.ui</file>
     <file preprocess="xml-stripblanks">views/stamp-tag.ui</file>
     <file preprocess="xml-stripblanks">views/calendar/stamp-calendar-view.ui</file>

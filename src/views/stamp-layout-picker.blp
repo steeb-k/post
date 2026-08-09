@@ -1,0 +1,266 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampLayoutPicker: Adw.Bin {
+  // A wrap box rather than a homogeneous row: three tiles side by side
+  // need more width than a phone-sized window has, and a plain Box would
+  // answer that by making whatever holds it wider than the window instead
+  // of giving way.
+  child: Adw.WrapBox wrap {
+    child-spacing: 12;
+    line-spacing: 12;
+    // Tiles keep their own size rather than stretching to fill a line, so
+    // the one left over on a wrapped line does not end up twice the width
+    // of the others.
+    justify: none;
+    align: 0.5;
+
+    ToggleButton side_by_side {
+      // hexpand propagates up from the preview pane inside; pin it so the
+      // wrap box does not stretch the tiles.
+      hexpand: false;
+      tooltip-text: _("Side by Side");
+
+      styles [
+        "flat",
+      ]
+
+      accessibility {
+        label: _("Side by Side");
+      }
+
+      child: Box {
+        orientation: vertical;
+        spacing: 6;
+
+        Box {
+          orientation: horizontal;
+          spacing: 3;
+
+          styles [
+            "layout-preview",
+          ]
+
+          Box {
+            orientation: vertical;
+            spacing: 3;
+            width-request: 16;
+
+            Box {
+              vexpand: true;
+
+              styles [
+                "layout-preview-pane",
+              ]
+            }
+
+            Box {
+              height-request: 16;
+
+              styles [
+                "layout-preview-agenda",
+              ]
+            }
+          }
+
+          Box {
+            width-request: 22;
+
+            styles [
+              "layout-preview-pane",
+            ]
+          }
+
+          Box {
+            hexpand: true;
+
+            styles [
+              "layout-preview-pane",
+            ]
+          }
+        }
+
+        Label {
+          label: _("Side by Side");
+          // Wrapping keeps the widest caption from setting a minimum width
+          // for everything around the picker.
+          wrap: true;
+          justify: center;
+
+          styles [
+            "caption",
+          ]
+        }
+      };
+    }
+
+    ToggleButton stacked {
+      hexpand: false;
+      tooltip-text: _("Stacked");
+
+      styles [
+        "flat",
+      ]
+
+      accessibility {
+        label: _("Stacked");
+      }
+
+      child: Box {
+        orientation: vertical;
+        spacing: 6;
+
+        Box {
+          orientation: horizontal;
+          spacing: 3;
+
+          styles [
+            "layout-preview",
+          ]
+
+          Box {
+            orientation: vertical;
+            spacing: 3;
+            width-request: 16;
+
+            Box {
+              vexpand: true;
+
+              styles [
+                "layout-preview-pane",
+              ]
+            }
+
+            Box {
+              height-request: 16;
+
+              styles [
+                "layout-preview-agenda",
+              ]
+            }
+          }
+
+          Box {
+            orientation: vertical;
+            spacing: 3;
+            hexpand: true;
+
+            Box {
+              height-request: 14;
+
+              styles [
+                "layout-preview-pane",
+              ]
+            }
+
+            Box {
+              vexpand: true;
+
+              styles [
+                "layout-preview-pane",
+              ]
+            }
+          }
+        }
+
+        Label {
+          label: _("Stacked");
+          wrap: true;
+          justify: center;
+
+          styles [
+            "caption",
+          ]
+        }
+      };
+    }
+
+    ToggleButton dense {
+      hexpand: false;
+      tooltip-text: _("Dense");
+
+      styles [
+        "flat",
+      ]
+
+      accessibility {
+        label: _("Dense");
+      }
+
+      child: Box {
+        orientation: vertical;
+        spacing: 6;
+
+        Box {
+          orientation: horizontal;
+          spacing: 3;
+
+          styles [
+            "layout-preview",
+          ]
+
+          Box {
+            width-request: 16;
+
+            styles [
+              "layout-preview-pane",
+            ]
+          }
+
+          Box {
+            orientation: vertical;
+            spacing: 3;
+            hexpand: true;
+
+            Box {
+              height-request: 14;
+
+              styles [
+                "layout-preview-pane",
+              ]
+            }
+
+            Box {
+              vexpand: true;
+
+              styles [
+                "layout-preview-pane",
+              ]
+            }
+          }
+
+          Box {
+            width-request: 18;
+
+            styles [
+              "layout-preview-agenda",
+            ]
+          }
+        }
+
+        Label {
+          label: _("Dense");
+          wrap: true;
+          justify: center;
+
+          styles [
+            "caption",
+          ]
+        }
+      };
+    }
+  };
+}
+
+/*
+ * The tiles are the same size whichever line they wrap onto.
+ */
+Gtk.SizeGroup {
+  mode: horizontal;
+
+  widgets [
+    side_by_side,
+    stacked,
+    dense,
+  ]
+}

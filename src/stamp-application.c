@@ -31,6 +31,7 @@
 #include "stamp-preferences.h"
 #include "stamp-profiles.h"
 #include "stamp-session.h"
+#include "stamp-settings.h"
 #include "stamp-window.h"
 
 struct _StampApplication {
@@ -240,6 +241,42 @@ on_pk11_password (StampSession  *session,
   *password = self->password;
 }
 
+/*
+ * The default layout, as opposed to win.mail-layout, which changes the
+ * one on screen and may be answering to a profile at the time. This is
+ * what the picker in preferences drives.
+ */
+static void
+stamp_application_default_layout_action (GSimpleAction *action,
+                                         GVariant      *value,
+                                         gpointer       user_data)
+{
+  const gchar *nick = g_variant_get_string (value, NULL);
+
+  if (!stamp_mail_layout_nick_is_valid (nick))
+    return;
+
+  g_settings_set_string (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_LAYOUT, nick);
+  g_simple_action_set_state (action, value);
+}
+
+static void
+sync_default_layout_action (StampApplication *self)
+{
+  g_autofree gchar *nick = g_settings_get_string (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_LAYOUT);
+  GAction *action = g_action_map_lookup_action (G_ACTION_MAP (self), "default-mail-layout");
+
+  g_simple_action_set_state (G_SIMPLE_ACTION (action), g_variant_new_string (nick));
+}
+
+static void
+on_default_layout_setting_changed (GSettings   *settings,
+                                   const gchar *key,
+                                   gpointer     user_data)
+{
+  sync_default_layout_action (STAMP_APPLICATION (user_data));
+}
+
 static void
 stamp_application_startup (GApplication *app)
 {
@@ -249,6 +286,10 @@ stamp_application_startup (GApplication *app)
 
   self->session = stamp_session_get_default ();
   g_signal_connect_object (self->session, "pk11-password", G_CALLBACK (on_pk11_password), self, G_CONNECT_DEFAULT);
+
+  sync_default_layout_action (self);
+  g_signal_connect_object (STAMP_SETTINGS_MAIL, "changed::" STAMP_PREFS_MAIL_LAYOUT,
+                           G_CALLBACK (on_default_layout_setting_changed), self, G_CONNECT_DEFAULT);
 }
 
 static gint
@@ -468,6 +509,8 @@ stamp_application_show_message (GSimpleAction *action,
 }
 
 static const GActionEntry app_actions[] = {
+  { .name = "default-mail-layout", .parameter_type = "s", .state = "'side-by-side'",
+    .change_state = stamp_application_default_layout_action },
   { "accounts", stamp_application_accounts_action },
   { "quit", stamp_application_quit_action },
   { "about", stamp_application_about_action },

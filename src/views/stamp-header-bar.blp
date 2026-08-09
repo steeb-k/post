@@ -12,7 +12,7 @@ template $StampHeaderBar: Adw.Bin {
     }
 
     [end]
-    MenuButton {
+    MenuButton menu_button {
       primary: true;
       icon-name: "open-menu-symbolic";
       menu-model: primary_menu;
@@ -34,24 +34,16 @@ menu primary_menu {
   }
 
   section {
-    label: _("Layout");
+    submenu {
+      label: _("_Layout");
 
-    item {
-      label: _("_Side by Side");
-      action: 'win.mail-layout';
-      target: 'side-by-side';
-    }
-
-    item {
-      label: _("S_tacked");
-      action: 'win.mail-layout';
-      target: 'stacked';
-    }
-
-    item {
-      label: _("_Dense");
-      action: 'win.mail-layout';
-      target: 'dense';
+      section {
+        // Filled in by stamp_header_bar_init with a StampLayoutPicker; a
+        // GMenu can only hold the placeholder.
+        item {
+          custom: "layout";
+        }
+      }
     }
   }
 

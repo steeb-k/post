@@ -26,6 +26,7 @@
 
 #include "stamp-account.h"
 #include "stamp-helper.h"
+#include "stamp-layout-picker.h"
 #include "stamp-preferences-account.h"
 #include "stamp-preferences-calendars.h"
 #include "stamp-preferences-signatures.h"
@@ -44,16 +45,12 @@ struct _StampPreferences {
   AdwSwitchRow *play_incoming_sound;
   AdwSpinRow *refresh_interval;
   AdwSwitchRow *important_first;
-  GtkToggleButton *layout_side_by_side;
-  GtkToggleButton *layout_stacked;
-  GtkToggleButton *layout_dense;
   AdwPreferencesGroup *accounts_group;
   AdwPreferencesGroup *signatures_group;
   AdwActionRow *add_signature;
   AdwButtonRow *add_account;
 
   gboolean autostart_failed;
-  gboolean updating_layout;
 
   GCancellable *cancellable;
 
@@ -101,65 +98,6 @@ on_signature_edit_clicked (GtkWidget *button,
   adw_preferences_dialog_push_subpage (ADW_PREFERENCES_DIALOG (self), ADW_NAVIGATION_PAGE (stamp_preferences_signature_editor_new (signature)));
 }
 
-static GtkToggleButton *
-layout_button (StampPreferences *self,
-               StampMailLayout   layout)
-{
-  switch (layout) {
-    case STAMP_MAIL_LAYOUT_STACKED:
-      return self->layout_stacked;
-
-    case STAMP_MAIL_LAYOUT_DENSE:
-      return self->layout_dense;
-
-    case STAMP_MAIL_LAYOUT_SIDE_BY_SIDE:
-    default:
-      return self->layout_side_by_side;
-  }
-}
-
-/*
- * The picker shows the default layout, which is not necessarily the one
- * on screen: an active profile may be overriding it.
- */
-static void
-update_layout_buttons (StampPreferences *self)
-{
-  g_autofree gchar *nick = g_settings_get_string (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_LAYOUT);
-
-  self->updating_layout = TRUE;
-  gtk_toggle_button_set_active (layout_button (self, stamp_mail_layout_from_nick (nick)), TRUE);
-  self->updating_layout = FALSE;
-}
-
-static void
-on_layout_toggled (GtkToggleButton *button,
-                   gpointer         user_data)
-{
-  StampPreferences *self = STAMP_PREFERENCES (user_data);
-  StampMailLayout layout;
-
-  if (self->updating_layout || !gtk_toggle_button_get_active (button))
-    return;
-
-  if (button == self->layout_stacked)
-    layout = STAMP_MAIL_LAYOUT_STACKED;
-  else if (button == self->layout_dense)
-    layout = STAMP_MAIL_LAYOUT_DENSE;
-  else
-    layout = STAMP_MAIL_LAYOUT_SIDE_BY_SIDE;
-
-  g_settings_set_string (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_LAYOUT, stamp_mail_layout_to_nick (layout));
-}
-
-static void
-on_layout_setting_changed (GSettings   *settings,
-                           const gchar *key,
-                           gpointer     user_data)
-{
-  update_layout_buttons (STAMP_PREFERENCES (user_data));
-}
-
 static void
 stamp_preferences_dispose (GObject *object)
 {
@@ -192,15 +130,11 @@ stamp_preferences_class_init (StampPreferencesClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, play_incoming_sound);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, refresh_interval);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, important_first);
-  gtk_widget_class_bind_template_child (widget_class, StampPreferences, layout_side_by_side);
-  gtk_widget_class_bind_template_child (widget_class, StampPreferences, layout_stacked);
-  gtk_widget_class_bind_template_child (widget_class, StampPreferences, layout_dense);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, accounts_group);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, signatures_group);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, add_signature);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, add_account);
 
-  gtk_widget_class_bind_template_callback (widget_class, on_layout_toggled);
   gtk_widget_class_bind_template_callback (widget_class, on_add_signature_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_add_account_clicked);
 }
@@ -360,6 +294,7 @@ void
 stamp_preferences_init (StampPreferences *self)
 {
   g_type_ensure (STAMP_TYPE_WEBVIEW);
+  g_type_ensure (STAMP_TYPE_LAYOUT_PICKER);
   g_type_ensure (STAMP_TYPE_PREFERENCES_CALENDARS);
 
   gtk_widget_init_template (GTK_WIDGET (self));
@@ -377,10 +312,6 @@ stamp_preferences_init (StampPreferences *self)
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_IMPORTANT_FIRST, self->important_first, "active", G_SETTINGS_BIND_DEFAULT);
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_MARK_READ_TIMEOUT, self->mark_read, "value", G_SETTINGS_BIND_DEFAULT);
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_REFRESH_INTERVAL, self->refresh_interval, "value", G_SETTINGS_BIND_DEFAULT);
-
-  g_signal_connect_object (STAMP_SETTINGS_MAIL, "changed::" STAMP_PREFS_MAIL_LAYOUT,
-                           G_CALLBACK (on_layout_setting_changed), self, G_CONNECT_DEFAULT);
-  update_layout_buttons (self);
 
   g_signal_connect_object (self->bimi_images, "notify::active", G_CALLBACK (on_bimi_images), self, G_CONNECT_DEFAULT);
   g_signal_connect_swapped (self->signatures_group, "map", G_CALLBACK (init_signatures), self);
