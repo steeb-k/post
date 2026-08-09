@@ -195,6 +195,32 @@ stamp_disk_cache_purge (StampPhotoCache *cache)
   g_dir_close (dir);
 }
 
+/*
+ * Forget one contact rather than the whole cache, for when their photo
+ * has just been changed here. Keys are whatever the caller looked up
+ * under -- a lowercased address, or a full name for contacts that have
+ * no address at all -- so the caller passes each of them in turn.
+ */
+void
+stamp_photo_cache_invalidate (StampPhotoCache *cache,
+                              const gchar     *key)
+{
+  g_autofree char *path = NULL;
+  g_autofree char *negative_path = NULL;
+
+  if (!cache || !key || *key == '\0')
+    return;
+
+  g_hash_table_remove (cache->positive_cache, key);
+  g_hash_table_remove (cache->negative_cache, key);
+
+  path = stamp_cache_path_for_email (cache, key, NULL);
+  negative_path = stamp_cache_path_for_email (cache, key, STAMP_CACHE_NEGATIVE_SUFFIX);
+
+  g_remove (path);
+  g_remove (negative_path);
+}
+
 void
 stamp_disk_cache_purge_negative (StampPhotoCache *cache)
 {

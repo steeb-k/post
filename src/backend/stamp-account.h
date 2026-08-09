@@ -147,6 +147,10 @@ stamp_account_get_photo_finish (StampAccount  *self,
                                 GError       **error);
 
 void
+stamp_account_invalidate_photo (StampAccount *self,
+                                const gchar  *key);
+
+void
 stamp_account_search_contacts (StampAccount        *self,
                                EBookClient         *client,
                                const gchar          *search_text,

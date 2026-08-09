@@ -43,6 +43,10 @@ stamp_photo_cache_lookup_async (StampPhotoCache *cache,
                                 gpointer         user_data);
 
 void
+stamp_photo_cache_invalidate (StampPhotoCache *cache,
+                              const gchar     *key);
+
+void
 stamp_disk_cache_purge (StampPhotoCache *cache);
 
 void

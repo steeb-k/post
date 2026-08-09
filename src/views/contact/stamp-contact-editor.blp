@@ -46,6 +46,11 @@ template $StampContactEditor: Adw.Dialog {
             halign: center;
             margin-bottom: 6;
 
+            /* The avatar shows the picture and nothing more: making it
+             * the button gave it a hover background the shape of the
+             * button rather than the shape of the avatar, and left the
+             * control unlabelled. Both actions sit under it instead,
+             * where one already had to be. */
             Adw.Avatar avatar {
               show-initials: true;
               size: 96;
@@ -53,6 +58,30 @@ template $StampContactEditor: Adw.Dialog {
               styles [
                 "icon-dropshadow",
               ]
+            }
+
+            Box {
+              spacing: 6;
+              halign: center;
+
+              Button photo_button {
+                label: _("Add Picture");
+                clicked => $on_photo_button_clicked();
+
+                styles [
+                  "flat",
+                ]
+              }
+
+              Button remove_photo_button {
+                label: _("Remove Picture");
+                visible: false;
+                clicked => $on_remove_photo_clicked();
+
+                styles [
+                  "flat",
+                ]
+              }
             }
           }
         }

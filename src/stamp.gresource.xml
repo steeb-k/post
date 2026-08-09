@@ -19,6 +19,7 @@
     <file preprocess="xml-stripblanks">views/calendar/stamp-calendar-view.ui</file>
     <file preprocess="xml-stripblanks">views/contact/stamp-contact-details.ui</file>
     <file preprocess="xml-stripblanks">views/contact/stamp-contact-editor.ui</file>
+    <file preprocess="xml-stripblanks">views/contact/stamp-photo-crop.ui</file>
     <file preprocess="xml-stripblanks">views/contact/stamp-contact-view.ui</file>
     <file preprocess="xml-stripblanks">views/contact/book-list/stamp-book-list.ui</file>
     <file preprocess="xml-stripblanks">views/contact/book-list/stamp-book-row.ui</file>

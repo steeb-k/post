@@ -283,6 +283,13 @@ stamp_account_get_writable_books (StampAccount *self)
 }
 
 void
+stamp_account_invalidate_photo (StampAccount *self,
+                                const gchar  *key)
+{
+  stamp_photo_cache_invalidate (self->photo_cache, key);
+}
+
+void
 stamp_account_get_photo (StampAccount *self,
                          const gchar  *sender,
                          GCancellable *cancellable,

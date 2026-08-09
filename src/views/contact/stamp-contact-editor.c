@@ -24,6 +24,7 @@
 #include "gcal-date-chooser-row.h"
 #include "stamp-account.h"
 #include "stamp-gcal.h"
+#include "stamp-photo-crop.h"
 #include "stamp-session.h"
 
 struct _StampContactEditor {
@@ -32,6 +33,8 @@ struct _StampContactEditor {
   GtkWidget *window_title;
   GtkWidget *save_button;
   GtkWidget *avatar;
+  GtkWidget *photo_button;
+  GtkWidget *remove_photo_button;
 
   GtkWidget *given_row;
   GtkWidget *family_row;
@@ -70,6 +73,11 @@ struct _StampContactEditor {
 
   EContact *contact;
   EBookClient *client;
+
+  /* Only written back when the user actually touched the picture, so
+   * saving an unrelated edit does not re-encode what is already there. */
+  GdkTexture *photo;
+  gboolean photo_changed;
   /* Prefixes, middle names and suffixes the editor does not show, kept so
    * that saving a contact does not quietly drop them. */
   EContactName *name;
@@ -227,6 +235,83 @@ on_cancel_clicked (GtkButton *button,
   adw_dialog_close (ADW_DIALOG (user_data));
 }
 
+/* Adding and changing are the same operation, but not the same sentence
+ * to someone deciding whether to press it. */
+static void
+update_photo_buttons (StampContactEditor *self,
+                      gboolean            has_photo)
+{
+  gtk_button_set_label (GTK_BUTTON (self->photo_button),
+                        has_photo ? _("Change Picture") : _("Add Picture"));
+  gtk_widget_set_visible (self->remove_photo_button, has_photo);
+}
+
+static void
+set_photo (StampContactEditor *self,
+           GdkTexture         *texture)
+{
+  g_set_object (&self->photo, texture);
+  self->photo_changed = TRUE;
+
+  adw_avatar_set_custom_image (ADW_AVATAR (self->avatar), texture ? GDK_PAINTABLE (texture) : NULL);
+  update_photo_buttons (self, texture != NULL);
+}
+
+static void
+on_photo_cropped (GdkTexture *texture,
+                  gpointer    user_data)
+{
+  StampContactEditor *self = STAMP_CONTACT_EDITOR (user_data);
+
+  /* A cancelled crop leaves whatever was there alone. */
+  if (!texture)
+    return;
+
+  set_photo (self, texture);
+}
+
+static void
+on_photo_chosen (GObject      *object,
+                 GAsyncResult *res,
+                 gpointer      user_data)
+{
+  StampContactEditor *self = STAMP_CONTACT_EDITOR (user_data);
+  g_autoptr (GFile) file = NULL;
+  g_autoptr (GError) error = NULL;
+
+  file = gtk_file_dialog_open_finish (GTK_FILE_DIALOG (object), res, &error);
+  if (!file)
+    return;
+
+  stamp_photo_crop_present (GTK_WIDGET (self), file, on_photo_cropped, self);
+}
+
+static void
+on_photo_button_clicked (GtkButton *button,
+                         gpointer   user_data)
+{
+  StampContactEditor *self = STAMP_CONTACT_EDITOR (user_data);
+  g_autoptr (GtkFileDialog) dialog = gtk_file_dialog_new ();
+  g_autoptr (GtkFileFilter) filter = gtk_file_filter_new ();
+  g_autoptr (GListStore) filters = g_list_store_new (GTK_TYPE_FILE_FILTER);
+
+  gtk_file_filter_set_name (filter, _("Pictures"));
+  gtk_file_filter_add_mime_type (filter, "image/*");
+  g_list_store_append (filters, filter);
+
+  gtk_file_dialog_set_title (dialog, _("Choose a Picture"));
+  gtk_file_dialog_set_filters (dialog, G_LIST_MODEL (filters));
+  gtk_file_dialog_open (dialog, GTK_WINDOW (gtk_widget_get_root (GTK_WIDGET (self))),
+                        self->cancellable, on_photo_chosen, self);
+}
+
+static void
+on_remove_photo_clicked (GtkButton *button,
+                         gpointer   user_data)
+{
+  set_photo (STAMP_CONTACT_EDITOR (user_data), NULL);
+}
+
 /*
  * Every book in every account that will accept a write, so that adding a
  * contact from one view does not depend on which book a sidebar elsewhere
@@ -286,17 +371,28 @@ load_photo (StampContactEditor *self,
   g_autoptr (EContactPhoto) photo = e_contact_get (contact, E_CONTACT_PHOTO);
   g_autoptr (GdkTexture) texture = NULL;
 
-  if (!photo || photo->type != E_CONTACT_PHOTO_TYPE_INLINED)
+  if (!photo)
     return;
 
-  {
+  if (photo->type == E_CONTACT_PHOTO_TYPE_INLINED) {
     g_autoptr (GBytes) bytes = g_bytes_new (photo->data.inlined.data, photo->data.inlined.length);
 
     texture = gdk_texture_new_from_bytes (bytes, NULL);
+  } else if (photo->type == E_CONTACT_PHOTO_TYPE_URI && photo->data.uri &&
+             g_str_has_prefix (photo->data.uri, "file://")) {
+    /* A picture written inline does not necessarily come back that way:
+     * the local backend moves it into its own store and leaves a URI
+     * behind. Only local ones are read, since anything else would mean
+     * fetching over the network to draw a dialog. */
+    g_autoptr (GFile) file = g_file_new_for_uri (photo->data.uri);
+
+    texture = gdk_texture_new_from_file (file, NULL);
   }
 
-  if (texture)
+  if (texture) {
     adw_avatar_set_custom_image (ADW_AVATAR (self->avatar), GDK_PAINTABLE (texture));
+    update_photo_buttons (self, TRUE);
+  }
 }
 
 static void
@@ -452,6 +548,59 @@ apply_fields (StampContactEditor *self,
   note = gtk_text_buffer_get_text (buffer, &start, &end, FALSE);
   set_contact_string (contact, E_CONTACT_NOTE, note);
 
+  if (!self->photo_changed)
+    return;
+
+  if (self->photo) {
+    g_autoptr (GBytes) bytes = gdk_texture_save_to_png_bytes (self->photo);
+    EContactPhoto photo = { 0 };
+    gsize length = 0;
+
+    photo.type = E_CONTACT_PHOTO_TYPE_INLINED;
+    photo.data.inlined.mime_type = (gchar *)"image/png";
+    photo.data.inlined.data = (guchar *)g_bytes_get_data (bytes, &length);
+    photo.data.inlined.length = length;
+
+    e_contact_set (contact, E_CONTACT_PHOTO, &photo);
+  } else {
+    e_contact_set (contact, E_CONTACT_PHOTO, NULL);
+  }
+}
+
+/*
+ * Avatars are cached per address the photo was found under, across every
+ * account, so a changed picture has to be forgotten everywhere or the
+ * mail side keeps drawing the old one until the cache ages out.
+ */
+static void
+invalidate_photo_cache (StampContactEditor *self)
+{
+  StampSession *session = stamp_session_get_default ();
+  GList *keys = NULL;
+  g_autofree char *full_name = NULL;
+
+  if (!self->photo_changed)
+    return;
+
+  for (guint idx = 0; idx < self->email_rows->len; idx++) {
+    GtkWidget *row = g_ptr_array_index (self->email_rows, idx);
+
+    if (!row_is_empty (row))
+      keys = g_list_prepend (keys, g_utf8_strdown (row_text (row), -1));
+  }
+
+  /* Contacts without an address are looked up by name instead. */
+  full_name = g_strconcat (row_text (self->given_row), " ", row_text (self->family_row), NULL);
+  g_strstrip (full_name);
+  if (*full_name)
+    keys = g_list_prepend (keys, g_strdup (full_name));
+
+  for (GList *account = stamp_session_get_accounts (session); account; account = g_list_next (account)) {
+    for (GList *key = keys; key; key = g_list_next (key))
+      stamp_account_invalidate_photo (STAMP_ACCOUNT (account->data), key->data);
+  }
+
+  g_list_free_full (keys, g_free);
 }
 
 static void
@@ -534,6 +683,12 @@ on_save_clicked (GtkButton *button,
   contact = self->contact ? e_contact_duplicate (self->contact) : e_contact_new ();
   apply_fields (self, contact);
 
+  /* Before the write, not after it: the live view can announce the
+   * change before the write's own callback runs, and whatever redraws
+   * on the back of that would only refill the cache with the picture
+   * being replaced. Clearing early costs a re-read if the save fails. */
+  invalidate_photo_cache (self);
+
   gtk_widget_set_sensitive (self->save_button, FALSE);
 
   if (self->contact)
@@ -556,6 +711,7 @@ stamp_contact_editor_dispose (GObject *object)
   g_clear_pointer (&self->email_rows, g_ptr_array_unref);
   g_clear_object (&self->contact);
   g_clear_object (&self->client);
+  g_clear_object (&self->photo);
 
   g_clear_pointer (&self->name, e_contact_name_free);
 
@@ -579,6 +735,8 @@ stamp_contact_editor_class_init (StampContactEditorClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampContactEditor, window_title);
   gtk_widget_class_bind_template_child (widget_class, StampContactEditor, save_button);
   gtk_widget_class_bind_template_child (widget_class, StampContactEditor, avatar);
+  gtk_widget_class_bind_template_child (widget_class, StampContactEditor, photo_button);
+  gtk_widget_class_bind_template_child (widget_class, StampContactEditor, remove_photo_button);
   gtk_widget_class_bind_template_child (widget_class, StampContactEditor, given_row);
   gtk_widget_class_bind_template_child (widget_class, StampContactEditor, family_row);
   gtk_widget_class_bind_template_child (widget_class, StampContactEditor, book_row);
@@ -606,6 +764,8 @@ stamp_contact_editor_class_init (StampContactEditorClass *klass)
   gtk_widget_class_bind_template_callback (widget_class, on_cancel_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_save_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_add_email_clicked);
+  gtk_widget_class_bind_template_callback (widget_class, on_photo_button_clicked);
+  gtk_widget_class_bind_template_callback (widget_class, on_remove_photo_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_name_changed);
   gtk_widget_class_bind_template_callback (widget_class, on_field_changed);
 }
