@@ -6,6 +6,20 @@ template $StampPreferences: Adw.PreferencesDialog {
   content-height: 580;
   search-enabled: true;
 
+  /*
+   * Narrow enough and the dialog is presented as a bottom sheet, where the
+   * 580px meant for a desktop dialog only covers the lower half of a phone
+   * screen. Ask for more height than any phone has so the sheet grows to
+   * the window, leaving just the app's header bar showing behind it.
+   */
+  Adw.Breakpoint {
+    condition ("max-width: 500sp")
+
+    setters {
+      template.content-height: 2000;
+    }
+  }
+
   Adw.PreferencesPage {
     title: _("General");
     icon-name: "applications-system-symbolic";
