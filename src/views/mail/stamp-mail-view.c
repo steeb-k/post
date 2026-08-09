@@ -619,6 +619,9 @@ on_agenda_event_activated (GcalAgendaView  *view G_GNUC_UNUSED,
  * the list, the list when the reading pane is below it, and the agenda
  * column when there is one. On mobile each page is the whole window, so
  * the two that can be on top both need a set.
+ *
+ * The layouts that put the reading pane below the list leave it short,
+ * so the list packs its rows tighter there.
  */
 static void
 update_window_controls (StampMailView *self,
@@ -630,6 +633,7 @@ update_window_controls (StampMailView *self,
   gboolean mobile = g_strcmp0 (layout, "mobile") == 0;
 
   stamp_consersation_list_set_show_buttons (self->conversation_list, stacked || mobile);
+  stamp_conversation_list_set_compact (self->conversation_list, stacked || dense);
   stamp_message_list_set_show_window_controls (self->message_list, mobile || !(stacked || dense));
   adw_header_bar_set_show_end_title_buttons (self->agenda_header, dense);
 }

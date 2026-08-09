@@ -7,6 +7,19 @@
   border-spacing: 6px;
 }
 
+/*
+ * Stacked and dense leave the list a pane a few rows tall, so its rows
+ * give up the padding they can spare to fit another conversation in.
+ */
+.compact-rows .conversation-row {
+  padding: 3px 0;
+  border-spacing: 9px 0;
+}
+
+.compact-rows listview > row {
+  margin-bottom: 0;
+}
+
 .category-pill {
   border-radius: 999px;
   padding-left: 6px;

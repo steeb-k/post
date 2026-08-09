@@ -2534,6 +2534,18 @@ stamp_consersation_list_set_show_buttons (StampConversationList *self,
   adw_header_bar_set_show_end_title_buttons (ADW_HEADER_BAR (self->selection_headerbar), show);
 }
 
+/* Rows worth their padding beside the reading pane are worth less of it
+ * above one, where the list only has a few rows' worth of height. */
+void
+stamp_conversation_list_set_compact (StampConversationList *self,
+                                     gboolean               compact)
+{
+  if (compact)
+    gtk_widget_add_css_class (GTK_WIDGET (self), "compact-rows");
+  else
+    gtk_widget_remove_css_class (GTK_WIDGET (self), "compact-rows");
+}
+
 void
 stamp_conversation_list_select_relative (StampConversationList *self,
                                          gint                   direction)
