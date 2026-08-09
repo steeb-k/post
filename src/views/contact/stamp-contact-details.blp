@@ -127,6 +127,23 @@ template $StampContactDetails: Box {
 
                   visible: false;
                 }
+
+                /* Last, and no wider than its own label: removing a
+                 * contact is the one thing on this pane that cannot be
+                 * undone, so it does not sit among the fields nor
+                 * stretch across them like something routine. */
+                Button delete_button {
+                  label: _("Delete Contact");
+                  halign: center;
+                  margin-top: 12;
+                  margin-bottom: 24;
+                  clicked => $on_delete_clicked();
+
+                  styles [
+                    "destructive-action",
+                    "pill",
+                  ]
+                }
               };
             };
           };

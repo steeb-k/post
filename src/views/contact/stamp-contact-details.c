@@ -39,6 +39,7 @@ struct _StampContactDetails {
   GtkWidget *address;
   GtkWidget *notes;
   GtkWidget *edit_button;
+  GtkWidget *delete_button;
 
   StampContactItem *item;
 
@@ -84,6 +85,100 @@ on_edit_clicked (GtkButton *button,
 }
 
 static void
+on_contact_removed (GObject      *object,
+                    GAsyncResult *res,
+                    gpointer      user_data)
+{
+  StampContactDetails *self = STAMP_CONTACT_DETAILS (user_data);
+  g_autoptr (GError) error = NULL;
+
+  if (!e_book_client_remove_contact_finish (E_BOOK_CLIENT (object), res, &error)) {
+    AdwDialog *alert;
+
+    if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+      return;
+
+    alert = adw_alert_dialog_new (_("Could Not Delete Contact"), error->message);
+    adw_alert_dialog_add_response (ADW_ALERT_DIALOG (alert), "close", _("_Close"));
+    adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (alert), "close");
+    adw_dialog_present (alert, GTK_WIDGET (self));
+    return;
+  }
+
+  /* The live view takes the row out of the list; this pane is left
+   * describing something that no longer exists. */
+  stamp_contact_details_show (self, NULL, NULL);
+}
+
+static void
+on_delete_confirmed (AdwAlertDialog *dialog,
+                     GAsyncResult   *res,
+                     gpointer        user_data)
+{
+  StampContactDetails *self = STAMP_CONTACT_DETAILS (user_data);
+  const gchar *response = adw_alert_dialog_choose_finish (dialog, res);
+  EBookClient *client;
+
+  if (g_strcmp0 (response, "delete") != 0 || !self->item)
+    return;
+
+  client = stamp_contact_item_get_client (self->item);
+  if (!client)
+    return;
+
+  e_book_client_remove_contact (client,
+                                stamp_contact_item_get_contact (self->item),
+                                E_BOOK_OPERATION_FLAG_NONE,
+                                self->cancellable,
+                                on_contact_removed,
+                                self);
+}
+
+static void
+on_delete_clicked (GtkButton *button,
+                   gpointer   user_data)
+{
+  StampContactDetails *self = STAMP_CONTACT_DETAILS (user_data);
+  AdwDialog *dialog;
+  EBookClient *client;
+  const gchar *name;
+  g_autofree char *body = NULL;
+
+  if (!self->item)
+    return;
+
+  name = stamp_contact_item_get_name (self->item);
+  if (!name || strlen (name) == 0)
+    name = stamp_contact_item_get_mail (self->item);
+
+  client = stamp_contact_item_get_client (self->item);
+
+  /* Naming the book as well as the contact, because the same person can
+   * sit in more than one of them and only this copy is going. */
+  if (client) {
+    const gchar *book = e_source_get_display_name (e_client_get_source (E_CLIENT (client)));
+
+    body = g_strdup_printf (_("“%s” will be removed from “%s”. This cannot be undone."),
+                            name ? name : _("This contact"), book);
+  } else {
+    body = g_strdup_printf (_("“%s” will be removed. This cannot be undone."),
+                            name ? name : _("This contact"));
+  }
+
+  dialog = adw_alert_dialog_new (_("Delete Contact?"), body);
+  adw_alert_dialog_add_responses (ADW_ALERT_DIALOG (dialog),
+                                  "cancel", _("_Cancel"),
+                                  "delete", _("_Delete"),
+                                  NULL);
+  adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "delete", ADW_RESPONSE_DESTRUCTIVE);
+  adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "cancel");
+  adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "cancel");
+
+  adw_alert_dialog_choose (ADW_ALERT_DIALOG (dialog), GTK_WIDGET (self), self->cancellable,
+                           (GAsyncReadyCallback)on_delete_confirmed, self);
+}
+
+static void
 stamp_contact_details_class_init (StampContactDetailsClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
@@ -102,8 +197,10 @@ stamp_contact_details_class_init (StampContactDetailsClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampContactDetails, address);
   gtk_widget_class_bind_template_child (widget_class, StampContactDetails, notes);
   gtk_widget_class_bind_template_child (widget_class, StampContactDetails, edit_button);
+  gtk_widget_class_bind_template_child (widget_class, StampContactDetails, delete_button);
 
   gtk_widget_class_bind_template_callback (widget_class, on_edit_clicked);
+  gtk_widget_class_bind_template_callback (widget_class, on_delete_clicked);
 }
 
 static void
@@ -258,9 +355,10 @@ stamp_contact_details_show (StampContactDetails *self,
 
   {
     EBookClient *client = stamp_contact_item_get_client (contact);
+    gboolean writable = client && !e_client_is_readonly (E_CLIENT (client));
 
-    gtk_widget_set_sensitive (self->edit_button,
-                              client && !e_client_is_readonly (E_CLIENT (client)));
+    gtk_widget_set_sensitive (self->edit_button, writable);
+    gtk_widget_set_sensitive (self->delete_button, writable);
   }
 
   gtk_stack_set_visible_child_name (GTK_STACK (self->stack), "content");
