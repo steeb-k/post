@@ -57,6 +57,7 @@
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/signature-symbolic.svg">resources/icons/scalable/actions/signature-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/top-symbolic.svg">resources/icons/scalable/actions/top-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/sort-order-symbolic.svg">resources/icons/scalable/actions/sort-order-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/view-layout-symbolic.svg">resources/icons/scalable/actions/view-layout-symbolic.svg</file>
     <file>sounds/incoming.wav</file>
     <file>style.css</file>
     <file>styles/stamp-shared.css</file>

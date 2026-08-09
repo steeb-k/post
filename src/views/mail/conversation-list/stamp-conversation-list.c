@@ -28,6 +28,7 @@
 #include "stamp-conversation-list-store.h"
 #include "stamp-conversation-row.h"
 #include "stamp-item.h"
+#include "stamp-layout-picker.h"
 #include "stamp-mail-view.h"
 #include "stamp-message-list.h"
 #include "stamp-settings.h"
@@ -66,6 +67,8 @@ struct _StampConversationList {
   GtkWidget *mail_list_stack;
   GtkBitset *selected;
   GtkToggleButton *sidebar_button;
+  GtkWidget *view_button;
+  GtkWidget *view_popover;
   GtkBox *sort_is_active;
   GtkWidget *new_message;
   GtkWidget *selection_bottom_bar;
@@ -1549,6 +1552,19 @@ on_scroll (GtkEventControllerScroll *controller,
   return FALSE;
 }
 
+/*
+ * Picking a tile leaves the popover open, since nothing closes it the way
+ * using a menu item would.
+ */
+static void
+on_layout_selected (StampLayoutPicker *picker G_GNUC_UNUSED,
+                    gpointer                  user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+
+  gtk_popover_popdown (GTK_POPOVER (self->view_popover));
+}
+
 static void
 stamp_conversation_list_class_init (StampConversationListClass *klass)
 {
@@ -1560,6 +1576,8 @@ stamp_conversation_list_class_init (StampConversationListClass *klass)
   object_class->get_property = stamp_conversation_list_get_property;
   object_class->set_property = stamp_conversation_list_set_property;
   object_class->dispose = stamp_conversation_list_dispose;
+
+  g_type_ensure (STAMP_TYPE_LAYOUT_PICKER);
 
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, listview);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, search_bar);
@@ -1577,6 +1595,8 @@ stamp_conversation_list_class_init (StampConversationListClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, sort_or_filter_button);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, mail_list_stack);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, sidebar_button);
+  gtk_widget_class_bind_template_child (widget_class, StampConversationList, view_button);
+  gtk_widget_class_bind_template_child (widget_class, StampConversationList, view_popover);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, sort_is_active);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, context_menu_model);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, move_selection_button);
@@ -1594,6 +1614,7 @@ stamp_conversation_list_class_init (StampConversationListClass *klass)
   gtk_widget_class_bind_template_callback (widget_class, on_select_all);
   gtk_widget_class_bind_template_callback (widget_class, on_unselect_all);
   gtk_widget_class_bind_template_callback (widget_class, on_key_pressed);
+  gtk_widget_class_bind_template_callback (widget_class, on_layout_selected);
 
   signals[CONVERSATION_SELECTED] = g_signal_new ("conversation-selected", G_OBJECT_CLASS_TYPE (klass),
                                                  G_SIGNAL_RUN_FIRST | G_SIGNAL_RUN_LAST,
@@ -2532,6 +2553,20 @@ stamp_consersation_list_set_show_buttons (StampConversationList *self,
 {
   adw_header_bar_set_show_end_title_buttons (ADW_HEADER_BAR (self->normal_headerbar), show);
   adw_header_bar_set_show_end_title_buttons (ADW_HEADER_BAR (self->selection_headerbar), show);
+}
+
+/*
+ * Which layout the mail view uses is only a choice where there is more
+ * than one pane to arrange. A phone shows one per page, so the button
+ * stands down there.
+ */
+void
+stamp_conversation_list_set_show_view_button (StampConversationList *self,
+                                              gboolean               show)
+{
+  g_return_if_fail (STAMP_IS_CONVERSATION_LIST (self));
+
+  gtk_widget_set_visible (self->view_button, show);
 }
 
 /* Rows worth their padding beside the reading pane are worth less of it

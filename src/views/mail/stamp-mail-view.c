@@ -652,6 +652,7 @@ on_layout_changed (AdwMultiLayoutView *view,
   gtk_widget_set_visible (GTK_WIDGET (toggle_button), narrow);
 
   stamp_message_list_set_mobile_mode (self->message_list, self->size == SIZE_MOBILE);
+  stamp_conversation_list_set_show_view_button (self->conversation_list, self->size != SIZE_MOBILE);
 
   update_window_controls (self, name);
 

@@ -48,6 +48,27 @@ template $StampConversationList: Adw.Bin {
           }
         }
 
+        [start]
+        MenuButton view_button {
+          icon-name: "view-layout-symbolic";
+          tooltip-text: _("View");
+
+          accessibility {
+            label: _("View");
+          }
+
+          popover: Popover view_popover {
+            child: $StampLayoutPicker {
+              action-name: "win.mail-layout";
+              margin-start: 6;
+              margin-end: 6;
+              margin-top: 6;
+              margin-bottom: 6;
+              selected => $on_layout_selected();
+            };
+          };
+        }
+
         [end]
         ToggleButton end_search_btn {
           active: bind search_bar.search-mode-enabled bidirectional;
