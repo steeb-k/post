@@ -22,6 +22,19 @@
   padding: 3px;
 }
 
+/*
+ * A paned's grab area reaches six pixels into the start child and then
+ * stops at the divider, because the end child is picked before the
+ * enlarged handle is. The resize cursor turns up above the line and
+ * never below it. The separator draws its line at its start edge, so
+ * giving it room past that line hands the far side back to the handle
+ * and leaves the line where it was.
+ */
+.wide-grab-divider > separator {
+  min-width: 6px;
+  min-height: 6px;
+}
+
 .secondary-sidebar-pane {
   background-color: var(--secondary-sidebar-bg-color);
   color: var(--sidebar-fg-color);
