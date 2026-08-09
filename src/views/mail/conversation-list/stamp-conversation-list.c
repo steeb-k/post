@@ -70,7 +70,6 @@ struct _StampConversationList {
   GtkWidget *view_button;
   GtkWidget *view_popover;
   GtkBox *sort_is_active;
-  GtkWidget *new_message;
   GtkWidget *selection_bottom_bar;
   GtkMenuButton *move_selection_button;
   GtkButton *trash_selection_button;
@@ -748,15 +747,6 @@ on_mail_search_entry_changed (GtkWidget *search_entry,
 }
 
 static void
-on_new_message (GObject  *button,
-                gpointer  user_data)
-{
-  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
-  GtkWidget *composer = stamp_composer_new (self->account);
-  gtk_window_present (GTK_WINDOW (composer));
-}
-
-static void
 on_row_mark_read (GtkWidget *widget,
                   gpointer   user_data)
 {
@@ -956,12 +946,10 @@ set_selection_active (StampConversationList *self,
     update_selection_title (self);
     gtk_stack_set_visible_child (GTK_STACK (self->header_stack), self->selection_headerbar);
     gtk_list_view_set_model (GTK_LIST_VIEW (self->listview), GTK_SELECTION_MODEL (self->multi_selection));
-    gtk_widget_set_visible (self->new_message, FALSE);
     gtk_widget_set_visible (self->selection_bottom_bar, TRUE);
   } else {
     gtk_stack_set_visible_child (GTK_STACK (self->header_stack), self->normal_headerbar);
     gtk_list_view_set_model (GTK_LIST_VIEW (self->listview), GTK_SELECTION_MODEL (self->single_selection));
-    gtk_widget_set_visible (self->new_message, TRUE);
     gtk_widget_set_visible (self->selection_bottom_bar, FALSE);
     stamp_conversation_list_unselect (self);
   }
@@ -1583,7 +1571,6 @@ stamp_conversation_list_class_init (StampConversationListClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, search_bar);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, search_entry);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, window_title);
-  gtk_widget_class_bind_template_child (widget_class, StampConversationList, new_message);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, selection_bottom_bar);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, scroll_to_top);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, scrolled_window);
@@ -1604,7 +1591,6 @@ stamp_conversation_list_class_init (StampConversationListClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, mark_read_selection_button);
 
   gtk_widget_class_bind_template_callback (widget_class, on_mail_search_entry_changed);
-  gtk_widget_class_bind_template_callback (widget_class, on_new_message);
   gtk_widget_class_bind_template_callback (widget_class, on_setup_list_item);
   gtk_widget_class_bind_template_callback (widget_class, on_bind_list_item);
   gtk_widget_class_bind_template_callback (widget_class, on_unbind_list_item);

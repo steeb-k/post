@@ -11,6 +11,10 @@ template $StampMailView: Adw.BreakpointBin {
    * the two together and names the layout. */
   Adw.Breakpoint bp_tablet {
     condition ("max-width: 1200sp")
+
+    setters {
+      compose_separator.visible: false;
+    }
   }
 
   Adw.Breakpoint bp_mobile {
@@ -18,6 +22,10 @@ template $StampMailView: Adw.BreakpointBin {
 
     setters {
       app_switcher.policy: narrow;
+      compose_content.orientation: vertical;
+      compose_content.spacing: 0;
+      compose_separator.visible: false;
+      switcher_sizes.mode: horizontal;
     }
   }
 
@@ -429,14 +437,77 @@ template $StampMailView: Adw.BreakpointBin {
         };
       }
 
+      /* The pill carries where you can go and, past a rule, the one
+       * thing this view makes. Compose used to float over the bottom
+       * right of the conversation list, which is exactly where the pill
+       * came to sit, so it moves in rather than dodging. */
       [switcher]
-      Adw.ViewSwitcher app_switcher {
-        stack: bind template.stack;
-        policy: wide;
+      Box switcher_box {
         halign: center;
+        spacing: 6;
         margin-top: 6;
         margin-bottom: 6;
+
+        Adw.ViewSwitcher app_switcher {
+          stack: bind template.stack;
+          policy: wide;
+        }
+
+        /* The rule belongs to the pill, which is the only place the
+         * row floats free of the window; a bar spanning the width has
+         * its own edges and does not need dividing up. */
+        Separator compose_separator {
+          orientation: vertical;
+          margin-top: 3;
+          margin-bottom: 3;
+        }
+
+        /* Built like a switcher button rather than as an icon: label
+         * beside the icon while there is room, stacked under it once
+         * the switcher goes narrow, which the breakpoint turns over
+         * along with the switcher's own policy. */
+        Button compose_button {
+          accessibility {
+            label: _("New Message");
+          }
+
+          valign: center;
+          tooltip-text: _("New Message");
+          action-name: "mail.composer-new";
+
+          styles [
+            "suggested-action",
+            "switcher-action",
+          ]
+
+          child: Box compose_content {
+            halign: center;
+            spacing: 6;
+
+            Image {
+              icon-name: "document-edit-symbolic";
+            }
+
+            Label {
+              label: _("Compose");
+            }
+          };
+        }
       }
     };
   };
+}
+
+/* AdwViewSwitcher gives its own buttons a common width. Adding the
+ * action to a group with one of them -- StampMailView finds it, there
+ * being no API for reaching inside -- carries that width across the
+ * rule, so the stacked row is four equal buttons rather than three and
+ * a smaller one. Off until the row stacks, since side by side the
+ * action reads better at the width of its own label. */
+SizeGroup switcher_sizes {
+  mode: none;
+
+  widgets [
+    compose_button,
+  ]
 }

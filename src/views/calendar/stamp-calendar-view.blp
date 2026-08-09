@@ -23,6 +23,7 @@ template $StampCalendarView: Adw.BreakpointBin {
 
     setters {
       calendar_layout.layout-name: "tablet";
+      event_separator.visible: false;
     }
   }
 
@@ -38,6 +39,10 @@ template $StampCalendarView: Adw.BreakpointBin {
       previous_date_button.visible: false;
       next_date_button.visible: false;
       app_switcher.policy: narrow;
+      event_content.orientation: vertical;
+      event_content.spacing: 0;
+      event_separator.visible: false;
+      switcher_sizes.mode: horizontal;
     }
   }
 
@@ -131,13 +136,6 @@ template $StampCalendarView: Adw.BreakpointBin {
           title-widget: $GcalCalendarNavigationButton navigation_button {
             active-date: bind template.active-date no-sync-create bidirectional;
           };
-
-          [end]
-          Button {
-            icon-name: "list-add-symbolic";
-            action-name: "calendar.new-event";
-            tooltip-text: C_("tooltip", "Add Event");
-          }
 
         }
 
@@ -285,13 +283,56 @@ template $StampCalendarView: Adw.BreakpointBin {
         };
       }
 
+      /* Same shape as the mail view's: the destinations, a rule, then
+       * what this view makes. Adding an event came off the header bar
+       * to sit with the other views' primary actions. */
       [switcher]
-      Adw.ViewSwitcher app_switcher {
-        stack: bind template.stack;
-        policy: wide;
+      Box switcher_box {
         halign: center;
+        spacing: 6;
         margin-top: 6;
         margin-bottom: 6;
+
+        Adw.ViewSwitcher app_switcher {
+          stack: bind template.stack;
+          policy: wide;
+        }
+
+        /* Only the pill needs dividing up; a bar spanning the window
+         * has its own edges. */
+        Separator event_separator {
+          orientation: vertical;
+          margin-top: 3;
+          margin-bottom: 3;
+        }
+
+        Button event_button {
+          accessibility {
+            label: C_("tooltip", "Add Event");
+          }
+
+          valign: center;
+          tooltip-text: C_("tooltip", "Add Event");
+          action-name: "calendar.new-event";
+
+          styles [
+            "suggested-action",
+            "switcher-action",
+          ]
+
+          child: Box event_content {
+            halign: center;
+            spacing: 6;
+
+            Image {
+              icon-name: "list-add-symbolic";
+            }
+
+            Label {
+              label: _("Event");
+            }
+          };
+        }
       }
     };
   };
@@ -318,4 +359,14 @@ $GcalQuickAddPopover quick_add_popover {
 
 $GcalEventEditorDialog event_editor {
   remove-event => $on_event_editor_dialog_remove_event_cb(template) not-swapped;
+}
+
+/* See StampMailView: the action takes its width from one of the
+ * switcher's own buttons, so the stacked row is four of a kind. */
+SizeGroup switcher_sizes {
+  mode: none;
+
+  widgets [
+    event_button,
+  ]
 }

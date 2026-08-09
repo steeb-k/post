@@ -180,26 +180,8 @@ template $StampConversationList: Adw.Bin {
             name: "content";
 
             child: Overlay {
-              [overlay]
-              Button new_message {
-                accessibility {
-                  label: _("New Message");
-                }
-
-                halign: end;
-                valign: end;
-                icon-name: "document-edit-symbolic";
-                tooltip-text: _("New Message");
-
-                styles [
-                  "suggested-action",
-                  "circular",
-                  "fab",
-                ]
-
-                action-name: "mail.composer-new";
-              }
-
+              /* Composing moved to the view switcher's pill, so this
+               * has the bottom right corner it used to sit above. */
               [overlay]
               Button scroll_to_top {
                 accessibility {
@@ -210,7 +192,6 @@ template $StampConversationList: Adw.Bin {
                 valign: end;
                 visible: false;
                 can-focus: false;
-                margin-bottom: 64;
                 icon-name: "top-symbolic";
 
                 styles [
