@@ -490,7 +490,22 @@ transfer_labels_to_box (GBinding     *binding,
     }
   }
 
-  g_value_set_boolean (to, TRUE);
+  g_value_set_boolean (to, g_list_model_get_n_items (G_LIST_MODEL (store)) > 0);
+
+  return TRUE;
+}
+
+/* A mail Camel has no preview for leaves the third line with nothing on
+ * it, and an empty line is worth less than the row it makes taller. */
+static gboolean
+transfer_preview_to_visible (GBinding     *binding,
+                             const GValue *from,
+                             GValue       *to,
+                             gpointer      user_data)
+{
+  const gchar *preview = g_value_get_string (from);
+
+  g_value_set_boolean (to, preview && *preview);
 
   return TRUE;
 }
@@ -547,6 +562,7 @@ stamp_conversation_row_bind_mail (StampConversationRow  *self,
   add_binding (self, g_object_bind_property_full (item, "from", self->avatar, "text", G_BINDING_SYNC_CREATE, transfer_avatar_to, NULL, NULL, NULL));
   add_binding (self, g_object_bind_property (item, "unread", self, "unread", G_BINDING_SYNC_CREATE));
   add_binding (self, g_object_bind_property (item, "preview", self->body, "markup", G_BINDING_SYNC_CREATE));
+  add_binding (self, g_object_bind_property_full (item, "preview", self->body, "visible", G_BINDING_SYNC_CREATE, transfer_preview_to_visible, NULL, NULL, NULL));
   add_binding (self, g_object_bind_property_full (item, "flagged", self->flagged_icon, "icon-name", G_BINDING_SYNC_CREATE, transform_flagged_to, NULL, self, NULL));
   add_binding (self, g_object_bind_property (item, "has-attachment", self->attachment_icon, "visible", G_BINDING_SYNC_CREATE));
   add_binding (self, g_object_bind_property (item, "answered", self->reply_icon, "visible", G_BINDING_SYNC_CREATE));

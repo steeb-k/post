@@ -115,6 +115,53 @@ template $StampConversationRow: Box {
           nat-chars: 999;
         }
 
+        /* What a mail is stands beside when it came in, on the line the
+         * date is on: the star belongs to this mail, and a line of its
+         * own would have parked it under the date of the mail above. */
+        Image reply_icon {
+          accessibility {
+            label: _("Replied to Mail");
+          }
+
+          icon-name: "mail-replied-symbolic";
+          visible: false;
+        }
+
+        Image forwarded_icon {
+          accessibility {
+            label: _("Forwarded Mail");
+          }
+
+          icon-name: "mail-forward-symbolic";
+          visible: false;
+        }
+
+        Image calendar_icon {
+          accessibility {
+            label: _("Mail With an Invitation");
+          }
+
+          icon-name: "x-office-calendar-symbolic";
+          visible: false;
+        }
+
+        Image attachment_icon {
+          accessibility {
+            label: _("Mail Attachment");
+          }
+
+          icon-name: "mail-attachment-symbolic";
+          visible: false;
+        }
+
+        Image flagged_icon {
+          accessibility {
+            label: _("Flagged Mail");
+          }
+
+          icon-name: "non-starred-symbolic";
+        }
+
         Label date {
           xalign: 1;
           ellipsize: end;
@@ -167,50 +214,6 @@ template $StampConversationRow: Box {
           styles [
             "caption",
           ]
-        }
-
-        Image reply_icon {
-          accessibility {
-            label: _("Replied to Mail");
-          }
-
-          icon-name: "mail-replied-symbolic";
-          visible: false;
-        }
-
-        Image forwarded_icon {
-          accessibility {
-            label: _("Forwarded Mail");
-          }
-
-          icon-name: "mail-forward-symbolic";
-          visible: false;
-        }
-
-        Image calendar_icon {
-          accessibility {
-            label: _("Move to Trash");
-          }
-
-          icon-name: "x-office-calendar-symbolic";
-          visible: false;
-        }
-
-        Image attachment_icon {
-          accessibility {
-            label: _("Mail Attachment");
-          }
-
-          icon-name: "mail-attachment-symbolic";
-          visible: false;
-        }
-
-        Image flagged_icon {
-          accessibility {
-            label: _("Flagged Mail");
-          }
-
-          icon-name: "non-starred-symbolic";
         }
       }
     };
