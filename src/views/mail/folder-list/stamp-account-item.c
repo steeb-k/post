@@ -37,6 +37,12 @@ struct _StampAccountItem {
   gboolean refresh_queue_running;
   gboolean first_refresh;
   guint refresh_folder_handler;
+
+  /* Set when the account started offline, so the tree on screen came
+   * from the cache and still has to be reconciled with the server once
+   * the connection is up. Cleared by that reconcile, which is also what
+   * keeps it from running again on every reconnect. */
+  gboolean reconcile_pending;
 };
 
 G_DEFINE_FINAL_TYPE (StampAccountItem, stamp_account_item, STAMP_TYPE_ITEM);
@@ -75,6 +81,9 @@ stamp_account_item_find_item (GListStore  *store,
   return NULL;
 }
 
+static gboolean
+refresh_folder_main (gpointer user_data);
+
 static void
 on_folder_item_changed (GtkWidget *folder,
                         gpointer   user_data)
@@ -82,6 +91,13 @@ on_folder_item_changed (GtkWidget *folder,
   StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data);
 
   g_signal_emit (self, signals[ACCOUNT_ITEM_CHANGED], 0);
+
+  /* A folder item reaches the tree before it has its CamelFolder, and
+   * the refresh queue is built from folders -- so the pass scheduled
+   * when the tree was drawn found nothing to do. Ask for another, on
+   * the same idle so a burst of folders landing together costs one. */
+  if (!self->refresh_folder_handler)
+    self->refresh_folder_handler = g_idle_add (refresh_folder_main, self);
 }
 
 static void
@@ -127,9 +143,6 @@ show_info (StampAccountItem *self,
   g_list_store_splice (list_store, 0, old, array->pdata, array->len);
 }
 
-static gboolean
-refresh_folder_main (gpointer user_data);
-
 void
 on_offline_store_folder_created (CamelOfflineStore *store,
                                  CamelFolderInfo   *object,
@@ -165,6 +178,12 @@ on_get_folder_info (GObject      *source,
     /* Defer folder refresh to give folder items time to load their folders */
     g_clear_handle_id (&self->refresh_folder_handler, g_source_remove);
     self->refresh_folder_handler = g_idle_add (refresh_folder_main, self);
+  } else {
+    /* An offline store with nothing cached for this account -- a new one,
+     * or one whose summary has been cleared. There is nothing to draw and
+     * nothing to wait for, so go online and let the reconcile ask the
+     * server, which is what the account would have done all along. */
+    stamp_account_item_connect_to_account (self);
   }
 }
 
@@ -172,6 +191,14 @@ void
 stamp_account_item_load (StampAccountItem *self)
 {
   stamp_item_set_loading (STAMP_ITEM (self), TRUE);
+
+  /* Whatever comes back is only as good as the store it came from: an
+   * offline store answers from the summary on disk, so the tree has to
+   * be asked for again once the connection is up. Deciding it here, per
+   * load, rather than once at construction, keeps it right no matter
+   * which order the store and this item were set up in -- and makes the
+   * reconcile's own load clear the flag, so it cannot loop. */
+  self->reconcile_pending = !camel_offline_store_get_online (self->offline_store);
 
   camel_store_get_folder_info (CAMEL_STORE (self->offline_store),
                                NULL,
@@ -197,6 +224,15 @@ on_synchronize (GObject      *source,
 
     g_object_unref (self);
     return;
+  }
+
+  /* The store is up now, so ask it the same question again -- this time
+   * the answer comes from the server, and folders added or removed
+   * elsewhere since the last run appear. Loading it also starts the
+   * refresh queue, which is what fills in the message counts. */
+  if (self->reconcile_pending) {
+    self->reconcile_pending = FALSE;
+    stamp_account_item_load (self);
   }
 
   g_object_unref (self);

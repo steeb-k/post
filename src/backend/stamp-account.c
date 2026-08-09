@@ -787,6 +787,42 @@ on_folder_info_for_sent_drafts (GObject      *src,
 }
 
 static void
+on_categories_ready (GObject      *source,
+                     GAsyncResult *res,
+                     gpointer      user_data)
+{
+  g_autoptr (StampAccount) self = STAMP_ACCOUNT (user_data);
+  g_autoptr (GError) error = NULL;
+  GList *categories = stamp_m365_get_categories_finish (E_SOURCE (source), res, &error);
+
+  if (error) {
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+      g_warning ("%s: Categories: %s", G_STRFUNC, error->message);
+
+    return;
+  }
+
+  self->categories = categories;
+}
+
+/* Camel keeps each store's folder summary in its own cache directory;
+ * the folders database being there is what makes an offline start worth
+ * anything. */
+static gboolean
+store_has_cache (CamelService *service)
+{
+  const gchar *cache_dir = camel_service_get_user_cache_dir (service);
+  g_autofree char *folders_db = NULL;
+
+  if (!cache_dir)
+    return FALSE;
+
+  folders_db = g_build_filename (cache_dir, "folders.db", NULL);
+
+  return g_file_test (folders_db, G_FILE_TEST_EXISTS);
+}
+
+static void
 stamp_account_enable_mail_async (StampAccount *self,
                                  InitContext  *ctx)
 {
@@ -808,6 +844,25 @@ stamp_account_enable_mail_async (StampAccount *self,
     if (ctx)
       init_context_finish_one (ctx);
     return;
+  }
+
+  /* Everything below and everything StampAccountItem does next asks the
+   * store for folders, and an online store answers that by connecting
+   * and authenticating first -- so nothing can be drawn until the
+   * network says so. Start offline instead and the same questions are
+   * answered from the summary already on disk; StampAccountItem brings
+   * the store online once the tree is up, and reconciles then.
+   *
+   * Only worth doing when there is a summary to answer from: an account
+   * that has never synced would just show an empty tree, and its sent,
+   * drafts and trash folders are resolved once, right here, from what
+   * the store says it has. */
+  if (CAMEL_IS_OFFLINE_STORE (self->mail->service) && store_has_cache (self->mail->service)) {
+    g_autoptr (GError) offline_error = NULL;
+
+    if (!camel_offline_store_set_online_sync (CAMEL_OFFLINE_STORE (self->mail->service),
+                                              FALSE, NULL, &offline_error))
+      g_warning ("%s: Could not start offline: %s", G_STRFUNC, offline_error->message);
   }
 
   transport_extension = e_source_get_extension (self->mail->transport_source, E_SOURCE_EXTENSION_MAIL_TRANSPORT);
@@ -833,11 +888,12 @@ stamp_account_enable_mail_async (StampAccount *self,
                                on_junk_folder_ready, data);
 
   if (g_strcmp0 (e_source_backend_get_backend_name (E_SOURCE_BACKEND (extension)), "microsoft365") == 0) {
-    /* Microsoft 365 categories fetch via Graph API */
-    g_autoptr (GError) cat_error = NULL;
-    self->categories = stamp_m365_get_categories_sync (self->mail->source, self->cancellable, &cat_error);
-    if (cat_error)
-      g_warning ("%s: Categories: %s", G_STRFUNC, cat_error->message);
+    /* Microsoft 365 categories fetch via Graph API. Asked for
+     * asynchronously: this is a round trip to Graph, and done
+     * synchronously it holds the main loop -- and so the whole window --
+     * for as long as it takes. Nothing needs the categories to draw;
+     * they colour rows and fill the category filter once they arrive. */
+    stamp_m365_get_categories_async (self->mail->source, self->cancellable, on_categories_ready, g_object_ref (self));
   }
 }
 

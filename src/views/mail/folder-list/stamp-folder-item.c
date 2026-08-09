@@ -334,6 +334,11 @@ on_get_folder (GObject      *source,
   summary = camel_folder_get_folder_summary (self->folder);
   self->unread = camel_folder_summary_get_unread_count (summary);
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_UNREAD]);
+
+  /* The account builds its refresh queue out of folders, not rows, and
+   * this item only has a folder now -- later than the tree it sits in.
+   * Say so, or a queue built before this point passes the folder over. */
+  g_signal_emit (self, signals[FOLDER_ITEM_ADDED], 0);
 }
 
 static void
