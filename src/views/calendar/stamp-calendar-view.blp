@@ -139,12 +139,6 @@ template $StampCalendarView: Adw.BreakpointBin {
             tooltip-text: C_("tooltip", "Add Event");
           }
 
-          [end]
-          Button {
-            icon-name: "x-office-calendar-symbolic";
-            tooltip-text: _("Manage Calendars");
-            action-name: "calendar.show-calendars";
-          }
         }
 
         content: Adw.ViewStack views_stack {
@@ -317,5 +311,3 @@ $GcalQuickAddPopover quick_add_popover {
 $GcalEventEditorDialog event_editor {
   remove-event => $on_event_editor_dialog_remove_event_cb(template) not-swapped;
 }
-
-$GcalCalendarManagementDialog calendar_management {}

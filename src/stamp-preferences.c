@@ -27,6 +27,7 @@
 #include "stamp-account.h"
 #include "stamp-helper.h"
 #include "stamp-preferences-account.h"
+#include "stamp-preferences-calendars.h"
 #include "stamp-preferences-signatures.h"
 #include "stamp-session.h"
 #include "stamp-settings.h"
@@ -359,6 +360,7 @@ void
 stamp_preferences_init (StampPreferences *self)
 {
   g_type_ensure (STAMP_TYPE_WEBVIEW);
+  g_type_ensure (STAMP_TYPE_PREFERENCES_CALENDARS);
 
   gtk_widget_init_template (GTK_WIDGET (self));
 

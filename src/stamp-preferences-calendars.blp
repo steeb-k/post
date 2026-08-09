@@ -1,0 +1,31 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampPreferencesCalendars: Adw.PreferencesPage {
+  title: _("Calendar");
+  icon-name: "x-office-calendar-symbolic";
+
+  Adw.PreferencesGroup {
+    title: _("Calendars");
+    description: _("Show or hide calendars, or open one to edit it. If a calendar never appears in the app, the active profile is leaving out its account.");
+
+    ListBox listbox {
+      selection-mode: none;
+      row-activated => $on_listbox_row_activated_cb(template) not-swapped;
+
+      styles [
+        "calendars-list",
+        "boxed-list",
+      ]
+    }
+  }
+
+  Adw.PreferencesGroup {
+    Adw.ButtonRow add_calendar_row {
+      title: _("_Add Calendar");
+      use-underline: true;
+      end-icon-name: "go-next-symbolic";
+      activated => $on_new_calendar_row_activated_cb(template) not-swapped;
+    }
+  }
+}

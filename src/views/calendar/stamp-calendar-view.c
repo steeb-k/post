@@ -12,7 +12,6 @@
 
 #include "gcal-agenda-view.h"
 #include "gcal-calendar-list.h"
-#include "gcal-calendar-management-dialog.h"
 #include "gcal-calendar-navigation-button.h"
 #include "gcal-context.h"
 #include "gcal-date-chooser.h"
@@ -64,7 +63,6 @@ struct _StampCalendarView {
   GtkWidget *date_chooser;
 
   GcalEventEditorDialog *event_editor;
-  GcalCalendarManagementDialog *calendar_management;
   GtkWidget *quick_add_popover;
 
   GSimpleActionGroup *actions;
@@ -873,16 +871,6 @@ on_refresh_timeout (gpointer user_data)
 }
 
 static void
-on_show_calendars_activated (GSimpleAction *action G_GNUC_UNUSED,
-                             GVariant *param       G_GNUC_UNUSED,
-                             gpointer               user_data)
-{
-  StampCalendarView *self = STAMP_CALENDAR_VIEW (user_data);
-
-  adw_dialog_present (ADW_DIALOG (self->calendar_management), GTK_WIDGET (self));
-}
-
-static void
 on_view_activated (GSimpleAction *action G_GNUC_UNUSED,
                    GVariant              *param,
                    gpointer               user_data)
@@ -1080,7 +1068,6 @@ stamp_calendar_view_class_init (StampCalendarViewClass *klass)
 
   g_type_ensure (GCAL_TYPE_AGENDA_VIEW);
   g_type_ensure (GCAL_TYPE_CALENDAR_LIST);
-  g_type_ensure (GCAL_TYPE_CALENDAR_MANAGEMENT_DIALOG);
   g_type_ensure (GCAL_TYPE_CALENDAR_NAVIGATION_BUTTON);
   g_type_ensure (GCAL_TYPE_DATE_CHOOSER);
   g_type_ensure (GCAL_TYPE_EVENT_EDITOR_DIALOG);
@@ -1127,7 +1114,6 @@ stamp_calendar_view_class_init (StampCalendarViewClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampCalendarView, agenda_view);
   gtk_widget_class_bind_template_child (widget_class, StampCalendarView, date_chooser);
   gtk_widget_class_bind_template_child (widget_class, StampCalendarView, event_editor);
-  gtk_widget_class_bind_template_child (widget_class, StampCalendarView, calendar_management);
   gtk_widget_class_bind_template_child (widget_class, StampCalendarView, quick_add_popover);
 
   gtk_widget_class_bind_template_callback (widget_class, on_day_selected);
@@ -1156,7 +1142,6 @@ stamp_calendar_view_init (StampCalendarView *self)
     { .name = "new-event", .activate = on_new_event_activated },
     { .name = "previous-date", .activate = on_previous_date_activated },
     { .name = "refresh", .activate = on_refresh_activated },
-    { .name = "show-calendars", .activate = on_show_calendars_activated },
     { .name = "today", .activate = on_today_activated },
     { .name = "undo-delete-event", .activate = on_undo_delete_event_activated },
     { .name = "view", .activate = on_view_activated, .parameter_type = "s", .state = "'month'" },
