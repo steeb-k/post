@@ -26,6 +26,10 @@ struct _StampContactItem {
   GObject parent_instance;
 
   EContact *contact;
+  /* The book this contact was read from, so whoever edits it later knows
+   * where to write it back. Weak: the client outlives the list that made
+   * the item, and holding a reference would keep a disabled book open. */
+  EBookClient *client;
 };
 
 G_DEFINE_FINAL_TYPE (StampContactItem, stamp_contact_item, G_TYPE_OBJECT);
@@ -33,7 +37,10 @@ G_DEFINE_FINAL_TYPE (StampContactItem, stamp_contact_item, G_TYPE_OBJECT);
 static void
 stamp_contact_item_dispose (GObject *object)
 {
-  /* StampContactItem *self = STAMP_CONTACT_ITEM (object); */
+  StampContactItem *self = STAMP_CONTACT_ITEM (object);
+
+  g_clear_object (&self->contact);
+  g_clear_weak_pointer (&self->client);
 
   G_OBJECT_CLASS (stamp_contact_item_parent_class)->dispose (object);
 }
@@ -61,13 +68,15 @@ stamp_contact_item_init (StampContactItem *self)
 }
 
 StampContactItem *
-stamp_contact_item_new (EContact *contact)
+stamp_contact_item_new (EContact    *contact,
+                        EBookClient *client)
 {
   StampContactItem *ret;
   ret = g_object_new (STAMP_TYPE_CONTACT_ITEM,
                       NULL);
 
   ret->contact = g_object_ref (contact);
+  g_set_weak_pointer (&ret->client, client);
   return ret;
 }
 
@@ -111,4 +120,20 @@ EContact *
 stamp_contact_item_get_contact (StampContactItem *self)
 {
   return self->contact;
+}
+
+/* The live view hands back a fresh EContact for a contact that changed;
+ * swapping it in keeps the item -- and so the list position and any
+ * selection resting on it -- while the fields underneath update. */
+void
+stamp_contact_item_set_contact (StampContactItem *self,
+                                EContact         *contact)
+{
+  g_set_object (&self->contact, contact);
+}
+
+EBookClient *
+stamp_contact_item_get_client (StampContactItem *self)
+{
+  return self->client;
 }

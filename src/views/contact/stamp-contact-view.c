@@ -3,6 +3,7 @@
 #include "stamp-account.h"
 #include "stamp-book-list.h"
 #include "stamp-contact-details.h"
+#include "stamp-contact-editor.h"
 #include "stamp-contact-item.h"
 #include "stamp-contact-list.h"
 
@@ -22,6 +23,11 @@ struct _StampContactView {
   GtkWidget *book_list;
   GtkWidget *contact_list;
   GtkWidget *contact_details;
+
+  AdwViewSwitcher *app_switcher;
+  GtkSizeGroup *switcher_sizes;
+  GtkWidget *contact_button;
+  gboolean switcher_sized;
 
   gint saved_paned_pos;
 };
@@ -153,6 +159,50 @@ is_mobile_view (StampContactView *self)
   return g_strcmp0 (adw_multi_layout_view_get_layout_name (self->contacts_layout), "mobile") == 0;
 }
 
+/*
+ * AdwViewSwitcher gives its own buttons a common width, so matching the
+ * action button to any one of them makes the whole row uniform. There is
+ * no API for reaching a switcher button, hence the search; finding
+ * nothing leaves the row as it was rather than failing.
+ */
+static GtkWidget *
+find_switcher_button (GtkWidget *widget)
+{
+  for (GtkWidget *child = gtk_widget_get_first_child (widget);
+       child;
+       child = gtk_widget_get_next_sibling (child)) {
+    GtkWidget *found;
+
+    if (GTK_IS_TOGGLE_BUTTON (child))
+      return child;
+
+    found = find_switcher_button (child);
+    if (found)
+      return found;
+  }
+
+  return NULL;
+}
+
+static void
+match_action_to_switcher (StampContactView *self)
+{
+  GtkWidget *button;
+
+  if (self->switcher_sized)
+    return;
+
+  /* The switcher has no buttons until it has a stack, which is handed
+   * down after this view is built -- so this waits for the first
+   * breakpoint change rather than running at construction. */
+  button = find_switcher_button (GTK_WIDGET (self->app_switcher));
+  if (!button)
+    return;
+
+  gtk_size_group_add_widget (self->switcher_sizes, button);
+  self->switcher_sized = TRUE;
+}
+
 static
 void
 on_apply_view (AdwBreakpoint *breakpoint,
@@ -161,7 +211,22 @@ on_apply_view (AdwBreakpoint *breakpoint,
   StampContactView *self = STAMP_CONTACT_VIEW (user_data);
   gboolean show = is_mobile_view (self);
 
+  match_action_to_switcher (self);
   stamp_contact_list_set_show_buttons (STAMP_CONTACT_LIST (self->contact_list), show);
+}
+
+/* The book the list is showing is the one a new contact most likely
+ * belongs in, so it arrives at the editor preselected; the editor still
+ * offers every other writable book, and copes with there being none. */
+static void
+on_new_contact (GSimpleAction *action,
+                GVariant      *parameter,
+                gpointer       user_data)
+{
+  StampContactView *self = STAMP_CONTACT_VIEW (user_data);
+  EBookClient *client = stamp_contact_list_get_client (STAMP_CONTACT_LIST (self->contact_list));
+
+  stamp_contact_editor_present (GTK_WIDGET (self), client, NULL);
 }
 
 void
@@ -190,6 +255,9 @@ stamp_contact_view_class_init (StampContactViewClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampContactView, mobile_osv);
   gtk_widget_class_bind_template_child (widget_class, StampContactView, desktop_paned);
   gtk_widget_class_bind_template_child (widget_class, StampContactView, tablet_paned);
+  gtk_widget_class_bind_template_child (widget_class, StampContactView, app_switcher);
+  gtk_widget_class_bind_template_child (widget_class, StampContactView, switcher_sizes);
+  gtk_widget_class_bind_template_child (widget_class, StampContactView, contact_button);
 
   gtk_widget_class_bind_template_callback (widget_class, on_book_selected);
   gtk_widget_class_bind_template_callback (widget_class, on_contact_selected);
@@ -248,10 +316,20 @@ on_paned_changed (GtkPaned      *paned,
     gtk_paned_set_position (other, pos);
 }
 
+static const GActionEntry contact_actions[] = {
+  { "new-contact", on_new_contact, NULL, NULL, NULL },
+};
+
 void
 stamp_contact_view_init (StampContactView *self)
 {
+  g_autoptr (GSimpleActionGroup) actions = g_simple_action_group_new ();
+
   gtk_widget_init_template (GTK_WIDGET (self));
+
+  g_action_map_add_action_entries (G_ACTION_MAP (actions), contact_actions,
+                                   G_N_ELEMENTS (contact_actions), self);
+  gtk_widget_insert_action_group (GTK_WIDGET (self), "contacts", G_ACTION_GROUP (actions));
 
   adw_multi_layout_view_set_layout_name (self->contacts_layout, "desktop");
 

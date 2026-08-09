@@ -1,0 +1,238 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $StampContactEditor: Adw.Dialog {
+  content-width: 480;
+  content-height: 680;
+  title: _("Contact");
+
+  child: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {
+      show-start-title-buttons: false;
+      show-end-title-buttons: false;
+
+      title-widget: Adw.WindowTitle window_title {
+        title: _("New Contact");
+      };
+
+      [start]
+      Button {
+        label: _("_Cancel");
+        use-underline: true;
+        clicked => $on_cancel_clicked();
+      }
+
+      [end]
+      Button save_button {
+        label: _("_Save");
+        use-underline: true;
+        clicked => $on_save_clicked();
+
+        styles [
+          "suggested-action",
+        ]
+      }
+    }
+
+    content: ScrolledWindow {
+      hscrollbar-policy: never;
+
+      child: Adw.PreferencesPage {
+        Adw.PreferencesGroup {
+          Box {
+            orientation: vertical;
+            spacing: 6;
+            halign: center;
+            margin-bottom: 6;
+
+            Adw.Avatar avatar {
+              show-initials: true;
+              size: 96;
+
+              styles [
+                "icon-dropshadow",
+              ]
+            }
+          }
+        }
+
+        Adw.PreferencesGroup {
+          Adw.EntryRow given_row {
+            title: _("First Name");
+            changed => $on_name_changed();
+          }
+
+          Adw.EntryRow family_row {
+            title: _("Last Name");
+            changed => $on_name_changed();
+          }
+        }
+
+        /* Where a new contact lands. Only writable books are listed, so
+         * the choice is never one the backend will refuse; editing an
+         * existing contact locks the row to the book it came from. */
+        Adw.PreferencesGroup {
+          Adw.ComboRow book_row {
+            title: _("Address Book");
+          }
+        }
+
+        Adw.PreferencesGroup email_group {
+          title: _("Email");
+
+          [header-suffix]
+          Button add_email_button {
+            icon-name: "list-add-symbolic";
+            tooltip-text: _("Add Email");
+            valign: center;
+            clicked => $on_add_email_clicked();
+
+            styles [
+              "flat",
+            ]
+          }
+        }
+
+        /* One row per phone field the details view knows how to render,
+         * which is also how a number gets its kind: there is no separate
+         * type to pick. */
+        Adw.PreferencesGroup {
+          title: _("Phone");
+
+          Adw.EntryRow phone_mobile {
+            title: _("Mobile");
+            input-purpose: phone;
+            changed => $on_field_changed();
+          }
+
+          Adw.EntryRow phone_business {
+            title: _("Business");
+            input-purpose: phone;
+            changed => $on_field_changed();
+          }
+
+          Adw.EntryRow phone_home {
+            title: _("Home");
+            input-purpose: phone;
+            changed => $on_field_changed();
+          }
+
+          Adw.EntryRow phone_primary {
+            title: _("Primary");
+            input-purpose: phone;
+            changed => $on_field_changed();
+          }
+
+          Adw.EntryRow phone_other {
+            title: _("Other");
+            input-purpose: phone;
+            changed => $on_field_changed();
+          }
+        }
+
+        Adw.PreferencesGroup {
+          title: _("Organization");
+
+          Adw.EntryRow company_row {
+            title: _("Company");
+            changed => $on_field_changed();
+          }
+
+          Adw.EntryRow unit_row {
+            title: _("Unit");
+            changed => $on_field_changed();
+          }
+
+          Adw.EntryRow office_row {
+            title: _("Office");
+            changed => $on_field_changed();
+          }
+        }
+
+        /* The date chooser always holds a date, so the switch is what
+         * says whether the contact has a birthday at all. */
+        Adw.PreferencesGroup {
+          Adw.ExpanderRow birthday_row {
+            title: _("Birthday");
+            show-enable-switch: true;
+            enable-expansion: false;
+
+            $GcalDateChooserRow birthday_date {
+              title: _("Date");
+            }
+          }
+        }
+
+        Adw.PreferencesGroup {
+          title: _("Home Address");
+
+          Adw.EntryRow home_street {
+            title: _("Street");
+            changed => $on_field_changed();
+          }
+
+          Adw.EntryRow home_code {
+            title: _("Postal Code");
+            changed => $on_field_changed();
+          }
+
+          Adw.EntryRow home_city {
+            title: _("City");
+            changed => $on_field_changed();
+          }
+
+          Adw.EntryRow home_country {
+            title: _("Country");
+            changed => $on_field_changed();
+          }
+        }
+
+        Adw.PreferencesGroup {
+          title: _("Work Address");
+
+          Adw.EntryRow work_street {
+            title: _("Street");
+            changed => $on_field_changed();
+          }
+
+          Adw.EntryRow work_code {
+            title: _("Postal Code");
+            changed => $on_field_changed();
+          }
+
+          Adw.EntryRow work_city {
+            title: _("City");
+            changed => $on_field_changed();
+          }
+
+          Adw.EntryRow work_country {
+            title: _("Country");
+            changed => $on_field_changed();
+          }
+        }
+
+        Adw.PreferencesGroup {
+          title: _("Notes");
+
+          ScrolledWindow {
+            hscrollbar-policy: never;
+            height-request: 120;
+
+            styles [
+              "card",
+            ]
+
+            child: TextView notes_view {
+              wrap-mode: word_char;
+              top-margin: 8;
+              bottom-margin: 8;
+              left-margin: 8;
+              right-margin: 8;
+            };
+          }
+        }
+      };
+    };
+  };
+}

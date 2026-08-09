@@ -105,6 +105,8 @@ src/views/contact/contact-list/stamp-contact-row.blp
 src/views/contact/contact-list/stamp-contact-row.c
 src/views/contact/stamp-contact-details.blp
 src/views/contact/stamp-contact-details.c
+src/views/contact/stamp-contact-editor.blp
+src/views/contact/stamp-contact-editor.c
 src/views/contact/stamp-contact-view.blp
 src/views/contact/stamp-contact-view.c
 src/views/mail/composer/stamp-composer.blp

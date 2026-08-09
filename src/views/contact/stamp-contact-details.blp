@@ -30,6 +30,16 @@ template $StampContactDetails: Box {
         [top]
         Adw.HeaderBar {
           show-title: false;
+
+          /* Insensitive rather than hidden when the book will not take
+           * writes, so a read-only address book reads as a property of
+           * the book and not as a contact that cannot be edited. */
+          [end]
+          Button edit_button {
+            icon-name: "document-edit-symbolic";
+            tooltip-text: _("Edit Contact");
+            clicked => $on_edit_clicked();
+          }
         }
 
         ScrolledWindow {
@@ -99,6 +109,16 @@ template $StampContactDetails: Box {
                 }
 
                 ListBox birthday {
+                  selection-mode: none;
+
+                  styles [
+                    "content",
+                  ]
+
+                  visible: false;
+                }
+
+                ListBox notes {
                   selection-mode: none;
 
                   styles [

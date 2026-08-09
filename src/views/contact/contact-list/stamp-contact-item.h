@@ -28,7 +28,8 @@ G_BEGIN_DECLS
 G_DECLARE_FINAL_TYPE (StampContactItem, stamp_contact_item, STAMP, CONTACT_ITEM, GObject);
 
 StampContactItem *
-stamp_contact_item_new (EContact *c);
+stamp_contact_item_new (EContact    *c,
+                        EBookClient *client);
 
 const gchar *
 stamp_contact_item_get_name (StampContactItem *self);
@@ -50,5 +51,12 @@ stamp_contact_item_get_office (StampContactItem *self);
 
 EContact *
 stamp_contact_item_get_contact (StampContactItem *self);
+
+void
+stamp_contact_item_set_contact (StampContactItem *self,
+                                EContact         *contact);
+
+EBookClient *
+stamp_contact_item_get_client (StampContactItem *self);
 
 G_END_DECLS

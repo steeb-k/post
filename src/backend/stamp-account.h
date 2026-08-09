@@ -102,6 +102,9 @@ stamp_account_mail_changed (StampAccount *self,
 GPtrArray *
 stamp_account_get_books (StampAccount *self);
 
+GPtrArray *
+stamp_account_get_writable_books (StampAccount *self);
+
 StampMailService *
 stamp_account_get_mail_service (StampAccount *self);
 

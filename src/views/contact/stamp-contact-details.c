@@ -24,6 +24,7 @@
 #include <glib/gi18n.h>
 
 #include "stamp-account.h"
+#include "stamp-contact-editor.h"
 
 struct _StampContactDetails {
   GtkBox parent_instance;
@@ -36,6 +37,10 @@ struct _StampContactDetails {
   GtkWidget *phone;
   GtkWidget *birthday;
   GtkWidget *address;
+  GtkWidget *notes;
+  GtkWidget *edit_button;
+
+  StampContactItem *item;
 
   GCancellable *cancellable;
 };
@@ -57,10 +62,25 @@ stamp_contact_details_dispose (GObject *object)
 
   g_cancellable_cancel (self->cancellable);
   g_clear_object (&self->cancellable);
+  g_clear_object (&self->item);
 
   gtk_widget_dispose_template (GTK_WIDGET (self), STAMP_TYPE_CONTACT_DETAILS);
 
   G_OBJECT_CLASS (stamp_contact_details_parent_class)->dispose (object);
+}
+
+static void
+on_edit_clicked (GtkButton *button,
+                 gpointer   user_data)
+{
+  StampContactDetails *self = STAMP_CONTACT_DETAILS (user_data);
+
+  if (!self->item)
+    return;
+
+  stamp_contact_editor_present (GTK_WIDGET (self),
+                                stamp_contact_item_get_client (self->item),
+                                stamp_contact_item_get_contact (self->item));
 }
 
 static void
@@ -80,6 +100,10 @@ stamp_contact_details_class_init (StampContactDetailsClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampContactDetails, phone);
   gtk_widget_class_bind_template_child (widget_class, StampContactDetails, birthday);
   gtk_widget_class_bind_template_child (widget_class, StampContactDetails, address);
+  gtk_widget_class_bind_template_child (widget_class, StampContactDetails, notes);
+  gtk_widget_class_bind_template_child (widget_class, StampContactDetails, edit_button);
+
+  gtk_widget_class_bind_template_callback (widget_class, on_edit_clicked);
 }
 
 static void
@@ -225,8 +249,18 @@ stamp_contact_details_show (StampContactDetails *self,
   gboolean org_added = FALSE;
 
   if (!contact) {
+    g_clear_object (&self->item);
     gtk_stack_set_visible_child_name (GTK_STACK (self->stack), "empty");
     return;
+  }
+
+  g_set_object (&self->item, contact);
+
+  {
+    EBookClient *client = stamp_contact_item_get_client (contact);
+
+    gtk_widget_set_sensitive (self->edit_button,
+                              client && !e_client_is_readonly (E_CLIENT (client)));
   }
 
   gtk_stack_set_visible_child_name (GTK_STACK (self->stack), "content");
@@ -374,4 +408,23 @@ stamp_contact_details_show (StampContactDetails *self,
 
 
   gtk_widget_set_visible (self->address, org_added);
+
+  /* Notes */
+  gtk_list_box_remove_all (GTK_LIST_BOX (self->notes));
+  {
+    const gchar *note = e_contact_get_const (e_contact, E_CONTACT_NOTE);
+
+    if (note && strlen (note) > 0) {
+      GtkWidget *row = adw_action_row_new ();
+      g_autofree char *markup = g_markup_escape_text (note, -1);
+
+      adw_preferences_row_set_title_selectable (ADW_PREFERENCES_ROW (row), TRUE);
+      adw_action_row_add_prefix (ADW_ACTION_ROW (row), gtk_image_new_from_icon_name ("text-x-generic-symbolic"));
+      adw_preferences_row_set_title (ADW_PREFERENCES_ROW (row), markup);
+      adw_action_row_set_title_lines (ADW_ACTION_ROW (row), 0);
+      gtk_list_box_append (GTK_LIST_BOX (self->notes), row);
+    }
+
+    gtk_widget_set_visible (self->notes, note && strlen (note) > 0);
+  }
 }

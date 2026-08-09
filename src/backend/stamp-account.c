@@ -256,6 +256,32 @@ stamp_account_get_book_client (StampAccount *self)
   return NULL;
 }
 
+/*
+ * A book only takes writes once its client has connected and the backend
+ * says it is not read-only. Google and EWS both hand out books that answer
+ * queries perfectly well and refuse everything else, so asking the client
+ * is the only honest way to know where a new contact can go.
+ */
+GPtrArray *
+stamp_account_get_writable_books (StampAccount *self)
+{
+  GPtrArray *books = g_ptr_array_new ();
+
+  for (guint idx = 0; idx < self->address_books->len; idx++) {
+    StampContactsService *service = g_ptr_array_index (self->address_books, idx);
+
+    if (!service->enabled || !service->client)
+      continue;
+
+    if (e_client_is_readonly (E_CLIENT (service->client)))
+      continue;
+
+    g_ptr_array_add (books, service);
+  }
+
+  return books;
+}
+
 void
 stamp_account_get_photo (StampAccount *self,
                          const gchar  *sender,

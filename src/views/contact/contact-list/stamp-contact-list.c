@@ -45,6 +45,12 @@ struct _StampContactList {
   guint progress_handle;
   GCancellable *cancellable;
 
+  /* A live view rather than a one-shot query, so a contact edited here,
+   * or by another program, or arriving in a sync, lands in the list
+   * without anyone having to reselect the book. */
+  EBookClientView *view;
+  GHashTable *items;
+
   gboolean loading_done;
   guint loading_timeout_id;
 
@@ -79,39 +85,200 @@ on_show_loading (gpointer user_data)
 }
 
 static void
-on_get_contacts (GObject      *object,
-                 GAsyncResult *res,
-                 gpointer      user_data)
+on_view_objects_added (EBookClientView *view,
+                       const GSList    *objects,
+                       gpointer         user_data)
 {
   StampContactList *self = STAMP_CONTACT_LIST (user_data);
-  EBookClient *client = E_BOOK_CLIENT (object);
-  g_autoslist (EContact) contacts = NULL;
-  g_autoptr (GError) error = NULL;
-  guint old;
-  g_autoptr (GPtrArray) items = NULL;
+  g_autoptr (GPtrArray) items = g_ptr_array_new_with_free_func (g_object_unref);
+
+  for (const GSList *iter = objects; iter && iter->data; iter = g_slist_next (iter)) {
+    EContact *contact = E_CONTACT (iter->data);
+    const gchar *uid = e_contact_get_const (contact, E_CONTACT_UID);
+    StampContactItem *item;
+
+    /* A backend is free to announce a contact twice; the list is not. */
+    if (uid && g_hash_table_contains (self->items, uid))
+      continue;
+
+    item = stamp_contact_item_new (contact, E_BOOK_CLIENT (self->client));
+    if (uid)
+      g_hash_table_insert (self->items, g_strdup (uid), item);
+
+    g_ptr_array_add (items, item);
+  }
+
+  if (items->len == 0)
+    return;
+
+  g_list_store_splice (self->list_store,
+                       g_list_model_get_n_items (G_LIST_MODEL (self->list_store)), 0,
+                       (gpointer *)items->pdata, items->len);
+}
+
+/* The splice below drops the selection when it lands on the selected row,
+ * so put it back: editing the contact you are looking at should not empty
+ * the details pane behind the dialog. */
+static void
+reselect_item (StampContactList *self,
+               StampContactItem *item)
+{
+  GListModel *model = G_LIST_MODEL (self->selection);
+
+  for (guint idx = 0; idx < g_list_model_get_n_items (model); idx++) {
+    g_autoptr (GObject) candidate = g_list_model_get_item (model, idx);
+
+    if (candidate != (gpointer)item)
+      continue;
+
+    if (gtk_single_selection_get_selected (self->selection) != idx) {
+      /* Moving the selection re-renders the details pane by itself. */
+      gtk_single_selection_set_selected (self->selection, idx);
+      return;
+    }
+
+    break;
+  }
+
+  /* Either the row did not move, or a search filter no longer matches the
+   * name that was just changed and the row has left the list entirely. The
+   * details pane is showing this contact either way, so it re-renders from
+   * the item rather than from wherever the item happens to sit. */
+  g_signal_emit (self, signals[CONTACT_SELECTED], 0, self->account, item);
+}
+
+static void
+on_view_objects_modified (EBookClientView *view,
+                          const GSList    *objects,
+                          gpointer         user_data)
+{
+  StampContactList *self = STAMP_CONTACT_LIST (user_data);
+
+  for (const GSList *iter = objects; iter && iter->data; iter = g_slist_next (iter)) {
+    EContact *contact = E_CONTACT (iter->data);
+    const gchar *uid = e_contact_get_const (contact, E_CONTACT_UID);
+    StampContactItem *item;
+    gboolean was_selected;
+    guint pos;
+
+    if (!uid)
+      continue;
+
+    item = g_hash_table_lookup (self->items, uid);
+    if (!item) {
+      GSList one = { contact, NULL };
+
+      /* Modified out from under a view that never saw it added. */
+      on_view_objects_added (view, &one, self);
+      continue;
+    }
+
+    was_selected = gtk_single_selection_get_selected_item (self->selection) == (gpointer)item;
+    stamp_contact_item_set_contact (item, contact);
+
+    if (!g_list_store_find (self->list_store, item, &pos))
+      continue;
+
+    /* GListStore has no "this item changed" signal, so splicing the same
+     * object over itself is how the row is told to rebind. */
+    g_object_ref (item);
+    g_list_store_splice (self->list_store, pos, 1, (gpointer *)&item, 1);
+    g_object_unref (item);
+
+    if (was_selected)
+      reselect_item (self, item);
+  }
+}
+
+static void
+on_view_objects_removed (EBookClientView *view,
+                         const GSList    *uids,
+                         gpointer         user_data)
+{
+  StampContactList *self = STAMP_CONTACT_LIST (user_data);
+
+  for (const GSList *iter = uids; iter && iter->data; iter = g_slist_next (iter)) {
+    const gchar *uid = iter->data;
+    StampContactItem *item = g_hash_table_lookup (self->items, uid);
+    guint pos;
+
+    if (!item)
+      continue;
+
+    if (g_list_store_find (self->list_store, item, &pos))
+      g_list_store_remove (self->list_store, pos);
+
+    g_hash_table_remove (self->items, uid);
+  }
+}
+
+static void
+on_view_complete (EBookClientView *view,
+                  const GError    *error,
+                  gpointer         user_data)
+{
+  StampContactList *self = STAMP_CONTACT_LIST (user_data);
+  guint n_items;
 
   self->loading_done = TRUE;
   g_clear_handle_id (&self->loading_timeout_id, g_source_remove);
 
-  gtk_stack_set_visible_child_name (GTK_STACK (self->stack), "content");
+  if (error && !g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+    g_warning ("%s: Contact view failed: %s", G_STRFUNC, error->message);
 
-  e_book_client_get_contacts_finish (client, res, &contacts, &error);
-  if (error) {
-    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
-      g_warning ("Could not get contacts: %s", error->message);
+  /* An empty book never splices, so items-changed never speaks for it. */
+  n_items = g_list_model_get_n_items (G_LIST_MODEL (self->filter_list_model));
+  gtk_stack_set_visible_child_name (GTK_STACK (self->stack), n_items == 0 ? "notfound" : "content");
+}
+
+static void
+stamp_contact_list_stop_view (StampContactList *self)
+{
+  if (!self->view)
+    return;
+
+  g_signal_handlers_disconnect_by_data (self->view, self);
+  e_book_client_view_stop (self->view, NULL);
+  g_clear_object (&self->view);
+}
+
+static void
+on_get_view (GObject      *object,
+             GAsyncResult *res,
+             gpointer      user_data)
+{
+  StampContactList *self = STAMP_CONTACT_LIST (user_data);
+  EBookClient *client = E_BOOK_CLIENT (object);
+  g_autoptr (EBookClientView) view = NULL;
+  g_autoptr (GError) error = NULL;
+
+  if (!e_book_client_get_view_finish (client, res, &view, &error)) {
+    if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+      return;
+
+    g_warning ("Could not get contact view: %s", error->message);
+
+    self->loading_done = TRUE;
+    g_clear_handle_id (&self->loading_timeout_id, g_source_remove);
+    gtk_stack_set_visible_child_name (GTK_STACK (self->stack), "notfound");
     return;
   }
 
-  old = g_list_model_get_n_items (G_LIST_MODEL (self->list_store));
-  items = g_ptr_array_new_full (g_slist_length (contacts), g_object_unref);
+  /* The book may have been switched again while this was in flight. */
+  if (E_CLIENT (client) != self->client)
+    return;
 
-  for (GSList *iter = contacts; iter && iter->data; iter = g_slist_next (iter)) {
-    EContact *c = iter->data;
-    StampContactItem *item = stamp_contact_item_new (c);
-    g_ptr_array_add (items, item);
-  }
+  stamp_contact_list_stop_view (self);
+  self->view = g_steal_pointer (&view);
 
-  g_list_store_splice (self->list_store, 0, old, (gpointer *)items->pdata, items->len);
+  g_signal_connect (self->view, "objects-added", G_CALLBACK (on_view_objects_added), self);
+  g_signal_connect (self->view, "objects-modified", G_CALLBACK (on_view_objects_modified), self);
+  g_signal_connect (self->view, "objects-removed", G_CALLBACK (on_view_objects_removed), self);
+  g_signal_connect (self->view, "complete", G_CALLBACK (on_view_complete), self);
+
+  e_book_client_view_start (self->view, &error);
+  if (error)
+    g_warning ("Could not start contact view: %s", error->message);
 }
 
 void
@@ -134,6 +301,10 @@ stamp_contact_list_load (StampContactList *self,
 
   self->cancellable = g_cancellable_new ();
 
+  stamp_contact_list_stop_view (self);
+  g_hash_table_remove_all (self->items);
+  g_list_store_remove_all (self->list_store);
+
   gtk_stack_set_visible_child_name (GTK_STACK (self->stack), "empty");
   self->loading_done = FALSE;
   self->loading_timeout_id = g_timeout_add_once (500, on_show_loading, self);
@@ -146,7 +317,7 @@ stamp_contact_list_load (StampContactList *self,
 
   gtk_single_selection_set_selected (self->selection, GTK_INVALID_LIST_POSITION);
 
-  e_book_client_get_contacts (E_BOOK_CLIENT (client), query, self->cancellable, on_get_contacts, self);
+  e_book_client_get_view (E_BOOK_CLIENT (client), query, self->cancellable, on_get_view, self);
 }
 
 static void
@@ -237,12 +408,13 @@ on_search_contact (GObject      *source,
   g_autoptr (GError) error = NULL;
   g_autoslist (EContact) list = NULL;
 
+  /* The search runs against the book so that backends which only hold a
+   * subset locally go and fetch the rest; whatever it turns up reaches
+   * the list through the view, so there is nothing to reload here. */
   list = stamp_account_search_contacts_finish (self->account, E_BOOK_CLIENT (self->client), res, &error);
 
-  if (list && g_slist_length (list) > 0) {
-    stamp_contact_list_load (self, self->client, self->account);
+  if (list && g_slist_length (list) > 0)
     gtk_filter_changed (self->filter, GTK_FILTER_CHANGE_DIFFERENT);
-  }
 
   g_clear_handle_id (&self->progress_handle, g_source_remove);
   gtk_widget_set_visible (self->progress, FALSE);
@@ -329,11 +501,32 @@ stamp_contact_list_set_property (GObject      *object,
 }
 
 static void
+stamp_contact_list_dispose (GObject *object)
+{
+  StampContactList *self = STAMP_CONTACT_LIST (object);
+
+  stamp_contact_list_stop_view (self);
+
+  if (self->cancellable) {
+    g_cancellable_cancel (self->cancellable);
+    g_clear_object (&self->cancellable);
+  }
+
+  g_clear_handle_id (&self->loading_timeout_id, g_source_remove);
+  g_clear_handle_id (&self->progress_handle, g_source_remove);
+  g_clear_pointer (&self->items, g_hash_table_unref);
+  g_clear_object (&self->list_store);
+
+  G_OBJECT_CLASS (stamp_contact_list_parent_class)->dispose (object);
+}
+
+static void
 stamp_contact_list_class_init (StampContactListClass *klass)
 {
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
+  object_class->dispose = stamp_contact_list_dispose;
   object_class->get_property = stamp_contact_list_get_property;
   object_class->set_property = stamp_contact_list_set_property;
 
@@ -411,6 +604,8 @@ stamp_contact_list_init (StampContactList *self)
   gtk_widget_init_template (GTK_WIDGET (self));
 
   self->list_store = g_list_store_new (STAMP_TYPE_CONTACT_ITEM);
+  /* Values are borrowed: the store owns every item in here. */
+  self->items = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
 
   gtk_sort_list_model_set_model (self->sort_list_model, G_LIST_MODEL (self->list_store));
   self->sorter = GTK_SORTER (gtk_custom_sorter_new (sorter_func, self, NULL));
@@ -449,6 +644,12 @@ StampAccount *
 stamp_contact_list_get_account (StampContactList *self)
 {
   return self->account;
+}
+
+EBookClient *
+stamp_contact_list_get_client (StampContactList *self)
+{
+  return self->client ? E_BOOK_CLIENT (self->client) : NULL;
 }
 
 GtkWidget *
