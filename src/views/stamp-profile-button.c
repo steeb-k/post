@@ -27,6 +27,7 @@
  * while it is being opened.
  */
 
+#include "stamp-badge.h"
 #include "stamp-profile-button.h"
 
 #include <glib/gi18n.h>
@@ -47,8 +48,10 @@ struct _StampProfileButton {
 G_DEFINE_FINAL_TYPE (StampProfileButton, stamp_profile_button, ADW_TYPE_BIN);
 
 void
-stamp_profile_button_style_avatar (AdwAvatar    *avatar,
-                                   StampProfile *profile)
+stamp_profile_button_style_avatar_parts (AdwAvatar   *avatar,
+                                         const gchar *color,
+                                         const gchar *initial,
+                                         const gchar *badge_id)
 {
   guint n_colors = 0;
   const StampProfileColor *palette = stamp_profile_get_palette (&n_colors);
@@ -64,7 +67,8 @@ stamp_profile_button_style_avatar (AdwAvatar    *avatar,
     gtk_widget_remove_css_class (GTK_WIDGET (avatar), css_class);
   }
 
-  if (!profile) {
+  if (!color) {
+    adw_avatar_set_custom_image (avatar, NULL);
     adw_avatar_set_show_initials (avatar, FALSE);
     adw_avatar_set_text (avatar, NULL);
     adw_avatar_set_icon_name (avatar, "view-grid-symbolic");
@@ -73,16 +77,26 @@ stamp_profile_button_style_avatar (AdwAvatar    *avatar,
   }
 
   {
-    const gchar *initial = stamp_profile_get_initial (profile);
-    g_autofree gchar *css_class = g_strconcat ("profile-", stamp_profile_get_color (profile), NULL);
+    g_autofree gchar *css_class = g_strconcat ("profile-", color, NULL);
 
-    /* AdwAvatar derives its own initials, which would turn "Work Mail"
-     * into "WM"; the badge wants the single letter we picked. */
-    adw_avatar_set_show_initials (avatar, initial && *initial);
-    adw_avatar_set_text (avatar, initial);
-    adw_avatar_set_icon_name (avatar, "avatar-default-symbolic");
+    stamp_badge_apply (avatar, stamp_badge_find (badge_id), initial);
     gtk_widget_add_css_class (GTK_WIDGET (avatar), css_class);
   }
+}
+
+void
+stamp_profile_button_style_avatar (AdwAvatar    *avatar,
+                                   StampProfile *profile)
+{
+  if (!profile) {
+    stamp_profile_button_style_avatar_parts (avatar, NULL, NULL, NULL);
+    return;
+  }
+
+  stamp_profile_button_style_avatar_parts (avatar,
+                                           stamp_profile_get_color (profile),
+                                           stamp_profile_get_initial (profile),
+                                           stamp_profile_get_badge (profile));
 }
 
 static void

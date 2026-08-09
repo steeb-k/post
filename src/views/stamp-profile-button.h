@@ -41,4 +41,15 @@ void
 stamp_profile_button_style_avatar (AdwAvatar    *avatar,
                                    StampProfile *profile);
 
+/*
+ * The same, for an avatar that stands for no profile in particular:
+ * the badge picker draws every candidate in the colour of the profile
+ * being edited. A NULL @color is the show-everything avatar.
+ */
+void
+stamp_profile_button_style_avatar_parts (AdwAvatar   *avatar,
+                                         const gchar *color,
+                                         const gchar *initial,
+                                         const gchar *badge_id);
+
 G_END_DECLS
