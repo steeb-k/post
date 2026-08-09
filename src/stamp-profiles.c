@@ -28,6 +28,7 @@
  */
 
 #include "stamp-profiles.h"
+#include "views/stamp-badge-picker.h"
 
 #include <glib/gi18n.h>
 
@@ -46,6 +47,7 @@ struct _StampProfilesEditor {
 
   AdwWindowTitle *editor_title;
   AdwAvatar *preview;
+  AdwAvatar *badge_preview;
   AdwEntryRow *name_row;
   AdwComboRow *layout_row;
   GtkBox *swatches;
@@ -115,6 +117,7 @@ on_swatch_clicked (GtkButton *button,
 
   update_swatches (self);
   stamp_profile_button_style_avatar (self->preview, self->profile);
+  stamp_profile_button_style_avatar (self->badge_preview, self->profile);
 
   stamp_profile_manager_save (stamp_profile_manager_get_default ());
 }
@@ -456,6 +459,38 @@ on_add_rule_clicked (GtkButton *button,
  */
 
 static void
+stamp_profiles_editor_style_avatars (StampProfilesEditor *self)
+{
+  stamp_profile_button_style_avatar (self->preview, self->profile);
+  stamp_profile_button_style_avatar (self->badge_preview, self->profile);
+}
+
+static void
+on_badge_selected (StampBadgePicker *picker G_GNUC_UNUSED,
+                   const gchar      *badge_id,
+                   gpointer          user_data)
+{
+  StampProfilesEditor *self = STAMP_PROFILES_EDITOR (user_data);
+
+  stamp_profile_set_badge (self->profile, badge_id);
+  stamp_profiles_editor_style_avatars (self);
+
+  stamp_profile_manager_save (stamp_profile_manager_get_default ());
+}
+
+static void
+on_badge_row_activated (AdwActionRow *row G_GNUC_UNUSED,
+                        gpointer      user_data)
+{
+  StampProfilesEditor *self = STAMP_PROFILES_EDITOR (user_data);
+  GtkWidget *picker = stamp_badge_picker_new (self->profile);
+
+  g_signal_connect (picker, "selected", G_CALLBACK (on_badge_selected), self);
+
+  adw_dialog_present (ADW_DIALOG (picker), GTK_WIDGET (self));
+}
+
+static void
 on_name_changed (GtkEditable *editable,
                  gpointer     user_data)
 {
@@ -465,7 +500,7 @@ on_name_changed (GtkEditable *editable,
     return;
 
   stamp_profile_set_name (self->profile, gtk_editable_get_text (editable));
-  stamp_profile_button_style_avatar (self->preview, self->profile);
+  stamp_profiles_editor_style_avatars (self);
   adw_window_title_set_title (self->editor_title, stamp_profile_get_name (self->profile));
 
   stamp_profile_manager_save (stamp_profile_manager_get_default ());
@@ -568,6 +603,7 @@ stamp_profiles_editor_class_init (StampProfilesEditorClass *klass)
 
   gtk_widget_class_bind_template_child (widget_class, StampProfilesEditor, editor_title);
   gtk_widget_class_bind_template_child (widget_class, StampProfilesEditor, preview);
+  gtk_widget_class_bind_template_child (widget_class, StampProfilesEditor, badge_preview);
   gtk_widget_class_bind_template_child (widget_class, StampProfilesEditor, name_row);
   gtk_widget_class_bind_template_child (widget_class, StampProfilesEditor, layout_row);
   gtk_widget_class_bind_template_child (widget_class, StampProfilesEditor, swatches);
@@ -575,6 +611,7 @@ stamp_profiles_editor_class_init (StampProfilesEditorClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampProfilesEditor, rules_group);
   gtk_widget_class_bind_template_child (widget_class, StampProfilesEditor, remove_row);
 
+  gtk_widget_class_bind_template_callback (widget_class, on_badge_row_activated);
   gtk_widget_class_bind_template_callback (widget_class, on_name_changed);
   gtk_widget_class_bind_template_callback (widget_class, on_layout_changed);
   gtk_widget_class_bind_template_callback (widget_class, on_add_rule_clicked);
@@ -611,7 +648,7 @@ stamp_profiles_editor_new (StampProfile *profile)
   self->updating = FALSE;
 
   adw_window_title_set_title (self->editor_title, stamp_profile_get_name (profile));
-  stamp_profile_button_style_avatar (self->preview, profile);
+  stamp_profiles_editor_style_avatars (self);
 
   build_swatches (self);
   update_swatches (self);

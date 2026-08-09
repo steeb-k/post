@@ -12,6 +12,7 @@
     <file preprocess="xml-stripblanks">stamp-profiles-editor.ui</file>
     <file preprocess="xml-stripblanks">stamp-window.ui</file>
     <file preprocess="xml-stripblanks">views/stamp-header-bar.ui</file>
+    <file preprocess="xml-stripblanks">views/stamp-badge-picker.ui</file>
     <file preprocess="xml-stripblanks">views/stamp-layout-picker.ui</file>
     <file preprocess="xml-stripblanks">views/stamp-profile-button.ui</file>
     <file preprocess="xml-stripblanks">views/stamp-tag.ui</file>
@@ -34,6 +35,8 @@
     <file preprocess="xml-stripblanks">views/mail/message-list/stamp-message-header.ui</file>
     <file preprocess="xml-stripblanks">views/mail/message-list/stamp-message-list.ui</file>
     <file preprocess="xml-stripblanks">views/mail/message-list/stamp-message-list-item.ui</file>
+    <file alias="badges/emu.png">resources/badges/emu.png</file>
+    <file alias="badges/mailbox.png">resources/badges/mailbox.png</file>
     <file alias="blank-message-template.html" compressed="true">resources/blank-message-template.html</file>
     <file alias="stamp-composer.js" compressed="true">resources/stamp-composer.js</file>
     <file alias="stamp-quote-collapse.js" compressed="true">resources/stamp-quote-collapse.js</file>
@@ -49,6 +52,7 @@
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/outbox-symbolic.svg">resources/icons/scalable/actions/outbox-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/sent-symbolic.svg">resources/icons/scalable/actions/sent-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/search-global-symbolic.svg">resources/icons/scalable/actions/search-global-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/rx-symbolic.svg">resources/icons/scalable/actions/rx-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/shield-safe-symbolic.svg">resources/icons/scalable/actions/shield-safe-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/signature-symbolic.svg">resources/icons/scalable/actions/signature-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/top-symbolic.svg">resources/icons/scalable/actions/top-symbolic.svg</file>

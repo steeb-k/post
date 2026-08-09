@@ -36,6 +36,25 @@ template $StampProfilesEditor: Adw.NavigationPage {
           }
         }
 
+        Adw.ActionRow badge_row {
+          title: _("Badge");
+          subtitle: _("Shown in place of the profile's letter.");
+          activatable: true;
+          activated => $on_badge_row_activated();
+
+          [suffix]
+          Adw.Avatar badge_preview {
+            size: 32;
+            valign: center;
+          }
+
+          [suffix]
+          Image {
+            icon-name: "go-next-symbolic";
+            valign: center;
+          }
+        }
+
         Adw.ComboRow layout_row {
           title: _("Layout");
           subtitle: _("Applies while the profile is active. The default comes back when its turn ends.");
