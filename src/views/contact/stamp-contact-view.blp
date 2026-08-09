@@ -52,13 +52,15 @@ template $StampContactView: Adw.BreakpointBin {
     [content]
     $StampContactDetails contact_details {}
 
+    /* The switcher floats over the columns rather than sitting in a bar
+     * under them: a full-width bar shortens the sidebar too, and the
+     * sidebar has nothing to spare. Centred on the window, not on the
+     * content, so it reads as window chrome. */
     Adw.Layout {
       name: "desktop";
 
-      content: Adw.ToolbarView {
-        bottom-bar-style: raised;
-
-        content: Adw.OverlaySplitView outer_osv {
+      content: Overlay {
+        child: Adw.OverlaySplitView outer_osv {
           sidebar-width-fraction: 0.28;
           min-sidebar-width: 250;
           max-sidebar-width: 300;
@@ -90,9 +92,15 @@ template $StampContactView: Adw.BreakpointBin {
           };
         };
 
-        [bottom]
+        [overlay]
         Adw.LayoutSlot {
           id: "switcher";
+          halign: center;
+          valign: end;
+
+          styles [
+            "floating-switcher",
+          ]
         }
       };
     }

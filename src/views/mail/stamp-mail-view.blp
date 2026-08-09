@@ -98,13 +98,15 @@ template $StampMailView: Adw.BreakpointBin {
         };
       }
 
+      /* The switcher floats over the columns rather than sitting in a
+       * bar under them: a full-width bar shortens the sidebar too, and
+       * the sidebar has nothing to spare. Centred on the window, not on
+       * the content, so it reads as window chrome. */
       Adw.Layout {
         name: "desktop";
 
-        content: Adw.ToolbarView {
-          bottom-bar-style: raised;
-
-          content: Adw.OverlaySplitView outer_osv {
+        content: Overlay {
+          child: Adw.OverlaySplitView outer_osv {
             sidebar-width-fraction: 0.28;
             min-sidebar-width: 250;
             max-sidebar-width: 300;
@@ -126,19 +128,35 @@ template $StampMailView: Adw.BreakpointBin {
               resize-start-child: false;
               resize-end-child: true;
 
+              /* Side by side puts both columns against the bottom edge,
+               * so both have to leave room for the pill. */
               start-child: Adw.LayoutSlot {
                 id: "list";
+
+                styles [
+                  "switcher-clearance",
+                ]
               };
 
               end-child: Adw.LayoutSlot {
                 id: "content";
+
+                styles [
+                  "switcher-clearance",
+                ]
               };
             };
           };
 
-          [bottom]
+          [overlay]
           Adw.LayoutSlot {
             id: "switcher";
+            halign: center;
+            valign: end;
+
+            styles [
+              "floating-switcher",
+            ]
           }
         };
       }
@@ -148,10 +166,8 @@ template $StampMailView: Adw.BreakpointBin {
       Adw.Layout {
         name: "desktop-stacked";
 
-        content: Adw.ToolbarView {
-          bottom-bar-style: raised;
-
-          content: Adw.OverlaySplitView stacked_osv {
+        content: Overlay {
+          child: Adw.OverlaySplitView stacked_osv {
             sidebar-width-fraction: 0.28;
             min-sidebar-width: 250;
             max-sidebar-width: 300;
@@ -177,15 +193,27 @@ template $StampMailView: Adw.BreakpointBin {
                 id: "list";
               };
 
+              /* Stacked and dense keep the list up top, so only the
+               * reading pane below it meets the pill. */
               end-child: Adw.LayoutSlot {
                 id: "content";
+
+                styles [
+                  "switcher-clearance",
+                ]
               };
             };
           };
 
-          [bottom]
+          [overlay]
           Adw.LayoutSlot {
             id: "switcher";
+            halign: center;
+            valign: end;
+
+            styles [
+              "floating-switcher",
+            ]
           }
         };
       }
@@ -195,10 +223,8 @@ template $StampMailView: Adw.BreakpointBin {
       Adw.Layout {
         name: "desktop-dense";
 
-        content: Adw.ToolbarView {
-          bottom-bar-style: raised;
-
-          content: Adw.OverlaySplitView dense_osv {
+        content: Overlay {
+          child: Adw.OverlaySplitView dense_osv {
             sidebar-width-fraction: 0.28;
             min-sidebar-width: 250;
             max-sidebar-width: 300;
@@ -237,6 +263,10 @@ template $StampMailView: Adw.BreakpointBin {
 
                 end-child: Adw.LayoutSlot {
                   id: "content";
+
+                  styles [
+                    "switcher-clearance",
+                  ]
                 };
               };
 
@@ -246,9 +276,15 @@ template $StampMailView: Adw.BreakpointBin {
             };
           };
 
-          [bottom]
+          [overlay]
           Adw.LayoutSlot {
             id: "switcher";
+            halign: center;
+            valign: end;
+
+            styles [
+              "floating-switcher",
+            ]
           }
         };
       }

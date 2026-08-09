@@ -8,6 +8,51 @@
   margin-bottom: 32px;
 }
 
+/*
+ * The switcher as a floating pill, used by the layouts wide enough to
+ * show the sidebar. It is an overlay child there, so it paints its own
+ * background instead of borrowing a bottom bar's -- popover colours,
+ * because what it does is float above the content. The switcher inside
+ * already carries 6px top and bottom margins, which stand in for the
+ * pill's vertical padding.
+ */
+.floating-switcher {
+  margin-bottom: 12px;
+  padding: 0 6px;
+
+  /* Not a true pill: fully round sides read as a different shape from
+   * the 9px buttons inside them. The switcher's own 6px margins and the
+   * padding above inset the buttons by 6px on every side, so 9 + 6 puts
+   * the pill's corners concentric with theirs. */
+  border-radius: 15px;
+  background-color: var(--popover-bg-color);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.16),
+    0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+/*
+ * Room for the pill in the columns it floats over -- which column that
+ * is depends on the layout, so the class goes on the layout slot and
+ * the rules below reach into whatever is parked in it. The clearance
+ * is the pill's own height plus its margin, rounded up.
+ *
+ * It is trailing space inside the scrolled content rather than padding
+ * on the column, so the last row can be scrolled clear of the pill
+ * instead of the list simply ending short of the window edge.
+ */
+.switcher-clearance listview.navigation-sidebar,
+.switcher-clearance .message-list-conversation {
+  padding-bottom: 56px;
+}
+
+/* The compose button sits in the same corner the pill reaches, so it
+ * moves up by the same amount. Scroll-to-top rides above it, keeping
+ * the gap it already had. */
+.switcher-clearance .fab {
+  margin-bottom: 56px;
+}
+
 /* The today count on the Calendar button. Adwaita's default badge is a
  * muted grey that reads as decoration; red reads as "you have things
  * happening today". */
