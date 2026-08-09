@@ -1,5 +1,6 @@
 /*
  * Copyright 2024-2026 Jan-Michael Brummer
+ * Copyright 2026 steeb-k
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -423,8 +424,26 @@ stamp_application_about_action (GSimpleAction *action,
                                 GVariant      *parameter,
                                 gpointer       user_data)
 {
-  static const gchar *developers[] = {"Jan-Michael Brummer", "Michael Catanzaro", NULL};
+  static const gchar *developers[] = {"steeb-k", NULL};
   static const gchar *designers[] = {"Tobias Bernard", NULL};
+  /* Post is a fork of Stamp. Most of the mail application below the
+   * surface is still Stamp's work, and the calendar is GNOME Calendar's;
+   * both are credited in their own sections rather than folded into ours.
+   * See AUTHORS for the full accounting. */
+  static const gchar *upstream[] = {
+    "Jan-Michael Brummer",
+    "Michael Catanzaro",
+    "Adrien Plazas",
+    "Giacomo Leidi",
+    "Chris Pouliot",
+    NULL,
+  };
+  static const gchar *calendar[] = {
+    "Georges Basile Stavracas Neto",
+    "Erick Pérez Castellanos",
+    "The GNOME Calendar contributors",
+    NULL,
+  };
   StampApplication *self = STAMP_APPLICATION (user_data);
   GtkWindow *window = NULL;
   AdwDialog *dialog;
@@ -437,7 +456,11 @@ stamp_application_about_action (GSimpleAction *action,
   adw_about_dialog_set_translator_credits (ADW_ABOUT_DIALOG (dialog), _("translator-credits"));
   adw_about_dialog_set_developers (ADW_ABOUT_DIALOG (dialog), developers);
   adw_about_dialog_set_designers (ADW_ABOUT_DIALOG (dialog), designers);
-  adw_about_dialog_set_copyright (ADW_ABOUT_DIALOG (dialog), "© 2024-2026 Jan-Michael Brummer");
+  adw_about_dialog_add_credit_section (ADW_ABOUT_DIALOG (dialog), _("Based on Stamp by"), upstream);
+  adw_about_dialog_add_credit_section (ADW_ABOUT_DIALOG (dialog), _("Calendar by"), calendar);
+  adw_about_dialog_set_copyright (ADW_ABOUT_DIALOG (dialog),
+                                  "© 2024-2026 Jan-Michael Brummer\n"
+                                  "© 2026 steeb-k");
   adw_about_dialog_set_version (ADW_ABOUT_DIALOG (dialog), VERSION);
   adw_dialog_present (dialog, GTK_WIDGET (window));
 }

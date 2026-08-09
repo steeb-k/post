@@ -1,0 +1,91 @@
+Post — authors and attribution
+=============================
+
+Post is free software under the GNU General Public License, version 3 or
+later. See COPYING for the full text.
+
+Post is a fork of Stamp, and a large part of what you are running was
+written by other people. This file records who.
+
+
+Post
+----
+
+Post's own work — the profiles system, the calendar integration and the
+mail/calendar bridge, the contact editor and photo cropper, the mail
+layouts and sidebar agenda, the badge system, the Flatpak and native
+packaging, and the rebranding — is:
+
+    Copyright 2026 steeb-k <skaznak@protonmail.com>
+
+Post was forked from Stamp at commit 61a1da4 on 2026-08-05.
+Files created for Post carry only the copyright above. Files inherited
+from Stamp keep their original notices; where Post has substantially
+rewritten one, a second notice is added below the original rather than
+replacing it.
+
+
+Stamp (upstream)
+----------------
+
+Post is a fork of Stamp:
+
+    https://gitlab.gnome.org/jbrummer/stamp
+
+Roughly two thirds of Post outside the vendored calendar is Stamp's code.
+The mail backend, the message and conversation lists, the composer, the
+MIME parser, the account and session handling, the web view, the contact
+list, PGP and S/MIME support, BIMI and one-click unsubscribe are all
+Stamp's work, as is the application's overall shape.
+
+    Jan-Michael Brummer <jan.brummer@tabos.org>   — author and maintainer
+    Michael Catanzaro <mcatanzaro@gnome.org>
+    Adrien Plazas <aplazas@gnome.org>
+    Giacomo Leidi <therewasa@fishinthecalculator.me>
+    Tobias Bernard <tbernard@gnome.org>           — design
+    Chris Pouliot <chrispouliot@icloud.com>
+
+Post is not affiliated with Stamp and is not endorsed by its authors.
+Bugs in Post should be reported to Post, not to Stamp.
+
+
+GNOME Calendar (vendored)
+-------------------------
+
+src/gcal/ is a vendored copy of GNOME Calendar, built into Post as a
+static library to provide the calendar views, event editor and calendar
+management:
+
+    https://gitlab.gnome.org/GNOME/gnome-calendar
+
+Every file there keeps its upstream copyright and license notice
+unchanged. Post's changes to that tree are small and are kept in separate
+commits so they can be re-applied to a newer snapshot; see
+src/gcal/VENDORED.md for the vendored commit and the list of local
+changes.
+
+Copyright holders in the vendored tree include:
+
+    Georges Basile Stavracas Neto <georges.stavracas@gmail.com>
+    Erick Pérez Castellanos <erickpc@gnome.org>
+    Alen Galinec <mind.on.warp@gmail.com>
+    Titouan Real <titouan.real@gmail.com>
+    Diego Iván M.E <diegoivan.mae@gmail.com>
+    Markus Göllnitz <camelcasenick@bewares.it>
+    Federico Mena Quintero <federico@gnome.org>
+    Florian Brosch <flo.brosch@gmail.com>
+    Vamsi Krishna Gollapudi <pandu.sonu@yahoo.com>
+    Yash Singh <yashdev10p@gmail.com>
+    Benjamin Otte
+    Purism SPC
+    Red Hat, Inc.
+
+together with the GTK authors, for the small pieces of GTK carried in
+src/gcal/contrib/.
+
+
+Other
+-----
+
+src/stamp-time-helpers.{c,h} is based on ephy-time-helpers from Epiphany,
+Copyright © 2002 Jorn Baayen.

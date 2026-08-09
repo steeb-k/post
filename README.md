@@ -62,6 +62,15 @@ meson compile -C builddir
 meson install -C builddir
 ```
 
-## License
+## License and attribution
 
 Post is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+Post is a fork of [Stamp](https://gitlab.gnome.org/jbrummer/stamp) by
+Jan-Michael Brummer, and its calendar is a vendored copy of [GNOME
+Calendar](https://gitlab.gnome.org/GNOME/gnome-calendar). Most of the code
+you are running was written by other people. See [AUTHORS](AUTHORS) for
+who wrote what, and `src/gcal/VENDORED.md` for the vendored snapshot.
+
+Post is not affiliated with Stamp and is not endorsed by its authors.
+Report bugs in Post to Post.
