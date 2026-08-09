@@ -35,6 +35,7 @@
 
 #include "stamp-profile-manager.h"
 
+#include "stamp-badge.h"
 #include "stamp-settings.h"
 
 /* Long enough to cover every distinct state a weekly schedule can
@@ -268,6 +269,50 @@ load_layouts (StampProfileManager *self)
   }
 }
 
+/* Badges ride in a map of their own for the same reason layouts do. */
+static void
+store_badges (StampProfileManager *self)
+{
+  GVariantBuilder builder;
+  guint len = n_profiles (self);
+
+  if (self->loading)
+    return;
+
+  g_variant_builder_init (&builder, G_VARIANT_TYPE ("a{ss}"));
+
+  for (guint i = 0; i < len; i++) {
+    StampProfile *profile = profile_at (self, i);
+    const gchar *badge = stamp_profile_get_badge (profile);
+
+    if (badge)
+      g_variant_builder_add (&builder, "{ss}", stamp_profile_get_id (profile), badge);
+  }
+
+  g_settings_set_value (self->settings, STAMP_PREFS_PROFILE_BADGES, g_variant_builder_end (&builder));
+}
+
+static void
+load_badges (StampProfileManager *self)
+{
+  g_autoptr (GVariant) badges = NULL;
+  guint len = n_profiles (self);
+
+  badges = g_settings_get_value (self->settings, STAMP_PREFS_PROFILE_BADGES);
+
+  for (guint i = 0; i < len; i++) {
+    StampProfile *profile = profile_at (self, i);
+    const gchar *badge = NULL;
+
+    if (!g_variant_lookup (badges, stamp_profile_get_id (profile), "&s", &badge))
+      continue;
+
+    /* A badge this version does not carry is no badge at all. */
+    if (stamp_badge_find (badge))
+      stamp_profile_set_badge (profile, badge);
+  }
+}
+
 static void
 store_override (StampProfileManager *self)
 {
@@ -356,6 +401,7 @@ load (StampProfileManager *self)
   }
 
   load_layouts (self);
+  load_badges (self);
 
   self->default_id = g_settings_get_string (self->settings, STAMP_PREFS_DEFAULT_PROFILE);
   self->override_id = g_settings_get_string (self->settings, STAMP_PREFS_OVERRIDE_PROFILE);
@@ -519,6 +565,7 @@ stamp_profile_manager_save (StampProfileManager *self)
 
   store_profiles (self);
   store_layouts (self);
+  store_badges (self);
 
   /* Editing the schedule can move the moment the manual choice was
    * meant to last until, so work it out again. */

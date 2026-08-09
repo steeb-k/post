@@ -100,6 +100,18 @@ stamp_profile_set_layout (StampProfile *self,
                           const gchar  *layout);
 
 /*
+ * The badge the profile wears in place of its letter, as a
+ * StampBadge id, or NULL when it shows the letter. Stored beside the
+ * profiles rather than in them, for the same reason the layout is.
+ */
+const gchar *
+stamp_profile_get_badge (StampProfile *self);
+
+void
+stamp_profile_set_badge (StampProfile *self,
+                         const gchar  *badge);
+
+/*
  * The letter shown in the switcher. Owned by @self.
  */
 const gchar *

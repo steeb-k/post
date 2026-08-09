@@ -67,6 +67,11 @@
       <summary>Per profile mail layout</summary>
       <description>Maps a profile identifier to the mail layout it asks for while it is active. A profile that names no layout leaves the default alone. Kept beside the profiles rather than inside them so that profiles written by an older version keep loading.</description>
     </key>
+    <key name="profile-badges" type="a{ss}">
+      <default>{}</default>
+      <summary>Per profile badge</summary>
+      <description>Maps a profile identifier to the badge it wears in place of its letter. A profile that names no badge shows its letter. Kept beside the profiles for the same reason the layouts are: growing the profile tuple would make GSettings drop every stored profile.</description>
+    </key>
     <key name="default-profile" type="s">
       <default>''</default>
       <summary>Default profile</summary>
