@@ -570,6 +570,19 @@ populate_list_box_from_thread (StampAccount          *account,
   }
 }
 
+static void
+clear_carousel_page (GtkWidget *page)
+{
+  GtkWidget *child = gtk_widget_get_first_child (page);
+
+  while (child) {
+    GtkWidget *next = gtk_widget_get_next_sibling (child);
+
+    gtk_box_remove (GTK_BOX (page), child);
+    child = next;
+  }
+}
+
 static GtkWidget *
 create_carousel_page_view (StampAccount          *account,
                            CamelFolderThreadNode *node)
@@ -679,30 +692,31 @@ stamp_message_list_set_conversation (StampMessageList      *self,
 
   conv_list = stamp_mail_view_get_conversation_list (mail_view);
 
-  adjacent = stamp_conversation_list_get_adjacent_item (conv_list, -1);
-  if (adjacent) {
-    GtkWidget *prev_child = gtk_widget_get_first_child (self->prev_page);
-    while (prev_child) {
-      GtkWidget *next = gtk_widget_get_next_sibling (prev_child);
-      gtk_box_remove (GTK_BOX (self->prev_page), prev_child);
-      prev_child = next;
+  /* The flanking pages preview the neighbours of the conversation being
+   * shown, so there is nothing to build when there is none -- and after
+   * a profile switch there is nothing to build them *from* either: the
+   * account is already gone while the conversation list still holds the
+   * outgoing profile's rows, and every page needs the account to look
+   * up sender photos. Empty them instead. */
+  if (!node) {
+    clear_carousel_page (self->prev_page);
+    clear_carousel_page (self->next_page);
+  } else {
+    adjacent = stamp_conversation_list_get_adjacent_item (conv_list, -1);
+    if (adjacent) {
+      clear_carousel_page (self->prev_page);
+      gtk_box_append (GTK_BOX (self->prev_page),
+                      create_carousel_page_view (self->account, stamp_conversation_item_get_node (adjacent)));
+      g_object_unref (adjacent);
     }
-    gtk_box_append (GTK_BOX (self->prev_page),
-                    create_carousel_page_view (self->account, stamp_conversation_item_get_node (adjacent)));
-    g_object_unref (adjacent);
-  }
 
-  adjacent = stamp_conversation_list_get_adjacent_item (conv_list, 1);
-  if (adjacent) {
-    GtkWidget *next_child = gtk_widget_get_first_child (self->next_page);
-    while (next_child) {
-      GtkWidget *next = gtk_widget_get_next_sibling (next_child);
-      gtk_box_remove (GTK_BOX (self->next_page), next_child);
-      next_child = next;
+    adjacent = stamp_conversation_list_get_adjacent_item (conv_list, 1);
+    if (adjacent) {
+      clear_carousel_page (self->next_page);
+      gtk_box_append (GTK_BOX (self->next_page),
+                      create_carousel_page_view (self->account, stamp_conversation_item_get_node (adjacent)));
+      g_object_unref (adjacent);
     }
-    gtk_box_append (GTK_BOX (self->next_page),
-                    create_carousel_page_view (self->account, stamp_conversation_item_get_node (adjacent)));
-    g_object_unref (adjacent);
   }
 
   adw_carousel_scroll_to (ADW_CAROUSEL (self->carousel), self->message_stack, FALSE);
