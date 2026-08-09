@@ -42,7 +42,8 @@
  * instead of the list simply ending short of the window edge.
  */
 .switcher-clearance listview.navigation-sidebar,
-.switcher-clearance .message-list-conversation {
+.switcher-clearance .message-list-conversation,
+.switcher-clearance .contact-details-body {
   padding-bottom: 56px;
 }
 

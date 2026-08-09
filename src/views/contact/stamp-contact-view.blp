@@ -85,12 +85,24 @@ template $StampContactView: Adw.BreakpointBin {
             resize-start-child: false;
             resize-end-child: true;
 
+            /* Side by side puts both columns against the bottom edge,
+             * so both have to leave room for the pill. The tablet and
+             * mobile layouts park the switcher in a real bottom bar,
+             * which takes its own space and needs no clearance. */
             start-child: Adw.LayoutSlot {
               id: "list";
+
+              styles [
+                "switcher-clearance",
+              ]
             };
 
             end-child: Adw.LayoutSlot {
               id: "content";
+
+              styles [
+                "switcher-clearance",
+              ]
             };
           };
         };
