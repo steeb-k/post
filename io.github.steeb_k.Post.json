@@ -1,7 +1,7 @@
 {
   "id": "io.github.steeb_k.Post",
   "runtime": "org.gnome.Platform",
-  "runtime-version": "master",
+  "runtime-version": "50",
   "sdk": "org.gnome.Sdk",
   "command": "post-mail",
   "desktop-file-name-suffix": " (Development)",
