@@ -54,10 +54,7 @@ struct _StampMailView {
   AdwViewStack *stack;
 
   AdwMultiLayoutView *mail_layout;
-  AdwViewSwitcher *app_switcher;
-  GtkSizeGroup *switcher_sizes;
   GtkWidget *compose_button;
-  gboolean switcher_sized;
   AdwBreakpoint *bp_tablet;
   AdwBreakpoint *bp_mobile;
   AdwOverlaySplitView *tablet_osv;
@@ -187,50 +184,6 @@ update_layout_name (StampMailView *self)
 }
 
 
-/*
- * AdwViewSwitcher gives its own buttons a common width, so matching the
- * action button to any one of them makes the whole row uniform. There
- * is no API for reaching a switcher button, hence the search; finding
- * nothing leaves the row as it was rather than failing.
- */
-static GtkWidget *
-find_switcher_button (GtkWidget *widget)
-{
-  for (GtkWidget *child = gtk_widget_get_first_child (widget);
-       child;
-       child = gtk_widget_get_next_sibling (child)) {
-    GtkWidget *found;
-
-    if (GTK_IS_TOGGLE_BUTTON (child))
-      return child;
-
-    found = find_switcher_button (child);
-    if (found)
-      return found;
-  }
-
-  return NULL;
-}
-
-static void
-match_action_to_switcher (StampMailView *self)
-{
-  GtkWidget *button;
-
-  if (self->switcher_sized)
-    return;
-
-  /* The switcher has no buttons until it has a stack, which is handed
-   * down after this view is built -- so this waits for the first
-   * breakpoint change rather than running at construction. */
-  button = find_switcher_button (GTK_WIDGET (self->app_switcher));
-  if (!button)
-    return;
-
-  gtk_size_group_add_widget (self->switcher_sizes, button);
-  self->switcher_sized = TRUE;
-}
-
 static void
 on_size_changed (GObject *object     G_GNUC_UNUSED,
                  GParamSpec *pspec   G_GNUC_UNUSED,
@@ -246,7 +199,6 @@ on_size_changed (GObject *object     G_GNUC_UNUSED,
   else
     self->size = SIZE_DESKTOP;
 
-  match_action_to_switcher (self);
   update_layout_name (self);
 }
 
@@ -466,8 +418,6 @@ stamp_mail_view_class_init (StampMailViewClass *klass)
                                                                          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   gtk_widget_class_bind_template_child (widget_class, StampMailView, mail_layout);
-  gtk_widget_class_bind_template_child (widget_class, StampMailView, app_switcher);
-  gtk_widget_class_bind_template_child (widget_class, StampMailView, switcher_sizes);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, compose_button);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, bp_tablet);
   gtk_widget_class_bind_template_child (widget_class, StampMailView, bp_mobile);

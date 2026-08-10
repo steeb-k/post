@@ -32,25 +32,51 @@
 }
 
 /*
- * Room for the pill in the columns it floats over -- which column that
- * is depends on the layout, so the class goes on the layout slot and
- * the rules below reach into whatever is parked in it. The clearance
- * is the pill's own height plus its margin, rounded up.
+ * Room for whatever floats over the bottom of a column: the pill on the
+ * desktop, the view's action on a phone. Which column that is depends
+ * on the layout, so the class goes on the layout slot and the rules
+ * below reach into whatever is parked in it. The clearance is the
+ * pill's own height plus its margin, rounded up, and the action below
+ * is sized to stay inside it.
  *
  * It is trailing space inside the scrolled content rather than padding
- * on the column, so the last row can be scrolled clear of the pill
- * instead of the list simply ending short of the window edge.
+ * on the column, so the last row can be scrolled clear instead of the
+ * list simply ending short of the window edge.
  */
 .switcher-clearance listview.navigation-sidebar,
 .switcher-clearance .message-list-conversation,
-.switcher-clearance .contact-details-body {
+.switcher-clearance .contact-details-body,
+.switcher-clearance agenda-view listview {
   padding-bottom: 56px;
 }
 
 /* Scroll-to-top floats in the same corner the pill reaches, so it moves
- * up by the same amount. */
+ * up by the same amount. On a phone that is what puts it above the
+ * action rather than on top of it. */
 .switcher-clearance .fab {
   margin-bottom: 56px;
+}
+
+/*
+ * The view's action on a phone, floating over the bottom right of the
+ * content rather than sitting in the switcher row. Four buttons do not
+ * fit across a 360pt bar, and of the four this is the one that is not a
+ * destination, so it is the one that leaves.
+ *
+ * It keeps its label: the icon alone does not say enough to be worth
+ * the width it saves, and on touch there is no tooltip to fall back on.
+ * The elevation is the floating pill's, so the two read as the same
+ * kind of thing in different places, and the 12px margin matches the
+ * pill's -- together with the button's own height that keeps the whole
+ * thing inside the 56px the clearance above reserves.
+ */
+.action-fab {
+  margin: 12px;
+  border-radius: 9999px;
+  padding: 6px 16px;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.16),
+    0 4px 10px rgba(0, 0, 0, 0.12);
 }
 
 /*
@@ -61,26 +87,15 @@
  * Measurements are the ones Adwaita gives a switcher button, so the
  * action sits level with the destinations rather than reading as a
  * control that wandered in from a header bar.
+ *
+ * Only the widths with room for a four-button row use this. The action
+ * stacked its icon over its label once for the narrow row; that is gone
+ * with the row itself, which on a phone carries the three destinations
+ * and nothing else.
  */
 .switcher-action {
   min-height: 34px;
   padding: 2px 12px;
-}
-
-/*
- * Narrow: icon over label, the way the switcher stacks its own once it
- * runs out of width. The breakpoint turns the box vertical and GTK adds
- * the orientation as a style class, so the type follows without the
- * layout being described twice.
- */
-.switcher-action box.vertical {
-  padding-top: 4px;
-}
-
-.switcher-action box.vertical > label {
-  font-size: 0.75rem;
-  min-height: 18px;
-  padding: 0 3px 2px 3px;
 }
 
 /* The today count on the Calendar button. Adwaita's default badge is a

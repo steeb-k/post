@@ -12,6 +12,7 @@ template $StampContactView: Adw.BreakpointBin {
 
     setters {
       contacts_layout.layout-name: "tablet";
+      contact_separator.visible: false;
     }
   }
 
@@ -23,9 +24,11 @@ template $StampContactView: Adw.BreakpointBin {
     setters {
       contacts_layout.layout-name: "mobile";
       app_switcher.policy: narrow;
-      contact_content.orientation: vertical;
-      contact_content.spacing: 0;
-      switcher_sizes.mode: horizontal;
+      app_switcher.hexpand: true;
+      contact_button.visible: false;
+      contact_separator.visible: false;
+      switcher_box.halign: fill;
+      switcher_box.hexpand: true;
     }
   }
 
@@ -185,8 +188,39 @@ template $StampContactView: Adw.BreakpointBin {
             };
 
             content: Adw.ToolbarView {
-              content: Adw.LayoutSlot {
-                id: "list";
+              content: Overlay {
+                child: Adw.LayoutSlot {
+                  id: "list";
+
+                  styles [
+                    "switcher-clearance",
+                  ]
+                };
+
+                /* See StampMailView: on a phone the action leaves the
+                 * switcher row, which has no width for a fourth button,
+                 * and floats over the bottom right instead. */
+                [overlay]
+                Button {
+                  accessibility {
+                    label: C_("tooltip", "Add Contact");
+                  }
+
+                  halign: end;
+                  valign: end;
+                  tooltip-text: C_("tooltip", "Add Contact");
+                  action-name: "contacts.new-contact";
+
+                  styles [
+                    "suggested-action",
+                    "action-fab",
+                  ]
+
+                  child: Adw.ButtonContent {
+                    icon-name: "contact-new-symbolic";
+                    label: _("Contact");
+                  };
+                }
               };
 
               [bottom]
@@ -209,7 +243,10 @@ template $StampContactView: Adw.BreakpointBin {
     }
 
     /* Same shape as the mail and calendar views': the destinations, a
-     * rule, then the one thing this view makes. */
+     * rule, then the one thing this view makes -- centred where there is
+     * room, filling the whole bar at the mobile breakpoint. See
+     * StampMailView for why the row fills rather than matching its four
+     * buttons with a size group. */
     [switcher]
     Box switcher_box {
       halign: center;
@@ -244,7 +281,7 @@ template $StampContactView: Adw.BreakpointBin {
           "switcher-action",
         ]
 
-        child: Box contact_content {
+        child: Box {
           halign: center;
           spacing: 6;
 
@@ -262,14 +299,4 @@ template $StampContactView: Adw.BreakpointBin {
       }
     }
   };
-}
-
-/* See StampMailView: the action takes its width from one of the
- * switcher's own buttons, so the stacked row is four of a kind. */
-SizeGroup switcher_sizes {
-  mode: none;
-
-  widgets [
-    contact_button,
-  ]
 }

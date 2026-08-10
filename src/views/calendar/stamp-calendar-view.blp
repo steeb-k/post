@@ -39,10 +39,11 @@ template $StampCalendarView: Adw.BreakpointBin {
       previous_date_button.visible: false;
       next_date_button.visible: false;
       app_switcher.policy: narrow;
-      event_content.orientation: vertical;
-      event_content.spacing: 0;
+      app_switcher.hexpand: true;
+      event_button.visible: false;
       event_separator.visible: false;
-      switcher_sizes.mode: horizontal;
+      switcher_box.halign: fill;
+      switcher_box.hexpand: true;
     }
   }
 
@@ -271,8 +272,39 @@ template $StampCalendarView: Adw.BreakpointBin {
           };
 
           content: Adw.ToolbarView {
-            content: Adw.LayoutSlot {
-              id: "content";
+            content: Overlay {
+              child: Adw.LayoutSlot {
+                id: "content";
+
+                styles [
+                  "switcher-clearance",
+                ]
+              };
+
+              /* See StampMailView: on a phone the action leaves the
+               * switcher row, which has no width for a fourth button,
+               * and floats over the bottom right instead. */
+              [overlay]
+              Button {
+                accessibility {
+                  label: C_("tooltip", "Add Event");
+                }
+
+                halign: end;
+                valign: end;
+                tooltip-text: C_("tooltip", "Add Event");
+                action-name: "calendar.new-event";
+
+                styles [
+                  "suggested-action",
+                  "action-fab",
+                ]
+
+                child: Adw.ButtonContent {
+                  icon-name: "list-add-symbolic";
+                  label: _("Event");
+                };
+              }
             };
 
             [bottom]
@@ -285,7 +317,10 @@ template $StampCalendarView: Adw.BreakpointBin {
 
       /* Same shape as the mail view's: the destinations, a rule, then
        * what this view makes. Adding an event came off the header bar
-       * to sit with the other views' primary actions. */
+       * to sit with the other views' primary actions. Centred where
+       * there is room, filling the whole bar at the mobile breakpoint;
+       * see StampMailView for why the row fills rather than matching its
+       * four buttons with a size group. */
       [switcher]
       Box switcher_box {
         halign: center;
@@ -320,7 +355,7 @@ template $StampCalendarView: Adw.BreakpointBin {
             "switcher-action",
           ]
 
-          child: Box event_content {
+          child: Box {
             halign: center;
             spacing: 6;
 
@@ -359,14 +394,4 @@ $GcalQuickAddPopover quick_add_popover {
 
 $GcalEventEditorDialog event_editor {
   remove-event => $on_event_editor_dialog_remove_event_cb(template) not-swapped;
-}
-
-/* See StampMailView: the action takes its width from one of the
- * switcher's own buttons, so the stacked row is four of a kind. */
-SizeGroup switcher_sizes {
-  mode: none;
-
-  widgets [
-    event_button,
-  ]
 }

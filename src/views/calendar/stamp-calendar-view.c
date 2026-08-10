@@ -68,10 +68,7 @@ struct _StampCalendarView {
   AdwViewStack *stack;
 
   AdwMultiLayoutView *calendar_layout;
-  AdwViewSwitcher *app_switcher;
-  GtkSizeGroup *switcher_sizes;
   GtkWidget *event_button;
-  gboolean switcher_sized;
   AdwOverlaySplitView *outer_osv;
   AdwOverlaySplitView *tablet_osv;
   AdwOverlaySplitView *mobile_osv;
@@ -468,51 +465,6 @@ settle_active_view (StampCalendarView *self)
 
 /* Breakpoints only flip page visibility; the stack does not leave a
  * now-hidden page on its own. */
-
-/*
- * AdwViewSwitcher gives its own buttons a common width, so matching the
- * action button to any one of them makes the whole row uniform. There
- * is no API for reaching a switcher button, hence the search; finding
- * nothing leaves the row as it was rather than failing.
- */
-static GtkWidget *
-find_switcher_button (GtkWidget *widget)
-{
-  for (GtkWidget *child = gtk_widget_get_first_child (widget);
-       child;
-       child = gtk_widget_get_next_sibling (child)) {
-    GtkWidget *found;
-
-    if (GTK_IS_TOGGLE_BUTTON (child))
-      return child;
-
-    found = find_switcher_button (child);
-    if (found)
-      return found;
-  }
-
-  return NULL;
-}
-
-static void
-match_action_to_switcher (StampCalendarView *self)
-{
-  GtkWidget *button;
-
-  if (self->switcher_sized)
-    return;
-
-  /* The switcher has no buttons until it has a stack, which is handed
-   * down after this view is built -- so this waits for the first
-   * breakpoint change rather than running at construction. */
-  button = find_switcher_button (GTK_WIDGET (self->app_switcher));
-  if (!button)
-    return;
-
-  gtk_size_group_add_widget (self->switcher_sizes, button);
-  self->switcher_sized = TRUE;
-}
-
 static void
 on_breakpoint_changed (GObject *object   G_GNUC_UNUSED,
                        GParamSpec *pspec G_GNUC_UNUSED,
@@ -520,7 +472,6 @@ on_breakpoint_changed (GObject *object   G_GNUC_UNUSED,
 {
   StampCalendarView *self = STAMP_CALENDAR_VIEW (user_data);
 
-  match_action_to_switcher (self);
   settle_active_view (self);
 }
 
@@ -1172,8 +1123,6 @@ stamp_calendar_view_class_init (StampCalendarViewClass *klass)
   gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/views/calendar/stamp-calendar-view.ui");
 
   gtk_widget_class_bind_template_child (widget_class, StampCalendarView, calendar_layout);
-  gtk_widget_class_bind_template_child (widget_class, StampCalendarView, app_switcher);
-  gtk_widget_class_bind_template_child (widget_class, StampCalendarView, switcher_sizes);
   gtk_widget_class_bind_template_child (widget_class, StampCalendarView, event_button);
   gtk_widget_class_bind_template_child (widget_class, StampCalendarView, outer_osv);
   gtk_widget_class_bind_template_child (widget_class, StampCalendarView, tablet_osv);

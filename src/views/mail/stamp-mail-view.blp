@@ -22,10 +22,11 @@ template $StampMailView: Adw.BreakpointBin {
 
     setters {
       app_switcher.policy: narrow;
-      compose_content.orientation: vertical;
-      compose_content.spacing: 0;
+      app_switcher.hexpand: true;
+      compose_button.visible: false;
       compose_separator.visible: false;
-      switcher_sizes.mode: horizontal;
+      switcher_box.halign: fill;
+      switcher_box.hexpand: true;
     }
   }
 
@@ -413,8 +414,47 @@ template $StampMailView: Adw.BreakpointBin {
                   "secondary-sidebar-pane",
                 ]
 
-                content: Adw.LayoutSlot {
-                  id: "list";
+                content: Overlay {
+                  /* Clearance for the action below, which is the same
+                   * corner and the same amount the floating pill needs
+                   * on the desktop -- it also lifts the list's own
+                   * scroll-to-top clear of it. */
+                  child: Adw.LayoutSlot {
+                    id: "list";
+
+                    styles [
+                      "switcher-clearance",
+                    ]
+                  };
+
+                  /* Four buttons will not fit across a 360pt bar, and of
+                   * the four this is the one that does not belong there:
+                   * the other three are places to go. So on a phone the
+                   * action goes back to floating over the bottom right
+                   * of the list, where compose used to live, and keeps
+                   * its label -- the icon alone does not say enough to
+                   * be worth the width it saves. */
+                  [overlay]
+                  Button {
+                    accessibility {
+                      label: _("New Message");
+                    }
+
+                    halign: end;
+                    valign: end;
+                    tooltip-text: _("New Message");
+                    action-name: "mail.composer-new";
+
+                    styles [
+                      "suggested-action",
+                      "action-fab",
+                    ]
+
+                    child: Adw.ButtonContent {
+                      icon-name: "document-edit-symbolic";
+                      label: _("Compose");
+                    };
+                  }
                 };
 
                 [bottom]
@@ -440,7 +480,16 @@ template $StampMailView: Adw.BreakpointBin {
       /* The pill carries where you can go and, past a rule, the one
        * thing this view makes. Compose used to float over the bottom
        * right of the conversation list, which is exactly where the pill
-       * came to sit, so it moves in rather than dodging. */
+       * came to sit, so it moves in rather than dodging.
+       *
+       * Centred at the widths that have room to spare; at the mobile
+       * breakpoint the row is given the whole bar instead, and the
+       * switcher takes whatever the action does not. The four buttons
+       * used to be matched with a size group, which read well but set
+       * each button's *minimum* to the widest label -- putting the row's
+       * floor above 360pt and pushing the whole layout off the side of a
+       * phone. Filling keeps the even row and lets the switcher's labels
+       * ellipsize when the width finally runs out. */
       [switcher]
       Box switcher_box {
         halign: center;
@@ -462,10 +511,11 @@ template $StampMailView: Adw.BreakpointBin {
           margin-bottom: 3;
         }
 
-        /* Built like a switcher button rather than as an icon: label
-         * beside the icon while there is room, stacked under it once
-         * the switcher goes narrow, which the breakpoint turns over
-         * along with the switcher's own policy. */
+        /* Built like a switcher button rather than as an icon, so it
+         * sits level with the destinations instead of reading as a
+         * control that wandered in from a header bar. Hidden outright on
+         * a phone, where the row has no width to spare and the action
+         * floats over the content instead -- see the mobile layout. */
         Button compose_button {
           accessibility {
             label: _("New Message");
@@ -480,7 +530,7 @@ template $StampMailView: Adw.BreakpointBin {
             "switcher-action",
           ]
 
-          child: Box compose_content {
+          child: Box {
             halign: center;
             spacing: 6;
 
@@ -496,18 +546,4 @@ template $StampMailView: Adw.BreakpointBin {
       }
     };
   };
-}
-
-/* AdwViewSwitcher gives its own buttons a common width. Adding the
- * action to a group with one of them -- StampMailView finds it, there
- * being no API for reaching inside -- carries that width across the
- * rule, so the stacked row is four equal buttons rather than three and
- * a smaller one. Off until the row stacks, since side by side the
- * action reads better at the width of its own label. */
-SizeGroup switcher_sizes {
-  mode: none;
-
-  widgets [
-    compose_button,
-  ]
 }
