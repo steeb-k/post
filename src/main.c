@@ -21,10 +21,29 @@
 
 #include <glib/gi18n.h>
 #include <gst/gst.h>
+#include <unistd.h>
 
 #include "stamp-application.h"
 #include "stamp-profile-manager.h"
 #include "stamp-settings.h"
+
+/* Launchers routinely start the app with stderr on /dev/null, and every
+ * warning it logs about a failed sync or a dropped connection goes with
+ * it -- which leaves nothing at all to read after the fact. Prefer the
+ * journal when stderr is not a terminal, and fall back to the default
+ * writer wherever the journal is not reachable, such as inside the
+ * flatpak sandbox. */
+static GLogWriterOutput
+log_writer (GLogLevelFlags   log_level,
+            const GLogField *fields,
+            gsize            n_fields,
+            gpointer         user_data)
+{
+  if (g_log_writer_journald (log_level, fields, n_fields, user_data) == G_LOG_WRITER_HANDLED)
+    return G_LOG_WRITER_HANDLED;
+
+  return g_log_writer_default (log_level, fields, n_fields, user_data);
+}
 
 gint
 main (gint    argc,
@@ -36,6 +55,9 @@ main (gint    argc,
   bindtextdomain (GETTEXT_PACKAGE, LOCALEDIR);
   bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
   textdomain (GETTEXT_PACKAGE);
+
+  if (!isatty (STDERR_FILENO))
+    g_log_set_writer_func (log_writer, NULL, NULL);
 
   gst_init (&argc, &argv);
 
