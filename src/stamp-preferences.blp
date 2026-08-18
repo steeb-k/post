@@ -143,22 +143,23 @@ template $StampPreferences: Adw.PreferencesDialog {
       }
     }
 
+    Adw.PreferencesGroup signatures_group {
+      title: _("Signatures");
+      description: _("Blocks of text added to the end of a message. An account can pick one to use by default, and the composer can switch or drop it per message.");
+
+      Adw.ButtonRow add_signature {
+        title: _("Add Signature");
+        start-icon-name: "list-add-symbolic";
+        activated => $on_add_signature_clicked();
+      }
+    }
+
     Adw.PreferencesGroup {
       title: _("Audio");
 
       Adw.SwitchRow play_incoming_sound {
         title: _("Play Incoming Sound");
         subtitle: _("Audio notification for new incoming mails");
-      }
-    }
-
-    Adw.PreferencesGroup signatures_group {
-      title: _("Signatures");
-
-      Adw.ButtonRow add_signature {
-        title: _("Add Signature");
-        start-icon-name: "list-add-symbolic";
-        activated => $on_add_signature_clicked();
       }
     }
   }

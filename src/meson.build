@@ -35,6 +35,7 @@ stamp_sources = [
   'backend/stamp-profile.c',
   'backend/stamp-profile-manager.c',
   'backend/stamp-signature.c',
+  'views/stamp-format-bar.c',
   'views/stamp-header-bar.c',
   'views/stamp-item.c',
   'views/stamp-layout-picker.c',

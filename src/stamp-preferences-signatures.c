@@ -21,6 +21,7 @@
 
 #include <glib/gi18n.h>
 
+#include "stamp-format-bar.h"
 #include "stamp-session.h"
 #include "stamp-signature.h"
 #include "stamp-webview.h"
@@ -31,6 +32,7 @@ struct _StampPreferencesSignatureEditor {
   AdwWindowTitle *editor_window_title;
   AdwEntryRow *name_row;
   StampWebView *web_view;
+  StampFormatBar *format_bar;
   AdwButtonRow *save;
   AdwButtonRow *remove;
 
@@ -147,6 +149,7 @@ stamp_preferences_signature_editor_class_init (StampPreferencesSignatureEditorCl
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesSignatureEditor, editor_window_title);
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesSignatureEditor, name_row);
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesSignatureEditor, web_view);
+  gtk_widget_class_bind_template_child (widget_class, StampPreferencesSignatureEditor, format_bar);
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesSignatureEditor, save);
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesSignatureEditor, remove);
 
@@ -158,6 +161,12 @@ static void
 stamp_preferences_signature_editor_setup (StampPreferencesSignatureEditor *self)
 {
   webkit_web_view_set_editable (WEBKIT_WEB_VIEW (self->web_view), TRUE);
+
+  /* The composer does the same: without this the view never takes GTK
+   * focus, which keyboard shortcuts key off. */
+  gtk_widget_set_focusable (GTK_WIDGET (self->web_view), TRUE);
+
+  stamp_format_bar_set_webview (self->format_bar, self->web_view);
 
   if (self->signature) {
     adw_window_title_set_title (self->editor_window_title, _("Edit Signature"));

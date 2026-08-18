@@ -57,7 +57,7 @@ stamp_signature_save (StampSignature *self,
     return;
 
   g_set_str (&self->content, html_signature);
-  self->mime_type = g_strdup ("text/html");
+  g_set_str (&self->mime_type, "text/html");
 
   e_source_mail_signature_set_mime_type (ext, "text/html");
   e_source_mail_signature_replace (self->source, html_signature, strlen (html_signature), G_PRIORITY_DEFAULT, self->cancellable, on_signature_replace, NULL);
