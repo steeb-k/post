@@ -7,3 +7,20 @@
   background-color: grey;
 }
 
+
+/* Headers for the starred section and the group below it. The list uses
+ * the navigation-sidebar style, which puts no padding of its own around a
+ * section header, so the row supplies it. */
+.conversation-section-header {
+  padding: 10px 12px 6px 12px;
+  border-radius: 0;
+}
+
+button.conversation-section-header {
+  margin: 0;
+  min-height: 0;
+}
+
+.conversation-section-header label {
+  opacity: 0.7;
+}

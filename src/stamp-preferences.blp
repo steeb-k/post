@@ -141,6 +141,24 @@ template $StampPreferences: Adw.PreferencesDialog {
       Adw.SwitchRow important_first {
         title: _("Show important mails on top");
       }
+
+      Adw.SwitchRow starred_first {
+        title: _("Show starred mails on top");
+        subtitle: _("Collects starred mails into a collapsible section above the rest of the list");
+      }
+
+      Adw.SpinRow starred_limit {
+        title: _("Starred Mails on Top");
+        subtitle: _("Starred mails past this many stay in the rest of the list");
+        sensitive: bind starred_first.active;
+
+        adjustment: Adjustment {
+          lower: 1;
+          upper: 50;
+          step-increment: 1;
+          page-increment: 5;
+        };
+      }
     }
 
     Adw.PreferencesGroup signatures_group {

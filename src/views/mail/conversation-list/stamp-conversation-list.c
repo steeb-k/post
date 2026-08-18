@@ -84,6 +84,13 @@ struct _StampConversationList {
   GList *moved_messages;
   gboolean is_pulling;
   GtkSorter *sorter;
+  GtkSorter *section_sorter;
+  GtkSortListModel *sort_model;
+  GtkListItemFactory *header_factory;
+  GtkWidget *collapsed_starred_strip;
+  GHashTable *promoted;
+  guint starred_recompute_id;
+  gboolean starred_expanded;
   GtkFilter *filter;
   gchar *full_name;
   GMenuModel *context_menu_model;
@@ -171,6 +178,14 @@ load_folder_idle (gpointer user_data);
 static gboolean
 load_more_items_idle (gpointer user_data);
 
+static void
+queue_starred_recompute (StampConversationList *self);
+
+static gboolean
+scroll_to_top_tick (GtkWidget     *widget,
+                    GdkFrameClock *clock,
+                    gpointer       user_data);
+
 
 static void
 on_conversation_list_folder_changed (CamelFolder           *folder,
@@ -191,6 +206,8 @@ on_conversation_list_folder_changed (CamelFolder           *folder,
       if (item)
         stamp_conversation_item_update (item, message_info);
     }
+
+    queue_starred_recompute (self);
   }
 
   if ((changes->uid_added && changes->uid_added->len > 0) || (changes->uid_removed && changes->uid_removed->len > 0)) {
@@ -218,14 +235,56 @@ get_thread (StampConversationList *self,
 }
 
 
-static gint
-sorter_func (gconstpointer a,
-             gconstpointer b,
-             gpointer      user_data)
+/* The starred section.
+ *
+ * With "starred-first" on, the starred mails that sort first are lifted
+ * into a section of their own above the rest of the list. Only as many
+ * as "starred-limit" allows go up there; starred mail past the limit
+ * stays in the main group and sorts by date like anything else, which is
+ * what Gmail does with its own starred section.
+ *
+ * Which mails are lifted is cached in self->promoted, because both the
+ * sorter and the filter have to answer "is this one in the top section?"
+ * for every item they touch, and working that out from scratch each time
+ * would turn sorting quadratic.
+ */
+#define STARRED_SECTION 0
+#define OTHERS_SECTION  1
+
+static gboolean
+has_starred_section (StampConversationList *self)
 {
-  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
-  StampConversationItem *item1 = (StampConversationItem *)(a);
-  StampConversationItem *item2 = (StampConversationItem *)(b);
+  return self->promoted && g_hash_table_size (self->promoted) > 0;
+}
+
+static gboolean
+is_promoted (StampConversationList  *self,
+             StampConversationItem  *item)
+{
+  const gchar *uid;
+
+  if (!has_starred_section (self))
+    return FALSE;
+
+  uid = stamp_conversation_item_get_uid (item);
+
+  return uid && g_hash_table_contains (self->promoted, uid);
+}
+
+static guint
+section_of (StampConversationList *self,
+            StampConversationItem *item)
+{
+  return is_promoted (self, item) ? STARRED_SECTION : OTHERS_SECTION;
+}
+
+/* Ordering inside one section, which is also the order the starred
+ * section picks its top few from. */
+static gint
+compare_within_section (StampConversationList *self,
+                        StampConversationItem *item1,
+                        StampConversationItem *item2)
+{
   guint timestamp1 = stamp_conversation_item_get_timestamp (item1);
   guint timestamp2 = stamp_conversation_item_get_timestamp (item2);
   gint64 uid1;
@@ -252,12 +311,50 @@ sorter_func (gconstpointer a,
   return uid1 > uid2 ? -1 : 1;
 }
 
-static gboolean
-filter_func (gpointer object,
-             gpointer user_data)
+static gint
+sorter_func (gconstpointer a,
+             gconstpointer b,
+             gpointer      user_data)
 {
   StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
-  StampConversationItem *item = STAMP_CONVERSATION_ITEM (object);
+  StampConversationItem *item1 = (StampConversationItem *)(a);
+  StampConversationItem *item2 = (StampConversationItem *)(b);
+
+  if (has_starred_section (self)) {
+    guint section1 = section_of (self, item1);
+    guint section2 = section_of (self, item2);
+
+    if (section1 != section2)
+      return section1 < section2 ? -1 : 1;
+  }
+
+  return compare_within_section (self, item1, item2);
+}
+
+/* Tells the sort model where one section ends and the next begins, so
+ * that the list view can ask for a header at the boundary. */
+static gint
+section_sorter_func (gconstpointer a,
+                     gconstpointer b,
+                     gpointer      user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+  guint section1 = section_of (self, (StampConversationItem *)(a));
+  guint section2 = section_of (self, (StampConversationItem *)(b));
+
+  if (section1 == section2)
+    return 0;
+
+  return section1 < section2 ? -1 : 1;
+}
+
+/* Everything the search box and the filter menu have to say about an
+ * item. Kept apart from filter_func because a collapsed starred section
+ * must not change which mails belong to it. */
+static gboolean
+base_filter_matches (StampConversationList *self,
+                     StampConversationItem *item)
+{
   const gchar *search_text = gtk_editable_get_text (GTK_EDITABLE (self->search_entry));
   gint search_text_len = search_text ? strlen (search_text) : 0;
 
@@ -340,6 +437,281 @@ filter_func (gpointer object,
   }
 
   return TRUE;
+}
+
+static gboolean
+filter_func (gpointer object,
+             gpointer user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+  StampConversationItem *item = STAMP_CONVERSATION_ITEM (object);
+
+  if (!base_filter_matches (self, item))
+    return FALSE;
+
+  /* A collapsed starred section drops its rows but keeps its header. */
+  if (!self->starred_expanded && is_promoted (self, item))
+    return FALSE;
+
+  return TRUE;
+}
+
+static gint
+starred_rank_compare (gconstpointer a,
+                      gconstpointer b,
+                      gpointer      user_data)
+{
+  return compare_within_section (STAMP_CONVERSATION_LIST (user_data),
+                                 *(StampConversationItem **)(a),
+                                 *(StampConversationItem **)(b));
+}
+
+static gboolean
+promoted_sets_equal (GHashTable *one,
+                     GHashTable *other)
+{
+  GHashTableIter iter;
+  gpointer key;
+
+  if (g_hash_table_size (one) != g_hash_table_size (other))
+    return FALSE;
+
+  g_hash_table_iter_init (&iter, one);
+  while (g_hash_table_iter_next (&iter, &key, NULL)) {
+    if (!g_hash_table_contains (other, key))
+      return FALSE;
+  }
+
+  return TRUE;
+}
+
+static void
+update_collapsed_starred_strip (StampConversationList *self);
+
+/* Sections only exist while there is starred mail to put in them. A lone
+ * "Everything else" header over an otherwise ordinary list would be
+ * noise, so the headers come and go with the starred section. */
+static void
+update_sections (StampConversationList *self)
+{
+  gboolean have_section = has_starred_section (self);
+  /* The list view holds its place by anchoring on a row that is already
+   * on screen, so lifting mails into a new section above that row pushes
+   * the section and its header off the top of the view. Someone sitting
+   * at the top of the list meant to be at the top of it. */
+  gboolean was_at_top = !self->vadj || gtk_adjustment_get_value (self->vadj) <= 1.0;
+
+  gtk_sort_list_model_set_section_sorter (self->sort_model,
+                                          have_section ? self->section_sorter : NULL);
+  gtk_list_view_set_header_factory (GTK_LIST_VIEW (self->listview),
+                                    have_section ? self->header_factory : NULL);
+
+  gtk_sorter_changed (self->sorter, GTK_SORTER_CHANGE_DIFFERENT);
+  gtk_filter_changed (self->filter, GTK_FILTER_CHANGE_DIFFERENT);
+
+  if (was_at_top) {
+    gtk_list_view_scroll_to (GTK_LIST_VIEW (self->listview), 0, GTK_LIST_SCROLL_NONE, NULL);
+    gtk_widget_add_tick_callback (GTK_WIDGET (self), scroll_to_top_tick, self, NULL);
+  }
+
+  update_collapsed_starred_strip (self);
+}
+
+static void
+starred_recompute (StampConversationList *self)
+{
+  g_autoptr (GPtrArray) starred = g_ptr_array_new_with_free_func (g_object_unref);
+  GHashTable *promoted;
+  guint limit = g_settings_get_uint (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_STARRED_LIMIT);
+  guint n_items = g_list_model_get_n_items (G_LIST_MODEL (self->list_store));
+
+  /* A starred section inside the starred-only filter would just repeat
+   * the first few rows under a heading, so leave it out there. */
+  if (g_settings_get_boolean (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_STARRED_FIRST) &&
+      self->filter_mode != FILTER_MODE_STARRED) {
+    for (guint idx = 0; idx < n_items; idx++) {
+      StampConversationItem *item = g_list_model_get_item (G_LIST_MODEL (self->list_store), idx);
+
+      /* base_filter_matches, not filter_func: collapsing the section
+       * must not change what belongs in it. */
+      if (stamp_conversation_item_get_flagged (item) && base_filter_matches (self, item))
+        g_ptr_array_add (starred, item);
+      else
+        g_object_unref (item);
+    }
+
+    g_ptr_array_sort_with_data (starred, starred_rank_compare, self);
+  }
+
+  promoted = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+
+  for (guint idx = 0; idx < starred->len && idx < limit; idx++) {
+    const gchar *uid = stamp_conversation_item_get_uid (starred->pdata[idx]);
+
+    if (uid)
+      g_hash_table_add (promoted, g_strdup (uid));
+  }
+
+  /* Re-sorting the whole list on every folder change would make
+   * scrolling stutter, so only disturb it when the section really moved. */
+  if (self->promoted && promoted_sets_equal (self->promoted, promoted)) {
+    g_hash_table_unref (promoted);
+    return;
+  }
+
+  g_clear_pointer (&self->promoted, g_hash_table_unref);
+  self->promoted = promoted;
+
+  update_sections (self);
+}
+
+static void
+starred_recompute_idle (gpointer user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+
+  self->starred_recompute_id = 0;
+  starred_recompute (self);
+}
+
+static void
+queue_starred_recompute (StampConversationList *self)
+{
+  if (self->starred_recompute_id)
+    return;
+
+  self->starred_recompute_id = g_idle_add_once (starred_recompute_idle, self);
+}
+
+static void
+on_starred_settings_changed (StampConversationList *self)
+{
+  queue_starred_recompute (self);
+}
+
+static void
+on_important_first_changed (StampConversationList *self)
+{
+  gtk_sorter_changed (self->sorter, GTK_SORTER_CHANGE_DIFFERENT);
+  queue_starred_recompute (self);
+}
+
+static void
+on_starred_section_toggled (GtkButton *button,
+                            gpointer   user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+
+  self->starred_expanded = !self->starred_expanded;
+  g_settings_set_boolean (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_STARRED_EXPANDED, self->starred_expanded);
+
+  gtk_filter_changed (self->filter, GTK_FILTER_CHANGE_DIFFERENT);
+  update_collapsed_starred_strip (self);
+}
+
+static GtkWidget *
+build_section_header (StampConversationList *self,
+                      guint                  section)
+{
+  GtkWidget *label;
+  GtkWidget *box;
+
+  label = gtk_label_new (section == STARRED_SECTION ? _("Starred") : _("Everything else"));
+  gtk_widget_add_css_class (label, "heading");
+  gtk_label_set_xalign (GTK_LABEL (label), 0.0);
+
+  if (section != STARRED_SECTION) {
+    box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+    gtk_widget_add_css_class (box, "conversation-section-header");
+    gtk_box_append (GTK_BOX (box), label);
+
+    return box;
+  }
+
+  box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+  /* A button centres its child, and a header centred over a full-width
+   * row looks like a title bar rather than the start of a group. */
+  gtk_widget_set_halign (box, GTK_ALIGN_START);
+  gtk_box_append (GTK_BOX (box), gtk_image_new_from_icon_name (self->starred_expanded ? "pan-down-symbolic"
+                                                                                     : "pan-end-symbolic"));
+  gtk_box_append (GTK_BOX (box), label);
+
+  /* The whole header is the target, not just the arrow: it is a wide,
+   * thin row and aiming at the icon on a phone is no fun. */
+  {
+    GtkWidget *button = gtk_button_new ();
+
+    gtk_button_set_child (GTK_BUTTON (button), box);
+    gtk_widget_add_css_class (button, "flat");
+    gtk_widget_add_css_class (button, "conversation-section-header");
+    gtk_widget_set_tooltip_text (button, self->starred_expanded ? _("Hide starred mails")
+                                                               : _("Show starred mails"));
+    gtk_accessible_update_state (GTK_ACCESSIBLE (button), GTK_ACCESSIBLE_STATE_EXPANDED,
+                                 self->starred_expanded, -1);
+    g_signal_connect_object (button, "clicked", G_CALLBACK (on_starred_section_toggled), self, G_CONNECT_DEFAULT);
+
+    return button;
+  }
+}
+
+static void
+remove_children (GtkWidget *box)
+{
+  GtkWidget *child;
+
+  while ((child = gtk_widget_get_first_child (box)))
+    gtk_box_remove (GTK_BOX (box), child);
+}
+
+/* With the starred section collapsed and nothing left in the list to
+ * hang a header off, the header gets pinned above the list instead --
+ * otherwise there would be nothing to click to bring the mails back. */
+static void
+update_collapsed_starred_strip (StampConversationList *self)
+{
+  gboolean needed = has_starred_section (self) &&
+                    !self->starred_expanded &&
+                    g_list_model_get_n_items (G_LIST_MODEL (self->sort_model)) == 0;
+
+  remove_children (self->collapsed_starred_strip);
+
+  if (needed)
+    gtk_box_append (GTK_BOX (self->collapsed_starred_strip), build_section_header (self, STARRED_SECTION));
+
+  gtk_widget_set_visible (self->collapsed_starred_strip, needed);
+}
+
+static void
+on_setup_section_header (GtkListItemFactory *factory,
+                         GtkListHeader      *header,
+                         gpointer            user_data)
+{
+  gtk_list_header_set_child (header, gtk_box_new (GTK_ORIENTATION_VERTICAL, 0));
+}
+
+static void
+on_bind_section_header (GtkListItemFactory *factory,
+                        GtkListHeader      *header,
+                        gpointer            user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+  GtkWidget *box = gtk_list_header_get_child (header);
+  StampConversationItem *item = gtk_list_header_get_item (header);
+  guint section;
+
+  remove_children (box);
+
+  if (!item)
+    return;
+
+  section = section_of (self, item);
+
+  /* A collapsed starred section has no rows of its own for a header to
+   * sit above, so the group below it carries that header along too. */
+  if (section == OTHERS_SECTION && !self->starred_expanded)
+    gtk_box_append (GTK_BOX (box), build_section_header (self, STARRED_SECTION));
+
+  gtk_box_append (GTK_BOX (box), build_section_header (self, section));
 }
 
 static void
@@ -448,6 +820,8 @@ on_items_changed (GListModel *model,
   StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
 
   stamp_conversation_list_update_state (self);
+  update_collapsed_starred_strip (self);
+  queue_starred_recompute (self);
 
   rebuild_category_actions (self);
 }
@@ -744,6 +1118,8 @@ on_mail_search_entry_changed (GtkWidget *search_entry,
 
   if (self->filter)
     gtk_filter_changed (self->filter, GTK_FILTER_CHANGE_DIFFERENT);
+
+  queue_starred_recompute (self);
 }
 
 static void
@@ -1500,6 +1876,12 @@ stamp_conversation_list_dispose (GObject *object)
 
   g_clear_handle_id (&self->load_folder_handler, g_source_remove);
   g_clear_handle_id (&self->load_more_items_handler, g_source_remove);
+  g_clear_handle_id (&self->starred_recompute_id, g_source_remove);
+
+  g_clear_object (&self->section_sorter);
+  g_clear_object (&self->header_factory);
+  g_clear_object (&self->sort_model);
+  g_clear_pointer (&self->promoted, g_hash_table_unref);
 
   g_clear_object (&self->thread);
   g_clear_object (&self->list_store);
@@ -1585,6 +1967,7 @@ stamp_conversation_list_class_init (StampConversationListClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, view_button);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, view_popover);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, sort_is_active);
+  gtk_widget_class_bind_template_child (widget_class, StampConversationList, collapsed_starred_strip);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, context_menu_model);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, move_selection_button);
   gtk_widget_class_bind_template_child (widget_class, StampConversationList, trash_selection_button);
@@ -1752,6 +2135,8 @@ on_filter_activate (GSimpleAction *action,
 
   if (self->filter)
     gtk_filter_changed (self->filter, GTK_FILTER_CHANGE_DIFFERENT);
+
+  queue_starred_recompute (self);
 }
 
 static void
@@ -1776,6 +2161,7 @@ on_sort_activate (GSimpleAction *action,
     self->sort_mode = SORT_MODE_OLDEST_FIRST;
 
   gtk_sorter_changed (self->sorter, GTK_SORTER_CHANGE_INVERTED);
+  queue_starred_recompute (self);
 }
 
 static void
@@ -2160,25 +2546,45 @@ stamp_conversation_list_init (StampConversationList *self)
 
   self->list_store = g_list_store_new (STAMP_TYPE_CONVERSATION_ITEM);
 
+  /* Both the filter and the sorter consult the starred set, so it has to
+   * exist before either of them can run. */
+  self->promoted = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+  self->starred_expanded = g_settings_get_boolean (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_STARRED_EXPANDED);
+
   self->filter = GTK_FILTER (gtk_custom_filter_new (filter_func, self, NULL));
   self->filter_model = gtk_filter_list_model_new (G_LIST_MODEL (self->list_store), self->filter);
   /* self->filter_model = gtk_filter_list_model_new (NULL, self->filter); */
 
   self->sorter = GTK_SORTER (gtk_custom_sorter_new (sorter_func, self, NULL));
   sort_model = gtk_sort_list_model_new (G_LIST_MODEL (self->filter_model), self->sorter);
+  self->sort_model = sort_model;
+
+  self->section_sorter = GTK_SORTER (gtk_custom_sorter_new (section_sorter_func, self, NULL));
+
+  self->header_factory = gtk_signal_list_item_factory_new ();
+  g_signal_connect_object (self->header_factory, "setup", G_CALLBACK (on_setup_section_header), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (self->header_factory, "bind", G_CALLBACK (on_bind_section_header), self, G_CONNECT_DEFAULT);
+
+  g_signal_connect_object (STAMP_SETTINGS_MAIL, "changed::" STAMP_PREFS_MAIL_STARRED_FIRST,
+                           G_CALLBACK (on_starred_settings_changed), self, G_CONNECT_SWAPPED);
+  g_signal_connect_object (STAMP_SETTINGS_MAIL, "changed::" STAMP_PREFS_MAIL_STARRED_LIMIT,
+                           G_CALLBACK (on_starred_settings_changed), self, G_CONNECT_SWAPPED);
+  /* Which starred mails are the top few depends on this ordering too. */
+  g_signal_connect_object (STAMP_SETTINGS_MAIL, "changed::" STAMP_PREFS_MAIL_IMPORTANT_FIRST,
+                           G_CALLBACK (on_important_first_changed), self, G_CONNECT_SWAPPED);
 
   g_signal_connect (G_LIST_MODEL (sort_model), "items-changed", G_CALLBACK (on_items_changed), self);
 
   rebuild_category_actions (self);
 
-  self->single_selection = gtk_single_selection_new (G_LIST_MODEL (sort_model));
+  self->single_selection = gtk_single_selection_new (g_object_ref (G_LIST_MODEL (sort_model)));
   g_signal_connect_object (self->single_selection, "selection-changed", G_CALLBACK (on_single_selection_changed), self, G_CONNECT_DEFAULT);
   gtk_list_view_set_model (GTK_LIST_VIEW (self->listview), GTK_SELECTION_MODEL (self->single_selection));
 
   gtk_single_selection_set_autoselect (self->single_selection, FALSE);
   gtk_single_selection_set_can_unselect (self->single_selection, TRUE);
 
-  self->multi_selection = gtk_no_selection_new (G_LIST_MODEL (sort_model));
+  self->multi_selection = gtk_no_selection_new (g_object_ref (G_LIST_MODEL (sort_model)));
   g_signal_connect_object (self->multi_selection, "selection-changed", G_CALLBACK (on_multi_selection_changed), self, G_CONNECT_DEFAULT);
 
   gtk_search_bar_connect_entry (GTK_SEARCH_BAR (self->search_bar), GTK_EDITABLE (self->search_entry));

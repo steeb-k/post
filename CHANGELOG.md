@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+- StampConversationList: Add a collapsible starred section on top of the list (steeb-k)
 - Add category support (Jan-Michael Brummer)
 - Add notification action (Jan-Michael Brummer)
 - Add mime parser (Jan-Michael Brummer)

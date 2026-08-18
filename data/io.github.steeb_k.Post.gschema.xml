@@ -120,6 +120,22 @@
         <summary>Show important mails first</summary>
         <description>Whether to move important mails on top.</description>
     </key>
+    <key type="b" name="starred-first">
+        <default>false</default>
+        <summary>Show starred mails first</summary>
+        <description>Whether to gather starred mails into their own section above the rest of the list.</description>
+    </key>
+    <key type="u" name="starred-limit">
+        <range min="1" max="50"/>
+        <default>5</default>
+        <summary>How many starred mails the top section holds</summary>
+        <description>The starred section shows at most this many mails. Starred mails beyond the limit stay in the rest of the list, sorted by date.</description>
+    </key>
+    <key type="b" name="starred-expanded">
+        <default>true</default>
+        <summary>Expand the starred section</summary>
+        <description>Whether the starred section at the top of the conversation list is showing its mails or is collapsed to its header.</description>
+    </key>
     <key type="u" name="refresh-interval">
         <default>60</default>
         <summary>Refresh interval in seconds</summary>

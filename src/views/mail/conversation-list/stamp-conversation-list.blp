@@ -218,6 +218,11 @@ template $StampConversationList: Adw.Bin {
               child: Box {
                 orientation: vertical;
 
+                Box collapsed_starred_strip {
+                  orientation: vertical;
+                  visible: false;
+                }
+
                 ScrolledWindow scrolled_window {
                   hscrollbar-policy: never;
 
