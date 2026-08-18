@@ -20,6 +20,7 @@
 #include "stamp-account-item.h"
 
 #include <camel/camel.h>
+#include <libedataserver/libedataserver.h>
 
 #include "stamp-account.h"
 #include "stamp-folder-item.h"
@@ -31,12 +32,37 @@ struct _StampAccountItem {
 
   GCancellable *cancellable;
   CamelOfflineStore *offline_store;
-  GThread *refresh_thread;
+
+  /* Camel work is handed this one, never the item's own: a connection
+   * that has gone stale has to be abandoned mid-flight without taking
+   * the item down with it. Replaced after every such reset. */
+  GCancellable *op_cancellable;
+
+  GSettings *mail_settings;
 
   GQueue *refresh_queue;
   gboolean refresh_queue_running;
   gboolean first_refresh;
   guint refresh_folder_handler;
+  guint refresh_timer_handler;
+  guint refresh_watchdog_handler;
+  guint connect_retry_handler;
+  gint connect_retries;
+
+  /* The folder being refreshed right now, held for as long as the call
+   * is out so the watchdog has something to clear if it never returns. */
+  StampFolderItem *refreshing_item;
+
+  /* Raised by camel whenever an operation reports progress, and cleared
+   * by the watchdog reading it. Atomic because camel is free to report
+   * from whichever thread the work is running on. */
+  gint refresh_activity;
+
+  /* Last state seen from the network monitor, so a reconnect can tell a
+   * network that has just come back from one that never went away. */
+  gboolean network_available;
+
+  gboolean disposed;
 
   /* Set when the account started offline, so the tree on screen came
    * from the cache and still has to be reconciled with the server once
@@ -49,6 +75,16 @@ G_DEFINE_FINAL_TYPE (StampAccountItem, stamp_account_item, STAMP_TYPE_ITEM);
 
 static void
 stamp_account_item_connect_to_account (StampAccountItem *self);
+static void
+stamp_account_item_reset_connection (StampAccountItem *self);
+static void
+start_refresh (StampAccountItem *self);
+static void
+schedule_connect_retry (StampAccountItem *self);
+static void
+on_refresh (GObject      *source,
+            GAsyncResult *result,
+            gpointer      user_data);
 
 enum {
   ACCOUNT_ITEM_CHANGED,
@@ -56,6 +92,45 @@ enum {
 };
 
 static gint signals[LAST_SIGNAL] = { 0 };
+
+/* Refreshing a big folder over a slow link is allowed to take a while;
+ * going quiet for this long with nothing to show is not. TCP will sit on
+ * a connection whose route has gone away for many minutes before it
+ * gives up, and until it does, every folder in the account is stuck
+ * behind it. */
+#define REFRESH_TIMEOUT_SECONDS 120
+
+static void
+on_operation_status (CamelOperation *operation,
+                     const gchar    *what,
+                     gint            percent,
+                     gpointer        user_data)
+{
+  StampAccountItem *self = user_data;
+
+  g_atomic_int_set (&self->refresh_activity, TRUE);
+}
+
+/* A CamelOperation rather than a plain GCancellable: it is a cancellable
+ * that also reports what the server is doing, which is what lets the
+ * watchdog below tell a slow connection from a dead one. */
+static GCancellable *
+op_cancellable_for (StampAccountItem *self)
+{
+  if (!self->op_cancellable) {
+    self->op_cancellable = camel_operation_new ();
+    g_signal_connect_object (self->op_cancellable, "status",
+                             G_CALLBACK (on_operation_status), self, G_CONNECT_DEFAULT);
+  }
+
+  return self->op_cancellable;
+}
+
+static void
+clear_refresh_watchdog (StampAccountItem *self)
+{
+  g_clear_handle_id (&self->refresh_watchdog_handler, g_source_remove);
+}
 
 static StampFolderItem *
 stamp_account_item_find_item (GListStore  *store,
@@ -190,6 +265,9 @@ on_get_folder_info (GObject      *source,
 void
 stamp_account_item_load (StampAccountItem *self)
 {
+  if (self->disposed || g_cancellable_is_cancelled (self->cancellable))
+    return;
+
   stamp_item_set_loading (STAMP_ITEM (self), TRUE);
 
   /* Whatever comes back is only as good as the store it came from: an
@@ -204,7 +282,7 @@ stamp_account_item_load (StampAccountItem *self)
                                NULL,
                                CAMEL_STORE_FOLDER_INFO_RECURSIVE | CAMEL_STORE_FOLDER_INFO_FAST,
                                G_PRIORITY_DEFAULT,
-                               self->cancellable,
+                               op_cancellable_for (self),
                                on_get_folder_info,
                                self);
 }
@@ -255,7 +333,9 @@ on_service_connect (GObject      *source,
     return;
   }
 
-  camel_store_synchronize (CAMEL_STORE (self->offline_store), FALSE, G_PRIORITY_DEFAULT, self->cancellable, on_synchronize, self);
+  self->connect_retries = 0;
+
+  camel_store_synchronize (CAMEL_STORE (self->offline_store), FALSE, G_PRIORITY_DEFAULT, op_cancellable_for (self), on_synchronize, self);
 }
 
 static void
@@ -268,22 +348,149 @@ on_offline_store_set_online (GObject      *source,
 
   camel_offline_store_set_online_finish (self->offline_store, res, &error);
   if (error) {
-    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
       g_warning ("Error setting offline store to online: %s", error->message);
+      schedule_connect_retry (self);
+    }
 
     g_object_unref (self);
     return;
   }
 
-  camel_service_connect (CAMEL_SERVICE (self->offline_store), G_PRIORITY_DEFAULT, self->cancellable, on_service_connect, self);
+  camel_service_connect (CAMEL_SERVICE (self->offline_store), G_PRIORITY_DEFAULT, op_cancellable_for (self), on_service_connect, self);
+}
+
+/* Going online is refused while the session itself is still marked
+ * offline, and on the way back from a suspend the session is told by the
+ * same monitor signal that brought us here -- so the first attempt can
+ * arrive a moment too early. Left alone it would come right on the next
+ * refresh tick a minute later, which is a minute of error badges on
+ * every folder. A couple of short retries close that gap; the network
+ * check in connect_to_account keeps them from running while genuinely
+ * offline, and the count keeps them from running forever. */
+#define CONNECT_RETRY_SECONDS 5
+#define CONNECT_RETRY_LIMIT 3
+
+static gboolean
+on_connect_retry (gpointer user_data)
+{
+  StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data);
+
+  self->connect_retry_handler = 0;
+  stamp_account_item_connect_to_account (self);
+
+  return G_SOURCE_REMOVE;
+}
+
+static void
+schedule_connect_retry (StampAccountItem *self)
+{
+  if (self->disposed || self->connect_retry_handler)
+    return;
+
+  if (self->connect_retries >= CONNECT_RETRY_LIMIT) {
+    g_debug ("%s: Giving up reconnecting until the network changes again", G_STRFUNC);
+    return;
+  }
+
+  self->connect_retries++;
+  self->connect_retry_handler = g_timeout_add_seconds (CONNECT_RETRY_SECONDS, on_connect_retry, self);
+}
+
+static void
+on_service_disconnect (GObject      *source,
+                       GAsyncResult *res,
+                       gpointer      user_data)
+{
+  g_autoptr (StampAccountItem) self = user_data;
+  g_autoptr (GError) error = NULL;
+
+  if (!camel_service_disconnect_finish (CAMEL_SERVICE (source), res, &error) &&
+      !g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+    g_debug ("%s: Could not drop the stale connection: %s", G_STRFUNC, error->message);
+
+  /* Failed or not, what it was holding is of no further use. */
+  stamp_account_item_connect_to_account (self);
+}
+
+/* Throw away the connection and everything queued on it, then build it
+ * again from scratch.
+ *
+ * The order is the point. Camel serialises connect and disconnect on the
+ * service, so a disconnect asked for while a read is wedged waits on the
+ * very socket it was meant to abandon -- which is how one dead
+ * connection takes the whole account offline and keeps it there.
+ * Cancelling first releases that lock; clean = FALSE then skips the
+ * parting LOGOUT, because a connection that cannot carry a fetch cannot
+ * carry that either. */
+static void
+stamp_account_item_reset_connection (StampAccountItem *self)
+{
+  if (self->disposed || g_cancellable_is_cancelled (self->cancellable))
+    return;
+
+  g_cancellable_cancel (self->op_cancellable);
+  g_clear_object (&self->op_cancellable);
+
+  g_clear_handle_id (&self->connect_retry_handler, g_source_remove);
+  self->connect_retries = 0;
+
+  clear_refresh_watchdog (self);
+
+  /* Anything still out reports to a cancellable nobody reads any more,
+   * so the queue belongs to the reconnect now. */
+  if (self->refreshing_item)
+    stamp_item_set_loading (STAMP_ITEM (self->refreshing_item), FALSE);
+  g_clear_object (&self->refreshing_item);
+  self->refresh_queue_running = FALSE;
+
+  camel_service_disconnect (CAMEL_SERVICE (self->offline_store),
+                            FALSE,
+                            G_PRIORITY_DEFAULT,
+                            op_cancellable_for (self),
+                            on_service_disconnect,
+                            g_object_ref (self));
+}
+
+static gboolean
+on_refresh_timeout (gpointer user_data)
+{
+  StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data);
+
+  /* Something arrived during the last interval, so this is a slow
+   * connection and not a dead one -- which is the whole difference on a
+   * phone holding on to one bar. Give it another interval. */
+  if (g_atomic_int_compare_and_exchange (&self->refresh_activity, TRUE, FALSE))
+    return G_SOURCE_CONTINUE;
+
+  self->refresh_watchdog_handler = 0;
+
+  g_warning ("%s: Refresh of %s went silent for %d seconds, dropping the connection",
+             G_STRFUNC,
+             self->refreshing_item ? stamp_folder_item_get_full_name (self->refreshing_item) : "(unknown)",
+             REFRESH_TIMEOUT_SECONDS);
+
+  stamp_account_item_reset_connection (self);
+
+  return G_SOURCE_REMOVE;
+}
+
+/* One timer per refresh, armed when the call goes out and dropped when
+ * it comes back, so an account that is simply idle arms nothing. */
+static void
+arm_refresh_watchdog (StampAccountItem *self)
+{
+  clear_refresh_watchdog (self);
+  g_atomic_int_set (&self->refresh_activity, FALSE);
+  self->refresh_watchdog_handler = g_timeout_add_seconds (REFRESH_TIMEOUT_SECONDS, on_refresh_timeout, self);
 }
 
 static void
 stamp_account_item_connect_to_account (StampAccountItem *self)
 {
-  GNetworkMonitor *monitor = g_network_monitor_get_default ();
+  GNetworkMonitor *monitor = e_network_monitor_get_default ();
 
-  if (g_cancellable_is_cancelled (self->cancellable))
+  if (self->disposed || g_cancellable_is_cancelled (self->cancellable))
     return;
 
   if (!g_network_monitor_get_network_available (monitor))
@@ -292,7 +499,7 @@ stamp_account_item_connect_to_account (StampAccountItem *self)
   camel_offline_store_set_online (self->offline_store,
                                   TRUE,
                                   G_PRIORITY_DEFAULT,
-                                  self->cancellable,
+                                  op_cancellable_for (self),
                                   on_offline_store_set_online,
                                   g_object_ref (self));
 }
@@ -303,8 +510,26 @@ on_network_changed (GNetworkMonitor *monitor,
                     gpointer         user_data)
 {
   StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data);
+  gboolean was_available = self->network_available;
 
-  stamp_account_item_connect_to_account (self);
+  self->network_available = network_available;
+
+  if (!network_available)
+    return;
+
+  /* Only the edge is worth acting on. The monitor also fires for changes
+   * that leave the network up -- a new route, a connectivity recheck --
+   * and dropping healthy connections for those would cost more than it
+   * saves.
+   *
+   * Coming back up is different. After a suspend, or a move to another
+   * network, the old connections still read as established while being
+   * bound to an address the machine no longer has; they are worth less
+   * than nothing, since every later request queues behind them. */
+  if (was_available)
+    stamp_account_item_connect_to_account (self);
+  else
+    stamp_account_item_reset_connection (self);
 }
 
 static void
@@ -400,70 +625,72 @@ on_account_changed (StampSession *session,
   stamp_item_set_name (STAMP_ITEM (self), stamp_account_get_name (account));
 }
 
-static StampFolderItem *
-find_folder_item_by_folder (GListStore  *store,
-                            CamelFolder *folder)
+static void
+refresh_next_in_queue (StampAccountItem *self)
 {
-  guint len = g_list_model_get_n_items (G_LIST_MODEL (store));
-  StampFolderItem *ret = NULL;
+  while (!g_queue_is_empty (self->refresh_queue)) {
+    g_autoptr (StampFolderItem) folder_item = g_queue_pop_head (self->refresh_queue);
+    CamelFolder *folder = stamp_folder_item_get_folder (folder_item);
 
-  for (guint idx = 0; idx < len; idx++) {
-    g_autoptr (StampFolderItem) folder_item = STAMP_FOLDER_ITEM (g_list_model_get_item (G_LIST_MODEL (store), idx));
-    GListStore *child_store = stamp_item_get_list_store (STAMP_ITEM (folder_item));
+    if (!CAMEL_IS_FOLDER (folder))
+      continue;
 
-    if (stamp_folder_item_get_folder (folder_item) == folder) {
-      return g_steal_pointer (&folder_item);
-    }
+    g_debug ("%s: Refreshing %s", G_STRFUNC, camel_folder_get_display_name (folder));
 
-    if (child_store)
-      ret = find_folder_item_by_folder (child_store, folder);
+    self->refresh_queue_running = TRUE;
+    self->refreshing_item = g_steal_pointer (&folder_item);
+    stamp_item_set_loading (STAMP_ITEM (self->refreshing_item), TRUE);
+    arm_refresh_watchdog (self);
 
-    if (ret)
-      return ret;
+    camel_folder_refresh_info (folder, G_PRIORITY_DEFAULT, op_cancellable_for (self), on_refresh, g_object_ref (self));
+    return;
   }
-
-  return ret;
 }
-
 
 static void
 on_refresh (GObject      *source,
             GAsyncResult *result,
             gpointer      user_data)
 {
-  StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data);
+  g_autoptr (StampAccountItem) self = user_data;
   CamelFolder *folder = CAMEL_FOLDER (source);
+  g_autoptr (StampFolderItem) folder_item = NULL;
   g_autoptr (GError) error = NULL;
-  GListStore *store = stamp_item_get_list_store (STAMP_ITEM (self));
-  StampFolderItem *folder_item;
+  gboolean refreshed;
 
-  folder_item = find_folder_item_by_folder (store, folder);
+  refreshed = camel_folder_refresh_info_finish (folder, result, &error);
+
+  if (self->disposed)
+    return;
+
+  /* A refresh cancelled by a connection reset can land after the next
+   * one has gone out. It has nothing left to say about a folder it no
+   * longer owns. */
+  if (!self->refreshing_item || stamp_folder_item_get_folder (self->refreshing_item) != folder)
+    return;
+
+  folder_item = g_steal_pointer (&self->refreshing_item);
+  clear_refresh_watchdog (self);
+  self->refresh_queue_running = FALSE;
+
   stamp_item_set_loading (STAMP_ITEM (folder_item), FALSE);
 
-  if (!camel_folder_refresh_info_finish (folder, result, &error)) {
+  if (refreshed) {
+    stamp_item_set_error (STAMP_ITEM (folder_item), NULL);
+  } else if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+    /* We dropped the connection ourselves and a reconnect is already on
+     * its way, so the badge would be reporting our own doing. */
+    stamp_item_set_error (STAMP_ITEM (folder_item), NULL);
+    return;
+  } else {
     if (!stamp_item_get_error (STAMP_ITEM (folder_item)))
       g_warning ("Could not refresh folder %s: %s", camel_folder_get_display_name (folder), error->message);
 
     stamp_item_set_error (STAMP_ITEM (folder_item), error);
     /* Continue */
-  } else {
-    stamp_item_set_error (STAMP_ITEM (folder_item), NULL);
   }
 
-  self->refresh_queue_running = FALSE;
-
-  if (!g_queue_is_empty (self->refresh_queue)) {
-    CamelFolder *next;
-
-    folder_item = g_queue_pop_head (self->refresh_queue);
-    next = stamp_folder_item_get_folder (folder_item);
-
-    self->refresh_queue_running = TRUE;
-
-    g_debug ("%s: Refreshing %s", G_STRFUNC, camel_folder_get_display_name (next));
-    stamp_item_set_loading (STAMP_ITEM (folder_item), TRUE);
-    camel_folder_refresh_info (next, G_PRIORITY_DEFAULT, self->cancellable, on_refresh, self);
-  }
+  refresh_next_in_queue (self);
 }
 
 static void
@@ -537,92 +764,91 @@ find_priority_folder_item (StampAccountItem *self)
   return NULL;
 }
 
+static void
+start_refresh (StampAccountItem *self)
+{
+  if (self->disposed || g_cancellable_is_cancelled (self->cancellable))
+    return;
+
+  /* Refreshes are run one at a time per store, which is what the queue
+   * is for -- camel does not care for several at once on one service. */
+  if (self->refresh_queue_running) {
+    g_debug ("%s: Refresh already running, queue updated for next iteration", G_STRFUNC);
+    return;
+  }
+
+  g_queue_clear_full (self->refresh_queue, g_object_unref);
+  create_queue (self, stamp_item_get_list_store (STAMP_ITEM (self)));
+
+  /* On first refresh, prioritize INBOX/Posteingang */
+  if (self->first_refresh) {
+    StampFolderItem *priority = find_priority_folder_item (self);
+
+    self->first_refresh = FALSE;
+    g_debug ("%s: First refresh - looking for INBOX, found: %p", G_STRFUNC, priority);
+
+    /* The queue is drained from the head, so moving it there is all the
+     * priority amounts to. The queue's own reference moves with it. */
+    if (priority) {
+      g_queue_remove (self->refresh_queue, priority);
+      g_queue_push_head (self->refresh_queue, priority);
+    }
+  }
+
+  refresh_next_in_queue (self);
+}
+
 static gboolean
 refresh_folder_main (gpointer user_data)
 {
   StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data);
-  GListStore *store;
-  StampFolderItem *folder_item = NULL;
-
-  if (g_cancellable_is_cancelled (self->cancellable)) {
-    self->refresh_folder_handler = 0;
-    return G_SOURCE_REMOVE;
-  }
-
-  store = stamp_item_get_list_store (STAMP_ITEM (self));
-
-  /* Always refresh the first folder in the queue (which is now prioritized) */
-  if (!self->refresh_queue_running) {
-    /* Clear the queue before adding new items */
-    g_queue_clear (self->refresh_queue);
-
-    create_queue (self, store);
-
-    /* On first refresh, prioritize INBOX/Posteingang */
-    if (self->first_refresh) {
-      self->first_refresh = FALSE;
-      folder_item = find_priority_folder_item (self);
-      g_debug ("%s: First refresh - looking for INBOX, found: %p", G_STRFUNC, folder_item);
-    }
-
-    /* If no priority folder found or not first refresh, use first in queue */
-    if (!folder_item) {
-      folder_item = g_queue_pop_head (self->refresh_queue);
-    }
-
-    if (folder_item) {
-      CamelFolder *folder;
-
-      /* Remove from queue if not already removed */
-      if (g_queue_find (self->refresh_queue, folder_item)) {
-        g_queue_remove (self->refresh_queue, folder_item);
-      }
-
-      folder = stamp_folder_item_get_folder (folder_item);
-      self->refresh_queue_running = TRUE;
-      stamp_item_set_loading (STAMP_ITEM (folder_item), TRUE);
-
-      g_debug ("%s: Starting refresh for: %s", G_STRFUNC, camel_folder_get_display_name (folder));
-      camel_folder_refresh_info (folder, G_PRIORITY_DEFAULT, self->cancellable, on_refresh, self);
-    }
-  } else {
-    g_debug ("%s: Refresh already running, queue updated for next iteration", G_STRFUNC);
-  }
 
   self->refresh_folder_handler = 0;
+  start_refresh (self);
+
   return G_SOURCE_REMOVE;
 }
 
-static gpointer
-refresh_folder (gpointer user_data)
+static gboolean
+on_refresh_timer (gpointer user_data)
 {
-  StampAccountItem *self = STAMP_ACCOUNT_ITEM (user_data);
-  g_autoptr (GSettings) settings = g_settings_new ("io.github.steeb_k.Post.mail");
+  start_refresh (STAMP_ACCOUNT_ITEM (user_data));
 
-  while (!g_cancellable_is_cancelled (self->cancellable)) {
-    gint64 end;
-    guint refresh_interval = g_settings_get_uint (settings, "refresh-interval");
+  return G_SOURCE_CONTINUE;
+}
 
-    g_main_context_invoke (NULL, refresh_folder_main, self);
+/* A timeout on the main context rather than a thread watching a
+ * deadline: g_timeout_add_seconds rounds to whole seconds, so the wakeup
+ * coalesces with whatever else glib has pending instead of costing ten
+ * wakeups a second of its own -- which is the difference that shows up
+ * on a phone battery. */
+static void
+schedule_refresh_timer (StampAccountItem *self)
+{
+  guint interval;
 
-    end = g_get_monotonic_time () + refresh_interval * G_USEC_PER_SEC;
-    while (!g_cancellable_is_cancelled (self->cancellable)) {
-      gint64 now = g_get_monotonic_time ();
-      if (now >= end)
-        break;
+  g_clear_handle_id (&self->refresh_timer_handler, g_source_remove);
 
-      g_usleep (100 * 1000);
-    }
-  }
+  interval = g_settings_get_uint (self->mail_settings, "refresh-interval");
+  if (interval == 0)
+    return;
 
-  return NULL;
+  self->refresh_timer_handler = g_timeout_add_seconds (interval, on_refresh_timer, self);
+}
+
+static void
+on_refresh_interval_changed (GSettings   *settings,
+                             const gchar *key,
+                             gpointer     user_data)
+{
+  schedule_refresh_timer (STAMP_ACCOUNT_ITEM (user_data));
 }
 
 static void
 stamp_account_item_constructed (GObject *object)
 {
   StampAccountItem *self = STAMP_ACCOUNT_ITEM (object);
-  GNetworkMonitor *network_monitor = g_network_monitor_get_default ();
+  GNetworkMonitor *network_monitor = e_network_monitor_get_default ();
   StampMailService *mail_service;
 
   G_OBJECT_CLASS (stamp_account_item_parent_class)->constructed (object);
@@ -635,6 +861,8 @@ stamp_account_item_constructed (GObject *object)
   stamp_item_set_list_store_type (STAMP_ITEM (self), STAMP_TYPE_FOLDER_ITEM);
 
   self->cancellable = g_cancellable_new ();
+  self->mail_settings = g_settings_new ("io.github.steeb_k.Post.mail");
+  self->network_available = g_network_monitor_get_network_available (network_monitor);
 
   /* Register callbacks for folder changes... */
   self->offline_store = CAMEL_OFFLINE_STORE (stamp_mail_service_get_service (mail_service));
@@ -651,8 +879,15 @@ stamp_account_item_constructed (GObject *object)
 
   self->refresh_queue = g_queue_new ();
 
-  /* We need to serialize refresh requests per store as it tend to lock up */
-  self->refresh_thread = g_thread_new ("Refresh Folder", refresh_folder, self);
+  g_signal_connect_object (self->mail_settings, "changed::refresh-interval",
+                           G_CALLBACK (on_refresh_interval_changed), self, G_CONNECT_DEFAULT);
+  schedule_refresh_timer (self);
+}
+
+static void
+refresh_queue_free (GQueue *queue)
+{
+  g_queue_free_full (queue, g_object_unref);
 }
 
 static void
@@ -660,11 +895,21 @@ stamp_account_item_dispose (GObject *object)
 {
   StampAccountItem *self = STAMP_ACCOUNT_ITEM (object);
 
+  self->disposed = TRUE;
+
   g_cancellable_cancel (self->cancellable);
+  g_cancellable_cancel (self->op_cancellable);
   g_clear_object (&self->cancellable);
+  g_clear_object (&self->op_cancellable);
 
   g_clear_handle_id (&self->refresh_folder_handler, g_source_remove);
+  g_clear_handle_id (&self->refresh_timer_handler, g_source_remove);
+  g_clear_handle_id (&self->refresh_watchdog_handler, g_source_remove);
+  g_clear_handle_id (&self->connect_retry_handler, g_source_remove);
 
+  g_clear_object (&self->refreshing_item);
+  g_clear_pointer (&self->refresh_queue, refresh_queue_free);
+  g_clear_object (&self->mail_settings);
   g_clear_object (&self->offline_store);
 
   G_OBJECT_CLASS (stamp_account_item_parent_class)->dispose (object);
