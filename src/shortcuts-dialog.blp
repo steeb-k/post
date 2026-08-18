@@ -66,6 +66,20 @@ Adw.ShortcutsDialog shortcuts_dialog {
   }
 
   Adw.ShortcutsSection {
+    title: C_("Shortcut window title", "Composer");
+
+    Adw.ShortcutsItem {
+      title: C_("Shortcut window description", "Send Message");
+      accelerator: "<primary>Return";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("Shortcut window description", "Close Composer");
+      accelerator: "Escape";
+    }
+  }
+
+  Adw.ShortcutsSection {
     title: C_("Shortcut window title", "Editing");
 
     Adw.ShortcutsItem {
