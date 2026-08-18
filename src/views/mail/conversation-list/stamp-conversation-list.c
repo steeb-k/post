@@ -102,6 +102,7 @@ struct _StampConversationList {
   enum FilterMode filter_mode;
   enum SortMode sort_mode;
   gboolean claimed;
+  gdouble pull_offset;
 
   CamelFolderThread *thread;
   GHashTable *thread_cache;
@@ -1903,6 +1904,232 @@ stamp_conversation_list_dispose (GObject *object)
   G_OBJECT_CLASS (stamp_conversation_list_parent_class)->dispose (object);
 }
 
+static void
+load_folder_idle (gpointer user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+  stamp_conversation_list_load_folder (self, self->account, self->full_name);
+
+  self->load_folder_handler = 0;
+}
+
+/* Pull to refresh.
+ *
+ * Two very different devices end up here: a pointer or a finger dragging
+ * the list down past its top edge, and a trackpad scrolling past it. They
+ * differ only in how far the list has been pulled, so each one measures
+ * that and hands it to pull_update (); everything after that — the spinner,
+ * the distance that arms a refresh, the release — is shared.
+ */
+#define PULL_MAX      150.0  /* the spinner stops following past this   */
+#define PULL_ARMED    125.0  /* released past this, the list refreshes  */
+#define PULL_START     10.0  /* a drag shorter than this is not a pull  */
+#define PULL_SPINNER   32.0  /* the spinner's full size                 */
+#define SPINNER_MARGIN 12    /* where the spinner rests when idle       */
+
+static gboolean
+list_is_at_top (StampConversationList *self)
+{
+  GtkAdjustment *adj = gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (self->scrolled_window));
+
+  return gtk_adjustment_get_value (adj) <= 0.0;
+}
+
+/* Hangs the spinner off the top edge, @offset pixels down. */
+static void
+pull_update (StampConversationList *self,
+             gdouble                offset)
+{
+  gdouble clean_y = CLAMP (offset, 0.0, PULL_MAX);
+
+  self->pull_offset = clean_y;
+  self->is_pulling = TRUE;
+
+  gtk_widget_set_visible (self->spinner, TRUE);
+
+  /* Up to its full size the spinner grows in place; past that it keeps its
+   * size and follows the pull down instead. */
+  if (clean_y > PULL_SPINNER) {
+    gtk_widget_set_margin_top (self->spinner, clean_y);
+    gtk_widget_set_size_request (self->spinner, PULL_SPINNER, PULL_SPINNER);
+  } else {
+    gtk_widget_set_margin_top (self->spinner, SPINNER_MARGIN);
+    gtk_widget_set_size_request (self->spinner, clean_y, clean_y);
+  }
+}
+
+/* Puts the spinner back where an untouched list keeps it. */
+static void
+pull_reset (StampConversationList *self)
+{
+  self->pull_offset = 0.0;
+  self->is_pulling = FALSE;
+
+  gtk_widget_set_visible (self->spinner, FALSE);
+  gtk_widget_set_margin_top (self->spinner, SPINNER_MARGIN);
+  gtk_widget_set_size_request (self->spinner, PULL_SPINNER, PULL_SPINNER);
+}
+
+/*
+ * Let go of the pull: refresh if it got far enough, otherwise retract. A
+ * refresh leaves the spinner up to spin, and the reload hides it once it
+ * lands.
+ */
+static void
+pull_release (StampConversationList *self)
+{
+  gboolean armed = self->pull_offset >= PULL_ARMED;
+
+  g_debug ("%s: released at %.0fpx, %s", G_STRFUNC, self->pull_offset,
+           armed ? "refreshing" : "retracting");
+
+  if (!armed) {
+    pull_reset (self);
+    return;
+  }
+
+  self->pull_offset = 0.0;
+  self->is_pulling = FALSE;
+
+  g_clear_handle_id (&self->load_folder_handler, g_source_remove);
+  self->load_folder_handler = g_idle_add_once (load_folder_idle, self);
+}
+
+/*
+ * Input 1: a pointer or finger dragging the list.
+ *
+ * The gesture is a plain drag rather than a pan, because a pan gesture
+ * gives up on the whole sequence when the first few pixels of movement are
+ * not clearly along its own axis — which is exactly what the start of a
+ * trackpad drag looks like. Whether this drag is the downwards one we want
+ * is decided here instead, once per drag.
+ */
+static void
+on_drag_update (GtkGestureDrag *gesture,
+                gdouble         offset_x,
+                gdouble         offset_y,
+                gpointer        user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+
+  if (!self->claimed) {
+    /* Sideways or upwards belongs to whatever the drag started on. */
+    if (offset_y <= 0.0 || ABS (offset_x) > offset_y) {
+      gtk_widget_set_visible (self->scroll_to_top, FALSE);
+      return;
+    }
+
+    /* Dragging down with the list scrolled offers the way back up. */
+    if (!list_is_at_top (self)) {
+      gtk_widget_set_visible (self->scroll_to_top, TRUE);
+      return;
+    }
+
+    gtk_widget_set_visible (self->scroll_to_top, FALSE);
+
+    if (offset_y < PULL_START)
+      return;
+
+    /* Claiming takes the sequence off the rows underneath, which would
+     * otherwise treat the drag as a press. */
+    gtk_gesture_set_state (GTK_GESTURE (gesture), GTK_EVENT_SEQUENCE_CLAIMED);
+    gtk_widget_set_sensitive (GTK_WIDGET (self->scrolled_window), FALSE);
+    self->claimed = TRUE;
+
+    /* An interrupted trackpad pull must not count towards this drag. */
+    self->pull_offset = 0.0;
+  }
+
+  pull_update (self, offset_y);
+}
+
+static void
+drag_finished (StampConversationList *self,
+               gboolean               released)
+{
+  if (!self->claimed)
+    return;
+
+  if (released)
+    pull_release (self);
+  else
+    pull_reset (self);
+
+  gtk_widget_set_sensitive (GTK_WIDGET (self->scrolled_window), TRUE);
+  self->claimed = FALSE;
+}
+
+static void
+on_drag_end (GtkGestureDrag *gesture,
+             gdouble         offset_x,
+             gdouble         offset_y,
+             gpointer        user_data)
+{
+  drag_finished (STAMP_CONVERSATION_LIST (user_data), TRUE);
+}
+
+/* Something else took the sequence over; drop the pull rather than act on it. */
+static void
+on_drag_cancel (GtkGesture       *gesture,
+                GdkEventSequence *sequence,
+                gpointer          user_data)
+{
+  drag_finished (STAMP_CONVERSATION_LIST (user_data), FALSE);
+}
+
+/*
+ * Input 2: a trackpad scrolling past the top edge.
+ *
+ * A two-finger swipe produces scroll deltas rather than a drag, so the
+ * overscroll is accumulated here and handed to the same pull. Only
+ * pixel-precise devices take part: a mouse wheel spun at the top of the
+ * list should not refresh.
+ */
+static gboolean
+scroll_is_pixel_precise (GtkEventControllerScroll *controller)
+{
+  return gtk_event_controller_scroll_get_unit (controller) == GDK_SCROLL_UNIT_SURFACE;
+}
+
+/*
+ * A trackpad can report a drag as scroll deltas as well as motion, so a
+ * scroll that arrives with the button down belongs to the drag underway and
+ * must not start a pull of its own.
+ */
+static gboolean
+scroll_is_dragging (GtkEventControllerScroll *controller)
+{
+  GdkEvent *event = gtk_event_controller_get_current_event (GTK_EVENT_CONTROLLER (controller));
+
+  return event && (gdk_event_get_modifier_state (event) & GDK_BUTTON1_MASK) != 0;
+}
+
+static void
+on_scroll_begin (GtkEventControllerScroll *controller,
+                 gpointer                  user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+
+  /* A sequence that never reported its end would leave the spinner hanging,
+   * so retract it here rather than counting it towards this pull. */
+  if (!self->claimed && self->pull_offset > 0.0)
+    pull_reset (self);
+}
+
+static void
+on_scroll_end (GtkEventControllerScroll *controller,
+               gpointer                  user_data)
+{
+  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
+
+  /* Taking the scrolled window out of a drag's way resets this controller,
+   * which ends the scroll; that must not be mistaken for fingers lifting. */
+  if (self->claimed || self->pull_offset <= 0.0)
+    return;
+
+  pull_release (self);
+}
+
 static gboolean
 on_scroll (GtkEventControllerScroll *controller,
            gdouble                   dx,
@@ -1917,6 +2144,22 @@ on_scroll (GtkEventControllerScroll *controller,
     gtk_widget_set_visible (self->scroll_to_top, TRUE);
   } else {
     gtk_widget_set_visible (self->scroll_to_top, FALSE);
+  }
+
+  /* A drag is already pulling, or about to; stay out of its way. */
+  if (self->claimed || scroll_is_dragging (controller) || !scroll_is_pixel_precise (controller))
+    return FALSE;
+
+  /* Start pulling once the list has nowhere left to scroll, and keep
+   * following the fingers back up until the pull is fully retracted. */
+  if (self->pull_offset > 0.0 || (dy < 0.0 && list_is_at_top (self))) {
+    pull_update (self, self->pull_offset - dy);
+
+    /* Swallow the event while pulling, so the list itself stays put. */
+    if (self->pull_offset > 0.0)
+      return TRUE;
+
+    pull_reset (self);
   }
 
   return FALSE;
@@ -1980,6 +2223,8 @@ stamp_conversation_list_class_init (StampConversationListClass *klass)
   gtk_widget_class_bind_template_callback (widget_class, on_cancel_selection_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_scroll_to_top);
   gtk_widget_class_bind_template_callback (widget_class, on_scroll);
+  gtk_widget_class_bind_template_callback (widget_class, on_scroll_begin);
+  gtk_widget_class_bind_template_callback (widget_class, on_scroll_end);
   gtk_widget_class_bind_template_callback (widget_class, on_select_all);
   gtk_widget_class_bind_template_callback (widget_class, on_unselect_all);
   gtk_widget_class_bind_template_callback (widget_class, on_key_pressed);
@@ -2018,92 +2263,6 @@ on_multi_selection_changed (GtkSelectionModel *model,
   g_snprintf (buf, sizeof buf, _("%u selected"), n_selected);
 
   adw_window_title_set_title (ADW_WINDOW_TITLE (self->selection_label), buf);
-}
-
-static void
-on_drag_update (GtkGesturePan   *gesture,
-                GtkPanDirection  direction,
-                gdouble          offset,
-                gpointer         user_data)
-{
-  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
-  gdouble clean_y = offset;
-  GValue value = G_VALUE_INIT;
-  g_value_init (&value, G_TYPE_INT);
-
-  if (!self->claimed) {
-    if (direction != GTK_PAN_DIRECTION_DOWN) {
-      gtk_widget_set_visible (self->scroll_to_top, FALSE);
-      return;
-    }
-
-    if (gtk_adjustment_get_value (self->vadj) > 0.0) {
-      gtk_widget_set_visible (self->scroll_to_top, TRUE);
-      return;
-    }
-    gtk_widget_set_visible (self->scroll_to_top, FALSE);
-
-    if (offset < 10)
-      return;
-
-    gtk_gesture_set_state (GTK_GESTURE (gesture), GTK_EVENT_SEQUENCE_CLAIMED);
-
-    gtk_widget_set_sensitive (GTK_WIDGET (self->scrolled_window), FALSE);
-    self->claimed = TRUE;
-  }
-
-  gtk_widget_set_visible (self->spinner, TRUE);
-
-
-  if (offset > 150)
-    clean_y = 150;
-
-  if (clean_y < 0)
-    clean_y = 0;
-
-  if (clean_y > 32) {
-    gtk_widget_set_margin_top (GTK_WIDGET (self->spinner), clean_y);
-    g_value_set_int (&value, 32);
-    gtk_widget_set_size_request (GTK_WIDGET (self->spinner), 32, 32);
-  } else if (clean_y > 0) {
-    g_value_set_int (&value, clean_y);
-    gtk_widget_set_size_request (GTK_WIDGET (self->spinner), clean_y, clean_y);
-  } else {
-    gtk_widget_set_margin_top (GTK_WIDGET (self->spinner), 32);
-    g_value_set_int (&value, 0);
-    gtk_widget_set_size_request (GTK_WIDGET (self->spinner), 0, 0);
-  }
-
-  self->is_pulling = TRUE;
-}
-
-static void
-load_folder_idle (gpointer user_data)
-{
-  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
-  stamp_conversation_list_load_folder (self, self->account, self->full_name);
-
-  self->load_folder_handler = 0;
-}
-
-static void
-on_drag_end (GtkGestureDrag *gesture,
-             gdouble         dx,
-             gdouble         dy,
-             gpointer        user_data)
-{
-  StampConversationList *self = STAMP_CONVERSATION_LIST (user_data);
-
-  if (gtk_widget_get_margin_top (GTK_WIDGET (self->spinner)) >= 125) {
-    g_clear_handle_id (&self->load_folder_handler, g_source_remove);
-    self->load_folder_handler = g_idle_add_once (load_folder_idle, self);
-  } else {
-    gtk_widget_set_visible (self->spinner, FALSE);
-    gtk_widget_set_margin_top (self->spinner, 12);
-  }
-
-  gtk_widget_set_sensitive (GTK_WIDGET (self->scrolled_window), TRUE);
-  self->claimed = FALSE;
 }
 
 static void
@@ -2589,13 +2748,16 @@ stamp_conversation_list_init (StampConversationList *self)
 
   gtk_search_bar_connect_entry (GTK_SEARCH_BAR (self->search_bar), GTK_EDITABLE (self->search_entry));
 
-  drag = gtk_gesture_pan_new (GTK_ORIENTATION_VERTICAL);
+  /* Capture phase, so the pull is decided before the rows see the drag. */
+  drag = gtk_gesture_drag_new ();
+  gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (drag), FALSE);
   gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (drag), GTK_PHASE_CAPTURE);
   gtk_widget_add_controller (GTK_WIDGET (self), GTK_EVENT_CONTROLLER (drag));
   self->vadj = gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (self->scrolled_window));
 
-  g_signal_connect_object (drag, "pan", G_CALLBACK (on_drag_update), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (drag, "drag-update", G_CALLBACK (on_drag_update), self, G_CONNECT_DEFAULT);
   g_signal_connect_object (drag, "drag-end", G_CALLBACK (on_drag_end), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (drag, "cancel", G_CALLBACK (on_drag_cancel), self, G_CONNECT_DEFAULT);
 
   self->selected = gtk_bitset_new_empty ();
   self->anchor_position = 0;

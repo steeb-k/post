@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+- Refresh the mail list with a trackpad swipe as well as a drag (steeb-k)
 - StampConversationList: Add a collapsible starred section on top (steeb-k)
 - Give signatures the composer's formatting bar (steeb-k)
 

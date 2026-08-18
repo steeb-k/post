@@ -228,6 +228,8 @@ template $StampConversationList: Adw.Bin {
 
                   EventControllerScroll {
                     scroll => $on_scroll();
+                    scroll-begin => $on_scroll_begin();
+                    scroll-end => $on_scroll_end();
                     flags: vertical;
                   }
 
