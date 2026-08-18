@@ -177,6 +177,11 @@
       <summary>The list of all the expanded folders</summary>
       <description>The list of all the expanded folders</description>
     </key>
+    <key name="folder-colors" type="a{ss}">
+      <default>{}</default>
+      <summary>Colours the folders of this account wear</summary>
+      <description>Maps a folder full name to the palette colour the user gave it. A folder that names no colour keeps the icon its type earns it. Kept as a side table rather than a list so a folder that is renamed or deleted simply stops matching, and the rest keep their colours.</description>
+    </key>
     <key name="notification-mode" type="s">
       <default>'inbox'</default>
       <summary>Notification mode for this account</summary>

@@ -55,38 +55,16 @@ static GParamSpec *properties[N_PROPS] = { NULL, };
 
 G_DEFINE_FINAL_TYPE (StampProfile, stamp_profile, G_TYPE_OBJECT);
 
-/* Named after the GNOME palette, so the circles sit well next to the
- * rest of the shell no matter which accent the user runs. */
-static const StampProfileColor palette[] = {
-  { "blue",   N_("Blue"),   "#3584e4" },
-  { "teal",   N_("Teal"),   "#2190a4" },
-  { "green",  N_("Green"),  "#3a944a" },
-  { "yellow", N_("Yellow"), "#c88800" },
-  { "orange", N_("Orange"), "#ed5b00" },
-  { "red",    N_("Red"),    "#e62d42" },
-  { "pink",   N_("Pink"),   "#d56199" },
-  { "purple", N_("Purple"), "#9141ac" },
-  { "slate",  N_("Slate"),  "#6f8396" },
-};
-
 const StampProfileColor *
 stamp_profile_get_palette (guint *n_colors)
 {
-  if (n_colors)
-    *n_colors = G_N_ELEMENTS (palette);
-
-  return palette;
+  return stamp_palette_get (n_colors);
 }
 
 const StampProfileColor *
 stamp_profile_find_color (const gchar *color_id)
 {
-  for (guint i = 0; i < G_N_ELEMENTS (palette); i++) {
-    if (g_strcmp0 (palette[i].id, color_id) == 0)
-      return &palette[i];
-  }
-
-  return &palette[0];
+  return stamp_palette_find (color_id);
 }
 
 /*

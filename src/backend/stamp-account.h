@@ -26,6 +26,7 @@
 #include <libedataserverui4/libedataserverui4.h>
 
 #include "stamp-category.h"
+#include "stamp-folder-index.h"
 
 G_BEGIN_DECLS
 
@@ -248,6 +249,13 @@ stamp_account_get_mail_junk_folder (StampAccount *self);
 
 GList *
 stamp_account_get_categories (StampAccount *self);
+
+/*
+ * Which other folders a mail of this account sits in -- the closest
+ * thing IMAP has to Gmail's labels. NULL until mail is enabled.
+ */
+StampFolderIndex *
+stamp_account_get_folder_index (StampAccount *self);
 
 StampCategory *
 stamp_account_find_category (StampAccount *self,

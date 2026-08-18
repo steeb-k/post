@@ -21,6 +21,8 @@
 
 #include <glib-object.h>
 
+#include "stamp-palette.h"
+
 G_BEGIN_DECLS
 
 #define STAMP_TYPE_PROFILE (stamp_profile_get_type ())
@@ -199,11 +201,9 @@ stamp_profile_new_from_variant (GVariant *variant);
  * Colors
  */
 
-typedef struct {
-  const gchar *id;
-  const gchar *name;
-  const gchar *hex;
-} StampProfileColor;
+/* Profiles draw from the shared palette; the alias is kept so the
+ * call sites that predate the split still read as profile code. */
+typedef StampPaletteColor StampProfileColor;
 
 const StampProfileColor *
 stamp_profile_get_palette (guint *n_colors);

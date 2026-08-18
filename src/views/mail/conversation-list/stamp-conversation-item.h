@@ -22,6 +22,8 @@
 #include <adwaita.h>
 #include <camel/camel.h>
 
+#include "stamp-folder-index.h"
+
 G_BEGIN_DECLS
 
 #define STAMP_TYPE_CONVERSATION_ITEM (stamp_conversation_item_get_type())
@@ -100,6 +102,18 @@ stamp_conversation_item_get_uid (StampConversationItem *self);
 void
 stamp_conversation_item_update (StampConversationItem *self,
                                 CamelMessageInfo      *info);
+
+/*
+ * The folders this conversation sits in besides @exclude_full_name --
+ * on Gmail, its labels. See StampFolderIndex for why folders are the
+ * answer to a question about labels.
+ *
+ * Returns: (transfer container) (nullable): interned folder full names.
+ */
+GPtrArray *
+stamp_conversation_item_get_folders (StampConversationItem *self,
+                                     StampFolderIndex      *index,
+                                     const gchar           *exclude_full_name);
 
 GPtrArray *
 stamp_conversation_item_get_labels (StampConversationItem *self);

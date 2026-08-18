@@ -215,6 +215,20 @@ template $StampConversationRow: Box {
             "caption",
           ]
         }
+
+        /* Which other folders the mail sits in -- its Gmail labels. Last
+         * on the line and after the hexpanding preview, so it is the
+         * preview that gives way as the window narrows, not the chip. */
+        Box folders {
+          /* Expands as well as aligns to the end: a mail with no preview
+           * hides the inscription beside this, and without something
+           * claiming the slack the chip would slide back to the left. */
+          hexpand: true;
+          halign: end;
+          valign: center;
+          spacing: 3;
+          visible: false;
+        }
       }
     };
 

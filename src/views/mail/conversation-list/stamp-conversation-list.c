@@ -1690,7 +1690,8 @@ on_bind_list_item (GtkListItemFactory *factory,
   row = gtk_list_item_get_child (list_item);
   model = STAMP_CONVERSATION_ITEM (gtk_list_item_get_item (list_item));
 
-  stamp_conversation_row_bind_mail (STAMP_CONVERSATION_ROW (row), model, self->account);
+  stamp_conversation_row_bind_mail (STAMP_CONVERSATION_ROW (row), model, self->account,
+                                    self->folder ? camel_folder_get_full_name (self->folder) : NULL);
   stamp_conversation_row_set_selection_visible (STAMP_CONVERSATION_ROW (row), self->selection_mode);
 
   check_button = stamp_conversation_row_get_check_button (STAMP_CONVERSATION_ROW (row));

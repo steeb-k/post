@@ -22,6 +22,7 @@
 #include <glib/gi18n.h>
 
 #include "stamp-account.h"
+#include "stamp-folder-color.h"
 #include "stamp-category.h"
 #include "stamp-helper.h"
 #include "stamp-session.h"
@@ -49,6 +50,7 @@ struct _StampConversationRow {
   GtkImage *forwarded_icon;
   GtkImage *calendar_icon;
   GtkFlowBox *labels;
+  GtkBox *folders;
 
   GCancellable *cancellable;
   gboolean selected;
@@ -60,9 +62,16 @@ struct _StampConversationRow {
   gboolean unread;
 
   StampAccount *account;
+  gchar *current_folder;
+  gulong index_changed_id;
 };
 
 G_DEFINE_FINAL_TYPE (StampConversationRow, stamp_conversation_row, GTK_TYPE_BOX);
+
+static void on_folder_colors_changed (StampFolderColors *colors,
+                                      const gchar       *account_uid,
+                                      const gchar       *full_name,
+                                      gpointer           user_data);
 
 static guint next_instance_id = 1;
 
@@ -93,8 +102,21 @@ stamp_conversation_row_dispose (GObject *object)
 
   g_cancellable_cancel (self->cancellable);
   g_clear_object (&self->cancellable);
+
+  /* Before the account goes, since the account is how the index that
+   * still holds this handler is reached. The index outlives the row. */
+  if (self->index_changed_id && self->account) {
+    StampFolderIndex *index = stamp_account_get_folder_index (self->account);
+
+    if (index)
+      g_clear_signal_handler (&self->index_changed_id, index);
+
+    self->index_changed_id = 0;
+  }
+
   g_clear_object (&self->item);
   g_clear_object (&self->account);
+  g_clear_pointer (&self->current_folder, g_free);
 
   gtk_widget_dispose_template (GTK_WIDGET (self), STAMP_TYPE_CONVERSATION_ROW);
 
@@ -287,6 +309,7 @@ stamp_conversation_row_class_init (StampConversationRowClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampConversationRow, forwarded_icon);
   gtk_widget_class_bind_template_child (widget_class, StampConversationRow, calendar_icon);
   gtk_widget_class_bind_template_child (widget_class, StampConversationRow, labels);
+  gtk_widget_class_bind_template_child (widget_class, StampConversationRow, folders);
 
   gtk_widget_class_bind_template_callback (widget_class, on_drag_update);
   gtk_widget_class_bind_template_callback (widget_class, on_drag_end);
@@ -336,6 +359,9 @@ stamp_conversation_row_init (StampConversationRow *self)
 
   self->bindings = g_ptr_array_new_with_free_func ((GDestroyNotify)g_binding_unbind);
   self->instance_id = next_instance_id++;
+
+  g_signal_connect_object (stamp_folder_colors_get_default (), "changed",
+                           G_CALLBACK (on_folder_colors_changed), self, G_CONNECT_DEFAULT);
 }
 
 GtkWidget *
@@ -459,6 +485,15 @@ stamp_conversation_row_unbind_mail (StampConversationRow  *self,
 
   g_ptr_array_remove_range (self->bindings, 0, self->bindings->len);
 
+  if (self->index_changed_id && self->account) {
+    StampFolderIndex *index = stamp_account_get_folder_index (self->account);
+
+    if (index)
+      g_clear_signal_handler (&self->index_changed_id, index);
+
+    self->index_changed_id = 0;
+  }
+
   g_clear_object (&self->item);
 }
 
@@ -510,6 +545,104 @@ transfer_preview_to_visible (GBinding     *binding,
   return TRUE;
 }
 
+/*
+ * Folder chips
+ */
+
+/* Every folder is named, however many there are. Dots were tried first
+ * and read as noise: a colour with no word beside it says which label
+ * only to someone who already knows the colours. A mail with more
+ * labels than fit is a mail whose owner chose that. */
+#define CHIP_MAX_CHARS 18
+
+static GtkWidget *
+create_folder_chip (const gchar *full_name,
+                    const gchar *color_id)
+{
+  const gchar *leaf = strrchr (full_name, '/');
+  GtkWidget *widget;
+  g_autofree char *color_class = NULL;
+
+  /* A nested label reads better by its last part: "Work/Urgent" in a
+   * chip this narrow would ellipsize away the half that matters. */
+  widget = gtk_label_new (leaf ? leaf + 1 : full_name);
+  gtk_label_set_ellipsize (GTK_LABEL (widget), PANGO_ELLIPSIZE_END);
+  gtk_label_set_max_width_chars (GTK_LABEL (widget), CHIP_MAX_CHARS);
+  gtk_widget_add_css_class (widget, "folder-chip");
+
+  if (color_id) {
+    color_class = g_strconcat ("folder-color-", color_id, NULL);
+    gtk_widget_add_css_class (widget, color_class);
+  } else {
+    gtk_widget_add_css_class (widget, "folder-uncolored");
+  }
+
+  gtk_widget_set_valign (widget, GTK_ALIGN_CENTER);
+
+  return widget;
+}
+
+static void
+update_folder_chips (StampConversationRow *self)
+{
+  g_autoptr (GPtrArray) folders = NULL;
+  g_autoptr (GString) tooltip = NULL;
+  StampFolderIndex *index;
+  GtkWidget *child;
+
+  while ((child = gtk_widget_get_first_child (GTK_WIDGET (self->folders))))
+    gtk_box_remove (self->folders, child);
+
+  gtk_widget_set_visible (GTK_WIDGET (self->folders), FALSE);
+
+  if (!self->item || !self->account)
+    return;
+
+  index = stamp_account_get_folder_index (self->account);
+  folders = stamp_conversation_item_get_folders (self->item, index, self->current_folder);
+
+  if (!folders)
+    return;
+
+  tooltip = g_string_new (NULL);
+
+  for (guint i = 0; i < folders->len; i++) {
+    const gchar *full_name = folders->pdata[i];
+    const gchar *color_id = stamp_folder_color_lookup (stamp_account_get_uid (self->account), full_name);
+
+    gtk_box_append (self->folders, create_folder_chip (full_name, color_id));
+
+    if (i > 0)
+      g_string_append (tooltip, ", ");
+    g_string_append (tooltip, full_name);
+  }
+
+  /* The chips carry their own names, but a narrow window ellipsizes
+   * them; the tooltip is where the whole name stays readable. */
+  gtk_widget_set_tooltip_text (GTK_WIDGET (self->folders), tooltip->str);
+  gtk_accessible_update_property (GTK_ACCESSIBLE (self->folders),
+                                  GTK_ACCESSIBLE_PROPERTY_LABEL, tooltip->str,
+                                  -1);
+
+  gtk_widget_set_visible (GTK_WIDGET (self->folders), TRUE);
+}
+
+static void
+on_folder_index_changed (StampFolderIndex *index,
+                         gpointer          user_data)
+{
+  update_folder_chips (STAMP_CONVERSATION_ROW (user_data));
+}
+
+static void
+on_folder_colors_changed (StampFolderColors *colors,
+                          const gchar       *account_uid,
+                          const gchar       *full_name,
+                          gpointer           user_data)
+{
+  update_folder_chips (STAMP_CONVERSATION_ROW (user_data));
+}
+
 static GtkWidget *
 create_label (gpointer item,
               gpointer user_data)
@@ -528,7 +661,8 @@ create_label (gpointer item,
 void
 stamp_conversation_row_bind_mail (StampConversationRow  *self,
                                   StampConversationItem *item,
-                                  StampAccount          *account)
+                                  StampAccount          *account,
+                                  const gchar           *current_folder)
 {
   g_autoptr (GPtrArray) labels = NULL;
   g_autofree char *mail = NULL;
@@ -540,7 +674,12 @@ stamp_conversation_row_bind_mail (StampConversationRow  *self,
     return;
 
   self->item = g_object_ref (item);
-  self->account = g_object_ref (account);
+  /* Set rather than assigned: a row is bound again for every item that
+   * scrolls through it, and the account it held before has to go. */
+  g_set_object (&self->account, account);
+
+  g_free (self->current_folder);
+  self->current_folder = g_strdup (current_folder);
 
   self->generation++;
   self->cancellable = g_cancellable_new ();
@@ -556,6 +695,17 @@ stamp_conversation_row_bind_mail (StampConversationRow  *self,
   store = g_list_store_new (STAMP_TYPE_CATEGORY);
   gtk_flow_box_bind_model (self->labels, G_LIST_MODEL (store), create_label, NULL, NULL);
   g_object_set_data_full (G_OBJECT (self->labels), "store", store, g_object_unref);
+
+  {
+    StampFolderIndex *index = stamp_account_get_folder_index (account);
+
+    /* The index fills in behind the list -- a folder it has not read yet
+     * has no labels to give -- so the row asks again when it says so. */
+    if (index)
+      self->index_changed_id = g_signal_connect (index, "changed", G_CALLBACK (on_folder_index_changed), self);
+  }
+
+  update_folder_chips (self);
 
   add_binding (self, g_object_bind_property (item, "subject", self->topic, "text", G_BINDING_SYNC_CREATE));
   add_binding (self, g_object_bind_property (item, "from", self->participants, "text", G_BINDING_SYNC_CREATE));

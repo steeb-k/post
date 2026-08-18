@@ -20,11 +20,17 @@
 
 #include "stamp-folder-list.h"
 
+#include <glib/gi18n.h>
+
+#include "gcal-utils.h"
+
 #include "stamp-account-item.h"
 #include "stamp-conversation-item.h"
 #include "stamp-conversation-list.h"
+#include "stamp-folder-color.h"
 #include "stamp-folder-item.h"
 #include "stamp-folder-row.h"
+#include "stamp-palette.h"
 #include "stamp-helper.h"
 #include "stamp-profile-manager.h"
 #include "stamp-session.h"
@@ -853,6 +859,201 @@ on_conversation_drop (GtkDropTarget *target,
   return TRUE;
 }
 
+/*
+ * Folder colours
+ */
+
+#define SWATCH_SIZE 24
+
+static void
+unparent_popover (gpointer data)
+{
+  GtkWidget *popover = data;
+
+  gtk_widget_unparent (popover);
+  g_object_unref (popover);
+}
+
+/* Taken down a main loop turn after it closes rather than during: the
+ * popover is still the widget the click is being delivered to. */
+static void
+on_color_popover_closed (GtkPopover *popover,
+                         gpointer    user_data)
+{
+  g_idle_add_once (unparent_popover, g_object_ref (popover));
+}
+
+static void
+on_color_swatch_clicked (GtkButton *button,
+                         gpointer   user_data)
+{
+  const gchar *color_id = g_object_get_data (G_OBJECT (button), "color-id");
+  const gchar *account_uid = g_object_get_data (G_OBJECT (button), "account-uid");
+  const gchar *full_name = g_object_get_data (G_OBJECT (button), "full-name");
+  GtkWidget *popover = gtk_widget_get_ancestor (GTK_WIDGET (button), GTK_TYPE_POPOVER);
+
+  stamp_folder_color_set (account_uid, full_name, color_id);
+
+  if (popover)
+    gtk_popover_popdown (GTK_POPOVER (popover));
+}
+
+static GtkWidget *
+make_swatch (const StampPaletteColor *color,
+             const gchar             *account_uid,
+             const gchar             *full_name,
+             gboolean                 chosen)
+{
+  GtkWidget *button = gtk_button_new ();
+  GtkWidget *overlay = gtk_overlay_new ();
+  GtkWidget *check = gtk_image_new_from_icon_name ("object-select-symbolic");
+  const gchar *name = color ? gettext (color->name) : _("No Color");
+  GdkRGBA rgba;
+
+  if (color && gdk_rgba_parse (&rgba, color->hex)) {
+    g_autoptr (GdkPaintable) paintable = get_circle_paintable_from_color (&rgba, SWATCH_SIZE);
+
+    gtk_overlay_set_child (GTK_OVERLAY (overlay), gtk_image_new_from_paintable (paintable));
+  } else {
+    /* The way back to no colour at all, drawn as the folder icon the
+     * row falls back to rather than as a tenth colour. */
+    gtk_overlay_set_child (GTK_OVERLAY (overlay), gtk_image_new_from_icon_name ("folder-symbolic"));
+  }
+
+  gtk_widget_set_opacity (check, chosen ? 1.0 : 0.0);
+  gtk_overlay_add_overlay (GTK_OVERLAY (overlay), check);
+
+  gtk_button_set_child (GTK_BUTTON (button), overlay);
+  gtk_widget_add_css_class (button, "flat");
+  gtk_widget_add_css_class (button, "circular");
+  gtk_widget_add_css_class (button, "folder-swatch");
+  gtk_widget_set_tooltip_text (button, name);
+  gtk_accessible_update_property (GTK_ACCESSIBLE (button), GTK_ACCESSIBLE_PROPERTY_LABEL, name, -1);
+  gtk_accessible_update_state (GTK_ACCESSIBLE (button), GTK_ACCESSIBLE_STATE_SELECTED, chosen, -1);
+
+  g_object_set_data (G_OBJECT (button), "color-id", color ? (gpointer)color->id : NULL);
+  g_object_set_data_full (G_OBJECT (button), "account-uid", g_strdup (account_uid), g_free);
+  g_object_set_data_full (G_OBJECT (button), "full-name", g_strdup (full_name), g_free);
+  g_signal_connect (button, "clicked", G_CALLBACK (on_color_swatch_clicked), NULL);
+
+  return button;
+}
+
+/*
+ * The palette, offered where the folder is rather than in a dialog: a
+ * colour is a small enough decision that walking to preferences and
+ * back would cost more than it is worth.
+ */
+static void
+show_color_popover (GtkWidget       *anchor,
+                    StampFolderItem *item,
+                    gdouble          x,
+                    gdouble          y)
+{
+  StampAccount *account = stamp_item_get_account (STAMP_ITEM (item));
+  const gchar *full_name = stamp_folder_item_get_full_name (item);
+  const gchar *account_uid;
+  const gchar *chosen;
+  const StampPaletteColor *palette;
+  guint n_colors = 0;
+  GtkWidget *popover;
+  GtkWidget *box;
+  GtkWidget *grid;
+  GdkRectangle rect = { (gint)x, (gint)y, 1, 1 };
+
+  if (!account || !full_name)
+    return;
+
+  account_uid = stamp_account_get_uid (account);
+  chosen = stamp_folder_color_lookup (account_uid, full_name);
+  palette = stamp_palette_get (&n_colors);
+
+  box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+  gtk_widget_set_margin_top (box, 6);
+  gtk_widget_set_margin_bottom (box, 6);
+  gtk_widget_set_margin_start (box, 6);
+  gtk_widget_set_margin_end (box, 6);
+
+  grid = gtk_grid_new ();
+  gtk_grid_set_row_spacing (GTK_GRID (grid), 3);
+  gtk_grid_set_column_spacing (GTK_GRID (grid), 3);
+
+  for (guint i = 0; i < n_colors; i++) {
+    gtk_grid_attach (GTK_GRID (grid),
+                     make_swatch (&palette[i], account_uid, full_name,
+                                  g_strcmp0 (palette[i].id, chosen) == 0),
+                     i % 5, i / 5, 1, 1);
+  }
+
+  /* Sits at the end of the last row, where the eye lands after the
+   * colours rather than before them. */
+  gtk_grid_attach (GTK_GRID (grid),
+                   make_swatch (NULL, account_uid, full_name, chosen == NULL),
+                   n_colors % 5, n_colors / 5, 1, 1);
+
+  gtk_box_append (GTK_BOX (box), grid);
+
+  popover = gtk_popover_new ();
+  gtk_popover_set_child (GTK_POPOVER (popover), box);
+  gtk_popover_set_has_arrow (GTK_POPOVER (popover), FALSE);
+  gtk_widget_set_parent (popover, anchor);
+  gtk_popover_set_pointing_to (GTK_POPOVER (popover), &rect);
+  g_signal_connect (popover, "closed", G_CALLBACK (on_color_popover_closed), NULL);
+
+  gtk_popover_popup (GTK_POPOVER (popover));
+}
+
+static StampFolderItem *
+list_item_folder (GtkListItem *list_item)
+{
+  GtkTreeListRow *row = gtk_list_item_get_item (list_item);
+  StampItem *item = row ? gtk_tree_list_row_get_item (row) : NULL;
+
+  if (!item)
+    return NULL;
+
+  /* The reference gtk_tree_list_row_get_item() hands over is dropped
+   * here: the row holds one for as long as it is bound, and everything
+   * below happens before it is not. */
+  g_object_unref (item);
+
+  return STAMP_IS_FOLDER_ITEM (item) ? STAMP_FOLDER_ITEM (item) : NULL;
+}
+
+static void
+on_row_secondary_pressed (GtkGestureClick *gesture,
+                          gint             n_press,
+                          gdouble          x,
+                          gdouble          y,
+                          gpointer          user_data)
+{
+  GtkListItem *list_item = user_data;
+  StampFolderItem *item = list_item_folder (list_item);
+
+  if (!item)
+    return;
+
+  gtk_gesture_set_state (GTK_GESTURE (gesture), GTK_EVENT_SEQUENCE_CLAIMED);
+  show_color_popover (gtk_list_item_get_child (list_item), item, x, y);
+}
+
+/* The same offer for a touch screen, which has no second button. */
+static void
+on_row_long_pressed (GtkGestureLongPress *gesture,
+                     gdouble              x,
+                     gdouble              y,
+                     gpointer             user_data)
+{
+  GtkListItem *list_item = user_data;
+  StampFolderItem *item = list_item_folder (list_item);
+
+  if (!item)
+    return;
+
+  gtk_gesture_set_state (GTK_GESTURE (gesture), GTK_EVENT_SEQUENCE_CLAIMED);
+  show_color_popover (gtk_list_item_get_child (list_item), item, x, y);
+}
+
 static void
 on_setup_folder (GtkListItemFactory *factory,
                  GtkListItem        *list_item,
@@ -862,6 +1063,8 @@ on_setup_folder (GtkListItemFactory *factory,
   GtkWidget *row;
   GtkWidget *expander;
   GtkGesture *click = gtk_gesture_click_new ();
+  GtkGesture *secondary = gtk_gesture_click_new ();
+  GtkGesture *long_press = gtk_gesture_long_press_new ();
   GtkDragSource *drag = gtk_drag_source_new ();
   GtkDropTarget *drop = gtk_drop_target_new (STAMP_TYPE_ITEM, GDK_ACTION_MOVE);
   GtkDropTarget *conv_drop = gtk_drop_target_new (STAMP_TYPE_CONVERSATION_ITEM, GDK_ACTION_MOVE);
@@ -878,6 +1081,14 @@ on_setup_folder (GtkListItemFactory *factory,
   gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (click), GDK_BUTTON_PRIMARY);
   g_signal_connect (click, "released", G_CALLBACK (on_row_released), list_item);
   gtk_widget_add_controller (expander, GTK_EVENT_CONTROLLER (click));
+
+  gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (secondary), GDK_BUTTON_SECONDARY);
+  g_signal_connect (secondary, "pressed", G_CALLBACK (on_row_secondary_pressed), list_item);
+  gtk_widget_add_controller (expander, GTK_EVENT_CONTROLLER (secondary));
+
+  gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (long_press), TRUE);
+  g_signal_connect (long_press, "pressed", G_CALLBACK (on_row_long_pressed), list_item);
+  gtk_widget_add_controller (expander, GTK_EVENT_CONTROLLER (long_press));
 
   gtk_drag_source_set_actions (drag, GDK_ACTION_MOVE);
   g_signal_connect (drag, "prepare", G_CALLBACK (on_drag_prepare), list_item);

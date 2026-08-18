@@ -33,10 +33,15 @@ G_DECLARE_FINAL_TYPE (StampConversationRow, stamp_conversation_row, STAMP, CONVE
 GtkWidget *
 stamp_conversation_row_new (void);
 
+/*
+ * @current_folder is the folder being read, whose name the row leaves
+ * off the chips: that a mail in the Inbox is in the Inbox is not news.
+ */
 void
 stamp_conversation_row_bind_mail (StampConversationRow  *self,
                                   StampConversationItem *item,
-                                  StampAccount          *account);
+                                  StampAccount          *account,
+                                  const gchar           *current_folder);
 
 void
 stamp_conversation_row_unbind_mail (StampConversationRow  *self,

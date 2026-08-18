@@ -19,6 +19,8 @@
 
 #include "stamp-conversation-item.h"
 
+#include "stamp-folder-index.h"
+
 #include <glib/gi18n.h>
 
 struct _StampConversationItem {
@@ -638,6 +640,59 @@ stamp_conversation_item_get_calendar (StampConversationItem *self)
   message = camel_folder_thread_node_get_item (self->thread_node);
 
   return camel_message_info_get_user_flag (message, "$has_cal");
+}
+
+/* Every mail in the thread, not just the one the row is named after: a
+ * label put on the reply belongs to the conversation as much as one put
+ * on the mail that started it. */
+static void
+collect_node_folders (CamelFolderThreadNode *node,
+                      StampFolderIndex      *index,
+                      const gchar           *exclude_full_name,
+                      GPtrArray             *folders)
+{
+  const CamelMessageInfo *message = camel_folder_thread_node_get_item (node);
+
+  if (message) {
+    g_autoptr (GPtrArray) found = stamp_folder_index_lookup (index,
+                                                             camel_message_info_get_message_id ((CamelMessageInfo *)message),
+                                                             exclude_full_name);
+
+    for (guint i = 0; found && i < found->len; i++) {
+      /* Interned, so pointer equality is name equality. */
+      if (!g_ptr_array_find (folders, found->pdata[i], NULL))
+        g_ptr_array_add (folders, found->pdata[i]);
+    }
+  }
+
+  for (CamelFolderThreadNode *child = camel_folder_thread_node_get_child (node); child; child = camel_folder_thread_node_get_next (child))
+    collect_node_folders (child, index, exclude_full_name, folders);
+}
+
+GPtrArray *
+stamp_conversation_item_get_folders (StampConversationItem *self,
+                                     StampFolderIndex      *index,
+                                     const gchar           *exclude_full_name)
+{
+  GPtrArray *folders;
+
+  if (!self->thread_node || !index)
+    return NULL;
+
+  folders = g_ptr_array_new ();
+  collect_node_folders (self->thread_node, index, exclude_full_name, folders);
+
+  if (folders->len == 0) {
+    g_ptr_array_unref (folders);
+    return NULL;
+  }
+
+  /* Steady under a rebuild: the index hands folders back in whatever
+   * order it read them in, and chips that reshuffle between binds read
+   * as movement the user did not cause. */
+  g_ptr_array_sort_values (folders, (GCompareFunc)g_strcmp0);
+
+  return folders;
 }
 
 GPtrArray *

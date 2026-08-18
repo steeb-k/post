@@ -18,6 +18,8 @@
  */
 
 #include "stamp-account.h"
+
+#include "stamp-folder-index.h"
 #include "stamp-photo-cache.h"
 #include "stamp-session.h"
 
@@ -60,6 +62,7 @@ struct _StampAccount {
 
   StampPhotoCache *photo_cache;
   GList *categories;
+  StampFolderIndex *folder_index;
 };
 
 G_DEFINE_FINAL_TYPE (StampAccount, stamp_account, G_TYPE_OBJECT);
@@ -160,6 +163,10 @@ stamp_account_dispose (GObject *object)
   g_clear_pointer (&self->display_name, g_free);
   g_clear_object (&self->collection);
   g_clear_object (&self->registry);
+
+  /* Before the service goes: the index holds folders that belong to
+   * that store, and dropping it first lets them go with it. */
+  g_clear_object (&self->folder_index);
 
   g_clear_pointer (&self->mail, stamp_account_mail_service_free);
   g_clear_pointer (&self->address_books, g_ptr_array_unref);
@@ -816,6 +823,19 @@ on_folder_info_for_sent_drafts (GObject      *src,
                             G_PRIORITY_DEFAULT, NULL,
                             on_trash_folder_from_info_ready, data);
 
+  /* The same tree the scan above walked, put to a second use: which
+   * ordinary folders exist is exactly what the index needs, and asking
+   * the store for it again would be a second round trip for an answer
+   * already in hand. The three paths resolved above go with it -- on a
+   * server that advertises no folder types they are the only way to
+   * know which folders those are. */
+  if (data->account->folder_index) {
+    stamp_folder_index_exclude (data->account->folder_index, sent_path);
+    stamp_folder_index_exclude (data->account->folder_index, drafts_path);
+    stamp_folder_index_exclude (data->account->folder_index, trash_path);
+    stamp_folder_index_build (data->account->folder_index, root);
+  }
+
   mail_enable_one_done (data);
 }
 
@@ -910,6 +930,8 @@ stamp_account_enable_mail_async (StampAccount *self,
   data->account = self;
   data->ctx = ctx;
   data->pending = 2;
+
+  self->folder_index = stamp_folder_index_new (CAMEL_STORE (self->mail->service));
 
   camel_store_get_folder_info (CAMEL_STORE (self->mail->service), NULL,
                                CAMEL_STORE_FOLDER_INFO_RECURSIVE | CAMEL_STORE_FOLDER_INFO_NO_VIRTUAL,
@@ -1568,6 +1590,14 @@ void
 stamp_account_clear_negative_photo_cache (StampAccount *self)
 {
   stamp_disk_cache_purge_negative (self->photo_cache);
+}
+
+StampFolderIndex *
+stamp_account_get_folder_index (StampAccount *self)
+{
+  g_return_val_if_fail (STAMP_IS_ACCOUNT (self), NULL);
+
+  return self->folder_index;
 }
 
 StampCategory *

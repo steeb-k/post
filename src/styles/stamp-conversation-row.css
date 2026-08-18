@@ -183,3 +183,84 @@
   border-color:     #6b0043;
   color:            #6b0043;
 }
+
+/* Which other folders a mail sits in, drawn at the end of the preview
+ * line. On Gmail those folders are the mail's labels.
+ *
+ * The colours are the shared palette from stamp-palette.c, tinted with
+ * alpha() rather than given a second set of hexes: the same accent then
+ * carries the chip in both light and dark, and a colour changed in the
+ * palette does not have to be changed again here. */
+.folder-chip {
+  border-radius: 999px;
+  padding: 0 6px;
+  font-size: smaller;
+  font-weight: bold;
+  min-width: 1rem;
+}
+
+/* A folder the user has not given a colour still says it is there. */
+.folder-chip.folder-uncolored {
+  background-color: alpha(currentColor, 0.12);
+  opacity: 0.7;
+}
+
+/* Rows already tight for space keep the dot but drop the chip padding
+ * that would push the preview out. */
+.compact-rows .folder-chip {
+  padding: 0 4px;
+}
+
+.folder-chip.folder-color-blue {
+  background-color: alpha(#3584e4, 0.18);
+  color: #3584e4;
+}
+
+
+.folder-chip.folder-color-teal {
+  background-color: alpha(#2190a4, 0.18);
+  color: #2190a4;
+}
+
+
+.folder-chip.folder-color-green {
+  background-color: alpha(#3a944a, 0.18);
+  color: #3a944a;
+}
+
+
+.folder-chip.folder-color-yellow {
+  background-color: alpha(#c88800, 0.18);
+  color: #c88800;
+}
+
+
+.folder-chip.folder-color-orange {
+  background-color: alpha(#ed5b00, 0.18);
+  color: #ed5b00;
+}
+
+
+.folder-chip.folder-color-red {
+  background-color: alpha(#e62d42, 0.18);
+  color: #e62d42;
+}
+
+
+.folder-chip.folder-color-pink {
+  background-color: alpha(#d56199, 0.18);
+  color: #d56199;
+}
+
+
+.folder-chip.folder-color-purple {
+  background-color: alpha(#9141ac, 0.18);
+  color: #9141ac;
+}
+
+
+.folder-chip.folder-color-slate {
+  background-color: alpha(#6f8396, 0.18);
+  color: #6f8396;
+}
+
