@@ -15,6 +15,7 @@ document.addEventListener('keydown', (e) => {
 
 document.body.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' || e.shiftKey) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
 
   const sel = window.getSelection();
   if (!sel || !sel.rangeCount) return;
@@ -36,6 +37,7 @@ document.body.addEventListener('keydown', (e) => {
 
 document.body.addEventListener('keyup', (e) => {
   if (e.key !== 'Enter' || e.shiftKey) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
 
   const sel = window.getSelection();
   if (!sel || !sel.rangeCount) return;
