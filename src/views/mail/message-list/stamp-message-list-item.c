@@ -1285,6 +1285,10 @@ stamp_message_list_item_init (StampMessageListItem *self)
 
   self->cancellable = g_cancellable_new ();
 
+  /* Without this the body never takes GTK focus, so Ctrl+C lands on
+   * whatever widget does and the selection is left behind. */
+  gtk_widget_set_focusable (GTK_WIDGET (self->web_view), TRUE);
+
   g_signal_connect_object (self->web_view, "notify::size-request", G_CALLBACK (on_size_request), self, G_CONNECT_DEFAULT);
 
   self->actions = g_simple_action_group_new ();
