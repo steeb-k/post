@@ -8,10 +8,13 @@
 - Give signatures the composer's formatting bar (steeb-k)
 
 ### Bug Fixes
+- StampAccountItem: Reconnect after the network comes back (steeb-k)
+- Stop the folder refresh from waking ten times a second (steeb-k)
 - StampComposer: Keep Ctrl+Return from editing the message body (steeb-k)
 - Let Ctrl+C copy out of a message body (steeb-k)
 
 ### Other Changes
+- Log to the journal when stderr is not a terminal (steeb-k)
 - Show the composer's shortcuts in the shortcuts dialog (steeb-k)
 - Add two icon studies (steeb-k)
 - Keep the ARM64 cross-build script in the tree (steeb-k)
