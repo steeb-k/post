@@ -316,20 +316,11 @@ dropped, so background running never actually gets requested.
 
 ## Crash in the conversation list while loading a folder
 
-Seen once, with this backtrace:
-
-    g_str_hash
-    g_hash_table_insert
-    stamp_conversation_list_load_folder
-    load_folder_idle
-
-That points at `src/views/mail/conversation-list/stamp-conversation-list.c:658`
-
-    g_hash_table_insert (self->thread_cache, g_strdup (full_name), NULL);
-
-which runs before the `account` null check below it and does not check
-`full_name`. Worth checking whether this is connected to the empty folder
-issue above, since both involve loading a folder right after startup.
+Fixed. `stamp_conversation_list_load_folder` invalidated the thread
+cache before checking `account`, and without checking `full_name`, so
+`g_str_hash` could be handed a NULL. The invalidation now runs after
+both guards, and uses `g_hash_table_remove` rather than inserting a NULL
+value.
 
 ## Dependencies worth trimming
 

@@ -3,6 +3,8 @@
 ## [Unreleased]
 
 ### Features
+- Add a clustered view, gathering mails that share a subject (steeb-k)
+- Follow a starred conversation, keeping it bold until it is opened (steeb-k)
 - Star a mail from its row, with a moment before the list reshuffles (steeb-k)
 - Colour folders, and show a mail's other folders on its row (steeb-k)
 - Refresh the mail list with a trackpad swipe as well as a drag (steeb-k)
@@ -10,6 +12,9 @@
 - Give signatures the composer's formatting bar (steeb-k)
 
 ### Bug Fixes
+- Star the whole conversation rather than just the mail that starts it (steeb-k)
+- Name every sender in a conversation, not just the first branch's (steeb-k)
+- Stop a folder load from hashing a NULL name, and unrefing a borrowed thread (steeb-k)
 - Move a Gmail message to the trash when asked to (steeb-k)
 - StampAccountItem: Reconnect after the network comes back (steeb-k)
 - Stop the folder refresh from waking ten times a second (steeb-k)
