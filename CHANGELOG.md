@@ -17,6 +17,7 @@
 - Let Ctrl+C copy out of a message body (steeb-k)
 
 ### Other Changes
+- Redraw the View button and show it only on desktop (steeb-k)
 - Log to the journal when stderr is not a terminal (steeb-k)
 - Show the composer's shortcuts in the shortcuts dialog (steeb-k)
 - Add two icon studies (steeb-k)
