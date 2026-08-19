@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+- Star a mail from its row, with a moment before the list reshuffles (steeb-k)
 - Colour folders, and show a mail's other folders on its row (steeb-k)
 - Refresh the mail list with a trackpad swipe as well as a drag (steeb-k)
 - StampConversationList: Add a collapsible starred section on top (steeb-k)
