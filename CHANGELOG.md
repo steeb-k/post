@@ -9,6 +9,7 @@
 - Give signatures the composer's formatting bar (steeb-k)
 
 ### Bug Fixes
+- Move a Gmail message to the trash when asked to (steeb-k)
 - StampAccountItem: Reconnect after the network comes back (steeb-k)
 - Stop the folder refresh from waking ten times a second (steeb-k)
 - StampComposer: Keep Ctrl+Return from editing the message body (steeb-k)
