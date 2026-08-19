@@ -94,6 +94,87 @@ has_thread_flag_one (CamelFolderThreadNode *node,
   return has_flag;
 }
 
+
+static gboolean
+has_thread_user_flag_one (CamelFolderThreadNode *node,
+                          const gchar           *name)
+{
+  CamelMessageInfo *info;
+
+  if (!node)
+    return FALSE;
+
+  info = camel_folder_thread_node_get_item (node);
+  if (info && camel_message_info_get_user_flag (info, name))
+    return TRUE;
+
+  for (CamelFolderThreadNode *child = camel_folder_thread_node_get_child (node); child; child = camel_folder_thread_node_get_next (child)) {
+    if (has_thread_user_flag_one (child, name))
+      return TRUE;
+  }
+
+  return FALSE;
+}
+
+static void
+set_thread_user_flag (CamelFolderThreadNode *node,
+                      const gchar           *name,
+                      gboolean               state)
+{
+  CamelMessageInfo *info;
+
+  if (!node)
+    return;
+
+  info = camel_folder_thread_node_get_item (node);
+  if (info)
+    camel_message_info_set_user_flag (info, name, state);
+
+  for (CamelFolderThreadNode *child = camel_folder_thread_node_get_child (node); child; child = camel_folder_thread_node_get_next (child))
+    set_thread_user_flag (child, name, state);
+}
+
+/*
+ * A star covers the whole conversation, so the flag has to go on every
+ * mail in it. Writing it to the root alone would leave a star behind on
+ * a reply when the conversation is unstarred, which the row would then
+ * keep showing -- it reads the flag with has_thread_flag_one().
+ */
+static void
+set_thread_flag (CamelFolderThreadNode *node,
+                 CamelMessageFlags      flag,
+                 gboolean               state)
+{
+  CamelMessageInfo *info;
+
+  if (!node)
+    return;
+
+  info = camel_folder_thread_node_get_item (node);
+  if (info)
+    camel_message_info_set_flags (info, flag, state ? ~0 : 0);
+
+  for (CamelFolderThreadNode *child = camel_folder_thread_node_get_child (node); child; child = camel_folder_thread_node_get_next (child))
+    set_thread_flag (child, flag, state);
+}
+
+/* Mark the unread mails of a starred conversation as newly arrived. */
+static void
+mark_new_arrivals (CamelFolderThreadNode *node)
+{
+  CamelMessageInfo *info;
+
+  if (!node)
+    return;
+
+  info = camel_folder_thread_node_get_item (node);
+  if (info && (camel_message_info_get_flags (info) & CAMEL_MESSAGE_SEEN) == 0)
+    camel_message_info_set_user_flag (info, STAMP_FLAG_NEW, TRUE);
+
+  for (CamelFolderThreadNode *child = camel_folder_thread_node_get_child (node); child; child = camel_folder_thread_node_get_next (child))
+    mark_new_arrivals (child);
+}
+
 static gboolean
 has_thread_flag_all (CamelFolderThreadNode *node,
                      CamelMessageFlags      flag)
@@ -253,6 +334,28 @@ is_important (StampConversationItem *self)
   return important;
 }
 
+/*
+ * Work out what the row should be showing from the flags on the mails
+ * underneath it.
+ *
+ * A starred conversation stays bold until it has been opened, so being
+ * unread here is not simply "something is unseen": a mail that arrived
+ * unread into a starred conversation is marked as new, and that mark
+ * outlives the mark-read timeout.
+ */
+static void
+refresh_state (StampConversationItem *self)
+{
+  self->flagged = has_thread_flag_one (self->thread_node, CAMEL_MESSAGE_FLAGGED);
+  self->important = is_important (self);
+
+  if (self->flagged)
+    mark_new_arrivals (self->thread_node);
+
+  self->unread = !has_thread_flag_all (self->thread_node, CAMEL_MESSAGE_SEEN) ||
+                 (self->flagged && has_thread_user_flag_one (self->thread_node, STAMP_FLAG_NEW));
+}
+
 static void
 stamp_conversation_item_set_property (GObject      *object,
                                       guint         property_id,
@@ -265,9 +368,7 @@ stamp_conversation_item_set_property (GObject      *object,
     case PROP_THREAD_NODE:
       self->thread_node = g_value_get_pointer (value);
       self->timestamp = get_newest_timestamp (self->thread_node, -1);
-      self->unread = !has_thread_flag_all (self->thread_node, CAMEL_MESSAGE_SEEN);
-      self->flagged = has_thread_flag_one (self->thread_node, CAMEL_MESSAGE_FLAGGED);
-      self->important = is_important (self);
+      refresh_state (self);
 
       if (self->thread_node) {
         const CamelMessageInfo *message;
@@ -444,56 +545,73 @@ stamp_conversation_item_get_node (StampConversationItem *self)
   return self->thread_node;
 }
 
+/*
+ * Every sender in the conversation, not just the ones down its first
+ * branch. Clustered mails hang off the root as siblings rather than as
+ * a chain of replies, so a walk that only followed get_child() would
+ * name one sender out of three.
+ */
+static void
+collect_senders (CamelFolderThreadNode *node,
+                 GHashTable            *senders)
+{
+  const CamelMessageInfo *message;
+
+  if (!node)
+    return;
+
+  message = camel_folder_thread_node_get_item (node);
+
+  if (message) {
+    g_autoptr (CamelInternetAddress) address = camel_internet_address_new ();
+
+    if (camel_address_decode (CAMEL_ADDRESS (address), camel_message_info_get_from (message)) > 0) {
+      const gchar *ia_name = NULL;
+      const gchar *ia_address = NULL;
+      const gchar *sender = NULL;
+
+      camel_internet_address_get (address, 0, &ia_name, &ia_address);
+
+      if (g_strcmp0 (ia_name, "") != 0)
+        sender = ia_name;
+      else
+        sender = ia_address;
+
+      if (sender) {
+        gsize len = strlen (sender);
+
+        if (len > 2 && sender[0] == '<' && sender[len - 1] == '>')
+          g_hash_table_add (senders, g_strndup (sender + 1, len - 2));
+        else
+          g_hash_table_add (senders, g_strdup (sender));
+      }
+    }
+  }
+
+  for (CamelFolderThreadNode *child = camel_folder_thread_node_get_child (node); child; child = camel_folder_thread_node_get_next (child))
+    collect_senders (child, senders);
+}
+
 const gchar *
 stamp_conversation_item_get_from (StampConversationItem *self)
 {
-  CamelFolderThreadNode *current_node = self->thread_node;
   g_autoptr (GHashTable) senders = NULL;
-  const gchar *ia_name;
-  const gchar *ia_address;
 
   if (self->sender)
     return self->sender;
 
   senders = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
 
-  while (current_node) {
-    const CamelMessageInfo *message = camel_folder_thread_node_get_item (current_node);
-
-    if (message) {
-      g_autoptr (CamelInternetAddress) address = camel_internet_address_new ();
-
-      if (camel_address_decode (CAMEL_ADDRESS (address), camel_message_info_get_from (message)) > 0) {
-        const gchar *sender = NULL;
-        gchar *tmp = NULL;
-
-        camel_internet_address_get (address, 0, &ia_name, &ia_address);
-        if (g_strcmp0 (ia_name, "") != 0) {
-          sender = ia_name;
-        } else {
-          sender = ia_address;
-        }
-
-        if (strlen (sender) > 2 && sender[0] == '<' && sender[strlen (sender) - 1] == '>') {
-          tmp = g_strndup (sender + 1, strlen (sender) - 2);
-        } else {
-          tmp = g_strdup (sender);
-        }
-
-        g_hash_table_add (senders, tmp);
-      }
-    }
-
-    current_node = camel_folder_thread_node_get_child (current_node);
-  }
+  collect_senders (self->thread_node, senders);
 
   if (g_hash_table_size (senders) > 0) {
     gchar **keys = (char **)g_hash_table_get_keys_as_array (senders, NULL);
 
     self->sender = g_strjoinv (", ", (char **)keys);
     g_clear_pointer (&keys, g_free);
-  } else
+  } else {
     self->sender = g_strdup (_("Unknown"));
+  }
 
   return self->sender;
 }
@@ -529,20 +647,6 @@ stamp_conversation_item_get_unread (StampConversationItem *self)
   return self->unread;
 }
 
-void
-stamp_conversation_item_set_unread (StampConversationItem *self,
-                                    gboolean               unread)
-{
-  CamelMessageInfo *message;
-
-  if (!self->thread_node)
-    return;
-
-  message = camel_folder_thread_node_get_item (self->thread_node);
-
-  camel_message_info_set_flags (message, CAMEL_MESSAGE_SEEN, unread ? ~0 : 0);
-}
-
 /* Check if one node has an ATTACHMENT */
 gboolean
 stamp_conversation_item_has_attachment (StampConversationItem *self)
@@ -561,14 +665,14 @@ void
 stamp_conversation_item_set_flagged (StampConversationItem *self,
                                      gboolean               flagged)
 {
-  CamelMessageInfo *message;
-
   if (!self->thread_node)
     return;
 
-  message = camel_folder_thread_node_get_item (self->thread_node);
+  set_thread_flag (self->thread_node, CAMEL_MESSAGE_FLAGGED, flagged);
 
-  camel_message_info_set_flags (message, CAMEL_MESSAGE_FLAGGED, flagged ? ~0 : 0);
+  /* Unstarring gives up following it, so nothing is owed a look. */
+  if (!flagged)
+    set_thread_user_flag (self->thread_node, STAMP_FLAG_NEW, FALSE);
 }
 
 /* The star as the row should draw it. */
@@ -806,7 +910,7 @@ stamp_conversation_item_get_labels (StampConversationItem *self)
   GPtrArray *array;
 
   if (!self->thread_node)
-    return FALSE;
+    return NULL;
 
   array = g_ptr_array_new_with_free_func (g_free);
   message = camel_folder_thread_node_get_item (self->thread_node);
@@ -828,9 +932,18 @@ void
 stamp_conversation_item_update (StampConversationItem *self,
                                 CamelMessageInfo      *info)
 {
-  self->unread = !has_thread_flag_all (self->thread_node, CAMEL_MESSAGE_SEEN);
-  self->flagged = has_thread_flag_one (self->thread_node, CAMEL_MESSAGE_FLAGGED);
-  self->important = is_important (self);
+  refresh_state (self);
+
+  /*
+   * The conversation can have grown a mail since these were worked out,
+   * which changes every one of them: who it is from, what it says last,
+   * how many there are and when the newest arrived.
+   */
+  g_clear_pointer (&self->subject, g_free);
+  g_clear_pointer (&self->sender, g_free);
+  g_clear_pointer (&self->senders, g_free);
+  g_clear_pointer (&self->preview, g_free);
+  self->timestamp = get_newest_timestamp (self->thread_node, -1);
 
   /* The write landed (or something else changed the flag under it), so
    * the pending star has nothing left to say. */
@@ -842,6 +955,29 @@ stamp_conversation_item_update (StampConversationItem *self,
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_STAR_SHOWN]);
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_ANSWERED]);
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_FORWARDED]);
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_SUBJECT]);
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_FROM]);
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_PREVIEW]);
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_NUM_MESSAGES]);
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_DATE]);
+}
+
+/*
+ * The user has looked at this conversation, so a star has nothing left
+ * to keep it bold for.
+ */
+void
+stamp_conversation_item_acknowledge (StampConversationItem *self)
+{
+  g_return_if_fail (STAMP_IS_CONVERSATION_ITEM (self));
+
+  if (!self->thread_node || !has_thread_user_flag_one (self->thread_node, STAMP_FLAG_NEW))
+    return;
+
+  set_thread_user_flag (self->thread_node, STAMP_FLAG_NEW, FALSE);
+
+  self->unread = !has_thread_flag_all (self->thread_node, CAMEL_MESSAGE_SEEN);
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_UNREAD]);
 }
 
 gboolean

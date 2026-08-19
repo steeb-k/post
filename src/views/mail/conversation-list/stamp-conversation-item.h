@@ -26,6 +26,24 @@
 
 G_BEGIN_DECLS
 
+/*
+ * Set on a mail that turned up unread in a starred conversation, and
+ * taken off again when the user opens it.
+ *
+ * A star means "keep me posted about this one", so a conversation that
+ * gets a new mail has to stay marked as such until it has actually been
+ * looked at -- not until the mark-read timeout quietly reads it while
+ * the list is scrolled past. Camel has nothing that says "read but not
+ * seen by a person", so this flag says it.
+ *
+ * It marks the new mail rather than the reading of it deliberately: a
+ * mail that predates the flag carries nothing, and so a conversation
+ * starred long ago does not turn bold the first time this runs. The
+ * "X-" prefix keeps it out of the label chips; see
+ * stamp_conversation_item_get_labels().
+ */
+#define STAMP_FLAG_NEW "X-Post-New"
+
 #define STAMP_TYPE_CONVERSATION_ITEM (stamp_conversation_item_get_type())
 G_DECLARE_FINAL_TYPE (StampConversationItem, stamp_conversation_item, STAMP, CONVERSATION_ITEM, GObject);
 
@@ -51,9 +69,12 @@ stamp_conversation_item_get_num_messages (StampConversationItem *self);
 gboolean
 stamp_conversation_item_get_unread (StampConversationItem *self);
 
+/*
+ * Note that the user has looked at this conversation, so that a star no
+ * longer keeps it bold. See STAMP_FLAG_NEW.
+ */
 void
-stamp_conversation_item_set_unread (StampConversationItem *self,
-                                    gboolean               unread);
+stamp_conversation_item_acknowledge (StampConversationItem *self);
 
 gboolean
 stamp_conversation_item_has_attachment (StampConversationItem *self);
