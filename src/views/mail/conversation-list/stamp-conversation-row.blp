@@ -116,8 +116,8 @@ template $StampConversationRow: Box {
         }
 
         /* What a mail is stands beside when it came in, on the line the
-         * date is on: the star belongs to this mail, and a line of its
-         * own would have parked it under the date of the mail above. */
+         * date is on: these belong to this mail, and a line of their
+         * own would have parked them under the date of the mail above. */
         Image reply_icon {
           accessibility {
             label: _("Replied to Mail");
@@ -154,14 +154,6 @@ template $StampConversationRow: Box {
           visible: false;
         }
 
-        Image flagged_icon {
-          accessibility {
-            label: _("Flagged Mail");
-          }
-
-          icon-name: "non-starred-symbolic";
-        }
-
         Label date {
           xalign: 1;
           ellipsize: end;
@@ -169,6 +161,35 @@ template $StampConversationRow: Box {
           styles [
             "caption",
           ]
+        }
+
+        /* The star sits last on the line, past the date, so every row
+         * ends on the same thing and the dates line up with each other
+         * instead of being pushed about by a star that comes and goes.
+         *
+         * It keeps clear of the right edge because the overlay scrollbar
+         * lives there: sitting under it, the star was half hidden, and
+         * the scrollbar took the pointer before the star could light up
+         * from anywhere but the left. */
+        Button flagged_button {
+          valign: center;
+          margin-end: 12;
+          clicked => $on_flagged_clicked();
+          can-focus: false;
+          tooltip-text: _("Star Mail");
+
+          styles [
+            "flat",
+            "star-button",
+          ]
+
+          Image flagged_icon {
+            accessibility {
+              label: _("Flagged Mail");
+            }
+
+            icon-name: "non-starred-symbolic";
+          }
         }
       }
 

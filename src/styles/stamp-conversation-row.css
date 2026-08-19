@@ -264,3 +264,41 @@
   color: #6f8396;
 }
 
+
+/*
+ * The star at the end of a row is a button, but must not read as one:
+ * button padding and chrome would make every row taller for the sake of
+ * an icon that was there before as a plain image.
+ */
+.star-button,
+.star-button:hover,
+.star-button:active,
+.star-button:focus {
+  min-width: 16px;
+  min-height: 16px;
+  padding: 0;
+  margin: 0;
+  background: none;
+  background-image: none;
+  box-shadow: none;
+  border: none;
+  outline: none;
+}
+
+/* An unstarred mail keeps its star out of the way; a starred one draws
+ * it in the ordinary text colour -- white on a dark theme. */
+.star-button image {
+  opacity: 0.45;
+}
+
+.star-button.starred image {
+  opacity: 1;
+}
+
+/* Gold under the pointer, whichever way round the star is, so it is
+ * clear it can be clicked. Clicking it settles back to grey or white:
+ * the colour says "you are on it", not "this is starred". */
+.star-button:hover image {
+  color: #f5c211;
+  opacity: 1;
+}

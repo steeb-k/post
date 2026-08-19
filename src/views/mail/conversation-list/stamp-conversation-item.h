@@ -65,6 +65,19 @@ void
 stamp_conversation_item_set_flagged (StampConversationItem *self,
                                      gboolean               flagged);
 
+/*
+ * The star as the row draws it: the flag, unless a click of it is still
+ * waiting out its delay. See stamp_conversation_item_toggle_star().
+ */
+gboolean
+stamp_conversation_item_get_star_shown (StampConversationItem *self);
+
+void
+stamp_conversation_item_toggle_star (StampConversationItem *self);
+
+void
+stamp_conversation_item_flush_star (StampConversationItem *self);
+
 const gchar *
 stamp_conversation_item_get_preview (StampConversationItem *self);
 

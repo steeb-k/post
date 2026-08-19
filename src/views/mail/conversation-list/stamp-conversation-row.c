@@ -40,6 +40,7 @@ struct _StampConversationRow {
   GtkInscription *body;
   GtkLabel *counter;
   GtkImage *flagged_icon;
+  GtkButton *flagged_button;
   GtkBox *left_action;
   GtkLabel *left_action_label;
   GtkImage *left_action_image;
@@ -269,6 +270,23 @@ on_drag_end (GtkGestureDrag *gesture,
   gtk_widget_set_opacity (GTK_WIDGET (self->right_action), 0);
 }
 
+/*
+ * Star or unstar the mail. The item sits on the write for a few seconds
+ * -- see stamp_conversation_item_toggle_star() -- so the row redraws at
+ * once while the list stays where it is.
+ */
+static void
+on_flagged_clicked (GtkButton *button,
+                    gpointer   user_data)
+{
+  StampConversationRow *self = STAMP_CONVERSATION_ROW (user_data);
+
+  if (!self->item)
+    return;
+
+  stamp_conversation_item_toggle_star (self->item);
+}
+
 static void
 on_check_button_toggled (GtkCheckButton *check,
                          gpointer        user_data)
@@ -299,6 +317,7 @@ stamp_conversation_row_class_init (StampConversationRowClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampConversationRow, body);
   gtk_widget_class_bind_template_child (widget_class, StampConversationRow, counter);
   gtk_widget_class_bind_template_child (widget_class, StampConversationRow, flagged_icon);
+  gtk_widget_class_bind_template_child (widget_class, StampConversationRow, flagged_button);
   gtk_widget_class_bind_template_child (widget_class, StampConversationRow, left_action);
   gtk_widget_class_bind_template_child (widget_class, StampConversationRow, left_action_label);
   gtk_widget_class_bind_template_child (widget_class, StampConversationRow, left_action_image);
@@ -314,6 +333,7 @@ stamp_conversation_row_class_init (StampConversationRowClass *klass)
   gtk_widget_class_bind_template_callback (widget_class, on_drag_update);
   gtk_widget_class_bind_template_callback (widget_class, on_drag_end);
   gtk_widget_class_bind_template_callback (widget_class, on_check_button_toggled);
+  gtk_widget_class_bind_template_callback (widget_class, on_flagged_clicked);
 
   properties[PROP_SELECTED] = g_param_spec_boolean ("selected",
                                                     NULL,
@@ -412,6 +432,38 @@ transform_flagged_to (GBinding     *binding,
     g_value_set_static_string (to_value, "starred-symbolic");
   else
     g_value_set_static_string (to_value, "non-starred-symbolic");
+
+  return TRUE;
+}
+
+/*
+ * The star's own classes, so CSS can tell a starred mail from an
+ * unstarred one: the row hands over the whole list because "css-classes"
+ * is the only handle a binding has on it.
+ */
+static gboolean
+transform_flagged_to_classes (GBinding     *binding,
+                              const GValue *from_value,
+                              GValue       *to_value,
+                              gpointer      user_data)
+{
+  static const gchar *starred[] = { "flat", "star-button", "starred", NULL };
+  static const gchar *unstarred[] = { "flat", "star-button", NULL };
+
+  g_value_set_boxed (to_value, g_value_get_boolean (from_value) ? starred : unstarred);
+
+  return TRUE;
+}
+
+static gboolean
+transform_flagged_to_tooltip (GBinding     *binding,
+                              const GValue *from_value,
+                              GValue       *to_value,
+                              gpointer      user_data)
+{
+  gboolean flagged = g_value_get_boolean (from_value);
+
+  g_value_set_string (to_value, flagged ? _("Unstar Mail") : _("Star Mail"));
 
   return TRUE;
 }
@@ -713,7 +765,11 @@ stamp_conversation_row_bind_mail (StampConversationRow  *self,
   add_binding (self, g_object_bind_property (item, "unread", self, "unread", G_BINDING_SYNC_CREATE));
   add_binding (self, g_object_bind_property (item, "preview", self->body, "markup", G_BINDING_SYNC_CREATE));
   add_binding (self, g_object_bind_property_full (item, "preview", self->body, "visible", G_BINDING_SYNC_CREATE, transfer_preview_to_visible, NULL, NULL, NULL));
-  add_binding (self, g_object_bind_property_full (item, "flagged", self->flagged_icon, "icon-name", G_BINDING_SYNC_CREATE, transform_flagged_to, NULL, self, NULL));
+  /* "star-shown", not "flagged": a star just clicked shows before its
+   * flag is written. */
+  add_binding (self, g_object_bind_property_full (item, "star-shown", self->flagged_icon, "icon-name", G_BINDING_SYNC_CREATE, transform_flagged_to, NULL, self, NULL));
+  add_binding (self, g_object_bind_property_full (item, "star-shown", self->flagged_button, "tooltip-text", G_BINDING_SYNC_CREATE, transform_flagged_to_tooltip, NULL, self, NULL));
+  add_binding (self, g_object_bind_property_full (item, "star-shown", self->flagged_button, "css-classes", G_BINDING_SYNC_CREATE, transform_flagged_to_classes, NULL, self, NULL));
   add_binding (self, g_object_bind_property (item, "has-attachment", self->attachment_icon, "visible", G_BINDING_SYNC_CREATE));
   add_binding (self, g_object_bind_property (item, "answered", self->reply_icon, "visible", G_BINDING_SYNC_CREATE));
   add_binding (self, g_object_bind_property (item, "forwarded", self->forwarded_icon, "visible", G_BINDING_SYNC_CREATE));

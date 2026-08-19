@@ -38,7 +38,17 @@ struct _StampConversationItem {
   gboolean flagged;
   gboolean hidden;
   gboolean important;
+
+  /* A star the user has clicked but that has not been written yet. The
+   * row shows it at once while the flag itself waits out
+   * STAR_COMMIT_DELAY_MS, so a mis-click can be taken back before the
+   * starred-first section reshuffles the list under the pointer. */
+  gboolean star_pending;
+  gboolean star_target;
+  guint star_commit_id;
 };
+
+#define STAR_COMMIT_DELAY_MS 3000
 
 G_DEFINE_FINAL_TYPE (StampConversationItem, stamp_conversation_item, G_TYPE_OBJECT);
 
@@ -58,9 +68,10 @@ typedef enum {
   PROP_LABELS,
   PROP_ANSWERED,
   PROP_FORWARDED,
+  PROP_STAR_SHOWN,
 } StampConversationItemProps;
 
-static GParamSpec *properties[PROP_FORWARDED + 1];
+static GParamSpec *properties[PROP_STAR_SHOWN + 1];
 
 static gboolean
 has_thread_flag_one (CamelFolderThreadNode *node,
@@ -187,6 +198,9 @@ stamp_conversation_item_get_property (GObject    *object,
     case PROP_FORWARDED:
       g_value_set_boolean (value, stamp_conversation_item_get_forwarded (self));
       break;
+    case PROP_STAR_SHOWN:
+      g_value_set_boolean (value, stamp_conversation_item_get_star_shown (self));
+      break;
   }
 }
 
@@ -279,6 +293,7 @@ stamp_conversation_item_set_property (GObject      *object,
     case PROP_LABELS:
     case PROP_ANSWERED:
     case PROP_FORWARDED:
+    case PROP_STAR_SHOWN:
       break;
   }
 }
@@ -287,6 +302,10 @@ static void
 stamp_conversation_item_dispose (GObject *object)
 {
   StampConversationItem *self = STAMP_CONVERSATION_ITEM (object);
+
+  /* The timer holds a reference, so reaching dispose means it is long
+   * gone; clearing the id keeps that assumption honest. */
+  self->star_commit_id = 0;
 
   g_clear_pointer (&self->senders, g_free);
   g_clear_pointer (&self->subject, g_free);
@@ -328,6 +347,13 @@ stamp_conversation_item_class_init (StampConversationItemClass *klass)
                                                    NULL,
                                                    FALSE,
                                                    G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+  /* What the star on the row draws: the flag, unless a click of it is
+   * still waiting to be written. */
+  properties[PROP_STAR_SHOWN] = g_param_spec_boolean ("star-shown",
+                                                      NULL,
+                                                      NULL,
+                                                      FALSE,
+                                                      G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
   properties[PROP_SERVICE_UID] = g_param_spec_string ("service-uid",
                                                       NULL,
                                                       NULL,
@@ -545,6 +571,83 @@ stamp_conversation_item_set_flagged (StampConversationItem *self,
   camel_message_info_set_flags (message, CAMEL_MESSAGE_FLAGGED, flagged ? ~0 : 0);
 }
 
+/* The star as the row should draw it. */
+gboolean
+stamp_conversation_item_get_star_shown (StampConversationItem *self)
+{
+  return self->star_pending ? self->star_target : self->flagged;
+}
+
+static gboolean
+commit_star (gpointer user_data)
+{
+  StampConversationItem *self = user_data;
+
+  self->star_commit_id = 0;
+
+  /* The pending state stays until the folder reports the flag back to
+   * stamp_conversation_item_update(): dropping it here would blink the
+   * star back to its old shape until that lands. */
+  stamp_conversation_item_set_flagged (self, self->star_target);
+
+  return G_SOURCE_REMOVE;
+}
+
+/*
+ * Flip the star and start the clock on writing it. A second click
+ * inside the window takes the first one back and nothing is written at
+ * all -- which is the point: with starred mails collected on top, a
+ * flag written on the first click would have thrown the row the user
+ * was aiming at somewhere else.
+ */
+void
+stamp_conversation_item_toggle_star (StampConversationItem *self)
+{
+  gboolean shown;
+
+  g_return_if_fail (STAMP_IS_CONVERSATION_ITEM (self));
+
+  if (!self->thread_node)
+    return;
+
+  shown = stamp_conversation_item_get_star_shown (self);
+
+  if (self->star_commit_id) {
+    /* Back to where it was before the first click, unwritten. */
+    g_clear_handle_id (&self->star_commit_id, g_source_remove);
+    self->star_pending = FALSE;
+  } else {
+    self->star_pending = TRUE;
+    self->star_target = !shown;
+    self->star_commit_id = g_timeout_add_full (G_PRIORITY_DEFAULT,
+                                               STAR_COMMIT_DELAY_MS,
+                                               commit_star,
+                                               g_object_ref (self),
+                                               g_object_unref);
+  }
+
+  if (stamp_conversation_item_get_star_shown (self) != shown)
+    g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_STAR_SHOWN]);
+}
+
+/*
+ * Write a waiting star now. The list calls this before it lets go of a
+ * folder: the timer holds the item alive, but not the thread node it
+ * would write through, and a star the user clicked should not be lost
+ * to a folder change either.
+ */
+void
+stamp_conversation_item_flush_star (StampConversationItem *self)
+{
+  g_return_if_fail (STAMP_IS_CONVERSATION_ITEM (self));
+
+  if (!self->star_commit_id)
+    return;
+
+  g_clear_handle_id (&self->star_commit_id, g_source_remove);
+  commit_star (self);
+}
+
 /* Check if last node has been answered */
 gboolean
 stamp_conversation_item_get_answered (StampConversationItem *self)
@@ -729,8 +832,14 @@ stamp_conversation_item_update (StampConversationItem *self,
   self->flagged = has_thread_flag_one (self->thread_node, CAMEL_MESSAGE_FLAGGED);
   self->important = is_important (self);
 
+  /* The write landed (or something else changed the flag under it), so
+   * the pending star has nothing left to say. */
+  if (self->star_pending && !self->star_commit_id)
+    self->star_pending = FALSE;
+
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_UNREAD]);
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_FLAGGED]);
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_STAR_SHOWN]);
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_ANSWERED]);
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_FORWARDED]);
 }

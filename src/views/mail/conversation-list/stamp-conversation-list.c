@@ -1059,6 +1059,29 @@ load_more_items_idle (gpointer user_data)
   return G_SOURCE_REMOVE;
 }
 
+/*
+ * Write out any star still sitting on its delay. The mails on screen
+ * are about to lose the thread they would be written through -- a
+ * folder reload, or the list going away -- and a star the user clicked
+ * should reach the server either way.
+ */
+static void
+flush_pending_stars (StampConversationList *self)
+{
+  guint n_items;
+
+  if (!self->list_store)
+    return;
+
+  n_items = g_list_model_get_n_items (G_LIST_MODEL (self->list_store));
+
+  for (guint idx = 0; idx < n_items; idx++) {
+    g_autoptr (StampConversationItem) item = g_list_model_get_item (G_LIST_MODEL (self->list_store), idx);
+
+    stamp_conversation_item_flush_star (item);
+  }
+}
+
 void
 stamp_conversation_list_load_folder (StampConversationList *self,
                                      StampAccount          *account,
@@ -1070,6 +1093,8 @@ stamp_conversation_list_load_folder (StampConversationList *self,
     g_cancellable_cancel (self->cancellable);
     g_clear_object (&self->cancellable);
   }
+
+  flush_pending_stars (self);
 
   g_hash_table_insert (self->thread_cache, g_strdup (full_name), NULL);
 
@@ -1107,6 +1132,8 @@ stamp_conversation_list_clear (StampConversationList *self)
 
   self->account = NULL;
   g_clear_pointer (&self->full_name, g_free);
+
+  flush_pending_stars (self);
 
   g_list_store_remove_all (self->list_store);
 }
@@ -1879,6 +1906,8 @@ stamp_conversation_list_dispose (GObject *object)
   g_clear_handle_id (&self->load_folder_handler, g_source_remove);
   g_clear_handle_id (&self->load_more_items_handler, g_source_remove);
   g_clear_handle_id (&self->starred_recompute_id, g_source_remove);
+
+  flush_pending_stars (self);
 
   g_clear_object (&self->section_sorter);
   g_clear_object (&self->header_factory);
