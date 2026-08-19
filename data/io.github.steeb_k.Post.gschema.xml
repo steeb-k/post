@@ -67,6 +67,11 @@
       <summary>Per profile mail layout</summary>
       <description>Maps a profile identifier to the mail layout it asks for while it is active. A profile that names no layout leaves the default alone. Kept beside the profiles rather than inside them so that profiles written by an older version keep loading.</description>
     </key>
+    <key name="profile-clustering" type="a{ss}">
+      <default>{}</default>
+      <summary>Whether each profile clusters mails by subject</summary>
+      <description>Maps a profile identifier to "on" or "off". A profile with no entry here leaves the clustered view at whatever the preferences say. It rides in a map of its own for the same reason the layouts do.</description>
+    </key>
     <key name="profile-badges" type="a{ss}">
       <default>{}</default>
       <summary>Per profile badge</summary>
@@ -130,6 +135,17 @@
         <default>5</default>
         <summary>How many starred mails the top section holds</summary>
         <description>The starred section shows at most this many mails. Starred mails beyond the limit stay in the rest of the list, sorted by date.</description>
+    </key>
+    <key type="b" name="clustered">
+      <default>false</default>
+      <summary>Cluster mails by subject</summary>
+      <description>Whether mails that share a subject are shown as one conversation even when they carry no threading headers, the way an automated sender tends to send them. A profile can override this while it is active.</description>
+    </key>
+    <key type="u" name="cluster-window-days">
+      <range min="1" max="365"/>
+      <default>30</default>
+      <summary>How far apart clustered mails may be</summary>
+      <description>Two mails sharing a subject only join the same cluster if they are no more than this many days apart, so a subject an automated sender reuses forever does not collect into one endless conversation.</description>
     </key>
     <key type="b" name="starred-expanded">
         <default>true</default>

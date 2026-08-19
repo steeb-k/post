@@ -37,6 +37,7 @@ G_BEGIN_DECLS
 #define STAMP_PREFS_PROFILES                  "profiles"
 #define STAMP_PREFS_PROFILE_LAYOUTS           "profile-layouts"
 #define STAMP_PREFS_PROFILE_BADGES            "profile-badges"
+#define STAMP_PREFS_PROFILE_CLUSTERING        "profile-clustering"
 #define STAMP_PREFS_DEFAULT_PROFILE           "default-profile"
 #define STAMP_PREFS_OVERRIDE_PROFILE          "override-profile"
 #define STAMP_PREFS_OVERRIDE_UNTIL            "override-until"
@@ -54,6 +55,8 @@ G_BEGIN_DECLS
 #define STAMP_PREFS_MAIL_STARRED_FIRST        "starred-first"
 #define STAMP_PREFS_MAIL_STARRED_LIMIT        "starred-limit"
 #define STAMP_PREFS_MAIL_STARRED_EXPANDED     "starred-expanded"
+#define STAMP_PREFS_MAIL_CLUSTERED            "clustered"
+#define STAMP_PREFS_MAIL_CLUSTER_WINDOW       "cluster-window-days"
 #define STAMP_PREFS_MAIL_REFRESH_INTERVAL     "refresh-interval"
 #define STAMP_PREFS_MAIL_AGENDA_EXPANDED      "agenda-expanded"
 #define STAMP_PREFS_MAIL_PROFILE_FOLDERS      "profile-folders"
@@ -65,6 +68,17 @@ G_BEGIN_DECLS
 #define STAMP_SETTINGS stamp_settings_get (STAMP_PREFS_SCHEMA)
 #define STAMP_SETTINGS_MAIL stamp_settings_get (STAMP_PREFS_MAIL_SCHEMA)
 #define STAMP_SETTINGS_ACCOUNTS stamp_settings_get (STAMP_PREFS_ACCOUNTS_SCHEMA)
+
+/*
+ * Whether mails sharing a subject are shown as one conversation, and
+ * how far apart they may be and still count as the same one. The
+ * active profile gets the first say; see stamp-settings.c.
+ */
+gboolean
+stamp_mail_clustering_enabled (void);
+
+guint
+stamp_mail_cluster_window_days (void);
 
 /*
  * How the mail view arranges its panes. The nicks match the

@@ -269,6 +269,50 @@ load_layouts (StampProfileManager *self)
   }
 }
 
+/* Clustering rides in a map of its own for the same reason layouts do. */
+static void
+store_clustering (StampProfileManager *self)
+{
+  GVariantBuilder builder;
+  guint len = n_profiles (self);
+
+  if (self->loading)
+    return;
+
+  g_variant_builder_init (&builder, G_VARIANT_TYPE ("a{ss}"));
+
+  for (guint i = 0; i < len; i++) {
+    StampProfile *profile = profile_at (self, i);
+    const gchar *clustering = stamp_profile_get_clustering (profile);
+
+    if (clustering)
+      g_variant_builder_add (&builder, "{ss}", stamp_profile_get_id (profile), clustering);
+  }
+
+  g_settings_set_value (self->settings, STAMP_PREFS_PROFILE_CLUSTERING, g_variant_builder_end (&builder));
+}
+
+static void
+load_clustering (StampProfileManager *self)
+{
+  g_autoptr (GVariant) clustering = NULL;
+  guint len = n_profiles (self);
+
+  clustering = g_settings_get_value (self->settings, STAMP_PREFS_PROFILE_CLUSTERING);
+
+  for (guint i = 0; i < len; i++) {
+    StampProfile *profile = profile_at (self, i);
+    const gchar *value = NULL;
+
+    if (!g_variant_lookup (clustering, stamp_profile_get_id (profile), "&s", &value))
+      continue;
+
+    /* A value this version does not know is no override at all. */
+    if (g_strcmp0 (value, "on") == 0 || g_strcmp0 (value, "off") == 0)
+      stamp_profile_set_clustering (profile, value);
+  }
+}
+
 /* Badges ride in a map of their own for the same reason layouts do. */
 static void
 store_badges (StampProfileManager *self)
@@ -402,6 +446,7 @@ load (StampProfileManager *self)
 
   load_layouts (self);
   load_badges (self);
+  load_clustering (self);
 
   self->default_id = g_settings_get_string (self->settings, STAMP_PREFS_DEFAULT_PROFILE);
   self->override_id = g_settings_get_string (self->settings, STAMP_PREFS_OVERRIDE_PROFILE);
@@ -566,6 +611,7 @@ stamp_profile_manager_save (StampProfileManager *self)
   store_profiles (self);
   store_layouts (self);
   store_badges (self);
+  store_clustering (self);
 
   /* Editing the schedule can move the moment the manual choice was
    * meant to last until, so work it out again. */

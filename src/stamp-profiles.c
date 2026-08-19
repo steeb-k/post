@@ -50,6 +50,7 @@ struct _StampProfilesEditor {
   AdwAvatar *badge_preview;
   AdwEntryRow *name_row;
   AdwComboRow *layout_row;
+  AdwComboRow *clustering_row;
   GtkBox *swatches;
   AdwPreferencesGroup *accounts_group;
   AdwPreferencesGroup *rules_group;
@@ -526,6 +527,23 @@ on_layout_changed (GObject    *row,
   stamp_profile_manager_save (stamp_profile_manager_get_default ());
 }
 
+/* Default / On / Off, with "Default" meaning no override at all. */
+static void
+on_clustering_changed (GObject    *row,
+                       GParamSpec *pspec G_GNUC_UNUSED,
+                       gpointer    user_data)
+{
+  StampProfilesEditor *self = STAMP_PROFILES_EDITOR (user_data);
+  guint selected = adw_combo_row_get_selected (ADW_COMBO_ROW (row));
+
+  if (self->updating)
+    return;
+
+  stamp_profile_set_clustering (self->profile, selected == 0 ? NULL : (selected == 1 ? "on" : "off"));
+
+  stamp_profile_manager_save (stamp_profile_manager_get_default ());
+}
+
 static void
 on_remove_response (AdwAlertDialog *dialog,
                     gchar          *response,
@@ -606,6 +624,7 @@ stamp_profiles_editor_class_init (StampProfilesEditorClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampProfilesEditor, badge_preview);
   gtk_widget_class_bind_template_child (widget_class, StampProfilesEditor, name_row);
   gtk_widget_class_bind_template_child (widget_class, StampProfilesEditor, layout_row);
+  gtk_widget_class_bind_template_child (widget_class, StampProfilesEditor, clustering_row);
   gtk_widget_class_bind_template_child (widget_class, StampProfilesEditor, swatches);
   gtk_widget_class_bind_template_child (widget_class, StampProfilesEditor, accounts_group);
   gtk_widget_class_bind_template_child (widget_class, StampProfilesEditor, rules_group);
@@ -614,6 +633,7 @@ stamp_profiles_editor_class_init (StampProfilesEditorClass *klass)
   gtk_widget_class_bind_template_callback (widget_class, on_badge_row_activated);
   gtk_widget_class_bind_template_callback (widget_class, on_name_changed);
   gtk_widget_class_bind_template_callback (widget_class, on_layout_changed);
+  gtk_widget_class_bind_template_callback (widget_class, on_clustering_changed);
   gtk_widget_class_bind_template_callback (widget_class, on_add_rule_clicked);
   gtk_widget_class_bind_template_callback (widget_class, on_remove_clicked);
 }
@@ -643,6 +663,18 @@ stamp_profiles_editor_new (StampProfile *profile)
 
     adw_combo_row_set_selected (self->layout_row,
                                 layout ? stamp_mail_layout_from_nick (layout) + 1 : 0);
+  }
+
+  {
+    const gchar *clustering = stamp_profile_get_clustering (profile);
+    guint selected = 0;
+
+    if (g_strcmp0 (clustering, "on") == 0)
+      selected = 1;
+    else if (g_strcmp0 (clustering, "off") == 0)
+      selected = 2;
+
+    adw_combo_row_set_selected (self->clustering_row, selected);
   }
 
   self->updating = FALSE;

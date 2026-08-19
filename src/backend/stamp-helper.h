@@ -32,6 +32,18 @@ stamp_get_data_dir (void);
 gchar *
 stamp_strip_department (const gchar *str);
 
+/*
+ * The subject two mails have to share to be treated as one conversation
+ * in the clustered view: lower case, with reply and forward prefixes and
+ * any mailing list tag taken off the front and runs of whitespace
+ * collapsed. Returns NULL when nothing is left, so that mail without a
+ * real subject never clusters with anything.
+ *
+ * Returns: (transfer full) (nullable): the normalized subject.
+ */
+gchar *
+stamp_normalize_subject (const gchar *subject);
+
 gchar **
 g_strv_remove (const gchar * const *strv,
                const gchar         *str);

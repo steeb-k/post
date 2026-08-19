@@ -47,6 +47,8 @@ struct _StampPreferences {
   AdwSwitchRow *important_first;
   AdwSwitchRow *starred_first;
   AdwSpinRow *starred_limit;
+  AdwSwitchRow *clustered;
+  AdwSpinRow *cluster_window;
   AdwPreferencesGroup *accounts_group;
   AdwPreferencesGroup *signatures_group;
   AdwActionRow *add_signature;
@@ -134,6 +136,8 @@ stamp_preferences_class_init (StampPreferencesClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, important_first);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, starred_first);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, starred_limit);
+  gtk_widget_class_bind_template_child (widget_class, StampPreferences, clustered);
+  gtk_widget_class_bind_template_child (widget_class, StampPreferences, cluster_window);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, accounts_group);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, signatures_group);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, add_signature);
@@ -315,6 +319,8 @@ stamp_preferences_init (StampPreferences *self)
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_LOAD_BIMI_IMAGES, self->bimi_images, "active", G_SETTINGS_BIND_DEFAULT);
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_IMPORTANT_FIRST, self->important_first, "active", G_SETTINGS_BIND_DEFAULT);
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_STARRED_FIRST, self->starred_first, "active", G_SETTINGS_BIND_DEFAULT);
+  g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_CLUSTERED, self->clustered, "active", G_SETTINGS_BIND_DEFAULT);
+  g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_CLUSTER_WINDOW, self->cluster_window, "value", G_SETTINGS_BIND_DEFAULT);
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_STARRED_LIMIT, self->starred_limit, "value", G_SETTINGS_BIND_DEFAULT);
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_MARK_READ_TIMEOUT, self->mark_read, "value", G_SETTINGS_BIND_DEFAULT);
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_REFRESH_INTERVAL, self->refresh_interval, "value", G_SETTINGS_BIND_DEFAULT);

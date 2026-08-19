@@ -69,6 +69,20 @@ template $StampProfilesEditor: Adw.NavigationPage {
             ]
           };
         }
+
+        Adw.ComboRow clustering_row {
+          title: _("Clustered");
+          subtitle: _("Whether mails sharing a subject are gathered into one conversation while the profile is active.");
+          notify::selected => $on_clustering_changed();
+
+          model: StringList {
+            strings [
+              C_("Mail clustering", "Default"),
+              C_("Mail clustering", "On"),
+              C_("Mail clustering", "Off"),
+            ]
+          };
+        }
       }
 
       Adw.PreferencesGroup accounts_group {

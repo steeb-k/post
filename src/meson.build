@@ -28,6 +28,7 @@ stamp_sources = [
   'backend/stamp-account.c',
   'backend/stamp-bimi.c',
   'backend/stamp-category.c',
+  'backend/stamp-cluster.c',
   'backend/stamp-folder-color.c',
   'backend/stamp-folder-index.c',
   'backend/stamp-gcal.c',

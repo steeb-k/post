@@ -23,6 +23,7 @@
 #include <glib/gi18n.h>
 
 #include "stamp-account.h"
+#include "stamp-cluster.h"
 #include "stamp-composer.h"
 #include "stamp-conversation-item.h"
 #include "stamp-conversation-list-store.h"
@@ -31,6 +32,7 @@
 #include "stamp-layout-picker.h"
 #include "stamp-mail-view.h"
 #include "stamp-message-list.h"
+#include "stamp-profile-manager.h"
 #include "stamp-settings.h"
 
 #define INITIAL_LOAD_COUNT 200
@@ -106,6 +108,10 @@ struct _StampConversationList {
 
   CamelFolderThread *thread;
   GHashTable *thread_cache;
+
+  /* What the list was last threaded with; see on_clustering_changed(). */
+  gboolean clustered;
+  guint cluster_window_days;
   GtkFilterListModel *filter_model;
   guint anchor_position;
   GHashTable *position_to_check;
@@ -217,22 +223,120 @@ on_conversation_list_folder_changed (CamelFolder           *folder,
   }
 }
 
+/*
+ * Camel asks for the subject to thread a mail under through a function
+ * that is handed nothing but the mail itself, so the table of subjects
+ * the clustered view made up has to be reachable from here. Only ever
+ * read during camel_folder_thread_new_items(), which runs on the main
+ * thread with this pointing at the entry being built.
+ */
+static GHashTable *building_cluster_subjects = NULL;
+
+static const gchar *
+cluster_subject (gconstpointer item)
+{
+  const gchar *subject = NULL;
+
+  if (building_cluster_subjects)
+    subject = g_hash_table_lookup (building_cluster_subjects, item);
+
+  /* Falling back to the real subject threads it the ordinary way. */
+  return subject ? subject : camel_message_info_get_subject ((CamelMessageInfo *)item);
+}
+
+/*
+ * A threaded folder, and the two things that have to stay alive for as
+ * long as it does.
+ *
+ * Camel keeps a pointer *into* the string its subject function returned
+ * on every node it grouped by subject, so the made-up subjects cannot
+ * be freed once the tree is built. It also borrows the items array
+ * rather than copying it. Several folders are threaded at once, so each
+ * one carries its own.
+ */
+typedef struct {
+  CamelFolderThread *thread;
+  GPtrArray         *items;
+  GHashTable        *subjects;
+} StampThreadEntry;
+
+static void
+thread_entry_free (gpointer data)
+{
+  StampThreadEntry *entry = data;
+
+  if (!entry)
+    return;
+
+  g_clear_object (&entry->thread);
+  g_clear_pointer (&entry->subjects, g_hash_table_unref);
+  g_clear_pointer (&entry->items, g_ptr_array_unref);
+  g_free (entry);
+}
+
+/*
+ * Thread a folder the way the settings ask for.
+ *
+ * Threading by subject is Camel's own, but it has no sense of time, so
+ * on its own it would gather every "Nightly backup" a server ever sent
+ * into one row. StampCluster works around that by making up a subject
+ * per run of mails, which is why the clustered path goes the long way
+ * round through camel_folder_thread_new_items() instead of just adding
+ * a flag.
+ */
 static CamelFolderThread *
 get_thread (StampConversationList *self,
             CamelFolder           *folder)
 {
   const gchar *uri = camel_folder_get_full_name (folder);
-  CamelFolderThread *thread = g_hash_table_lookup (self->thread_cache, uri);
+  StampThreadEntry *entry = g_hash_table_lookup (self->thread_cache, uri);
+  g_autoptr (GPtrArray) uids = NULL;
 
-  if (!thread) {
-    g_autoptr (GPtrArray) uids = camel_folder_dup_uids (folder);
+  if (entry)
+    return entry->thread;
 
-    thread = camel_folder_thread_new (folder, uids, CAMEL_FOLDER_THREAD_FLAG_SORT);
-    if (thread)
-      g_hash_table_insert (self->thread_cache, g_strdup (uri), g_object_ref (thread));
+  uids = camel_folder_dup_uids (folder);
+
+  entry = g_new0 (StampThreadEntry, 1);
+
+  if (!stamp_mail_clustering_enabled ()) {
+    entry->thread = camel_folder_thread_new (folder, uids, CAMEL_FOLDER_THREAD_FLAG_SORT);
+  } else {
+    camel_folder_summary_prepare_fetch_all (camel_folder_get_folder_summary (folder), NULL);
+
+    entry->items = g_ptr_array_new_full (uids->len, g_object_unref);
+
+    for (guint idx = 0; idx < uids->len; idx++) {
+      CamelMessageInfo *info = camel_folder_get_message_info (folder, g_ptr_array_index (uids, idx));
+
+      if (info)
+        g_ptr_array_add (entry->items, info);
+    }
+
+    entry->subjects = stamp_cluster_build_subjects (entry->items, stamp_mail_cluster_window_days ());
+
+    building_cluster_subjects = entry->subjects;
+    entry->thread = camel_folder_thread_new_items (entry->items,
+                                                   CAMEL_FOLDER_THREAD_FLAG_SUBJECT | CAMEL_FOLDER_THREAD_FLAG_SORT,
+                                                   (CamelFolderThreadStrFunc)camel_message_info_get_uid,
+                                                   cluster_subject,
+                                                   (CamelFolderThreadUint64Func)camel_message_info_get_message_id,
+                                                   (CamelFolderThreadArrayFunc)camel_message_info_get_references,
+                                                   (CamelFolderThreadInt64Func)camel_message_info_get_date_sent,
+                                                   (CamelFolderThreadInt64Func)camel_message_info_get_date_received,
+                                                   (CamelFolderThreadVoidFunc)camel_message_info_property_lock,
+                                                   (CamelFolderThreadVoidFunc)camel_message_info_property_unlock);
+    building_cluster_subjects = NULL;
   }
 
-  return thread;
+  if (!entry->thread) {
+    thread_entry_free (entry);
+    return NULL;
+  }
+
+  g_hash_table_insert (self->thread_cache, g_strdup (uri), entry);
+
+  return entry->thread;
 }
 
 
@@ -279,6 +383,14 @@ section_of (StampConversationList *self,
   return is_promoted (self, item) ? STARRED_SECTION : OTHERS_SECTION;
 }
 
+static gint64
+uid_value (StampConversationItem *item)
+{
+  const gchar *uid = stamp_conversation_item_get_uid (item);
+
+  return uid ? g_ascii_strtoll (uid, NULL, 10) : 0;
+}
+
 /* Ordering inside one section, which is also the order the starred
  * section picks its top few from. */
 static gint
@@ -307,8 +419,10 @@ compare_within_section (StampConversationList *self,
     return -(timestamp1 - timestamp2);
   }
 
-  uid1 = atoi (stamp_conversation_item_get_uid (item1));
-  uid2 = atoi (stamp_conversation_item_get_uid (item2));
+  /* atoi() would segfault on a NULL uid and wrap past 2^31 on a large
+   * mailbox, and this runs for every comparison the sorter makes. */
+  uid1 = uid_value (item1);
+  uid2 = uid_value (item2);
   return uid1 > uid2 ? -1 : 1;
 }
 
@@ -588,6 +702,30 @@ static void
 on_starred_settings_changed (StampConversationList *self)
 {
   queue_starred_recompute (self);
+}
+
+/*
+ * Clustering can move because the setting changed, because the window
+ * changed, or because a profile whose turn it now is asks for something
+ * different. Only the resolved answer matters, and the profile manager
+ * announces every edit to every profile, so compare before throwing the
+ * folder away and threading it again.
+ */
+static void
+on_clustering_changed (StampConversationList *self)
+{
+  gboolean clustered = stamp_mail_clustering_enabled ();
+  guint window = stamp_mail_cluster_window_days ();
+
+  if (clustered == self->clustered && window == self->cluster_window_days)
+    return;
+
+  self->clustered = clustered;
+  self->cluster_window_days = window;
+
+  /* The tree itself is different, so re-sorting would not be enough. */
+  g_clear_handle_id (&self->load_folder_handler, g_source_remove);
+  self->load_folder_handler = g_idle_add_once (load_folder_idle, self);
 }
 
 static void
@@ -1096,10 +1234,11 @@ stamp_conversation_list_load_folder (StampConversationList *self,
 
   flush_pending_stars (self);
 
-  g_hash_table_insert (self->thread_cache, g_strdup (full_name), NULL);
-
-  if (!account)
+  if (!account || !full_name)
     return;
+
+  /* Drop the threaded tree so the folder is threaded afresh. */
+  g_hash_table_remove (self->thread_cache, full_name);
 
   self->cancellable = g_cancellable_new ();
   self->fetching = FALSE;
@@ -1763,6 +1902,9 @@ on_single_selection_changed (GtkSelectionModel *model,
     return;
 
   if (conversation_item) {
+    /* Opening it is what a star was keeping it bold for. */
+    stamp_conversation_item_acknowledge (conversation_item);
+
     g_signal_emit (self, signals[CONVERSATION_SELECTED], 0, stamp_conversation_item_get_node (conversation_item));
   } else {
     g_signal_emit (self, signals[CONVERSATION_SELECTED], 0, 0);
@@ -1914,7 +2056,8 @@ stamp_conversation_list_dispose (GObject *object)
   g_clear_object (&self->sort_model);
   g_clear_pointer (&self->promoted, g_hash_table_unref);
 
-  g_clear_object (&self->thread);
+  /* Borrowed from thread_cache, which is what owns it. */
+  self->thread = NULL;
   g_clear_object (&self->list_store);
   g_clear_pointer (&self->full_name, g_free);
   g_clear_pointer (&self->thread_cache, g_hash_table_unref);
@@ -2354,13 +2497,6 @@ on_sort_activate (GSimpleAction *action,
 }
 
 static void
-thread_unref (gpointer user_data)
-{
-  if (user_data)
-    g_object_unref (user_data);
-}
-
-static void
 on_mark_category (GSimpleAction *action,
                   GVariant      *parameter,
                   gpointer       user_data)
@@ -2707,7 +2843,7 @@ stamp_conversation_list_init (StampConversationList *self)
                                    self);
   gtk_widget_insert_action_group (GTK_WIDGET (self), "conversation-list", G_ACTION_GROUP (self->actions));
 
-  self->thread_cache = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, thread_unref);
+  self->thread_cache = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, thread_entry_free);
 
   g_signal_connect_object (all_mails_action, "activate", G_CALLBACK (on_filter_activate), self, G_CONNECT_DEFAULT);
   g_action_map_add_action (G_ACTION_MAP (app), G_ACTION (all_mails_action));
@@ -2761,6 +2897,17 @@ stamp_conversation_list_init (StampConversationList *self)
   /* Which starred mails are the top few depends on this ordering too. */
   g_signal_connect_object (STAMP_SETTINGS_MAIL, "changed::" STAMP_PREFS_MAIL_IMPORTANT_FIRST,
                            G_CALLBACK (on_important_first_changed), self, G_CONNECT_SWAPPED);
+
+  self->clustered = stamp_mail_clustering_enabled ();
+  self->cluster_window_days = stamp_mail_cluster_window_days ();
+
+  g_signal_connect_object (STAMP_SETTINGS_MAIL, "changed::" STAMP_PREFS_MAIL_CLUSTERED,
+                           G_CALLBACK (on_clustering_changed), self, G_CONNECT_SWAPPED);
+  g_signal_connect_object (STAMP_SETTINGS_MAIL, "changed::" STAMP_PREFS_MAIL_CLUSTER_WINDOW,
+                           G_CALLBACK (on_clustering_changed), self, G_CONNECT_SWAPPED);
+  /* A profile can ask for something other than the setting. */
+  g_signal_connect_object (stamp_profile_manager_get_default (), "changed",
+                           G_CALLBACK (on_clustering_changed), self, G_CONNECT_SWAPPED);
 
   g_signal_connect (G_LIST_MODEL (sort_model), "items-changed", G_CALLBACK (on_items_changed), self);
 
@@ -2846,7 +2993,16 @@ stamp_conversation_list_mark_read (StampConversationList *self,
 
   for (gint idx = array->len - 1; idx >= 0; idx--) {
     CamelFolderThreadNode *child_node = array->pdata[idx];
-    camel_message_info_set_flags (CAMEL_MESSAGE_INFO (camel_folder_thread_node_get_item (child_node)), CAMEL_MESSAGE_SEEN, ~0);
+    CamelMessageInfo *info = CAMEL_MESSAGE_INFO (camel_folder_thread_node_get_item (child_node));
+
+    camel_message_info_set_flags (info, CAMEL_MESSAGE_SEEN, ~0);
+
+    /*
+     * Being done with it counts as having looked at it. Without this a
+     * starred conversation would stay bold after "Mark Read", which
+     * reads as the gesture having failed.
+     */
+    camel_message_info_set_user_flag (info, STAMP_FLAG_NEW, FALSE);
   }
 }
 
@@ -2900,24 +3056,27 @@ stamp_conversation_list_mark_unread (StampConversationList *self,
   }
 }
 
+/*
+ * Both of these go through the item rather than writing the root's flag
+ * themselves, so that the star lands on the whole conversation the way
+ * the row reads it back.
+ */
 void
 stamp_conversation_list_mark_unflag_selected_messages (StampConversationList *self)
 {
   StampConversationItem *item = STAMP_CONVERSATION_ITEM (gtk_single_selection_get_selected_item (GTK_SINGLE_SELECTION (self->single_selection)));
-  CamelFolderThreadNode *node;
 
-  node = stamp_conversation_item_get_node (item);
-  camel_message_info_set_flags (CAMEL_MESSAGE_INFO (camel_folder_thread_node_get_item (node)), CAMEL_MESSAGE_FLAGGED, 0);
+  if (item)
+    stamp_conversation_item_set_flagged (item, FALSE);
 }
 
 void
 stamp_conversation_list_mark_flag_selected_messages (StampConversationList *self)
 {
   StampConversationItem *item = STAMP_CONVERSATION_ITEM (gtk_single_selection_get_selected_item (GTK_SINGLE_SELECTION (self->single_selection)));
-  CamelFolderThreadNode *node;
 
-  node = stamp_conversation_item_get_node (item);
-  camel_message_info_set_flags (CAMEL_MESSAGE_INFO (camel_folder_thread_node_get_item (node)), CAMEL_MESSAGE_FLAGGED, ~0);
+  if (item)
+    stamp_conversation_item_set_flagged (item, TRUE);
 }
 
 void

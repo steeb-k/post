@@ -17,6 +17,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <string.h>
+
 #include "stamp-helper.h"
 
 
@@ -131,4 +133,101 @@ g_strv_append (const gchar * const *strv,
   new_strv[len - 1] = NULL;
 
   return new_strv;
+}
+
+/*
+ * The prefixes a reply or a forward puts in front of the subject it is
+ * answering, in the languages the senders around here use. Camel only
+ * ever strips "Re", which is not enough to line up a forwarded mail
+ * with the thread it came from.
+ */
+static const gchar *reply_prefixes[] = {
+  "re", "fwd", "fw", "aw", "wg", "antw", "sv", "vs", "tr", "rif", "odp", "ynt", NULL
+};
+
+gchar *
+stamp_normalize_subject (const gchar *subject)
+{
+  const gchar *s = subject;
+  GString *collapsed;
+  g_autofree gchar *trimmed = NULL;
+  gboolean stripped;
+
+  if (!s)
+    return NULL;
+
+  /*
+   * Peel the front of the subject until nothing recognisable is left
+   * there: "Re: [list] Fwd: Report" and "Report" have to end up the
+   * same, or a cluster breaks apart the moment somebody replies.
+   */
+  do {
+    stripped = FALSE;
+
+    while (g_ascii_isspace (*s))
+      s++;
+
+    /* A mailing list tag, "[stamp-devel]". */
+    if (*s == '[') {
+      const gchar *end = strchr (s, ']');
+
+      if (end) {
+        s = end + 1;
+        stripped = TRUE;
+        continue;
+      }
+    }
+
+    for (guint idx = 0; reply_prefixes[idx]; idx++) {
+      gsize len = strlen (reply_prefixes[idx]);
+      const gchar *p = s;
+
+      if (g_ascii_strncasecmp (p, reply_prefixes[idx], len) != 0)
+        continue;
+
+      p += len;
+
+      /* "Re[2]:" and "Re2:" are both replies. */
+      while (g_ascii_isdigit (*p) || (g_ascii_ispunct (*p) && *p != ':'))
+        p++;
+
+      /*
+       * Only a colon makes it a prefix. Without this, "Review" would
+       * lose its first two letters and "Revised quote" would cluster
+       * with "Vised quote".
+       */
+      if (*p == ':') {
+        s = p + 1;
+        stripped = TRUE;
+        break;
+      }
+    }
+  } while (stripped);
+
+  /* Whitespace differences should not split a cluster either. */
+  collapsed = g_string_new (NULL);
+
+  while (*s) {
+    if (g_ascii_isspace (*s)) {
+      while (g_ascii_isspace (*s))
+        s++;
+
+      if (*s && collapsed->len > 0)
+        g_string_append_c (collapsed, ' ');
+
+      continue;
+    }
+
+    g_string_append_c (collapsed, *s);
+    s++;
+  }
+
+  if (collapsed->len == 0) {
+    g_string_free (collapsed, TRUE);
+    return NULL;
+  }
+
+  trimmed = g_string_free (collapsed, FALSE);
+
+  return g_utf8_casefold (trimmed, -1);
 }

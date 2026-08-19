@@ -22,6 +22,8 @@
 
 #include "stamp-settings.h"
 
+#include "stamp-profile-manager.h"
+
 #include <gio/gio.h>
 #include <glib.h>
 
@@ -88,6 +90,30 @@ stamp_settings_get (const gchar *schema)
     g_hash_table_insert (settings, g_strdup (schema), gsettings);
 
   return gsettings;
+}
+
+/*
+ * Whether the mail list groups mails by subject right now: what the
+ * active profile asks for, else what the preferences say. There is no
+ * hand-picked tier the way there is for the layout, because this is not
+ * offered anywhere a profile could be overridden by a single click.
+ */
+gboolean
+stamp_mail_clustering_enabled (void)
+{
+  StampProfile *active = stamp_profile_manager_get_active (stamp_profile_manager_get_default ());
+  const gchar *override = active ? stamp_profile_get_clustering (active) : NULL;
+
+  if (override)
+    return g_strcmp0 (override, "on") == 0;
+
+  return g_settings_get_boolean (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_CLUSTERED);
+}
+
+guint
+stamp_mail_cluster_window_days (void)
+{
+  return g_settings_get_uint (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_CLUSTER_WINDOW);
 }
 
 void

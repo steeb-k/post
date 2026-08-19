@@ -159,6 +159,24 @@ template $StampPreferences: Adw.PreferencesDialog {
           page-increment: 5;
         };
       }
+
+      Adw.SwitchRow clustered {
+        title: _("Clustered");
+        subtitle: _("Gathers mails that share a subject into one conversation, the way an automated sender tends to send them");
+      }
+
+      Adw.SpinRow cluster_window {
+        title: _("Cluster Window");
+        subtitle: _("Mails sharing a subject start a new conversation once this many days separate them");
+        sensitive: bind clustered.active;
+
+        adjustment: Adjustment {
+          lower: 1;
+          upper: 365;
+          step-increment: 1;
+          page-increment: 7;
+        };
+      }
     }
 
     Adw.PreferencesGroup signatures_group {

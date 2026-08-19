@@ -102,6 +102,19 @@ stamp_profile_set_layout (StampProfile *self,
                           const gchar  *layout);
 
 /*
+ * Whether the profile asks for the clustered mail view while it is
+ * active: "on", "off", or NULL when it leaves the setting alone.
+ * Stored beside the profiles rather than in them, for the same reason
+ * the layout is.
+ */
+const gchar *
+stamp_profile_get_clustering (StampProfile *self);
+
+void
+stamp_profile_set_clustering (StampProfile *self,
+                              const gchar  *clustering);
+
+/*
  * The badge the profile wears in place of its letter, as a
  * StampBadge id, or NULL when it shows the letter. Stored beside the
  * profiles rather than in them, for the same reason the layout is.
