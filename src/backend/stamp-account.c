@@ -637,7 +637,13 @@ find_folder_by_name (CamelFolderInfo     *root,
 
   while (fi) {
     for (guint i = 0; names[i]; i++) {
-      if (g_ascii_strcasecmp (fi->full_name, names[i]) == 0)
+      /* The display name as well as the full one: Gmail files its own
+       * folders under a [Gmail] parent, so the Trash everything here is
+       * looking for has the full name "[Gmail]/Trash" and would match
+       * nothing. Matching the leaf finds it, and finds the same folder
+       * on a server that keeps it at the top level. */
+      if (g_ascii_strcasecmp (fi->full_name, names[i]) == 0 ||
+          (fi->display_name && g_ascii_strcasecmp (fi->display_name, names[i]) == 0))
         return fi->full_name;
     }
 
@@ -743,36 +749,35 @@ on_drafts_folder_ready (GObject      *src,
   mail_enable_one_done (data);
 }
 
+/*
+ * Which folders of @root are the account's own Sent, Drafts and Trash.
+ *
+ * Asked twice: once against the summary on disk, which is all an
+ * account that starts offline has, and again once the store is online
+ * and the server has said what its folders are for. The first answer is
+ * usually complete, and where it is not the second one settles it.
+ */
 static void
-on_folder_info_for_sent_drafts (GObject      *src,
-                                GAsyncResult *res,
-                                gpointer      user_data)
+find_special_paths (CamelFolderInfo  *root,
+                    const gchar     **sent_path,
+                    const gchar     **drafts_path,
+                    const gchar     **trash_path)
 {
-  MailEnableData *data = user_data;
-  g_autoptr (GError) error = NULL;
-  g_autoptr (CamelFolderInfo) root = camel_store_get_folder_info_finish (CAMEL_STORE (src), res, &error);
-  CamelFolderInfo *fi;
-  const gchar *sent_path = NULL;
-  const gchar *drafts_path = NULL;
-  const gchar *trash_path = NULL;
-  gint new_pending = 0;
+  CamelFolderInfo *fi = root;
 
-  if (error) {
-    g_warning ("%s: get_folder_info: %s", G_STRFUNC, error->message);
-    mail_enable_one_done (data);
-    return;
-  }
+  *sent_path = NULL;
+  *drafts_path = NULL;
+  *trash_path = NULL;
 
-  fi = root;
   while (fi) {
-    if (!sent_path && ((fi->flags & CAMEL_FOLDER_TYPE_MASK) == CAMEL_FOLDER_TYPE_SENT))
-      sent_path = fi->full_name;
+    if (!*sent_path && ((fi->flags & CAMEL_FOLDER_TYPE_MASK) == CAMEL_FOLDER_TYPE_SENT))
+      *sent_path = fi->full_name;
 
-    if (!drafts_path && is_drafts_folder (fi))
-      drafts_path = fi->full_name;
+    if (!*drafts_path && is_drafts_folder (fi))
+      *drafts_path = fi->full_name;
 
-    if (!trash_path && ((fi->flags & CAMEL_FOLDER_TYPE_MASK) == CAMEL_FOLDER_TYPE_TRASH))
-      trash_path = fi->full_name;
+    if (!*trash_path && ((fi->flags & CAMEL_FOLDER_TYPE_MASK) == CAMEL_FOLDER_TYPE_TRASH))
+      *trash_path = fi->full_name;
 
     if (fi->child) {
       fi = fi->child;
@@ -784,28 +789,180 @@ on_folder_info_for_sent_drafts (GObject      *src,
       fi = fi->next;
   }
 
-  if (!sent_path) {
+  if (!*sent_path) {
     static const gchar * const names[] = { "Sent", "Sent Mail", "Sent Items", "Sent Messages", NULL };
 
-    sent_path = find_folder_by_name (root, names);
+    *sent_path = find_folder_by_name (root, names);
   }
 
-  if (!drafts_path) {
+  if (!*drafts_path) {
     static const gchar * const names[] = { "Drafts", "Draft", NULL };
 
-    drafts_path = find_folder_by_name (root, names);
+    *drafts_path = find_folder_by_name (root, names);
   }
 
-  if (!trash_path) {
-    static const gchar * const names[] = { "Trash", "Deleted Items", "Deleted Messages", NULL };
+  if (!*trash_path) {
+    static const gchar * const names[] = { "Trash", "Bin", "Deleted Items", "Deleted Messages", NULL };
 
-    trash_path = find_folder_by_name (root, names);
+    *trash_path = find_folder_by_name (root, names);
   }
 
   g_debug ("%s: sent '%s', drafts '%s', trash '%s'", G_STRFUNC,
-           sent_path ? sent_path : "(none)",
-           drafts_path ? drafts_path : "(none)",
-           trash_path ? trash_path : "(none)");
+           *sent_path ? *sent_path : "(none)",
+           *drafts_path ? *drafts_path : "(none)",
+           *trash_path ? *trash_path : "(none)");
+}
+
+typedef enum {
+  SPECIAL_SENT,
+  SPECIAL_DRAFTS,
+  SPECIAL_TRASH,
+  N_SPECIALS
+} SpecialFolder;
+
+/* By index rather than by address: the mail service can be torn down
+ * between asking for a folder and getting one, and a pointer into a
+ * struct that is gone would be worse than a lookup. */
+static CamelFolder **
+special_folder_slot (StampAccount  *self,
+                     SpecialFolder  which)
+{
+  if (!self->mail)
+    return NULL;
+
+  switch (which) {
+    case SPECIAL_SENT:   return &self->mail->sent_folder;
+    case SPECIAL_DRAFTS: return &self->mail->drafts_folder;
+    case SPECIAL_TRASH:  return &self->mail->trash_folder;
+    case N_SPECIALS:
+    default:             return NULL;
+  }
+}
+
+typedef struct {
+  StampAccount *account;
+  SpecialFolder which;
+} RecheckData;
+
+static void
+on_recheck_folder_ready (GObject      *src,
+                         GAsyncResult *res,
+                         gpointer      user_data)
+{
+  RecheckData *data = user_data;
+  g_autoptr (StampAccount) self = data->account;
+  g_autoptr (GError) error = NULL;
+  CamelFolder *folder = camel_store_get_folder_finish (CAMEL_STORE (src), res, &error);
+  CamelFolder **slot = special_folder_slot (self, data->which);
+
+  g_free (data);
+
+  if (!folder) {
+    g_warning ("%s: %s", G_STRFUNC, error ? error->message : "");
+    return;
+  }
+
+  /* The first pass may have won the race; it asked first and its answer
+   * is no worse than this one. */
+  if (slot && !*slot)
+    *slot = folder;
+  else
+    g_object_unref (folder);
+}
+
+static void
+on_folder_info_recheck (GObject      *src,
+                        GAsyncResult *res,
+                        gpointer      user_data)
+{
+  g_autoptr (StampAccount) self = user_data;
+  g_autoptr (GError) error = NULL;
+  g_autoptr (CamelFolderInfo) root = camel_store_get_folder_info_finish (CAMEL_STORE (src), res, &error);
+  const gchar *paths[N_SPECIALS];
+
+  if (!root) {
+    g_warning ("%s: get_folder_info: %s", G_STRFUNC, error ? error->message : "");
+    return;
+  }
+
+  find_special_paths (root, &paths[SPECIAL_SENT], &paths[SPECIAL_DRAFTS], &paths[SPECIAL_TRASH]);
+
+  for (guint i = 0; i < N_SPECIALS; i++) {
+    CamelFolder **slot = special_folder_slot (self, i);
+    RecheckData *data;
+
+    if (!paths[i] || !slot || *slot)
+      continue;
+
+    data = g_new0 (RecheckData, 1);
+    data->account = g_object_ref (self);
+    data->which = i;
+
+    camel_store_get_folder (CAMEL_STORE (src), paths[i], 0,
+                            G_PRIORITY_DEFAULT, NULL,
+                            on_recheck_folder_ready, data);
+  }
+
+  /* Folders the offline summary had never heard of are worth indexing
+   * too, and the ones just named are worth leaving out of it. */
+  if (self->folder_index) {
+    for (guint i = 0; i < N_SPECIALS; i++)
+      stamp_folder_index_exclude (self->folder_index, paths[i]);
+
+    stamp_folder_index_build (self->folder_index, root);
+  }
+}
+
+/*
+ * An account starts offline so its folders can be drawn from the
+ * summary on disk, and that summary carries folder names but not what
+ * the server says each folder is for. Where the names alone did not
+ * settle which folder is Trash, the question is worth asking once more
+ * as soon as the store is online and the server can answer it -- until
+ * it is settled, a delete has nowhere to put the mail.
+ */
+static void
+on_store_online_changed (GObject    *object,
+                         GParamSpec *pspec,
+                         gpointer    user_data)
+{
+  StampAccount *self = user_data;
+
+  if (!camel_offline_store_get_online (CAMEL_OFFLINE_STORE (object)))
+    return;
+
+  if (!self->mail)
+    return;
+
+  if (self->mail->sent_folder && self->mail->drafts_folder && self->mail->trash_folder)
+    return;
+
+  camel_store_get_folder_info (CAMEL_STORE (object), NULL,
+                               CAMEL_STORE_FOLDER_INFO_RECURSIVE | CAMEL_STORE_FOLDER_INFO_NO_VIRTUAL,
+                               G_PRIORITY_LOW, self->cancellable,
+                               on_folder_info_recheck, g_object_ref (self));
+}
+
+static void
+on_folder_info_for_sent_drafts (GObject      *src,
+                                GAsyncResult *res,
+                                gpointer      user_data)
+{
+  MailEnableData *data = user_data;
+  g_autoptr (GError) error = NULL;
+  g_autoptr (CamelFolderInfo) root = camel_store_get_folder_info_finish (CAMEL_STORE (src), res, &error);
+  const gchar *sent_path = NULL;
+  const gchar *drafts_path = NULL;
+  const gchar *trash_path = NULL;
+  gint new_pending = 0;
+
+  if (error) {
+    g_warning ("%s: get_folder_info: %s", G_STRFUNC, error->message);
+    mail_enable_one_done (data);
+    return;
+  }
+
+  find_special_paths (root, &sent_path, &drafts_path, &trash_path);
 
   new_pending = (sent_path ? 1 : 0) + (drafts_path ? 1 : 0) + (trash_path ? 1 : 0);
   data->pending += new_pending;
@@ -932,6 +1089,10 @@ stamp_account_enable_mail_async (StampAccount *self,
   data->pending = 2;
 
   self->folder_index = stamp_folder_index_new (CAMEL_STORE (self->mail->service));
+
+  if (CAMEL_IS_OFFLINE_STORE (self->mail->service))
+    g_signal_connect_object (self->mail->service, "notify::online",
+                             G_CALLBACK (on_store_online_changed), self, G_CONNECT_DEFAULT);
 
   camel_store_get_folder_info (CAMEL_STORE (self->mail->service), NULL,
                                CAMEL_STORE_FOLDER_INFO_RECURSIVE | CAMEL_STORE_FOLDER_INFO_NO_VIRTUAL,
