@@ -269,13 +269,18 @@
  * The star at the end of a row is a button, but must not read as one:
  * button padding and chrome would make every row taller for the sake of
  * an icon that was there before as a plain image.
+ *
+ * It is wider and taller than the 16px icon it holds all the same. A
+ * target the size of the drawing is a hard thing to hit with a pointer,
+ * and the 6px this adds to the line the star shares with the date is
+ * worth the star being reachable without taking aim.
  */
 .star-button,
 .star-button:hover,
 .star-button:active,
 .star-button:focus {
-  min-width: 16px;
-  min-height: 16px;
+  min-width: 24px;
+  min-height: 24px;
   padding: 0;
   margin: 0;
   background: none;

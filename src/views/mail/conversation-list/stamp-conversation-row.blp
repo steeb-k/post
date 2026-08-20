@@ -7,11 +7,17 @@ template $StampConversationRow: Box {
   Overlay {
     vexpand: true;
 
+    /* The swipe indicators are drawn, never pointed at: the drag that
+     * reveals them belongs to the gesture on the overlay, not to them.
+     * Left targetable they would still be picked while invisible, and
+     * being centred at the end of the row that is exactly where the
+     * star is -- on a two-line row they covered it completely. */
     [overlay]
     Box left_action {
       orientation: vertical;
       halign: start;
       opacity: 0;
+      can-target: false;
       valign: center;
       spacing: 6;
       margin-start: 6;
@@ -43,6 +49,7 @@ template $StampConversationRow: Box {
       orientation: vertical;
       halign: end;
       opacity: 0;
+      can-target: false;
       valign: center;
       spacing: 6;
       margin-start: 6;
