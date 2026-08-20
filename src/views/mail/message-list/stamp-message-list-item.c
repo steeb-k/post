@@ -434,6 +434,7 @@ on_save_all_folder_selected (GObject      *source,
   g_autoptr (GFile) folder = NULL;
   GList *attachments;
   GFile *first_file = NULL;
+  guint unnamed = 0;
 
   folder = gtk_file_dialog_select_folder_finish (dialog, res, &error);
   if (error) {
@@ -447,8 +448,17 @@ on_save_all_folder_selected (GObject      *source,
   attachments = stamp_mime_parser_get_attachments (self->parser);
   for (GList *iter = attachments; iter; iter = g_list_next (iter)) {
     StampMimeAttachment *att = iter->data;
-    g_autoptr (GFile) file = g_file_get_child (folder, att->filename);
+    g_autofree char *fallback = NULL;
+    g_autoptr (GFile) file = NULL;
     g_autoptr (GError) save_error = NULL;
+    const gchar *name;
+
+    /* A part is not obliged to name itself, and g_file_get_child() will not take NULL. */
+    if (!att->filename || !*att->filename)
+      fallback = g_strdup_printf ("attachment-%u", ++unnamed);
+
+    name = fallback ? fallback : att->filename;
+    file = g_file_get_child (folder, name);
 
     if (!first_file)
       first_file = g_object_ref (file);
@@ -458,7 +468,7 @@ on_save_all_folder_selected (GObject      *source,
                                   g_bytes_get_size (att->data),
                                   NULL, FALSE, G_FILE_CREATE_NONE,
                                   NULL, NULL, &save_error))
-      g_warning ("%s: Could not save '%s': %s", G_STRFUNC, att->filename, save_error->message);
+      g_warning ("%s: Could not save '%s': %s", G_STRFUNC, name, save_error->message);
   }
 
   g_list_free (attachments);

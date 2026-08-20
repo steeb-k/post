@@ -512,6 +512,7 @@ stamp_attachment_button_constructed (GObject *object)
   g_autoptr (GIcon) content_icon = NULL;
   g_autofree char *tmp = NULL;
   g_autofree char *readable_size = NULL;
+  g_autofree char *tooltip = NULL;
   const gchar *filename = NULL;
   gsize size = 0;
 
@@ -534,11 +535,13 @@ stamp_attachment_button_constructed (GObject *object)
     filename = g_file_info_get_display_name (info);
     size = g_file_info_get_size (info);
     content_icon = g_content_type_get_icon (g_file_info_get_content_type (info));
-  } else if (self->filename && self->content_type) {
-    mime_type = g_strdup (self->content_type);
-    glib_type = g_content_type_from_mime_type (mime_type);
-    if (glib_type)
-      content_icon = g_content_type_get_icon (glib_type);
+  } else if (self->filename || self->content_type || self->data) {
+    if (self->content_type) {
+      mime_type = g_strdup (self->content_type);
+      glib_type = g_content_type_from_mime_type (mime_type);
+      if (glib_type)
+        content_icon = g_content_type_get_icon (glib_type);
+    }
     filename = self->filename;
     size = self->size;
   } else {
@@ -546,12 +549,26 @@ stamp_attachment_button_constructed (GObject *object)
     return;
   }
 
+  /*
+   * Neither name nor type is guaranteed: a part can reach us with only
+   * one of the two, or with just its bytes. Fill in for whatever is
+   * missing, so an odd part reads as an attachment we cannot name rather
+   * than as an empty button.
+   */
   if (content_icon)
     gtk_image_set_from_gicon (GTK_IMAGE (self->image), content_icon);
-  if (filename) {
-    gtk_label_set_text (GTK_LABEL (self->filename_label), filename);
-    gtk_widget_set_tooltip_text (GTK_WIDGET (self), filename);
+  else
+    gtk_image_set_from_icon_name (GTK_IMAGE (self->image), "mail-attachment-symbolic");
+
+  if (!filename || !*filename) {
+    filename = _("Unnamed Attachment");
+
+    if (mime_type)
+      tooltip = g_strdup_printf ("%s (%s)", filename, mime_type);
   }
+
+  gtk_label_set_text (GTK_LABEL (self->filename_label), filename);
+  gtk_widget_set_tooltip_text (GTK_WIDGET (self), tooltip ? tooltip : filename);
 
   if (size > 0) {
     readable_size = g_format_size (size);

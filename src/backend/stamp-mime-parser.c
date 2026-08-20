@@ -896,6 +896,33 @@ dispatch_attachment (StampMimeParser  *self,
   return TRUE;
 }
 
+/*
+ * A multipart/alternative can carry more renderings of the same body than
+ * Post has a use for: AMP for Email, and the cut-down HTML Apple Watch
+ * reads. They are bodies, not files, so they arrive with no filename and
+ * no disposition — without this they fall through the catch-all text
+ * rule below and surface as a nameless attachment. A sender who genuinely
+ * attached one still gets it.
+ */
+static gboolean
+dispatch_alternative_body (StampMimeParser  *self,
+                           CamelMimePart    *part,
+                           gconstpointer     user_data,
+                           GCancellable     *cancellable,
+                           GError          **error)
+{
+  const gchar *disposition = camel_mime_part_get_disposition (part);
+
+  if (g_strcmp0 (disposition, "attachment") == 0 || camel_mime_part_get_filename (part)) {
+    handle_attachment (self, part);
+    return TRUE;
+  }
+
+  PARSER_LOG ("alternative body rendering, skipped");
+
+  return TRUE;
+}
+
 static gboolean
 dispatch_signed (StampMimeParser  *self,
                  CamelMimePart    *part,
@@ -1091,6 +1118,8 @@ static const StampPartDispatchEntry part_dispatch_table[] = {
   { "message", "rfc822", dispatch_rfc822, NULL},
   { "text", "html", dispatch_text, GINT_TO_POINTER (1) },
   { "text", "plain", dispatch_text, GINT_TO_POINTER (0) },
+  { "text", "x-amp-html", dispatch_alternative_body, NULL},
+  { "text", "watch-html", dispatch_alternative_body, NULL},
   { "text", "*", dispatch_attachment, NULL},
 };
 
