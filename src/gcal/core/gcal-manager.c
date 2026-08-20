@@ -328,6 +328,17 @@ load_source (GcalManager *self,
 
   GCAL_ENTRY;
 
+  /* The initial pass is filtered to calendars, but "source-added" fires
+   * for every source the registry gains -- mail accounts, transports,
+   * identities, address books, signatures. Everything below reaches for
+   * the Calendar extension with e_source_get_extension(), which *creates*
+   * the extension when it is absent, so letting one of those through
+   * grafts an empty [Calendar] onto it. Once that is written back the
+   * registry advertises, say, a mail signature as a calendar with no
+   * backend name, which no factory can ever open. */
+  if (!e_source_has_extension (source, E_SOURCE_EXTENSION_CALENDAR))
+    return;
+
   if (g_hash_table_contains (self->clients, source))
     {
       g_warning ("%s: Skipping already loaded source: %s",
