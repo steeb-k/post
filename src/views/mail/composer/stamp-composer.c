@@ -800,7 +800,10 @@ insert_signature (StampComposer  *self,
     "})()",
     encoded);
 
-  gtk_widget_grab_focus (GTK_WIDGET (self->webview));
+  /* A blank message starts with the caret in To, and the default
+   * signature lands while it is still sitting there. Replies and
+   * forwards have already taken focus into the body themselves, so
+   * nothing here has to move it. */
   webkit_web_view_evaluate_javascript (WEBKIT_WEB_VIEW (self->webview), js, -1, NULL, NULL, NULL, (GAsyncReadyCallback)on_insert_signature_finished, self);
   self->active_signature = sig;
 }
@@ -1420,7 +1423,7 @@ stamp_composer_init (StampComposer *self)
   g_signal_connect_object (self->from, "notify::selected-item", G_CALLBACK (on_from_selected_item), self, G_CONNECT_DEFAULT);
   load_from_combobox (self);
 
-  gtk_widget_grab_focus (self->to);
+  stamp_contact_completion_grab_focus (STAMP_CONTACT_COMPLETION (self->to));
 
   manager = webkit_web_view_get_user_content_manager (WEBKIT_WEB_VIEW (self->webview));
   webkit_user_content_manager_register_script_message_handler (manager, "dirty", NULL);

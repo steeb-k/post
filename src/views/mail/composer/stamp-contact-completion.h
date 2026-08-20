@@ -43,6 +43,12 @@ void
 stamp_contact_completion_set_account (StampContactCompletion *self,
                                       StampAccount           *account);
 
+/*
+ * Puts the caret in the address entry, past any tags already there.
+ */
+void
+stamp_contact_completion_grab_focus (StampContactCompletion *self);
+
 gboolean
 stamp_contact_completion_contains_address (StampContactCompletion *self,
                                            const gchar             *mail);

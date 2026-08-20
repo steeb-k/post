@@ -13,6 +13,7 @@
 
 ### Bug Fixes
 - Start a new mail from the account the active profile has open (steeb-k)
+- Put the caret in To when a new mail opens, not in the message body (steeb-k)
 - Stop a click on an agenda event in the mail view from aborting the app (steeb-k)
 - Stop a new signature from being mistaken for a broken calendar (steeb-k)
 - Stop a rejected account from flooding its server with reconnects (steeb-k)

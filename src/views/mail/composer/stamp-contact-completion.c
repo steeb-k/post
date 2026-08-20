@@ -644,6 +644,22 @@ stamp_contact_completion_add_tag (StampContactCompletion *self,
   adw_wrap_box_reorder_child_after (ADW_WRAP_BOX (self->wrap_box), self->entry, GTK_WIDGET (tag));
 }
 
+/**
+ * stamp_contact_completion_grab_focus:
+ * @self: a #StampContactCompletion
+ *
+ * Puts the caret in the address entry. The widget itself is a wrapper
+ * around the entry and the tags already added, so focusing it directly
+ * would land on whichever of those comes first.
+ */
+void
+stamp_contact_completion_grab_focus (StampContactCompletion *self)
+{
+  g_return_if_fail (STAMP_IS_CONTACT_COMPLETION (self));
+
+  gtk_widget_grab_focus (self->entry);
+}
+
 void
 stamp_contact_completion_set_account (StampContactCompletion *self,
                                       StampAccount           *account)
