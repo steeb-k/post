@@ -42,6 +42,13 @@ stamp_conversation_list_load_folder (StampConversationList *self,
 void
 stamp_conversation_list_clear (StampConversationList *self);
 
+/*
+ * The account whose folder is currently on screen, or NULL when none
+ * is loaded.
+ */
+StampAccount *
+stamp_conversation_list_get_account (StampConversationList *self);
+
 void
 stamp_conversation_list_mark_read (StampConversationList *self,
                                    CamelFolderThreadNode *node);

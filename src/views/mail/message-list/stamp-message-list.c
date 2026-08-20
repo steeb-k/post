@@ -26,6 +26,7 @@
 #include "stamp-mail-view.h"
 #include "stamp-message-list-item.h"
 #include "stamp-mime-parser.h"
+#include "stamp-profile-manager.h"
 #include "stamp-session.h"
 #include "stamp-window.h"
 
@@ -852,6 +853,31 @@ on_message_body (GObject      *source,
   g_clear_pointer (&data, g_free);
 }
 
+/*
+ * Which account a blank message should start out as. The folder on
+ * screen is the better answer than the last conversation read: after a
+ * profile switch that conversation belonged to an account the profile
+ * no longer shows, and its address would be a silent surprise. An
+ * account the profile hides is refused outright, leaving the composer
+ * to pick a visible identity of its own.
+ */
+static StampAccount *
+compose_new_account (StampMessageList *self)
+{
+  StampWindow *window = STAMP_WINDOW (stamp_get_main_window ());
+  StampMailView *mail_view = window ? stamp_window_get_mail_view (window) : NULL;
+  StampConversationList *conv_list = mail_view ? stamp_mail_view_get_conversation_list (mail_view) : NULL;
+  StampAccount *account = conv_list ? stamp_conversation_list_get_account (conv_list) : NULL;
+
+  if (!account)
+    account = self->account;
+
+  if (account && !stamp_profile_shows_account (stamp_account_get_uid (account)))
+    return NULL;
+
+  return account;
+}
+
 void
 stamp_message_list_compose (StampMessageList  *self,
                             StampComposerType  type,
@@ -864,7 +890,7 @@ stamp_message_list_compose (StampMessageList  *self,
   if (type == STAMP_COMPOSER_NEW) {
     GtkWidget *composer;
 
-    composer = stamp_composer_new (self->account);
+    composer = stamp_composer_new (compose_new_account (self));
     gtk_window_present (GTK_WINDOW (composer));
     return;
   }

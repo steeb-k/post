@@ -1252,6 +1252,23 @@ stamp_conversation_list_load_folder (StampConversationList *self,
 }
 
 /**
+ * stamp_conversation_list_get_account:
+ * @self: a #StampConversationList
+ *
+ * The account behind the folder currently on screen, which is what a
+ * blank message should be sent from. NULL when no folder is loaded.
+ *
+ * Returns: (transfer none) (nullable): the account
+ */
+StampAccount *
+stamp_conversation_list_get_account (StampConversationList *self)
+{
+  g_return_val_if_fail (STAMP_IS_CONVERSATION_LIST (self), NULL);
+
+  return self->account;
+}
+
+/**
  * stamp_conversation_list_clear:
  * @self: a #StampConversationList
  *
