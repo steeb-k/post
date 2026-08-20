@@ -12,6 +12,7 @@
 - Give signatures the composer's formatting bar (steeb-k)
 
 ### Bug Fixes
+- Stop a click on an agenda event in the mail view from aborting the app (steeb-k)
 - Stop a new signature from being mistaken for a broken calendar (steeb-k)
 - Stop a rejected account from flooding its server with reconnects (steeb-k)
 - Let the star be clicked on a row that draws only two lines (steeb-k)

@@ -520,7 +520,15 @@ on_click_gesture_release_cb (GtkGestureClick *click_gesture,
   gtk_gesture_set_state (GTK_GESTURE (click_gesture), GTK_EVENT_SEQUENCE_CLAIMED);
   g_signal_emit (self, signals[ACTIVATE], 0);
 
-  g_assert (GCAL_IS_EVENT_POPOVER (self->preview_popover));
+  /*
+   * Post: upstream asserts here that the ACTIVATE handler showed a
+   * preview popover. Post's mail-side agendas navigate to the calendar
+   * instead of previewing, so there is nothing to point at and the
+   * assert aborted the app on every click. Nothing below applies to a
+   * widget without a popover.
+   */
+  if (!GCAL_IS_EVENT_POPOVER (self->preview_popover))
+    return;
 
   not_inside_list_box = !gtk_widget_get_ancestor (GTK_WIDGET (self), GTK_TYPE_LIST_BOX);
   if (not_inside_list_box && gcal_event_is_multiday (self->event))
