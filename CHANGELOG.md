@@ -12,6 +12,7 @@
 - Give signatures the composer's formatting bar (steeb-k)
 
 ### Bug Fixes
+- Let the star be clicked on a row that draws only two lines (steeb-k)
 - Star the whole conversation rather than just the mail that starts it (steeb-k)
 - Name every sender in a conversation, not just the first branch's (steeb-k)
 - Stop a folder load from hashing a NULL name, and unrefing a borrowed thread (steeb-k)
