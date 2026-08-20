@@ -63,6 +63,12 @@ struct _StampAccount {
   StampPhotoCache *photo_cache;
   GList *categories;
   StampFolderIndex *folder_index;
+
+  /* Guards for the special-folder recheck; see
+   * on_store_connection_status_changed. */
+  gboolean recheck_pending;
+  guint recheck_retries;
+  guint recheck_retry_handler;
 };
 
 G_DEFINE_FINAL_TYPE (StampAccount, stamp_account, G_TYPE_OBJECT);
@@ -158,6 +164,8 @@ stamp_account_dispose (GObject *object)
 
   g_cancellable_cancel (self->cancellable);
   g_clear_object (&self->cancellable);
+
+  g_clear_handle_id (&self->recheck_retry_handler, g_source_remove);
 
   g_clear_pointer (&self->uid, g_free);
   g_clear_pointer (&self->display_name, g_free);
@@ -870,6 +878,38 @@ on_recheck_folder_ready (GObject      *src,
     g_object_unref (folder);
 }
 
+/* A recheck that fails is worth another try or two -- the connection can
+ * be up before the server is ready to answer -- but only a few, and only
+ * one in flight at a time. An account that simply cannot answer must
+ * cost nothing to keep. */
+#define RECHECK_RETRY_SECONDS 5
+#define RECHECK_RETRY_LIMIT 3
+
+static void maybe_recheck_special_folders (StampAccount *self);
+
+static gboolean
+on_recheck_retry (gpointer user_data)
+{
+  StampAccount *self = user_data;
+
+  self->recheck_retry_handler = 0;
+  maybe_recheck_special_folders (self);
+
+  return G_SOURCE_REMOVE;
+}
+
+static void
+schedule_recheck_retry (StampAccount *self)
+{
+  if (self->recheck_retry_handler ||
+      g_cancellable_is_cancelled (self->cancellable) ||
+      self->recheck_retries >= RECHECK_RETRY_LIMIT)
+    return;
+
+  self->recheck_retries++;
+  self->recheck_retry_handler = g_timeout_add_seconds (RECHECK_RETRY_SECONDS, on_recheck_retry, self);
+}
+
 static void
 on_folder_info_recheck (GObject      *src,
                         GAsyncResult *res,
@@ -880,8 +920,14 @@ on_folder_info_recheck (GObject      *src,
   g_autoptr (CamelFolderInfo) root = camel_store_get_folder_info_finish (CAMEL_STORE (src), res, &error);
   const gchar *paths[N_SPECIALS];
 
+  self->recheck_pending = FALSE;
+
   if (!root) {
-    g_warning ("%s: get_folder_info: %s", G_STRFUNC, error ? error->message : "");
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+      g_warning ("%s: get_folder_info: %s", G_STRFUNC, error ? error->message : "");
+      schedule_recheck_retry (self);
+    }
+
     return;
   }
 
@@ -918,29 +964,58 @@ on_folder_info_recheck (GObject      *src,
  * summary on disk, and that summary carries folder names but not what
  * the server says each folder is for. Where the names alone did not
  * settle which folder is Trash, the question is worth asking once more
- * as soon as the store is online and the server can answer it -- until
- * it is settled, a delete has nowhere to put the mail.
+ * as soon as the store is connected and the server can answer it --
+ * until it is settled, a delete has nowhere to put the mail.
  */
 static void
-on_store_online_changed (GObject    *object,
-                         GParamSpec *pspec,
-                         gpointer    user_data)
+maybe_recheck_special_folders (StampAccount *self)
 {
-  StampAccount *self = user_data;
-
-  if (!camel_offline_store_get_online (CAMEL_OFFLINE_STORE (object)))
+  if (!self->mail || !self->mail->service)
     return;
 
-  if (!self->mail)
+  if (self->recheck_pending)
     return;
 
   if (self->mail->sent_folder && self->mail->drafts_folder && self->mail->trash_folder)
     return;
 
-  camel_store_get_folder_info (CAMEL_STORE (object), NULL,
+  self->recheck_pending = TRUE;
+
+  camel_store_get_folder_info (CAMEL_STORE (self->mail->service), NULL,
                                CAMEL_STORE_FOLDER_INFO_RECURSIVE | CAMEL_STORE_FOLDER_INFO_NO_VIRTUAL,
                                G_PRIORITY_LOW, self->cancellable,
                                on_folder_info_recheck, g_object_ref (self));
+}
+
+/* Driven by connection-status rather than by "online", which cannot be
+ * used for this. Camel re-emits notify::online whenever host-reachable
+ * changes or the connection status falls to DISCONNECTED, with the value
+ * unchanged -- so a recheck fired from it feeds itself: the recheck asks
+ * the store for folders, the store's failed connection attempt lands on
+ * DISCONNECTED, and that re-emits the notification that started it. On a
+ * store that cannot authenticate this has no ceiling, and it cost an
+ * account roughly ten thousand folder-info calls and twenty thousand
+ * IMAP logins per burst until the server rate-limited it.
+ *
+ * A failed connection reaches DISCONNECTED, never CONNECTED, so there is
+ * no path from a failure back to here. It is also the more accurate
+ * moment: camel notifies "online" before it attempts the connection, so
+ * a recheck driven by that was asking the question before there was
+ * anyone to answer it. */
+static void
+on_store_connection_status_changed (GObject    *object,
+                                    GParamSpec *pspec,
+                                    gpointer    user_data)
+{
+  StampAccount *self = user_data;
+
+  self->recheck_retries = 0;
+  g_clear_handle_id (&self->recheck_retry_handler, g_source_remove);
+
+  if (camel_service_get_connection_status (CAMEL_SERVICE (object)) != CAMEL_SERVICE_CONNECTED)
+    return;
+
+  maybe_recheck_special_folders (self);
 }
 
 static void
@@ -1091,8 +1166,8 @@ stamp_account_enable_mail_async (StampAccount *self,
   self->folder_index = stamp_folder_index_new (CAMEL_STORE (self->mail->service));
 
   if (CAMEL_IS_OFFLINE_STORE (self->mail->service))
-    g_signal_connect_object (self->mail->service, "notify::online",
-                             G_CALLBACK (on_store_online_changed), self, G_CONNECT_DEFAULT);
+    g_signal_connect_object (self->mail->service, "notify::connection-status",
+                             G_CALLBACK (on_store_connection_status_changed), self, G_CONNECT_DEFAULT);
 
   camel_store_get_folder_info (CAMEL_STORE (self->mail->service), NULL,
                                CAMEL_STORE_FOLDER_INFO_RECURSIVE | CAMEL_STORE_FOLDER_INFO_NO_VIRTUAL,
