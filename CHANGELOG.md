@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+- Badge the Mail button with unread mail, and make both badges optional (steeb-k)
 - Add a clustered view, gathering mails that share a subject (steeb-k)
 - Follow a starred conversation, keeping it bold until it is opened (steeb-k)
 - Star a mail from its row, with a moment before the list reshuffles (steeb-k)

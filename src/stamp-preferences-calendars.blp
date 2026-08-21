@@ -6,6 +6,15 @@ template $StampPreferencesCalendars: Adw.PreferencesPage {
   icon-name: "x-office-calendar-symbolic";
 
   Adw.PreferencesGroup {
+    title: _("General");
+
+    Adw.SwitchRow badge {
+      title: _("Show Notification Badge");
+      subtitle: _("Counts today's events on the Calendar button");
+    }
+  }
+
+  Adw.PreferencesGroup {
     title: _("Calendars");
     description: _("Show or hide calendars, or open one to edit it. If a calendar never appears in the app, the active profile is leaving out its account.");
 

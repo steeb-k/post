@@ -72,6 +72,16 @@
       <summary>Whether each profile clusters mails by subject</summary>
       <description>Maps a profile identifier to "on" or "off". A profile with no entry here leaves the clustered view at whatever the preferences say. It rides in a map of its own for the same reason the layouts do.</description>
     </key>
+    <key name="profile-mail-badge" type="a{ss}">
+      <default>{}</default>
+      <summary>Whether each profile badges the Mail button</summary>
+      <description>Maps a profile identifier to "on" or "off". A profile with no entry here leaves the Mail badge at whatever the preferences say. It rides in a map of its own for the same reason the layouts do.</description>
+    </key>
+    <key name="profile-calendar-badge" type="a{ss}">
+      <default>{}</default>
+      <summary>Whether each profile badges the Calendar button</summary>
+      <description>Maps a profile identifier to "on" or "off". A profile with no entry here leaves the Calendar badge at whatever the preferences say. It rides in a map of its own for the same reason the layouts do.</description>
+    </key>
     <key name="profile-badges" type="a{ss}">
       <default>{}</default>
       <summary>Per profile badge</summary>
@@ -171,6 +181,19 @@
         <default>false</default>
         <summary>Expand the sidebar agenda</summary>
         <description>Whether the agenda at the bottom of the mail sidebar shows its calendar, so another day can be picked.</description>
+    </key>
+    <key type="b" name="show-badge">
+        <default>true</default>
+        <summary>Badge the Mail button</summary>
+        <description>Whether the Mail button in the view switcher carries the number of unread mails waiting in the inboxes of the accounts the active profile shows.</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.steeb_k.Post.calendar" path="/io/github/steeb_k/Post/calendar/">
+    <key type="b" name="show-badge">
+        <default>true</default>
+        <summary>Badge the Calendar button</summary>
+        <description>Whether the Calendar button in the view switcher carries the number of events happening today.</description>
     </key>
   </schema>
 

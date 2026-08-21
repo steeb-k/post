@@ -357,6 +357,61 @@ load_badges (StampProfileManager *self)
   }
 }
 
+/*
+ * The two view switcher badges are the same on/off shape as clustering,
+ * and there are two of them, so they share a reader and a writer rather
+ * than growing another near-identical pair each.
+ */
+typedef const gchar *(*ProfileGetter) (StampProfile *profile);
+typedef void (*ProfileSetter) (StampProfile *profile, const gchar *value);
+
+static void
+store_onoff (StampProfileManager *self,
+             const gchar         *key,
+             ProfileGetter        getter)
+{
+  GVariantBuilder builder;
+  guint len = n_profiles (self);
+
+  if (self->loading)
+    return;
+
+  g_variant_builder_init (&builder, G_VARIANT_TYPE ("a{ss}"));
+
+  for (guint i = 0; i < len; i++) {
+    StampProfile *profile = profile_at (self, i);
+    const gchar *value = getter (profile);
+
+    if (value)
+      g_variant_builder_add (&builder, "{ss}", stamp_profile_get_id (profile), value);
+  }
+
+  g_settings_set_value (self->settings, key, g_variant_builder_end (&builder));
+}
+
+static void
+load_onoff (StampProfileManager *self,
+            const gchar         *key,
+            ProfileSetter        setter)
+{
+  g_autoptr (GVariant) stored = NULL;
+  guint len = n_profiles (self);
+
+  stored = g_settings_get_value (self->settings, key);
+
+  for (guint i = 0; i < len; i++) {
+    StampProfile *profile = profile_at (self, i);
+    const gchar *value = NULL;
+
+    if (!g_variant_lookup (stored, stamp_profile_get_id (profile), "&s", &value))
+      continue;
+
+    /* A value this version does not know is no override at all. */
+    if (g_strcmp0 (value, "on") == 0 || g_strcmp0 (value, "off") == 0)
+      setter (profile, value);
+  }
+}
+
 static void
 store_override (StampProfileManager *self)
 {
@@ -447,6 +502,8 @@ load (StampProfileManager *self)
   load_layouts (self);
   load_badges (self);
   load_clustering (self);
+  load_onoff (self, STAMP_PREFS_PROFILE_MAIL_BADGE, stamp_profile_set_mail_badge);
+  load_onoff (self, STAMP_PREFS_PROFILE_CALENDAR_BADGE, stamp_profile_set_calendar_badge);
 
   self->default_id = g_settings_get_string (self->settings, STAMP_PREFS_DEFAULT_PROFILE);
   self->override_id = g_settings_get_string (self->settings, STAMP_PREFS_OVERRIDE_PROFILE);
@@ -612,6 +669,8 @@ stamp_profile_manager_save (StampProfileManager *self)
   store_layouts (self);
   store_badges (self);
   store_clustering (self);
+  store_onoff (self, STAMP_PREFS_PROFILE_MAIL_BADGE, stamp_profile_get_mail_badge);
+  store_onoff (self, STAMP_PREFS_PROFILE_CALENDAR_BADGE, stamp_profile_get_calendar_badge);
 
   /* Editing the schedule can move the moment the manual choice was
    * meant to last until, so work it out again. */

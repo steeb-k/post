@@ -83,6 +83,34 @@ template $StampProfilesEditor: Adw.NavigationPage {
             ]
           };
         }
+
+        Adw.ComboRow mail_badge_row {
+          title: _("Mail Badge");
+          subtitle: _("Whether the Mail button counts the unread mail in this profile's inboxes while it is active.");
+          notify::selected => $on_mail_badge_changed();
+
+          model: StringList {
+            strings [
+              C_("Notification badge", "Default"),
+              C_("Notification badge", "On"),
+              C_("Notification badge", "Off"),
+            ]
+          };
+        }
+
+        Adw.ComboRow calendar_badge_row {
+          title: _("Calendar Badge");
+          subtitle: _("Whether the Calendar button counts today's events while the profile is active.");
+          notify::selected => $on_calendar_badge_changed();
+
+          model: StringList {
+            strings [
+              C_("Notification badge", "Default"),
+              C_("Notification badge", "On"),
+              C_("Notification badge", "Off"),
+            ]
+          };
+        }
       }
 
       Adw.PreferencesGroup accounts_group {

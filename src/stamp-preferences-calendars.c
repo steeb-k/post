@@ -38,11 +38,13 @@
 #include "gcal-utils.h"
 
 #include "stamp-gcal.h"
+#include "stamp-settings.h"
 
 struct _StampPreferencesCalendars {
   AdwPreferencesPage parent_instance;
 
   GtkListBox *listbox;
+  AdwSwitchRow *badge;
 
   /* The calendar whose removal the undo toast is still holding back */
   AdwToast *toast;
@@ -392,6 +394,7 @@ stamp_preferences_calendars_class_init (StampPreferencesCalendarsClass *klass)
   gtk_widget_class_set_template_from_resource (widget_class, "/io/github/steeb_k/Post/stamp-preferences-calendars.ui");
 
   gtk_widget_class_bind_template_child (widget_class, StampPreferencesCalendars, listbox);
+  gtk_widget_class_bind_template_child (widget_class, StampPreferencesCalendars, badge);
 
   gtk_widget_class_bind_template_callback (widget_class, on_listbox_row_activated_cb);
   gtk_widget_class_bind_template_callback (widget_class, on_new_calendar_row_activated_cb);
@@ -408,6 +411,8 @@ stamp_preferences_calendars_init (StampPreferencesCalendars *self)
   gtk_widget_init_template (GTK_WIDGET (self));
 
   gtk_list_box_set_sort_func (self->listbox, listbox_sort_func, NULL, NULL);
+
+  g_settings_bind (STAMP_SETTINGS_CALENDAR, STAMP_PREFS_CALENDAR_SHOW_BADGE, self->badge, "active", G_SETTINGS_BIND_DEFAULT);
 
   /* Preferences can be opened before the calendar view ever exists */
   context = stamp_gcal_ensure_context ();

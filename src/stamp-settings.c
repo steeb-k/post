@@ -116,6 +116,34 @@ stamp_mail_cluster_window_days (void)
   return g_settings_get_uint (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_CLUSTER_WINDOW);
 }
 
+/*
+ * The badges follow clustering exactly: the active profile decides if
+ * it was told to, otherwise the preferences do.
+ */
+gboolean
+stamp_mail_badge_enabled (void)
+{
+  StampProfile *active = stamp_profile_manager_get_active (stamp_profile_manager_get_default ());
+  const gchar *override = active ? stamp_profile_get_mail_badge (active) : NULL;
+
+  if (override)
+    return g_strcmp0 (override, "on") == 0;
+
+  return g_settings_get_boolean (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_SHOW_BADGE);
+}
+
+gboolean
+stamp_calendar_badge_enabled (void)
+{
+  StampProfile *active = stamp_profile_manager_get_active (stamp_profile_manager_get_default ());
+  const gchar *override = active ? stamp_profile_get_calendar_badge (active) : NULL;
+
+  if (override)
+    return g_strcmp0 (override, "on") == 0;
+
+  return g_settings_get_boolean (STAMP_SETTINGS_CALENDAR, STAMP_PREFS_CALENDAR_SHOW_BADGE);
+}
+
 void
 stamp_settings_init (void)
 {

@@ -31,6 +31,7 @@
 #include "stamp-calendar-view.h"
 #include "stamp-contact-view.h"
 #include "stamp-helper.h"
+#include "stamp-inbox-counter.h"
 #include "stamp-mail-view.h"
 #include "stamp-profile-manager.h"
 #include "stamp-session.h"
@@ -45,8 +46,10 @@ struct _StampWindow {
   StampMailView *mail_view;
   StampContactView *contact_view;
   StampCalendarView *calendar_view;
+  AdwViewStackPage *mail_stack_page;
   AdwViewStackPage *calendar_stack_page;
   StampTodayCounter *today_counter;
+  StampInboxCounter *inbox_counter;
 
   GtkSizeGroup *sidebar_size_group;
   GtkSizeGroup *action_size_group;
@@ -189,6 +192,20 @@ on_change_layout (GSimpleAction *action,
 }
 
 /*
+ * The counters keep counting whether or not anyone is looking, so
+ * turning a badge off is a matter of not showing what it knows. Zero is
+ * how AdwViewStackPage spells no badge at all.
+ */
+static void
+stamp_window_update_badges (StampWindow *self)
+{
+  adw_view_stack_page_set_badge_number (self->mail_stack_page,
+                                        stamp_mail_badge_enabled () ? stamp_inbox_counter_get_count (self->inbox_counter) : 0);
+  adw_view_stack_page_set_badge_number (self->calendar_stack_page,
+                                        stamp_calendar_badge_enabled () ? stamp_today_counter_get_count (self->today_counter) : 0);
+}
+
+/*
  * A profile whose turn has ended takes its layout with it, and hands
  * the hand-picked one back to the default too.
  */
@@ -208,6 +225,7 @@ on_profile_changed (StampProfileManager *manager,
   }
 
   stamp_window_update_layout (self);
+  stamp_window_update_badges (self);
 }
 
 static void
@@ -244,6 +262,7 @@ stamp_window_dispose (GObject *object)
   g_clear_object (&self->sidebar_size_group);
   g_clear_object (&self->action_size_group);
   g_clear_object (&self->today_counter);
+  g_clear_object (&self->inbox_counter);
   g_clear_pointer (&self->manual_layout, g_free);
   g_clear_pointer (&self->active_profile_id, g_free);
 
@@ -267,6 +286,7 @@ stamp_window_class_init (StampWindowClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampWindow, mail_view);
   gtk_widget_class_bind_template_child (widget_class, StampWindow, contact_view);
   gtk_widget_class_bind_template_child (widget_class, StampWindow, calendar_view);
+  gtk_widget_class_bind_template_child (widget_class, StampWindow, mail_stack_page);
   gtk_widget_class_bind_template_child (widget_class, StampWindow, calendar_stack_page);
 
   gtk_widget_class_bind_template_callback (widget_class, on_open_settings_clicked);
@@ -330,11 +350,21 @@ stamp_window_init (StampWindow *self)
   gtk_size_group_add_widget (self->action_size_group, stamp_contact_view_get_primary_action (self->contact_view));
   gtk_size_group_add_widget (self->action_size_group, stamp_calendar_view_get_primary_action (self->calendar_view));
 
-  /* Badge the Calendar button with how much is happening today. */
+  /* Badge the Mail button with the unread mail this profile can see,
+   * and the Calendar button with how much is happening today. */
+  self->inbox_counter = stamp_inbox_counter_new ();
   self->today_counter = stamp_today_counter_new ();
-  g_object_bind_property (self->today_counter, "count",
-                          self->calendar_stack_page, "badge-number",
-                          G_BINDING_SYNC_CREATE);
+
+  g_signal_connect_object (self->inbox_counter, "notify::count",
+                           G_CALLBACK (stamp_window_update_badges), self, G_CONNECT_SWAPPED);
+  g_signal_connect_object (self->today_counter, "notify::count",
+                           G_CALLBACK (stamp_window_update_badges), self, G_CONNECT_SWAPPED);
+  g_signal_connect_object (STAMP_SETTINGS_MAIL, "changed::" STAMP_PREFS_MAIL_SHOW_BADGE,
+                           G_CALLBACK (stamp_window_update_badges), self, G_CONNECT_SWAPPED);
+  g_signal_connect_object (STAMP_SETTINGS_CALENDAR, "changed::" STAMP_PREFS_CALENDAR_SHOW_BADGE,
+                           G_CALLBACK (stamp_window_update_badges), self, G_CONNECT_SWAPPED);
+
+  stamp_window_update_badges (self);
 
   g_action_map_add_action_entries (G_ACTION_MAP (self),
                                    stamp_window_action_entries,

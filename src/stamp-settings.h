@@ -38,6 +38,8 @@ G_BEGIN_DECLS
 #define STAMP_PREFS_PROFILE_LAYOUTS           "profile-layouts"
 #define STAMP_PREFS_PROFILE_BADGES            "profile-badges"
 #define STAMP_PREFS_PROFILE_CLUSTERING        "profile-clustering"
+#define STAMP_PREFS_PROFILE_MAIL_BADGE        "profile-mail-badge"
+#define STAMP_PREFS_PROFILE_CALENDAR_BADGE    "profile-calendar-badge"
 #define STAMP_PREFS_DEFAULT_PROFILE           "default-profile"
 #define STAMP_PREFS_OVERRIDE_PROFILE          "override-profile"
 #define STAMP_PREFS_OVERRIDE_UNTIL            "override-until"
@@ -61,12 +63,17 @@ G_BEGIN_DECLS
 #define STAMP_PREFS_MAIL_AGENDA_EXPANDED      "agenda-expanded"
 #define STAMP_PREFS_MAIL_PROFILE_FOLDERS      "profile-folders"
 #define STAMP_PREFS_MAIL_LAYOUT               "layout"
+#define STAMP_PREFS_MAIL_SHOW_BADGE           "show-badge"
+
+#define STAMP_PREFS_CALENDAR_SCHEMA           "io.github.steeb_k.Post.calendar"
+#define STAMP_PREFS_CALENDAR_SHOW_BADGE       "show-badge"
 
 #define STAMP_PREFS_ACCOUNTS_SCHEMA            "io.github.steeb_k.Post.accounts"
 #define STAMP_PREFS_MAIL_DEFAULT_SIGNATURE     "default-signature"
 
 #define STAMP_SETTINGS stamp_settings_get (STAMP_PREFS_SCHEMA)
 #define STAMP_SETTINGS_MAIL stamp_settings_get (STAMP_PREFS_MAIL_SCHEMA)
+#define STAMP_SETTINGS_CALENDAR stamp_settings_get (STAMP_PREFS_CALENDAR_SCHEMA)
 #define STAMP_SETTINGS_ACCOUNTS stamp_settings_get (STAMP_PREFS_ACCOUNTS_SCHEMA)
 
 /*
@@ -79,6 +86,17 @@ stamp_mail_clustering_enabled (void);
 
 guint
 stamp_mail_cluster_window_days (void);
+
+/*
+ * Whether the Mail and Calendar buttons in the view switcher carry
+ * their counts right now. The active profile gets the first say, the
+ * same way it does for clustering; see stamp-settings.c.
+ */
+gboolean
+stamp_mail_badge_enabled (void);
+
+gboolean
+stamp_calendar_badge_enabled (void);
 
 /*
  * How the mail view arranges its panes. The nicks match the

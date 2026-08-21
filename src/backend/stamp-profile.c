@@ -39,6 +39,8 @@ struct _StampProfile {
   gchar *initial;
   gchar *layout;
   gchar *clustering;
+  gchar *mail_badge;
+  gchar *calendar_badge;
   gchar *badge;
 
   GStrv accounts;
@@ -113,6 +115,8 @@ stamp_profile_dispose (GObject *object)
   g_clear_pointer (&self->initial, g_free);
   g_clear_pointer (&self->layout, g_free);
   g_clear_pointer (&self->clustering, g_free);
+  g_clear_pointer (&self->mail_badge, g_free);
+  g_clear_pointer (&self->calendar_badge, g_free);
   g_clear_pointer (&self->badge, g_free);
   g_clear_pointer (&self->accounts, g_strfreev);
   g_clear_pointer (&self->rules, g_array_unref);
@@ -210,6 +214,8 @@ stamp_profile_copy (StampProfile *self)
   copy = stamp_profile_new (self->id, self->name, self->color);
   stamp_profile_set_layout (copy, self->layout);
   stamp_profile_set_clustering (copy, self->clustering);
+  stamp_profile_set_mail_badge (copy, self->mail_badge);
+  stamp_profile_set_calendar_badge (copy, self->calendar_badge);
   stamp_profile_set_badge (copy, self->badge);
   stamp_profile_set_accounts (copy, (const gchar * const *)self->accounts);
   g_array_append_vals (copy->rules, self->rules->data, self->rules->len);
@@ -324,6 +330,53 @@ stamp_profile_set_clustering (StampProfile *self,
     return;
 
   g_set_str (&self->clustering, clustering);
+}
+
+const gchar *
+stamp_profile_get_mail_badge (StampProfile *self)
+{
+  g_return_val_if_fail (STAMP_IS_PROFILE (self), NULL);
+
+  return self->mail_badge;
+}
+
+void
+stamp_profile_set_mail_badge (StampProfile *self,
+                              const gchar  *badge)
+{
+  g_return_if_fail (STAMP_IS_PROFILE (self));
+
+  /* As with the layout, an empty string is no override at all. */
+  if (badge && *badge == '\0')
+    badge = NULL;
+
+  if (g_strcmp0 (self->mail_badge, badge) == 0)
+    return;
+
+  g_set_str (&self->mail_badge, badge);
+}
+
+const gchar *
+stamp_profile_get_calendar_badge (StampProfile *self)
+{
+  g_return_val_if_fail (STAMP_IS_PROFILE (self), NULL);
+
+  return self->calendar_badge;
+}
+
+void
+stamp_profile_set_calendar_badge (StampProfile *self,
+                                  const gchar  *badge)
+{
+  g_return_if_fail (STAMP_IS_PROFILE (self));
+
+  if (badge && *badge == '\0')
+    badge = NULL;
+
+  if (g_strcmp0 (self->calendar_badge, badge) == 0)
+    return;
+
+  g_set_str (&self->calendar_badge, badge);
 }
 
 const gchar *

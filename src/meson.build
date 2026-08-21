@@ -60,6 +60,7 @@ stamp_sources = [
   'views/contact/book-list/stamp-book-item.c',
   'views/contact/book-list/stamp-book-list.c',
   'views/contact/book-list/stamp-book-row.c',
+  'views/mail/stamp-inbox-counter.c',
   'views/mail/stamp-mail-view.c',
   'views/mail/stamp-sidebar-agenda.c',
   'views/mail/conversation-list/stamp-conversation-item.c',

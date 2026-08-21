@@ -39,6 +39,7 @@ struct _StampPreferences {
 
   AdwSwitchRow *background_notifications;
   AdwSwitchRow *autostart;
+  AdwSwitchRow *mail_badge;
   AdwSwitchRow *always_show_images;
   AdwSwitchRow *bimi_images;
   AdwSpinRow *mark_read;
@@ -128,6 +129,7 @@ stamp_preferences_class_init (StampPreferencesClass *klass)
 
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, background_notifications);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, autostart);
+  gtk_widget_class_bind_template_child (widget_class, StampPreferences, mail_badge);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, always_show_images);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, bimi_images);
   gtk_widget_class_bind_template_child (widget_class, StampPreferences, mark_read);
@@ -312,6 +314,7 @@ stamp_preferences_init (StampPreferences *self)
 
   g_settings_bind (STAMP_SETTINGS, STAMP_PREFS_BACKGROUND_NOTIFICATIONS, self->background_notifications, "active", G_SETTINGS_BIND_DEFAULT);
   g_settings_bind (STAMP_SETTINGS, STAMP_PREFS_BACKGROUND_AUTOSTART, self->autostart, "active", G_SETTINGS_BIND_DEFAULT);
+  g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_SHOW_BADGE, self->mail_badge, "active", G_SETTINGS_BIND_DEFAULT);
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_ALWAYS_SHOW_IMAGES, self->always_show_images, "active", G_SETTINGS_BIND_DEFAULT);
   g_settings_bind (STAMP_SETTINGS_MAIL, STAMP_PREFS_MAIL_PLAY_INCOMING_SOUND, self->play_incoming_sound, "active", G_SETTINGS_BIND_DEFAULT);
   g_signal_connect_object (self->autostart, "notify::active", G_CALLBACK (on_autostart), self, G_CONNECT_DEFAULT);

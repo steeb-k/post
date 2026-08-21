@@ -115,6 +115,26 @@ stamp_profile_set_clustering (StampProfile *self,
                               const gchar  *clustering);
 
 /*
+ * Whether the profile asks for the Mail and Calendar buttons in the
+ * view switcher to carry their counts while it is active: "on", "off",
+ * or NULL when it leaves the setting alone. Stored beside the profiles
+ * rather than in them, for the same reason the layout is.
+ */
+const gchar *
+stamp_profile_get_mail_badge (StampProfile *self);
+
+void
+stamp_profile_set_mail_badge (StampProfile *self,
+                              const gchar  *badge);
+
+const gchar *
+stamp_profile_get_calendar_badge (StampProfile *self);
+
+void
+stamp_profile_set_calendar_badge (StampProfile *self,
+                                  const gchar  *badge);
+
+/*
  * The badge the profile wears in place of its letter, as a
  * StampBadge id, or NULL when it shows the letter. Stored beside the
  * profiles rather than in them, for the same reason the layout is.
