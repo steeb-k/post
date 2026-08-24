@@ -132,9 +132,35 @@ typedef struct {
 } InboxRequest;
 
 static void
-on_inbox_folder (GObject      *source,
-                 GAsyncResult *result,
-                 gpointer      user_data)
+inbox_request_free (InboxRequest *request)
+{
+  g_clear_object (&request->self);
+  g_free (request->uid);
+  g_free (request);
+}
+
+/*
+ * Stops waiting on @uid, so that an account whose inbox could not be
+ * opened is asked again the next time it turns up. A start with nothing
+ * cached yet has no folder to hand out, and an entry left behind here
+ * would keep track_account() from ever asking a second time.
+ */
+static void
+forget_account (StampInboxCounter *self,
+                const gchar       *uid)
+{
+  if (self->inboxes)
+    g_hash_table_remove (self->inboxes, uid);
+}
+
+/*
+ * The inbox, opened under the name the store keeps it by -- the same
+ * folder the folder list is watching, rather than a copy of it.
+ */
+static void
+on_inbox_folder_opened (GObject      *source,
+                        GAsyncResult *result,
+                        gpointer      user_data)
 {
   InboxRequest *request = user_data;
   StampInboxCounter *self = request->self;
@@ -142,13 +168,13 @@ on_inbox_folder (GObject      *source,
   g_autoptr (GError) error = NULL;
   Inbox *inbox;
 
-  folder = camel_store_get_inbox_folder_finish (CAMEL_STORE (source), result, &error);
+  folder = camel_store_get_folder_finish (CAMEL_STORE (source), result, &error);
 
   if (!folder) {
-    /* Plenty of stores have no inbox to hand out, and the account is
-     * still perfectly usable without one; it simply adds nothing. */
-    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
-      g_debug ("%s: No inbox for account %s: %s", G_STRFUNC, request->uid, error->message);
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+      g_debug ("%s: Could not open the inbox for account %s: %s", G_STRFUNC, request->uid, error->message);
+      forget_account (self, request->uid);
+    }
     goto out;
   }
 
@@ -162,9 +188,68 @@ on_inbox_folder (GObject      *source,
   update_count (self);
 
 out:
-  g_clear_object (&request->self);
-  g_free (request->uid);
-  g_free (request);
+  inbox_request_free (request);
+}
+
+static void
+on_inbox_folder (GObject      *source,
+                 GAsyncResult *result,
+                 gpointer      user_data)
+{
+  InboxRequest *request = user_data;
+  StampInboxCounter *self = request->self;
+  g_autoptr (CamelFolder) folder = NULL;
+  g_autoptr (GError) error = NULL;
+  g_autofree gchar *full_name = NULL;
+  Inbox *inbox;
+
+  folder = camel_store_get_inbox_folder_finish (CAMEL_STORE (source), result, &error);
+
+  if (!folder) {
+    /* Plenty of stores have no inbox to hand out, and the account is
+     * still perfectly usable without one; it simply adds nothing. It
+     * may also be too early to have one, so let the account be asked
+     * again rather than writing it off for the rest of the session. */
+    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+      g_debug ("%s: No inbox for account %s: %s", G_STRFUNC, request->uid, error->message);
+      forget_account (self, request->uid);
+    }
+    goto out;
+  }
+
+  inbox = self->inboxes ? g_hash_table_lookup (self->inboxes, request->uid) : NULL;
+  if (!inbox || inbox->folder)
+    goto out;
+
+  /* What came back is not the folder the rest of the window is holding,
+   * and keeping it would count a second copy of the same mailbox that
+   * nothing ever refreshes -- a badge frozen at whatever was on disk
+   * when the account loaded. Camel asks its store for a folder called
+   * "inbox" and caches folders under the name it was asked for, while
+   * IMAP only spells it "INBOX" further in, once that cache key has
+   * been settled.
+   *
+   * So take the name and open it again, which lands on the folder the
+   * folder list already has. Asking for the inbox is still what finds
+   * it: the name it answers with is the store's own, whether that is
+   * "INBOX" or a maildir's "Inbox". */
+  full_name = g_strdup (camel_folder_get_full_name (folder));
+  if (!full_name) {
+    forget_account (self, request->uid);
+    goto out;
+  }
+
+  camel_store_get_folder (CAMEL_STORE (source),
+                          full_name,
+                          CAMEL_STORE_FOLDER_NONE,
+                          G_PRIORITY_DEFAULT,
+                          self->cancellable,
+                          on_inbox_folder_opened,
+                          g_steal_pointer (&request));
+  return;
+
+out:
+  inbox_request_free (request);
 }
 
 /*

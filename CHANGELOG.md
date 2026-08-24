@@ -13,6 +13,7 @@
 - Give signatures the composer's formatting bar (steeb-k)
 
 ### Bug Fixes
+- Count the inbox the sidebar is showing, not a second copy of it (steeb-k)
 - Stop an AMP for Email body from showing up as a blank attachment (steeb-k)
 - Start a new mail from the account the active profile has open (steeb-k)
 - Put the caret in To when a new mail opens, not in the message body (steeb-k)
