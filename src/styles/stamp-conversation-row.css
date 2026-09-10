@@ -8,6 +8,26 @@
 }
 
 /*
+ * The bar down the left of an unread mail. Bold text alone is easy to
+ * skim past in a long list; a stripe of accent colour is not.
+ *
+ * The bar is in the grid on every row, read or unread, and only its
+ * colour changes -- a column that came and went would shove the text of
+ * every row sideways each time a mail was opened. It draws no colour of
+ * its own when read, so the row's own background shows through.
+ */
+.unread-indicator {
+  min-width: 3px;
+  border-radius: 999px;
+  background-color: transparent;
+  transition: background-color 200ms ease;
+}
+
+.unread-indicator.unread {
+  background-color: var(--accent-bg-color);
+}
+
+/*
  * Stacked and dense leave the list a pane a few rows tall, so its rows
  * give up the padding they can spare to fit another conversation in.
  */

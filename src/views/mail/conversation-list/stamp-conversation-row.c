@@ -52,6 +52,7 @@ struct _StampConversationRow {
   GtkImage *calendar_icon;
   GtkFlowBox *labels;
   GtkBox *folders;
+  GtkWidget *unread_indicator;
 
   GCancellable *cancellable;
   gboolean selected;
@@ -156,6 +157,8 @@ set_unread_status (StampConversationRow *self,
     gtk_widget_remove_css_class (GTK_WIDGET (self->participants), "heading");
     gtk_widget_remove_css_class (GTK_WIDGET (self->topic), "accent");
 
+    gtk_widget_remove_css_class (self->unread_indicator, "unread");
+
     gtk_label_set_text (self->left_action_label, _("Mark Unread"));
     gtk_image_set_from_icon_name (self->left_action_image, "mail-unread-symbolic");
   } else {
@@ -164,6 +167,8 @@ set_unread_status (StampConversationRow *self,
     gtk_widget_add_css_class (GTK_WIDGET (self->topic), "caption-heading");
     gtk_widget_add_css_class (GTK_WIDGET (self->participants), "heading");
     gtk_widget_add_css_class (GTK_WIDGET (self->topic), "accent");
+
+    gtk_widget_add_css_class (self->unread_indicator, "unread");
 
     gtk_label_set_text (self->left_action_label, _("Mark Read"));
     gtk_image_set_from_icon_name (self->left_action_image, "mark-read-symbolic");
@@ -329,6 +334,7 @@ stamp_conversation_row_class_init (StampConversationRowClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampConversationRow, calendar_icon);
   gtk_widget_class_bind_template_child (widget_class, StampConversationRow, labels);
   gtk_widget_class_bind_template_child (widget_class, StampConversationRow, folders);
+  gtk_widget_class_bind_template_child (widget_class, StampConversationRow, unread_indicator);
 
   gtk_widget_class_bind_template_callback (widget_class, on_drag_update);
   gtk_widget_class_bind_template_callback (widget_class, on_drag_end);

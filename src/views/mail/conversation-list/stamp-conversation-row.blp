@@ -85,6 +85,26 @@ template $StampConversationRow: Box {
         "conversation-row",
       ]
 
+      /* An unread mail is bolded, but bold is easy to miss when a list
+       * is long: the bar down the side is what the eye catches. It is
+       * always in the grid, coloured rather than shown, so a mail going
+       * from unread to read does not shuffle every row's text sideways. */
+      Box unread_indicator {
+        valign: fill;
+        can-target: false;
+        can-focus: false;
+
+        styles [
+          "unread-indicator",
+        ]
+
+        layout {
+          row: 0;
+          column: 0;
+          row-span: 3;
+        }
+      }
+
       Stack stack {
         Adw.Avatar avatar {
           valign: start;
@@ -104,14 +124,14 @@ template $StampConversationRow: Box {
 
         layout {
           row: 0;
-          column: 0;
+          column: 1;
           row-span: 3;
         }
       }
 
       Box {
         layout {
-          column: 1;
+          column: 2;
           row: 0;
         }
 
@@ -202,7 +222,7 @@ template $StampConversationRow: Box {
 
       Box {
         layout {
-          column: 1;
+          column: 2;
           row: 1;
         }
 
@@ -225,7 +245,7 @@ template $StampConversationRow: Box {
 
       Box {
         layout {
-          column: 1;
+          column: 2;
           row: 2;
         }
 
