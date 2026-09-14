@@ -4,7 +4,6 @@
   "runtime-version": "50",
   "sdk": "org.gnome.Sdk",
   "command": "post-mail",
-  "desktop-file-name-suffix": " (Development)",
   "finish-args": [
     "--share=ipc",
     "--share=network",
@@ -258,7 +257,7 @@
       "builddir": true,
       "buildsystem": "meson",
       "config-opts": [
-        "-Ddevel=true"
+        "-Ddevel=false"
       ],
       "sources": [
         {
