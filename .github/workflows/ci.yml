@@ -46,26 +46,22 @@ jobs:
 
       - name: Pack the build repo
         if: startsWith(github.ref, 'refs/tags/v')
-        run: tar -C repo -cf build-repo.tar .
+        run: tar -C repo -cf flatpak-build.tar .
 
       - uses: actions/upload-artifact@v7
         if: startsWith(github.ref, 'refs/tags/v')
         with:
-          name: build-repo
-          path: build-repo.tar
+          name: flatpak-build
+          path: flatpak-build.tar
           retention-days: 7
 
-  publish:
-    name: Publish to apps.kznjk.com
+  release:
+    name: Attach the build to the release
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [attribution, flatpak]
     runs-on: ubuntu-24.04
-    environment: flatpak-repo
     permissions:
       contents: write
-    concurrency:
-      group: flatpak-repo
-      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v7
 
@@ -84,27 +80,21 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      - name: Install flatpak and ostree
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends flatpak ostree
-
-      - name: Sign and pack the repo
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.FLATPAK_GPG_PRIVATE_KEY }}
-          GPG_PASSPHRASE: ${{ secrets.FLATPAK_GPG_PASSPHRASE }}
-        run: tools/flatpak-publish.sh artifacts/build-repo.tar release
-
+      # steeb-k/kznjk-flatpak picks the build up from here, signs it and
+      # publishes it to apps.kznjk.com.
       - name: Attach to the release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          # The json goes last: the server waits for it, so it never sees a
-          # release whose tarball is still uploading.
+          sha=$(sha256sum artifacts/flatpak-build.tar | cut -d' ' -f1)
+          printf '{"app_id": "io.github.steeb_k.Post", "branch": "stable", "tar_sha256": "%s"}\n' "$sha" \
+            > flatpak-build.json
           if ! gh release view "$TAG" > /dev/null 2>&1; then
             gh release create "$TAG" --verify-tag --title "Post ${TAG#v}" --notes ""
           fi
-          gh release upload "$TAG" --clobber release/flatpak-repo.tar \
+          gh release upload "$TAG" --clobber artifacts/flatpak-build.tar \
             artifacts/io.github.steeb_k.Post.flatpak
-          gh release upload "$TAG" --clobber release/flatpak-repo.json
+          # The json goes last: the publisher waits for it, so it never takes
+          # a build whose tarball is still uploading.
+          gh release upload "$TAG" --clobber flatpak-build.json
