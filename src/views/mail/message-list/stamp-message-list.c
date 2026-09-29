@@ -34,6 +34,7 @@ struct _StampMessageList {
   AdwBreakpointBin parent_instance;
 
   GtkWidget *scrolled_window;
+  GtkWidget *viewport;
   GtkWidget *list_box;
   GtkWidget *message_title;
   GtkWidget *hover_url;
@@ -64,6 +65,7 @@ struct _StampMessageList {
   GtkWidget *message_stack;
   gboolean rebuilding;
   guint scroll_to_bottom_handler;
+  gulong focus_handler;
   guint navigate_back_handler;
 
   guint pending_searches;
@@ -227,6 +229,59 @@ on_drag_update (GtkGestureDrag *gesture,
   }
 }
 
+/* What GtkViewport does with scroll-to-focus on, minus the message
+ * bodies. The viewport brings the whole focused widget into view, and a
+ * body is a web view sized to its content, usually taller than the view:
+ * the first click into one moved focus there and the conversation jumped
+ * to the body's top or bottom edge, so the click never reached the link
+ * it was aimed at. Everything else -- a header, a button, an attachment
+ * -- still scrolls into view when Tab lands on it. */
+static void
+on_focus_widget_changed (StampMessageList *self)
+{
+  GtkRoot *root = gtk_widget_get_root (GTK_WIDGET (self));
+  GtkWidget *focus;
+
+  if (root == NULL)
+    return;
+
+  focus = gtk_root_get_focus (root);
+  if (focus == NULL || STAMP_IS_WEB_VIEW (focus))
+    return;
+
+  if (GTK_IS_TEXT (focus))
+    focus = gtk_widget_get_parent (focus);
+
+  /* A menu item in a header's popover is a descendant too, but on a
+   * surface of its own, with no position on ours. */
+  if (!gtk_widget_is_ancestor (focus, self->viewport) ||
+      gtk_widget_get_native (focus) != gtk_widget_get_native (self->viewport))
+    return;
+
+  gtk_viewport_scroll_to (GTK_VIEWPORT (self->viewport), focus, NULL);
+}
+
+static void
+stamp_message_list_root (GtkWidget *widget)
+{
+  StampMessageList *self = STAMP_MESSAGE_LIST (widget);
+
+  GTK_WIDGET_CLASS (stamp_message_list_parent_class)->root (widget);
+
+  self->focus_handler = g_signal_connect_swapped (gtk_widget_get_root (widget), "notify::focus-widget",
+                                                  G_CALLBACK (on_focus_widget_changed), self);
+}
+
+static void
+stamp_message_list_unroot (GtkWidget *widget)
+{
+  StampMessageList *self = STAMP_MESSAGE_LIST (widget);
+
+  g_clear_signal_handler (&self->focus_handler, gtk_widget_get_root (widget));
+
+  GTK_WIDGET_CLASS (stamp_message_list_parent_class)->unroot (widget);
+}
+
 static void
 stamp_message_list_size_allocate (GtkWidget *widget,
                                   gint       width,
@@ -292,6 +347,7 @@ stamp_message_list_class_init (StampMessageListClass *klass)
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, content_headerbar);
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, placeholder_headerbar);
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, scrolled_window);
+  gtk_widget_class_bind_template_child (widget_class, StampMessageList, viewport);
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, list_box);
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, message_title);
   gtk_widget_class_bind_template_child (widget_class, StampMessageList, hover_url);
@@ -314,6 +370,8 @@ stamp_message_list_class_init (StampMessageListClass *klass)
   gtk_widget_class_bind_template_callback (widget_class, on_drag_update);
   gtk_widget_class_bind_template_callback (widget_class, on_carousel_page_changed);
 
+  widget_class->root = stamp_message_list_root;
+  widget_class->unroot = stamp_message_list_unroot;
   widget_class->size_allocate = stamp_message_list_size_allocate;
 
   signals[HOVERING_OVER_LINK] = g_signal_new ("hovering-over-link", G_OBJECT_CLASS_TYPE (klass),

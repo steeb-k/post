@@ -142,8 +142,15 @@ template $StampMessageList: Adw.BreakpointBin {
                 child: ScrolledWindow scrolled_window {
                   hscrollbar-policy: never;
 
-                  child: Adw.Bin {
-                    Adw.Clamp {
+                  /* A viewport scrolls to whatever takes focus, and a
+                   * message body is a web view as tall as its content:
+                   * clicking into one would jump the conversation to its
+                   * top or bottom edge. stamp-message-list.c scrolls to
+                   * focus itself and leaves the bodies out. */
+                  child: Viewport viewport {
+                    scroll-to-focus: false;
+
+                    child: Adw.Clamp {
                       maximum-size: 9999;
 
                       child: Box {
@@ -191,7 +198,7 @@ template $StampMessageList: Adw.BreakpointBin {
                           ]
                         }
                       };
-                    }
+                    };
                   };
                 };
               };
