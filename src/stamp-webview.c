@@ -19,6 +19,8 @@
 
 #include "stamp-config.h"
 
+#include <string.h>
+
 #include "stamp-webview.h"
 
 struct _StampWebView {
@@ -312,8 +314,21 @@ stamp_prefs_init (gpointer user_data)
   web_context = webkit_web_context_get_default ();
   webkit_web_context_set_spell_checking_enabled (web_context, TRUE);
 
+  /* Spell-check in the user's own languages. g_get_language_names() spells
+   * them the way enchant wants ("en_US", then "en") once the encoding and
+   * modifier are cut off; WebKit skips any it has no dictionary for, and
+   * falls back to its own default when the list comes out empty (C locale). */
   builder = g_strv_builder_new ();
-  g_strv_builder_add (builder, "de_DE");
+  for (const char * const *name = g_get_language_names (); *name != NULL; name++)
+    {
+      g_autofree char *language = g_strdup (*name);
+
+      language[strcspn (language, ".@")] = '\0';
+      if (g_str_equal (language, "C") || g_str_equal (language, "POSIX"))
+        continue;
+
+      g_strv_builder_add (builder, language);
+    }
   languages = g_strv_builder_end (builder);
 
   webkit_web_context_set_spell_checking_languages (
