@@ -19,7 +19,7 @@ template $StampCalendarView: Adw.BreakpointBin {
   }
 
   Adw.Breakpoint bp_tablet {
-    condition ("max-width: 1200sp")
+    condition ("max-width: 1100sp")
 
     setters {
       calendar_layout.layout-name: "tablet";
@@ -65,6 +65,12 @@ template $StampCalendarView: Adw.BreakpointBin {
             $GcalDateChooser date_chooser {
               split-month-year: true;
               vexpand: false;
+
+              /* Sized to fit the sidebar, see the stylesheet. */
+              styles [
+                "sidebar-date-chooser",
+              ]
+
               active-date: bind template.active-date no-sync-create bidirectional;
               day-selected => $on_day_selected(template);
             }
@@ -202,9 +208,9 @@ template $StampCalendarView: Adw.BreakpointBin {
 
         content: Overlay {
           child: Adw.OverlaySplitView outer_osv {
-            sidebar-width-fraction: 0.28;
-            min-sidebar-width: 250;
-            max-sidebar-width: 300;
+            sidebar-width-fraction: 0.22;
+            min-sidebar-width: 240;
+            max-sidebar-width: 264;
             show-sidebar: true;
 
             sidebar: Adw.LayoutSlot {

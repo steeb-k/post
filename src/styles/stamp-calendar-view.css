@@ -5,3 +5,25 @@
   margin: 1px;
   font-size: 0.9em;
 }
+
+/* The date chooser is the widest thing in any sidebar, and the window
+ * keeps all three sidebars the same width, so its minimum is the width
+ * of the folder list too. Eight homogeneous columns of 36px plus the
+ * padding came to 300px. Trimming the day cells to 30px circles and
+ * the week numbers to match brings the eight columns to 32px each and
+ * the chooser to 264px, which is the sidebar width the split views ask
+ * for. Only the sidebar's chooser: the one in the event editor keeps
+ * upstream's spacing. */
+datechooser.sidebar-date-chooser {
+  padding: 4px;
+}
+
+datechooser.sidebar-date-chooser button.day {
+  min-width: 24px;
+  min-height: 24px;
+  margin: 1px;
+}
+
+datechooser.sidebar-date-chooser .weeknum {
+  margin: 4px;
+}

@@ -6,7 +6,7 @@ template $StampContactView: Adw.BreakpointBin {
   height-request: 200;
 
   Adw.Breakpoint bp_tablet {
-    condition ("max-width: 1200sp")
+    condition ("max-width: 1100sp")
     apply => $on_apply_view();
     unapply => $on_apply_view();
 
@@ -67,9 +67,9 @@ template $StampContactView: Adw.BreakpointBin {
 
       content: Overlay {
         child: Adw.OverlaySplitView outer_osv {
-          sidebar-width-fraction: 0.28;
-          min-sidebar-width: 250;
-          max-sidebar-width: 300;
+          sidebar-width-fraction: 0.22;
+          min-sidebar-width: 240;
+          max-sidebar-width: 264;
           show-sidebar: true;
 
           sidebar: Adw.LayoutSlot {

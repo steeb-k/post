@@ -8,9 +8,14 @@ template $StampMailView: Adw.BreakpointBin {
 
   /* Which breakpoint is current decides how much room there is; the
    * chosen layout decides what to do with it. $on_size_changed() puts
-   * the two together and names the layout. */
+   * the two together and names the layout.
+   *
+   * Three columns need the sidebar, a list and a reading pane worth
+   * reading, which is about 1100: an 11" tablet on its side gets them,
+   * a 10" one does not. The calendar and contacts views break at the
+   * same width so the sidebar does not come and go between views. */
   Adw.Breakpoint bp_tablet {
-    condition ("max-width: 1200sp")
+    condition ("max-width: 1100sp")
 
     setters {
       compose_separator.visible: false;
@@ -115,10 +120,14 @@ template $StampMailView: Adw.BreakpointBin {
         name: "desktop";
 
         content: Overlay {
+          /* The bounds are the same in every desktop layout and in the
+           * other two views: the window keeps all the sidebars one
+           * width, and 264 is what the calendar's date chooser needs,
+           * so that is the width they all get. */
           child: Adw.OverlaySplitView outer_osv {
-            sidebar-width-fraction: 0.28;
-            min-sidebar-width: 250;
-            max-sidebar-width: 300;
+            sidebar-width-fraction: 0.22;
+            min-sidebar-width: 240;
+            max-sidebar-width: 264;
             show-sidebar: true;
 
             sidebar: Adw.LayoutSlot {
@@ -177,9 +186,9 @@ template $StampMailView: Adw.BreakpointBin {
 
         content: Overlay {
           child: Adw.OverlaySplitView stacked_osv {
-            sidebar-width-fraction: 0.28;
-            min-sidebar-width: 250;
-            max-sidebar-width: 300;
+            sidebar-width-fraction: 0.22;
+            min-sidebar-width: 240;
+            max-sidebar-width: 264;
             show-sidebar: true;
 
             sidebar: Adw.LayoutSlot {
@@ -234,9 +243,9 @@ template $StampMailView: Adw.BreakpointBin {
 
         content: Overlay {
           child: Adw.OverlaySplitView dense_osv {
-            sidebar-width-fraction: 0.28;
-            min-sidebar-width: 250;
-            max-sidebar-width: 300;
+            sidebar-width-fraction: 0.22;
+            min-sidebar-width: 240;
+            max-sidebar-width: 264;
             show-sidebar: true;
 
             sidebar: Adw.LayoutSlot {
