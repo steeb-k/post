@@ -1,8 +1,20 @@
 # Changelog
 
-## [Unreleased]
+## [v0.4.1] - 2026-09-29
+
+### Bug Fixes
+- Stop a click into a message body from jumping the conversation instead of following the link (steeb-k)
+- Launch a link from the window so the browser comes to the front (steeb-k)
+- Spell-check a new mail in the user's language, not German (steeb-k)
+
+### Other Changes
+- Draw the app icon as vectors and render every size from them (steeb-k)
+- Narrow the sidebar to what the date chooser needs (steeb-k)
+
+## [v0.4.0] - 2026-09-14
 
 ### Features
+- Mark an unread mail with a bar down the side of its row (steeb-k)
 - Badge the Mail button with unread mail, and make both badges optional (steeb-k)
 - Add a clustered view, gathering mails that share a subject (steeb-k)
 - Follow a starred conversation, keeping it bold until it is opened (steeb-k)
@@ -31,6 +43,7 @@
 - Let Ctrl+C copy out of a message body (steeb-k)
 
 ### Other Changes
+- Build, sign and publish the flatpak from GitHub Actions (steeb-k)
 - Redraw the View button and show it only on desktop (steeb-k)
 - Log to the journal when stderr is not a terminal (steeb-k)
 - Show the composer's shortcuts in the shortcuts dialog (steeb-k)
