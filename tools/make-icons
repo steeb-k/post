@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+#
+# Render the app icon from its two SVG sources into everything that ships
+# as a bitmap: the fixed-size PNGs meson installs into hicolor, and a
+# multi-size Windows .ico for anything that wants one.
+#
+# The icon is drawn twice. mailbox-ostrich-detail.svg has the ostrich in
+# the porthole and the shading on the box; mailbox-ostrich-simple.svg
+# drops both, because at 128px and under the ostrich is a smudge and the
+# plain P reads better. The split is SIMPLE_UP_TO below.
+#
+# Renders through librsvg, the same thing GTK uses, so what ships is
+# what the desktop would have drawn from the SVG anyway.
+#
+#   ./tools/make-icons
+#
+import struct
+import sys
+from pathlib import Path
+
+import cairo
+import gi
+
+gi.require_version("Rsvg", "2.0")
+from gi.repository import Rsvg  # noqa: E402
+
+ROOT = Path(__file__).resolve().parent.parent
+APP_ID = "io.github.steeb_k.Post"
+
+SIMPLE = ROOT / "assets" / "mailbox-ostrich-simple.svg"
+DETAIL = ROOT / "assets" / "mailbox-ostrich-detail.svg"
+SIMPLE_UP_TO = 128
+
+HICOLOR = ROOT / "data" / "icons" / "hicolor"
+HICOLOR_SIZES = [32, 48, 64, 128, 256, 512]
+
+ICO = ROOT / "assets" / f"{APP_ID}.ico"
+ICO_SIZES = [16, 24, 32, 48, 64, 128, 256]
+
+
+def render(size):
+    source = SIMPLE if size <= SIMPLE_UP_TO else DETAIL
+    handle = Rsvg.Handle.new_from_file(str(source))
+    surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
+    viewport = Rsvg.Rectangle()
+    viewport.x = viewport.y = 0
+    viewport.width = viewport.height = size
+    handle.render_document(cairo.Context(surface), viewport)
+    surface.flush()
+    return surface
+
+
+def png_bytes(surface):
+    import io
+
+    buf = io.BytesIO()
+    surface.write_to_png(buf)
+    return buf.getvalue()
+
+
+def dib_bytes(surface):
+    """A 32-bit BGRA bitmap with the empty AND mask an .ico entry expects.
+
+    Cairo keeps premultiplied pixels; the bitmap wants them straight.
+    Rows go bottom-up, and the height in the header counts the mask.
+    """
+    size = surface.get_width()
+    stride = surface.get_stride()
+    data = surface.get_data()
+    rows = []
+    for y in range(size):
+        row = bytearray()
+        for x in range(size):
+            b, g, r, a = data[y * stride + x * 4 : y * stride + x * 4 + 4]
+            if a and a != 255:
+                r, g, b = (r * 255 + a // 2) // a, (g * 255 + a // 2) // a, (b * 255 + a // 2) // a
+            row += bytes((b, g, r, a))
+        rows.append(bytes(row))
+    header = struct.pack(
+        "<IiiHHIIiiII", 40, size, size * 2, 1, 32, 0, size * size * 4, 0, 0, 0, 0
+    )
+    mask_stride = ((size + 31) // 32) * 4
+    mask = bytes(mask_stride * size)
+    return header + b"".join(reversed(rows)) + mask
+
+
+def write_ico(path, surfaces):
+    """Windows keeps the PNG form for the 256px entry and expects plain
+    bitmaps below that, which is also what every other generator does."""
+    entries = []
+    blobs = []
+    for size, surface in surfaces:
+        blob = png_bytes(surface) if size >= 256 else dib_bytes(surface)
+        entries.append((size, blob))
+        blobs.append(blob)
+    offset = 6 + 16 * len(entries)
+    out = bytearray(struct.pack("<HHH", 0, 1, len(entries)))
+    for size, blob in entries:
+        dim = 0 if size >= 256 else size
+        out += struct.pack("<BBBBHHII", dim, dim, 0, 0, 1, 32, len(blob), offset)
+        offset += len(blob)
+    for blob in blobs:
+        out += blob
+    path.write_bytes(bytes(out))
+
+
+def main():
+    for size in HICOLOR_SIZES:
+        target = HICOLOR / f"{size}x{size}" / "apps" / f"{APP_ID}.png"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(png_bytes(render(size)))
+        print(f"{target.relative_to(ROOT)}")
+
+    write_ico(ICO, [(size, render(size)) for size in ICO_SIZES])
+    print(f"{ICO.relative_to(ROOT)} ({', '.join(str(s) for s in ICO_SIZES)})")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
