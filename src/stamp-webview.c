@@ -218,6 +218,19 @@ on_load_changed (WebKitWebView   *web_view,
   }
 }
 
+static void
+on_uri_launched (GObject      *source,
+                 GAsyncResult *result,
+                 gpointer      user_data)
+{
+  GtkUriLauncher *launcher = GTK_URI_LAUNCHER (source);
+  g_autoptr (GError) error = NULL;
+
+  if (!gtk_uri_launcher_launch_finish (launcher, result, &error) &&
+      !g_error_matches (error, GTK_DIALOG_ERROR, GTK_DIALOG_ERROR_DISMISSED))
+    g_warning ("Could not launch URI '%s': %s", gtk_uri_launcher_get_uri (launcher), error->message);
+}
+
 static gboolean
 on_decide_policy (WebKitWebView            *web_view,
                   WebKitPolicyDecision     *decision,
@@ -236,11 +249,13 @@ on_decide_policy (WebKitWebView            *web_view,
     if (navigation_type == WEBKIT_NAVIGATION_TYPE_LINK_CLICKED) {
       WebKitURIRequest *request = webkit_navigation_action_get_request (navigation_action);
       const gchar *uri = webkit_uri_request_get_uri (request);
-      g_autoptr (GError) error = NULL;
+      GtkRoot *root = gtk_widget_get_root (GTK_WIDGET (web_view));
+      g_autoptr (GtkUriLauncher) launcher = gtk_uri_launcher_new (uri);
 
-      if (!g_app_info_launch_default_for_uri (uri, NULL, &error)) {
-        g_warning ("Could not launch URI '%s': %s", uri, error ? error->message : "unknown error");
-      }
+      /* Launched from our window, so the browser is handed the activation
+       * token it needs to come to the front; a bare launch leaves it
+       * behind this window on Wayland. */
+      gtk_uri_launcher_launch (launcher, GTK_IS_WINDOW (root) ? GTK_WINDOW (root) : NULL, NULL, on_uri_launched, NULL);
       webkit_policy_decision_ignore (decision);
       return GDK_EVENT_STOP;
     } else if (navigation_type == WEBKIT_NAVIGATION_TYPE_OTHER) {
