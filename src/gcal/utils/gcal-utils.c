@@ -1239,6 +1239,72 @@ gcal_utils_extract_meeting_url (const char  *description,
     }
 }
 
+/**
+ * gcal_utils_get_conference_urls:
+ * @component: an event component
+ *
+ * Collects the meeting links an event names outright: the CONFERENCE
+ * property from RFC 7986, and X-GOOGLE-CONFERENCE, which Google puts
+ * on every invitation with a Meet call. Neither needs the description
+ * to be in a shape we know how to parse.
+ *
+ * libical-glib does not know the CONFERENCE property by name in every
+ * version Post builds against, so the properties are matched by their
+ * names instead of their kinds.
+ *
+ * Returns: (transfer full) (element-type utf8): the links, in the order
+ * the component lists them, without duplicates
+ */
+GPtrArray *
+gcal_utils_get_conference_urls (ICalComponent *component)
+{
+  GPtrArray *urls = g_ptr_array_new_with_free_func (g_free);
+  ICalProperty *prop;
+
+  if (!component)
+    return urls;
+
+  for (prop = i_cal_component_get_first_property (component, I_CAL_ANY_PROPERTY);
+       prop;
+       prop = i_cal_component_get_next_property (component, I_CAL_ANY_PROPERTY))
+    {
+      const gchar *name = NULL;
+      g_autofree gchar *value = NULL;
+      gboolean known = FALSE;
+
+      if (i_cal_property_isa (prop) == I_CAL_X_PROPERTY)
+        {
+          name = i_cal_property_get_x_name (prop);
+          known = g_strcmp0 (name, "X-GOOGLE-CONFERENCE") == 0;
+        }
+      else
+        {
+          name = i_cal_property_kind_to_string (i_cal_property_isa (prop));
+          known = g_strcmp0 (name, "CONFERENCE") == 0;
+        }
+
+      if (known)
+        value = i_cal_property_get_value_as_string (prop);
+
+      g_object_unref (prop);
+
+      if (!value)
+        continue;
+
+      g_strstrip (value);
+
+      if (!g_str_has_prefix (value, "https://") && !g_str_has_prefix (value, "http://"))
+        continue;
+
+      if (g_ptr_array_find_with_equal_func (urls, value, g_str_equal, NULL))
+        continue;
+
+      g_ptr_array_add (urls, g_steal_pointer (&value));
+    }
+
+  return urls;
+}
+
 typedef struct
 {
   GcalEvent                 *event;

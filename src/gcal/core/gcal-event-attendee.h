@@ -35,6 +35,7 @@ const gchar               *gcal_event_attendee_get_delegated_to   (GcalEventAtte
 const gchar               *gcal_event_attendee_get_language       (GcalEventAttendee     *self);
 const gchar               *gcal_event_attendee_get_member         (GcalEventAttendee     *self);
 GcalEventAttendeePartStat  gcal_event_attendee_get_part_status    (GcalEventAttendee     *self);
+const gchar               *gcal_event_attendee_get_part_status_label (GcalEventAttendee  *self);
 GcalEventAttendeeRole      gcal_event_attendee_get_role           (GcalEventAttendee     *self);
 gboolean                   gcal_event_attendee_get_requires_rsvp  (GcalEventAttendee     *self);
 const gchar               *gcal_event_attendee_get_sent_by        (GcalEventAttendee     *self);

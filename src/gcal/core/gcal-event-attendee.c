@@ -23,6 +23,8 @@
 #include "glib.h"
 #include "libecal/libecal.h"
 
+#include <glib/gi18n.h>
+
 struct _GcalEventAttendee
 {
   GObject parent_instance;
@@ -544,4 +546,47 @@ gcal_event_attendee_get_uri (GcalEventAttendee *self)
   g_assert (GCAL_IS_EVENT_ATTENDEE (self));
 
   return e_cal_component_attendee_get_value (self->ecal_attendee);
+}
+
+/**
+ * gcal_event_attendee_get_part_status_label:
+ * @self: a #GcalEventAttendee
+ *
+ * Returns: a translated, human readable name for the attendee's
+ * participation status, or %NULL when there is nothing to say.
+ */
+const gchar *
+gcal_event_attendee_get_part_status_label (GcalEventAttendee *self)
+{
+  g_assert (GCAL_IS_EVENT_ATTENDEE (self));
+
+  switch (gcal_event_attendee_get_part_status (self))
+    {
+    case GCAL_EVENT_ATTENDEE_PART_ACCEPTED:
+      /* Translators: an attendee's answer to a meeting invitation */
+      return _("Accepted");
+
+    case GCAL_EVENT_ATTENDEE_PART_DECLINED:
+      /* Translators: an attendee's answer to a meeting invitation */
+      return _("Declined");
+
+    case GCAL_EVENT_ATTENDEE_PART_TENTATIVE:
+      /* Translators: an attendee's answer to a meeting invitation */
+      return _("Tentative");
+
+    case GCAL_EVENT_ATTENDEE_PART_DELEGATED:
+      /* Translators: an attendee's answer to a meeting invitation */
+      return _("Delegated");
+
+    case GCAL_EVENT_ATTENDEE_PART_NEEDS_ACTION:
+      /* Translators: an attendee has not answered a meeting invitation yet */
+      return _("Not responded");
+
+    case GCAL_EVENT_ATTENDEE_PART_COMPLETED:
+    case GCAL_EVENT_ATTENDEE_PART_INPROCESS:
+    case GCAL_EVENT_ATTENDEE_PART_FAILED:
+    case GCAL_EVENT_ATTENDEE_PART_NONE:
+    default:
+      return NULL;
+    }
 }

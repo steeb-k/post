@@ -125,6 +125,8 @@ void                 gcal_utils_extract_meeting_url              (const char    
                                                                   char              **out_description,
                                                                   char              **out_meeting_url);
 
+GPtrArray*           gcal_utils_get_conference_urls              (ICalComponent      *component);
+
 void                 gcal_utils_ask_recurrence_modification_type (GtkWidget                 *parent,
                                                                   GcalEvent                 *event,
                                                                   gboolean                   show_mod_all,
