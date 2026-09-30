@@ -34,6 +34,7 @@
     <file preprocess="xml-stripblanks">views/mail/folder-list/stamp-folder-list.ui</file>
     <file preprocess="xml-stripblanks">views/mail/folder-list/stamp-folder-row.ui</file>
     <file preprocess="xml-stripblanks">views/mail/message-list/stamp-attachment-button.ui</file>
+    <file preprocess="xml-stripblanks">views/mail/message-list/stamp-invitation-dialog.ui</file>
     <file preprocess="xml-stripblanks">views/mail/message-list/stamp-message-header.ui</file>
     <file preprocess="xml-stripblanks">views/mail/message-list/stamp-message-list.ui</file>
     <file preprocess="xml-stripblanks">views/mail/message-list/stamp-message-list-item.ui</file>

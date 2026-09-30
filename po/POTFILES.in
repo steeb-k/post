@@ -130,6 +130,8 @@ src/views/mail/folder-list/stamp-folder-row.blp
 src/views/mail/folder-list/stamp-folder-row.c
 src/views/mail/message-list/stamp-attachment-button.blp
 src/views/mail/message-list/stamp-attachment-button.c
+src/views/mail/message-list/stamp-invitation-dialog.blp
+src/views/mail/message-list/stamp-invitation-dialog.c
 src/views/mail/message-list/stamp-message-header.blp
 src/views/mail/message-list/stamp-message-header.c
 src/views/mail/message-list/stamp-message-list.blp

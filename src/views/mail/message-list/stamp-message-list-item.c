@@ -33,6 +33,7 @@
 #include "stamp-attachment-button.h"
 #include "stamp-calendar-import.h"
 #include "stamp-gcal.h"
+#include "stamp-invitation-dialog.h"
 #include "stamp-message-header.h"
 #include "stamp-message-list.h"
 #include "stamp-mime-parser.h"
@@ -658,23 +659,30 @@ stamp_message_list_item_send_rsvp (StampMessageListItem  *self,
 }
 
 static void
-on_rsvp_response (GtkWidget *dialog,
-                  gchar     *response,
-                  gpointer   user_data)
+on_invitation_respond (StampInvitationDialog *dialog G_GNUC_UNUSED,
+                       gint                   partstat,
+                       gpointer               user_data)
 {
   StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
-  ICalParameterPartstat stat = I_CAL_PARTSTAT_NONE;
 
-  if (g_strcmp0 (response, "accept") == 0) {
-    stat = I_CAL_PARTSTAT_ACCEPTED;
-  } else if (g_strcmp0 (response, "tentative") == 0) {
-    stat = I_CAL_PARTSTAT_TENTATIVE;
-  } else if (g_strcmp0 (response, "decline") == 0) {
-    stat = I_CAL_PARTSTAT_DECLINED;
+  stamp_message_list_item_send_rsvp (self, (ICalParameterPartstat) partstat);
+}
+
+static void
+on_invitation_add_to_calendar (StampInvitationDialog *dialog G_GNUC_UNUSED,
+                               gpointer               user_data)
+{
+  StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
+  g_autofree char *ics = i_cal_component_as_ical_string (self->calendar);
+  g_autoptr (GBytes) data = NULL;
+
+  if (!ics) {
+    g_warning ("%s: Could not serialize the invitation, abort", G_STRFUNC);
+    return;
   }
 
-  if (stat != I_CAL_PARTSTAT_NONE)
-    stamp_message_list_item_send_rsvp (self, stat);
+  data = g_bytes_new (ics, strlen (ics));
+  stamp_calendar_import_ics_data (data, "invite.ics", GTK_WIDGET (self));
 }
 
 static void
@@ -682,38 +690,22 @@ on_calendar_banner_button_clicked (AdwBanner *banner,
                                    gpointer   user_data)
 {
   StampMessageListItem *self = STAMP_MESSAGE_LIST_ITEM (user_data);
-  const gchar *sender = camel_message_info_get_from (self->message_info);
-  g_autofree char *body = NULL;
-  AdwDialog *dialog;
+  CamelInternetAddress *address = stamp_account_get_address (self->account);
+  StampInvitationDialog *dialog;
+  const gchar *name = NULL;
+  const gchar *email = NULL;
 
-  if (self->calendar_method && g_strcmp0 (self->calendar_method, "REQUEST") != 0) {
-    g_autofree char *ics = i_cal_component_as_ical_string (self->calendar);
-    g_autoptr (GBytes) data = NULL;
+  if (address)
+    camel_internet_address_get (address, 0, &name, &email);
 
-    if (!ics) {
-      g_warning ("%s: Could not serialize the invitation, abort", G_STRFUNC);
-      return;
-    }
-
-    data = g_bytes_new (ics, strlen (ics));
-    stamp_calendar_import_ics_data (data, "invite.ics", GTK_WIDGET (self));
+  dialog = stamp_invitation_dialog_new (self->calendar, self->calendar_method, email);
+  if (!dialog)
     return;
-  }
-  body = g_strdup_printf (_("%s wants to know whether you can join this meeting"), sender);
-  dialog = adw_alert_dialog_new (_("RVSP"), body);
 
-  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "cancel", _("Cancel"));
-  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "decline", _("Decline"));
-  adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "decline", ADW_RESPONSE_DESTRUCTIVE);
-  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "tentative", _("Tentative"));
-  adw_alert_dialog_add_response (ADW_ALERT_DIALOG (dialog), "accept", _("Accept"));
-  adw_alert_dialog_set_response_appearance (ADW_ALERT_DIALOG (dialog), "accept", ADW_RESPONSE_SUGGESTED);
+  g_signal_connect_object (dialog, "respond", G_CALLBACK (on_invitation_respond), self, 0);
+  g_signal_connect_object (dialog, "add-to-calendar", G_CALLBACK (on_invitation_add_to_calendar), self, 0);
 
-  adw_alert_dialog_set_default_response (ADW_ALERT_DIALOG (dialog), "cancel");
-  adw_alert_dialog_set_close_response (ADW_ALERT_DIALOG (dialog), "cancel");
-  g_signal_connect (dialog, "response", G_CALLBACK (on_rsvp_response), self);
-
-  adw_dialog_present (dialog, GTK_WIDGET (self));
+  adw_dialog_present (ADW_DIALOG (dialog), GTK_WIDGET (self));
 }
 
 static void
