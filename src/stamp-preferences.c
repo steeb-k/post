@@ -157,11 +157,42 @@ on_request_background (GObject      *source_object,
   XdpPortal *portal = XDP_PORTAL (source_object);
   g_autoptr (GError) error = NULL;
 
-  if (!xdp_portal_request_background_finish (portal, res, &error)) {
-    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
-      g_warning ("%s: Could not request background: %s", G_STRFUNC, error->message);
+  if (xdp_portal_request_background_finish (portal, res, &error))
     return;
+
+  /* Being turned down is an answer rather than a failure, and comes
+   * back without an error to go with it. */
+  if (!error)
+    g_warning ("%s: Background request was denied", G_STRFUNC);
+  else if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+    g_warning ("%s: Could not request background: %s", G_STRFUNC, error->message);
+}
+
+/*
+ * Both switches go through the one request, as the portal reads each
+ * request as the whole of what is wanted: asking to run in the
+ * background without mentioning autostart takes the autostart away.
+ */
+static void
+request_background (StampPreferences *self)
+{
+  g_autoptr (XdpPortal) portal = xdp_portal_new ();
+  GtkWindow *window = gtk_application_get_active_window (GTK_APPLICATION (g_application_get_default ()));
+  g_autoptr (XdpParent) parent_window = xdp_parent_new_gtk (window);
+  XdpBackgroundFlags flags = XDP_BACKGROUND_FLAG_NONE;
+  GPtrArray *commandline = NULL;
+
+  if (adw_switch_row_get_active (self->autostart)) {
+    /* Not ours to free: the portal keeps the array for as long as the
+     * request runs and lets go of it itself. Terminated as well, for a
+     * libportal that reads it as a plain NULL-ended list. */
+    commandline = g_ptr_array_new_null_terminated (2, g_free, TRUE);
+    g_ptr_array_add (commandline, g_strdup ("post-mail"));
+    g_ptr_array_add (commandline, g_strdup ("--hidden"));
+    flags = XDP_BACKGROUND_FLAG_AUTOSTART;
   }
+
+  xdp_portal_request_background (portal, parent_window, _("Waiting for new emails"), commandline, flags, self->cancellable, on_request_background, self);
 }
 
 static void
@@ -169,27 +200,12 @@ on_background_notifications (GObject    *object,
                              GParamSpec *pspec,
                              gpointer    user_data)
 {
-  XdpPortal *portal = XDP_PORTAL (object);
   StampPreferences *self = STAMP_PREFERENCES (user_data);
-  GtkWindow *window = gtk_application_get_active_window (GTK_APPLICATION (g_application_get_default ()));
-  g_autoptr (XdpParent) parent_window = xdp_parent_new_gtk (window);
 
-  xdp_portal_request_background (portal, parent_window, _("Waiting for new emails"), NULL, 0, self->cancellable, on_request_background, self);
-}
-
-static void
-on_request_autostart (GObject      *source_object,
-                      GAsyncResult *res,
-                      gpointer      user_data)
-{
-  XdpPortal *portal = XDP_PORTAL (source_object);
-  g_autoptr (GError) error = NULL;
-
-  if (!xdp_portal_request_background_finish (portal, res, &error)) {
-    if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
-      g_warning ("%s: Could not request autostart: %s", G_STRFUNC, error->message);
-    return;
-  }
+  /* There is no asking for less; switching it off only stops the
+   * window from staying behind when it is closed. */
+  if (adw_switch_row_get_active (self->background_notifications))
+    request_background (self);
 }
 
 static void
@@ -197,16 +213,7 @@ on_autostart (GObject    *object,
               GParamSpec *pspec,
               gpointer    user_data)
 {
-  StampPreferences *self = STAMP_PREFERENCES (user_data);
-  g_autoptr (XdpPortal) portal = xdp_portal_new ();
-  GtkWindow *window = gtk_application_get_active_window (GTK_APPLICATION (g_application_get_default ()));
-  g_autoptr (XdpParent) parent_window = xdp_parent_new_gtk (window);
-  g_autoptr (GPtrArray) commandline = g_ptr_array_new_with_free_func (g_free);
-
-  g_ptr_array_add (commandline, g_strdup ("post-mail"));
-  g_ptr_array_add (commandline, g_strdup ("--hidden"));
-
-  xdp_portal_request_background (portal, parent_window, NULL, commandline, XDP_BACKGROUND_FLAG_AUTOSTART, self->cancellable, on_request_autostart, self);
+  request_background (STAMP_PREFERENCES (user_data));
 }
 
 static void

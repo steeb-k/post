@@ -273,46 +273,32 @@ model listens to.
 
 ## Autostart crashes the app
 
-Turning on Autostart in Preferences freezes the app and then crashes it.
-Reproduced several times. The setting itself is stored.
-
-`on_autostart` in `src/stamp-preferences.c:183` builds the command line
-for the portal in a `GPtrArray` but never terminates it:
-
-    commandline = g_ptr_array_new_with_free_func (g_free);
-    g_ptr_array_add (commandline, g_strdup ("post-mail"));
-    g_ptr_array_add (commandline, g_strdup ("--hidden"));
-
-libportal passes that array to `g_variant_new_strv` with a length of -1,
-which means it keeps reading until it finds a NULL. The array has no NULL
-at the end, so it walks off into whatever follows. The crash backtrace:
-
-    g_utf8_validate
-    g_variant_new_string
-    g_variant_new_strv
-    libportal.so.1
-    libportal-gtk4.so.1
-
-Sometimes it reads a zero first and only prints
-`g_variant_new_string: assertion 'string != NULL' failed`, other times it
-reads garbage and gets SIGSEGV. Adding a trailing NULL entry, or using
-`g_ptr_array_new_null_terminated`, should be all it takes.
+Fixed. The cause was not the missing NULL this entry used to blame:
+libportal hands the array's own length to `g_variant_new_strv`, so it
+never reads past the end. It was ownership. `xdp_portal_request_background`
+takes the command line `(transfer container)`, keeps the pointer without
+a reference and unrefs it when the request is done, while `on_autostart`
+held it in a `g_autoptr` and freed it on the way out. On Wayland the
+request is only built once the window handle has been exported, by which
+time the array was gone, which is the `g_utf8_validate` in the backtrace.
+The array is now left to the portal, and NULL-terminated as well in
+case some other libportal does read it as a plain list.
 
 ## Background notifications hand the wrong object to the portal
 
-Turning on Background Notifications prints:
+Fixed. `on_background_notifications` cast the switch row it was called
+for to an `XdpPortal`, so the request was dropped with a critical and
+background running was never asked for. It now creates a portal of its
+own, through the same request the autostart switch uses.
 
-    GLib-GObject-CRITICAL: invalid cast from 'AdwSwitchRow' to 'XdpPortal'
-    libportal-CRITICAL: xdp_portal_request_background: assertion 'XDP_IS_PORTAL (portal)' failed
+Two more things came out of the same callbacks and were fixed with it:
 
-`on_background_notifications` in `src/stamp-preferences.c:156` starts with
-
-    XdpPortal *portal = XDP_PORTAL (object);
-
-but the callback is connected to `notify::active` on the switch row, so
-`object` is the row, not a portal. It never creates one. `on_autostart`
-right below it does it correctly with `xdp_portal_new ()`. The request is
-dropped, so background running never actually gets requested.
+- A request that is turned down comes back `FALSE` with no `GError`, and
+  both callbacks went on to read `error->message`.
+- The portal takes every request as the whole of what is wanted, so
+  asking for background alone removed the autostart entry again, and the
+  autostart switch asked for autostart whichever way it was flipped. One
+  request now carries both switches.
 
 ## Crash in the conversation list while loading a folder
 
