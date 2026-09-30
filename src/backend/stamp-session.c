@@ -427,11 +427,16 @@ stamp_session_init (StampSession *self)
 {
   GNetworkMonitor *network_monitor = e_network_monitor_get_default ();
   GTask *task;
-  g_autofree char *nssdb = g_build_filename (g_get_home_dir (), ".pki", "nssdb", NULL);
 
   self->cancellable = g_cancellable_new ();
 
-  camel_init (nssdb, TRUE);
+  /* All Camel keeps in this directory is camel-cert.db, its record of
+   * the certificates that were accepted for good; NSS finds its own
+   * database. It used to be ~/.pki/nssdb, which a sandbox that was not
+   * handed one loses on the way out, and every self-signed server then
+   * asked to be trusted again at each start. */
+  g_mkdir_with_parents (stamp_get_data_dir (), 0700);
+  camel_init (stamp_get_data_dir (), TRUE);
   g_signal_connect_object (G_OBJECT (self), "user-alert", G_CALLBACK (on_user_alert), self, G_CONNECT_DEFAULT);
 
   PK11_SetPasswordFunc (stamp_session_pk11_password);
