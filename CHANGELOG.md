@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.4.2] - 2026-09-30
+
+### Features
+- Add a tray icon for when Post is running in the background (steeb-k)
+
+### Bug Fixes
+- Stop Autostart from crashing, and let background running be asked for (steeb-k)
+- Keep accepted certificates where they survive a restart (steeb-k)
+
 ## [v0.4.1] - 2026-09-29
 
 ### Bug Fixes

@@ -21,6 +21,19 @@
     <color type="primary" scheme_preference="dark">#05009d</color>
   </branding>
   <releases>
+    <release version="0.4.2" date="2026-09-30">
+      <description>
+        <p>Features:</p>
+        <ul>
+          <li>A tray icon shows while Post runs in the background: click it to show or hide the window</li>
+        </ul>
+        <p>Fixes:</p>
+        <ul>
+          <li>Turning on Autostart no longer crashes, and Background Notifications is asked of the desktop at all</li>
+          <li>A certificate accepted permanently stays accepted after a restart</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.4.1" date="2026-09-29">
       <description>
         <p>Fixes:</p>
