@@ -16,6 +16,7 @@
     "--own-name=org.gnome.OnlineAccounts.*",
     "--talk-name=org.freedesktop.secrets",
     "--talk-name=org.gnome.keyring.SystemPrompter",
+    "--talk-name=org.kde.StatusNotifierWatcher",
     "--filesystem=/tmp",
     "--filesystem=~/.pki/nssdb:rw",
     "--filesystem=xdg-config/pki:rw",

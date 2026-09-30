@@ -22,6 +22,7 @@ stamp_sources = [
   'stamp-profiles.c',
   'stamp-settings.c',
   'stamp-time-helpers.c',
+  'stamp-tray.c',
   'stamp-webview.c',
   'stamp-window.c',
   'backend/stamp-session.c',

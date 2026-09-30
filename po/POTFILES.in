@@ -87,6 +87,7 @@ src/stamp-profiles.c
 src/stamp-profiles-editor.blp
 src/stamp-settings.c
 src/stamp-time-helpers.c
+src/stamp-tray.c
 src/stamp-webview.c
 src/stamp-window.blp
 src/stamp-window.c

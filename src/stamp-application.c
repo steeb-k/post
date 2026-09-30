@@ -33,6 +33,7 @@
 #include "stamp-profiles.h"
 #include "stamp-session.h"
 #include "stamp-settings.h"
+#include "stamp-tray.h"
 #include "stamp-window.h"
 
 struct _StampApplication {
@@ -40,6 +41,7 @@ struct _StampApplication {
 
   gboolean start_hidden;
   StampSession *session;
+  StampTray *tray;
   gchar *password;
 
   gboolean quit_pending;
@@ -77,6 +79,16 @@ stamp_application_new (const gchar       *application_id,
 }
 
 static void
+on_main_window_visible (GtkWidget  *window,
+                        GParamSpec *pspec,
+                        gpointer    user_data)
+{
+  StampApplication *self = STAMP_APPLICATION (user_data);
+
+  stamp_tray_set_window_shown (self->tray, gtk_widget_get_visible (window));
+}
+
+static void
 stamp_application_activate (GApplication *app)
 {
   StampApplication *self = STAMP_APPLICATION (app);
@@ -93,8 +105,10 @@ stamp_application_activate (GApplication *app)
     }
   }
 
-  if (!main_window)
+  if (!main_window) {
     main_window = g_object_new (STAMP_TYPE_WINDOW, "application", app, NULL);
+    g_signal_connect_object (main_window, "notify::visible", G_CALLBACK (on_main_window_visible), self, G_CONNECT_DEFAULT);
+  }
 
   if (self->start_hidden) {
     gtk_widget_set_visible (GTK_WIDGET (main_window), FALSE);
@@ -278,6 +292,127 @@ on_default_layout_setting_changed (GSettings   *settings,
   sync_default_layout_action (STAMP_APPLICATION (user_data));
 }
 
+/*
+ * The symbolic icon in one colour, at the sizes a tray is likely to
+ * want, in the form StampTray passes on. Drawn here because it takes
+ * GTK to recolour a symbolic icon, which is the point of doing it
+ * ourselves: see stamp-tray.c.
+ */
+static GVariant *
+render_tray_icon (const gchar *icon_name,
+                  const gchar *color)
+{
+  static const gint sizes[] = { 16, 22, 24, 32, 48, 64 };
+  GtkIconTheme *theme = gtk_icon_theme_get_for_display (gdk_display_get_default ());
+  GVariantBuilder builder;
+  GdkRGBA colors[4];
+
+  /* Looking it up regardless would get us the broken image instead */
+  if (!gtk_icon_theme_has_icon (theme, icon_name))
+    return NULL;
+
+  gdk_rgba_parse (&colors[GTK_SYMBOLIC_COLOR_FOREGROUND], color);
+  colors[GTK_SYMBOLIC_COLOR_ERROR] = colors[GTK_SYMBOLIC_COLOR_FOREGROUND];
+  colors[GTK_SYMBOLIC_COLOR_WARNING] = colors[GTK_SYMBOLIC_COLOR_FOREGROUND];
+  colors[GTK_SYMBOLIC_COLOR_SUCCESS] = colors[GTK_SYMBOLIC_COLOR_FOREGROUND];
+
+  g_variant_builder_init (&builder, G_VARIANT_TYPE ("a(iiay)"));
+
+  for (guint i = 0; i < G_N_ELEMENTS (sizes); i++) {
+    gint size = sizes[i];
+    g_autoptr (GtkIconPaintable) icon = NULL;
+    g_autoptr (GskRenderNode) node = NULL;
+    GtkSnapshot *snapshot = gtk_snapshot_new ();
+    cairo_surface_t *surface;
+    cairo_t *cr;
+    guchar *argb;
+
+    icon = gtk_icon_theme_lookup_icon (theme, icon_name, NULL, size, 1, GTK_TEXT_DIR_NONE, GTK_ICON_LOOKUP_FORCE_SYMBOLIC);
+    gtk_symbolic_paintable_snapshot_symbolic (GTK_SYMBOLIC_PAINTABLE (icon), snapshot, size, size, colors, G_N_ELEMENTS (colors));
+    node = gtk_snapshot_free_to_node (snapshot);
+
+    if (!node)
+      continue;
+
+    surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, size, size);
+    cr = cairo_create (surface);
+    gsk_render_node_draw (node, cr);
+    cairo_destroy (cr);
+    cairo_surface_flush (surface);
+
+    /* Cairo keeps a pixel as one native word with the alpha multiplied
+     * in; a tray wants the four bytes in order and the colour left alone. */
+    argb = g_malloc (size * size * 4);
+
+    for (gint y = 0; y < size; y++) {
+      const guint32 *row = (const guint32 *)(cairo_image_surface_get_data (surface) + y * cairo_image_surface_get_stride (surface));
+
+      for (gint x = 0; x < size; x++) {
+        guchar *out = argb + (y * size + x) * 4;
+        guint alpha = row[x] >> 24;
+
+        out[0] = alpha;
+        out[1] = alpha ? ((row[x] >> 16) & 0xff) * 255 / alpha : 0;
+        out[2] = alpha ? ((row[x] >> 8) & 0xff) * 255 / alpha : 0;
+        out[3] = alpha ? (row[x] & 0xff) * 255 / alpha : 0;
+      }
+    }
+
+    cairo_surface_destroy (surface);
+
+    g_variant_builder_add (&builder, "(ii@ay)", size, size,
+                           g_variant_new_from_data (G_VARIANT_TYPE ("ay"), argb, size * size * 4, TRUE, g_free, argb));
+  }
+
+  return g_variant_builder_end (&builder);
+}
+
+static void
+stamp_application_update_tray_icon (StampApplication *self)
+{
+  g_autofree gchar *icon_name = g_strconcat (g_application_get_application_id (G_APPLICATION (self)), "-symbolic", NULL);
+  const gchar *desktop = g_getenv ("XDG_CURRENT_DESKTOP");
+  gboolean dark_panel;
+
+  /* A panel goes the way the desktop does, except for GNOME's, which
+   * is dark whichever way that is. */
+  dark_panel = adw_style_manager_get_dark (adw_style_manager_get_default ()) ||
+               (desktop && strstr (desktop, "GNOME"));
+
+  stamp_tray_set_icon (self->tray, render_tray_icon (icon_name, dark_panel ? "#ffffff" : "#241f31"));
+}
+
+/*
+ * A click on the tray icon takes the window away if it is there and
+ * brings it back if it is not, the same as closing and launching would.
+ */
+static void
+on_tray_activate (StampTray   *tray,
+                  const gchar *activation_token,
+                  gpointer     user_data)
+{
+  StampWindow *window = stamp_get_main_window ();
+
+  if (window && gtk_widget_get_visible (GTK_WIDGET (window))) {
+    gtk_widget_set_visible (GTK_WIDGET (window), FALSE);
+    return;
+  }
+
+  /* Without the token a Wayland compositor has no reason to believe the
+   * user asked for this, and may leave the window behind the others. */
+  if (window && activation_token)
+    gtk_window_set_startup_id (GTK_WINDOW (window), activation_token);
+
+  g_application_activate (G_APPLICATION (user_data));
+}
+
+static void
+on_tray_quit (StampTray *tray,
+              gpointer   user_data)
+{
+  g_action_group_activate_action (G_ACTION_GROUP (user_data), "quit", NULL);
+}
+
 static void
 stamp_application_startup (GApplication *app)
 {
@@ -287,6 +422,15 @@ stamp_application_startup (GApplication *app)
 
   self->session = stamp_session_get_default ();
   g_signal_connect_object (self->session, "pk11-password", G_CALLBACK (on_pk11_password), self, G_CONNECT_DEFAULT);
+
+  /* The icon is there for as long as closing the window leaves Post
+   * running, which is the one time there is nothing else to click on. */
+  self->tray = stamp_tray_new (g_application_get_application_id (app));
+  g_signal_connect_object (self->tray, "activate", G_CALLBACK (on_tray_activate), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (self->tray, "quit", G_CALLBACK (on_tray_quit), self, G_CONNECT_DEFAULT);
+  g_settings_bind (STAMP_SETTINGS, STAMP_PREFS_BACKGROUND_NOTIFICATIONS, self->tray, "enabled", G_SETTINGS_BIND_GET);
+  g_signal_connect_object (adw_style_manager_get_default (), "notify::dark", G_CALLBACK (stamp_application_update_tray_icon), self, G_CONNECT_SWAPPED);
+  stamp_application_update_tray_icon (self);
 
   sync_default_layout_action (self);
   g_signal_connect_object (STAMP_SETTINGS_MAIL, "changed::" STAMP_PREFS_MAIL_LAYOUT,
@@ -397,6 +541,7 @@ stamp_application_dispose (GObject *object)
   stamp_application_stop_waiting (self);
 
   g_clear_object (&self->session);
+  g_clear_object (&self->tray);
   g_clear_pointer (&self->password, g_free);
 
   G_OBJECT_CLASS (stamp_application_parent_class)->dispose (object);
