@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.4.4] - 2026-09-30
+
+### Bug Fixes
+- Ask GNOME Online Accounts for a mail password directly, so an account the daemon's own certificate check refuses no longer sits offline (steeb-k)
+
+### Features
+- Add tools/smoke-check.sh, a host-side check of what the mail depends on (steeb-k)
+
 ## [v0.4.3] - 2026-09-30
 
 ### Features

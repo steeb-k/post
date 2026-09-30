@@ -21,6 +21,19 @@
     <color type="primary" scheme_preference="dark">#05009d</color>
   </branding>
   <releases>
+    <release version="0.4.4" date="2026-09-30">
+      <description>
+        <p>Fixes:</p>
+        <ul>
+          <li>A mail account from GNOME Online Accounts no longer sits offline when the daemon's own certificate check refuses it: Post asks the daemon for the password directly and authenticates against the certificates you accepted</li>
+          <li>When the daemon has no password for an account, or the server rejects it, the error says so instead of "doesn't support prompt for credentials"</li>
+        </ul>
+        <p>Features:</p>
+        <ul>
+          <li>tools/smoke-check.sh checks from the host everything the mail depends on and names what to do when one fails</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.4.3" date="2026-09-30">
       <description>
         <p>Features:</p>
