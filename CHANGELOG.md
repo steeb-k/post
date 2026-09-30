@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.4.3] - 2026-09-30
+
+### Features
+- Show who is invited, and a Join button, on a calendar invitation (steeb-k)
+- gcal: Show the participants in the event popover (steeb-k)
+- gcal: Read meeting links off the properties, and name an attendee's answer (steeb-k)
+
 ## [v0.4.2] - 2026-09-30
 
 ### Features

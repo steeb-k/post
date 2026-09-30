@@ -21,6 +21,16 @@
     <color type="primary" scheme_preference="dark">#05009d</color>
   </branding>
   <releases>
+    <release version="0.4.3" date="2026-09-30">
+      <description>
+        <p>Features:</p>
+        <ul>
+          <li>Answering a calendar invitation shows the event, who organised it, who else is invited with their answers, the notes, and a Join button for the call</li>
+          <li>Clicking an event in the calendar lists its participants and their answers</li>
+          <li>Meeting links named by the CONFERENCE and X-GOOGLE-CONFERENCE properties get a Join button, in the mail and in the calendar</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.4.2" date="2026-09-30">
       <description>
         <p>Features:</p>
