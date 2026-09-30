@@ -197,6 +197,45 @@ template $GcalEventPopover: Popover {
           ]
         }
       }
+
+      Box participants_box {
+        orientation: vertical;
+        visible: false;
+
+        Separator {}
+
+        Box {
+          orientation: vertical;
+          spacing: 6;
+          margin-top: 12;
+          margin-bottom: 12;
+          margin-start: 18;
+          margin-end: 18;
+
+          Label {
+            halign: start;
+            label: _("Participants");
+
+            styles [
+              "heading",
+            ]
+          }
+
+          ScrolledWindow {
+            hscrollbar-policy: never;
+            propagate-natural-height: true;
+            max-content-height: 240;
+
+            child: ListBox participants_listbox {
+              selection-mode: none;
+
+              styles [
+                "boxed-list",
+              ]
+            };
+          }
+        }
+      }
     };
   };
 }

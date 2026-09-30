@@ -22,8 +22,11 @@
 
 #include "gcal-calendar.h"
 #include "gcal-debug.h"
+#include "gcal-event-attendee.h"
+#include "gcal-event-organizer.h"
 #include "gcal-event-popover.h"
 #include "gcal-meeting-row.h"
+#include "gcal-organizer-row.h"
 #include "gcal-utils.h"
 
 #include <glib/gi18n.h>
@@ -40,6 +43,8 @@ struct _GcalEventPopover
   GtkLabel           *location_label;
   GtkListBox         *meetings_listbox;
   GtkBox             *meetings_box;
+  GtkListBox         *participants_listbox;
+  GtkBox             *participants_box;
   GtkLabel           *placeholder_label;
   GtkLabel           *summary_label;
   GtkImage           *read_only_icon;
@@ -442,9 +447,25 @@ static void
 add_meeting (GcalEventPopover *self,
              const gchar      *url)
 {
+  GtkWidget *child;
+
+  /*
+   * The same call is often named more than once: X-GOOGLE-CONFERENCE
+   * and the Google block in the description carry the same link, and
+   * so do LOCATION and CONFERENCE on many invitations.
+   */
+  for (child = gtk_widget_get_first_child (GTK_WIDGET (self->meetings_listbox));
+       child;
+       child = gtk_widget_get_next_sibling (child))
+    {
+      if (g_strcmp0 (g_object_get_data (G_OBJECT (child), "meeting-url"), url) == 0)
+        return;
+    }
+
   GtkWidget *row;
 
   row = gcal_meeting_row_new (url);
+  g_object_set_data_full (G_OBJECT (row), "meeting-url", g_strdup (url), g_free);
   g_signal_connect (row, "join-meeting", G_CALLBACK (on_join_meeting_cb), self);
   gtk_list_box_append (self->meetings_listbox, row);
 
@@ -507,6 +528,93 @@ setup_description_label (GcalEventPopover *self)
 }
 
 static void
+setup_conference_urls (GcalEventPopover *self)
+{
+  g_autoptr (GPtrArray) urls = NULL;
+  ECalComponent *component;
+  guint i;
+
+  component = gcal_event_get_component (self->event);
+  urls = gcal_utils_get_conference_urls (e_cal_component_get_icalcomponent (component));
+
+  for (i = 0; i < urls->len; i++)
+    add_meeting (self, g_ptr_array_index (urls, i));
+}
+
+static GtkWidget *
+create_attendee_row (GcalEventAttendee *attendee)
+{
+  const gchar *name = gcal_event_attendee_get_name (attendee);
+  /* Despite its signature the helper hands back a copy */
+  g_autofree gchar *email = (gchar *) gcal_get_email_from_mailto_uri (gcal_event_attendee_get_uri (attendee));
+  const gchar *status = gcal_event_attendee_get_part_status_label (attendee);
+  GtkWidget *row;
+
+  row = adw_action_row_new ();
+  adw_preferences_row_set_use_markup (ADW_PREFERENCES_ROW (row), FALSE);
+  adw_preferences_row_set_title (ADW_PREFERENCES_ROW (row), name && *name ? name : (email ? email : ""));
+  if (name && *name && email && g_strcmp0 (name, email) != 0)
+    adw_action_row_set_subtitle (ADW_ACTION_ROW (row), email);
+  gtk_widget_add_css_class (row, "property");
+
+  if (status)
+    {
+      GtkWidget *label = gtk_label_new (status);
+
+      gtk_widget_set_valign (label, GTK_ALIGN_CENTER);
+      gtk_widget_add_css_class (label, "dimmed");
+      adw_action_row_add_suffix (ADW_ACTION_ROW (row), label);
+    }
+
+  return row;
+}
+
+static void
+setup_participants (GcalEventPopover *self)
+{
+  GcalEventOrganizer *organizer;
+  GListModel *attendees;
+  gboolean has_participants = FALSE;
+  guint n_attendees;
+  guint i;
+
+  gtk_list_box_remove_all (self->participants_listbox);
+
+  organizer = gcal_event_get_organizer (self->event);
+  if (organizer)
+    {
+      GtkWidget *row = g_object_new (GCAL_TYPE_ORGANIZER_ROW, "organizer", organizer, NULL);
+
+      gtk_list_box_append (self->participants_listbox, row);
+      has_participants = TRUE;
+    }
+
+  attendees = gcal_event_get_attendees (self->event);
+  n_attendees = attendees ? g_list_model_get_n_items (attendees) : 0;
+
+  for (i = 0; i < n_attendees; i++)
+    {
+      g_autoptr (GcalEventAttendee) attendee = g_list_model_get_item (attendees, i);
+
+      /* Rooms and equipment are listed among the attendees too, but they are not people */
+      switch (gcal_event_attendee_get_attendee_type (attendee))
+        {
+        case GCAL_EVENT_ATTENDEE_TYPE_RESOURCE:
+        case GCAL_EVENT_ATTENDEE_TYPE_ROOM:
+          continue;
+
+        default:
+          break;
+        }
+
+      gtk_list_box_append (self->participants_listbox, create_attendee_row (attendee));
+      has_participants = TRUE;
+    }
+
+  gtk_widget_set_visible (GTK_WIDGET (self->participants_box), has_participants);
+}
+
+static void
 set_event_internal (GcalEventPopover *self,
                     GcalEvent        *event)
 {
@@ -514,8 +622,10 @@ set_event_internal (GcalEventPopover *self,
 
   gtk_label_set_label (self->summary_label, gcal_event_get_summary (event));
 
+  setup_conference_urls (self);
   setup_description_label (self);
   setup_location_label (self);
+  setup_participants (self);
   update_placeholder_label (self);
   update_date_time_label (self);
   update_decorations (self, event);
@@ -789,6 +899,8 @@ gcal_event_popover_class_init (GcalEventPopoverClass *klass)
   gtk_widget_class_bind_template_child (widget_class, GcalEventPopover, location_label);
   gtk_widget_class_bind_template_child (widget_class, GcalEventPopover, meetings_box);
   gtk_widget_class_bind_template_child (widget_class, GcalEventPopover, meetings_listbox);
+  gtk_widget_class_bind_template_child (widget_class, GcalEventPopover, participants_box);
+  gtk_widget_class_bind_template_child (widget_class, GcalEventPopover, participants_listbox);
   gtk_widget_class_bind_template_child (widget_class, GcalEventPopover, placeholder_label);
   gtk_widget_class_bind_template_child (widget_class, GcalEventPopover, summary_label);
   gtk_widget_class_bind_template_child (widget_class, GcalEventPopover, read_only_icon);
