@@ -20,9 +20,12 @@
 
 #include "stamp-session.h"
 
+#include <glib/gi18n.h>
 #include <libebook/libebook.h>
 #include <libedata-book/libedata-book.h>
 #include <libedataserverui4/libedataserverui4.h>
+#define GOA_API_IS_SUBJECT_TO_CHANGE
+#include <goa/goa.h>
 #include <nss.h>
 #include <nssb64.h>
 #include <pk11pub.h>
@@ -42,6 +45,15 @@ struct _StampSession {
   GList *accounts;
   GList *signatures;
   GCancellable *cancellable;
+
+  /* The passwords of the accounts GNOME Online Accounts owns are asked
+   * of it directly, see lookup_goa_password(). Camel authenticates from
+   * worker threads, so whichever asks first makes the client, under the
+   * lock. The prompter is shared for the same reason: making one per
+   * attempt loaded every credential module again each time. */
+  GMutex auth_lock;
+  GoaClient *goa_client;
+  ECredentialsPrompter *prompter;
 
   gboolean accounts_loaded;
 };
@@ -429,6 +441,7 @@ stamp_session_init (StampSession *self)
   GTask *task;
 
   self->cancellable = g_cancellable_new ();
+  g_mutex_init (&self->auth_lock);
 
   /* All Camel keeps in this directory is camel-cert.db, its record of
    * the certificates that were accepted for good; NSS finds its own
@@ -448,6 +461,153 @@ stamp_session_init (StampSession *self)
   task = g_task_new (self, self->cancellable, on_accounts_loaded, self);
   g_task_set_source_tag (task, stamp_session_init);
   e_source_registry_new (self->cancellable, on_registry_ready_for_load, task);
+}
+
+static GoaClient *
+stamp_session_ref_goa_client (StampSession  *self,
+                              GCancellable  *cancellable,
+                              GError       **error)
+{
+  GoaClient *client;
+
+  g_mutex_lock (&self->auth_lock);
+  if (!self->goa_client)
+    self->goa_client = goa_client_new_sync (cancellable, error);
+  client = self->goa_client ? g_object_ref (self->goa_client) : NULL;
+  g_mutex_unlock (&self->auth_lock);
+
+  return client;
+}
+
+static ECredentialsPrompter *
+stamp_session_ref_prompter (StampSession *self)
+{
+  ECredentialsPrompter *prompter;
+
+  g_mutex_lock (&self->auth_lock);
+  if (!self->prompter)
+    self->prompter = e_credentials_prompter_new (self->registry);
+  prompter = g_object_ref (self->prompter);
+  g_mutex_unlock (&self->auth_lock);
+
+  return prompter;
+}
+
+/*
+ * The source that carries the GNOME Online Accounts extension for
+ * @source: itself, or the collection above it.
+ */
+static ESource *
+ref_goa_source (StampSession *self,
+                ESource      *source)
+{
+  g_autoptr (ESource) adept = g_object_ref (source);
+
+  while (adept && !e_source_has_extension (adept, E_SOURCE_EXTENSION_GOA)) {
+    const gchar *parent_uid = e_source_get_parent (adept);
+    ESource *parent;
+
+    if (!parent_uid || !*parent_uid)
+      return NULL;
+
+    parent = e_source_registry_ref_source (self->registry, parent_uid);
+    g_clear_object (&adept);
+    adept = parent;
+  }
+
+  return g_steal_pointer (&adept);
+}
+
+/*
+ * The password GNOME Online Accounts holds for @service.
+ *
+ * Evolution-data-server has a credential module for this, but it asks
+ * the daemon to re-verify the whole account first, and that check logs
+ * into every server of the account with the daemon's own idea of which
+ * certificates are acceptable. Camel already holds the certificates the
+ * user accepted, so a mismatch between the two would refuse a password
+ * that is perfectly good -- and refuse it the same way on every retry,
+ * leaving the account offline for good. The daemon hands the password
+ * over on its own without any of that, so ask for just that.
+ *
+ * Returns: %TRUE if the account belongs to GNOME Online Accounts and
+ *   asks for a password; then either @out_password is set or @error
+ *   says why not. %FALSE means it is somebody else's account and
+ *   @error is untouched.
+ */
+static gboolean
+lookup_goa_password (StampSession  *self,
+                     CamelService  *service,
+                     ESource       *source,
+                     GCancellable  *cancellable,
+                     gchar        **out_password,
+                     GError       **error)
+{
+  g_autoptr (ESource) goa_source = NULL;
+  GoaClient *client = NULL;
+  GoaObject *object = NULL;
+  GoaPasswordBased *password_based = NULL;
+  g_autofree gchar *account_id = NULL;
+  GError *local_error = NULL;
+  gboolean is_goa = TRUE;
+  const gchar *key;
+
+  *out_password = NULL;
+
+  goa_source = ref_goa_source (self, source);
+  if (!goa_source)
+    return FALSE;
+
+  account_id = e_source_goa_dup_account_id (e_source_get_extension (goa_source, E_SOURCE_EXTENSION_GOA));
+  if (!account_id || !*account_id)
+    return FALSE;
+
+  client = stamp_session_ref_goa_client (self, cancellable, &local_error);
+  if (!client) {
+    if (local_error)
+      g_dbus_error_strip_remote_error (local_error);
+    g_set_error (error, CAMEL_SERVICE_ERROR, CAMEL_SERVICE_ERROR_CANT_AUTHENTICATE,
+                 _("Could not reach GNOME Online Accounts for “%s”: %s"),
+                 e_source_get_display_name (source), local_error ? local_error->message : _("no answer"));
+    g_clear_error (&local_error);
+    goto out;
+  }
+
+  object = goa_client_lookup_by_id (client, account_id);
+  if (!object) {
+    g_set_error (error, CAMEL_SERVICE_ERROR, CAMEL_SERVICE_ERROR_CANT_AUTHENTICATE,
+                 _("GNOME Online Accounts no longer has the account behind “%s”"),
+                 e_source_get_display_name (source));
+    goto out;
+  }
+
+  /* An account without a password is an OAuth one, and those never
+   * get here: their mechanism needs no password. */
+  password_based = goa_object_get_password_based (object);
+  if (!password_based) {
+    is_goa = FALSE;
+    goto out;
+  }
+
+  if (g_strcmp0 (goa_account_get_provider_type (goa_object_peek_account (object)), "imap_smtp") == 0)
+    key = CAMEL_IS_TRANSPORT (service) ? "smtp-password" : "imap-password";
+  else
+    key = "";
+
+  if (!goa_password_based_call_get_password_sync (password_based, key, out_password, cancellable, &local_error)) {
+    g_dbus_error_strip_remote_error (local_error);
+    g_set_error (error, CAMEL_SERVICE_ERROR, CAMEL_SERVICE_ERROR_CANT_AUTHENTICATE,
+                 _("GNOME Online Accounts has no password for “%s”: %s"),
+                 e_source_get_display_name (source), local_error->message);
+    g_error_free (local_error);
+  }
+
+out:
+  g_clear_object (&password_based);
+  g_clear_object (&object);
+  g_clear_object (&client);
+
+  return is_goa;
 }
 
 static gboolean
@@ -600,12 +760,41 @@ authenticate_sync (CamelSession  *session,
   }
 
   if (result == CAMEL_AUTHENTICATION_REJECTED) {
+    g_autofree gchar *goa_password = NULL;
+
+    if (lookup_goa_password (self, service, source, cancellable, &goa_password, &local_error)) {
+      if (local_error) {
+        g_propagate_error (error, local_error);
+        return FALSE;
+      }
+
+      camel_service_set_password (service, goa_password);
+
+      result = camel_service_authenticate_sync (service, mechanism, cancellable, &local_error);
+      if (local_error) {
+        g_propagate_error (error, local_error);
+        return FALSE;
+      }
+
+      /* Nobody can be asked for another one: the account is GNOME
+       * Online Accounts' to fix, so say so instead of letting the
+       * prompter report that it cannot prompt. */
+      if (result != CAMEL_AUTHENTICATION_ACCEPTED)
+        g_set_error (error, CAMEL_SERVICE_ERROR, CAMEL_SERVICE_ERROR_CANT_AUTHENTICATE,
+                     _("The server rejected the password GNOME Online Accounts holds for “%s”"),
+                     e_source_get_display_name (source));
+
+      return result == CAMEL_AUTHENTICATION_ACCEPTED;
+    }
+  }
+
+  if (result == CAMEL_AUTHENTICATION_REJECTED) {
     ECredentialsPrompter *prompter;
     TryCredentialsData data;
 
     data.service = service;
     data.mechanism = mechanism;
-    prompter = e_credentials_prompter_new (self->registry);
+    prompter = stamp_session_ref_prompter (self);
     authenticated = e_credentials_prompter_loop_prompt_sync (prompter,
                                                              source,
                                                              E_CREDENTIALS_PROMPTER_PROMPT_FLAG_ALLOW_SOURCE_SAVE,
@@ -613,6 +802,7 @@ authenticate_sync (CamelSession  *session,
                                                              &data,
                                                              cancellable,
                                                              error);
+    g_object_unref (prompter);
   } else {
     authenticated = (result == CAMEL_AUTHENTICATION_ACCEPTED);
   }
@@ -893,6 +1083,8 @@ stamp_session_dispose (GObject *object)
   g_cancellable_cancel (self->cancellable);
   g_clear_object (&self->cancellable);
 
+  g_clear_object (&self->prompter);
+  g_clear_object (&self->goa_client);
   g_clear_object (&self->registry);
   g_clear_list (&self->accounts, g_object_unref);
   g_clear_list (&self->signatures, stamp_signature_clear);
