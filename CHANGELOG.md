@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.4.5] - 2026-11-01
+
+### Features
+- Build the Flatpak for aarch64 as well as x86_64, so Post installs on a phone (steeb-k)
+
 ## [v0.4.4] - 2026-09-30
 
 ### Bug Fixes

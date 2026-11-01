@@ -21,6 +21,14 @@
     <color type="primary" scheme_preference="dark">#05009d</color>
   </branding>
   <releases>
+    <release version="0.4.5" date="2026-11-01">
+      <description>
+        <p>Features:</p>
+        <ul>
+          <li>Post is now built for aarch64 as well as x86_64, so it installs on a phone running a mobile Linux such as Droidian</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.4.4" date="2026-09-30">
       <description>
         <p>Fixes:</p>
