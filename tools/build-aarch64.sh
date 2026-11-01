@@ -2,6 +2,10 @@
 #
 # Cross-build Post for ARM64 and produce a bundle to sideload onto a phone.
 #
+# CI builds aarch64 natively on every push (the Flatpak (aarch64) job
+# leaves an app-aarch64.flatpak artifact), so this is for a build of
+# uncommitted work.
+#
 # The build runs on an x86_64 host under qemu user-mode emulation. What
 # makes that work is the F ("fix binary") flag on the binfmt_misc
 # registration: the kernel opens /usr/bin/qemu-aarch64-static once at

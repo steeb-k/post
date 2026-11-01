@@ -30,8 +30,18 @@ jobs:
         run: printf '%s\n%s\n' "$TITLE" "$BODY" | tools/check-commit-messages -
 
   flatpak:
-    name: Flatpak
-    runs-on: ubuntu-24.04
+    name: Flatpak (${{ matrix.arch }})
+    strategy:
+      # aarch64 is for phones (Droidian and the like); a failure there
+      # shouldn't hide the x86_64 result, or the other way round.
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     container:
       image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
       options: --privileged
@@ -41,18 +51,19 @@ jobs:
       - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
           manifest-path: io.github.steeb_k.Post.json
-          bundle: io.github.steeb_k.Post.flatpak
+          bundle: io.github.steeb_k.Post-${{ matrix.arch }}.flatpak
           branch: stable
+          arch: ${{ matrix.arch }}
 
       - name: Pack the build repo
         if: startsWith(github.ref, 'refs/tags/v')
-        run: tar -C repo -cf flatpak-build.tar .
+        run: tar -C repo -cf flatpak-build-${{ matrix.arch }}.tar .
 
       - uses: actions/upload-artifact@v7
         if: startsWith(github.ref, 'refs/tags/v')
         with:
-          name: flatpak-build
-          path: flatpak-build.tar
+          name: flatpak-build-${{ matrix.arch }}
+          path: flatpak-build-${{ matrix.arch }}.tar
           retention-days: 7
 
   release:
@@ -80,6 +91,23 @@ jobs:
           path: artifacts
           merge-multiple: true
 
+      # The publisher takes one build repo per release and publishes every
+      # arch it finds in it, so the per-arch repos are pulled into one.
+      - name: Merge the build repos
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ostree
+          ostree init --repo=repo --mode=archive-z2
+          for tar in artifacts/flatpak-build-*.tar; do
+            arch=$(basename "$tar" .tar | sed 's/^flatpak-build-//')
+            mkdir "build-$arch"
+            tar -C "build-$arch" -xf "$tar"
+            ostree pull-local --repo=repo "build-$arch"
+            rm -rf "build-$arch" "$tar"
+          done
+          ostree refs --repo=repo
+          tar -C repo -cf artifacts/flatpak-build.tar .
+
       # steeb-k/kznjk-flatpak picks the build up from here, signs it and
       # publishes it to apps.kznjk.com.
       - name: Attach to the release
@@ -94,7 +122,7 @@ jobs:
             gh release create "$TAG" --verify-tag --title "Post ${TAG#v}" --notes ""
           fi
           gh release upload "$TAG" --clobber artifacts/flatpak-build.tar \
-            artifacts/io.github.steeb_k.Post.flatpak
+            artifacts/io.github.steeb_k.Post-*.flatpak
           # The json goes last: the publisher waits for it, so it never takes
           # a build whose tarball is still uploading.
           gh release upload "$TAG" --clobber flatpak-build.json
