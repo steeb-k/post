@@ -52,6 +52,8 @@ jobs:
         with:
           manifest-path: io.github.steeb_k.Post.json
           bundle: io.github.steeb_k.Post-${{ matrix.arch }}.flatpak
+          # Given verbatim: the default tags the bundle name with the arch again.
+          artifact-name: io.github.steeb_k.Post-${{ matrix.arch }}.flatpak
           branch: stable
           arch: ${{ matrix.arch }}
 
